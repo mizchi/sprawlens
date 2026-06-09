@@ -51,13 +51,14 @@ export function layoutDependencyMap(items: GraphLayoutItem[], dependencies: Grap
     }))
     .filter((link): link is { source: SimNode; target: SimNode; weight: number } => Boolean(link.source && link.target && link.source !== link.target));
 
-  for (let iteration = 0; iteration < 180; iteration += 1) {
+  for (let iteration = 0; iteration < 240; iteration += 1) {
     applyLinkForces(links);
     applyClusterForces(nodes, size);
     applyCollisionForces(nodes);
     applyCenterForce(nodes, size);
     integrate(nodes, size, iteration);
   }
+  resolveOverlaps(nodes, size);
 
   return nodes
     .map((node) => ({
@@ -72,13 +73,13 @@ export function layoutDependencyMap(items: GraphLayoutItem[], dependencies: Grap
 
 function createNodes(items: GraphLayoutItem[], size: GraphLayoutSize): SimNode[] {
   const totalLoc = Math.max(1, items.reduce((sum, item) => sum + Math.max(1, item.loc), 0));
-  const targetArea = size.width * size.height * 0.46;
+  const targetArea = size.width * size.height * 0.3;
   const sorted = [...items].sort((a, b) => b.loc - a.loc || a.id.localeCompare(b.id));
   const columns = Math.max(1, Math.ceil(Math.sqrt(sorted.length * (size.width / Math.max(1, size.height)))));
   const rows = Math.max(1, Math.ceil(sorted.length / columns));
 
   return sorted.map((item, index) => {
-    const area = clamp((Math.max(1, item.loc) / totalLoc) * targetArea, MIN_WIDTH * MIN_HEIGHT, size.width * size.height * 0.16);
+    const area = clamp((Math.max(1, item.loc) / totalLoc) * targetArea, MIN_WIDTH * MIN_HEIGHT, size.width * size.height * 0.1);
     const aspect = 1.18 + (hashNumber(item.id) % 28) / 100;
     const width = clamp(Math.sqrt(area * aspect), MIN_WIDTH, size.width * 0.42);
     const height = clamp(area / width, MIN_HEIGHT, size.height * 0.42);
@@ -104,7 +105,7 @@ function applyLinkForces(links: Array<{ source: SimNode; target: SimNode; weight
     const dy = link.target.y - link.source.y;
     const distance = Math.max(1, Math.hypot(dx, dy));
     const desired = (link.source.width + link.source.height + link.target.width + link.target.height) / 4 + 42;
-    const force = (distance - desired) * 0.006 * link.weight;
+    const force = (distance - desired) * 0.012 * link.weight;
     const fx = (dx / distance) * force;
     const fy = (dy / distance) * force;
     link.source.vx += fx;
@@ -180,6 +181,68 @@ function integrate(nodes: SimNode[], size: GraphLayoutSize, iteration: number) {
   }
 }
 
+function resolveOverlaps(nodes: SimNode[], size: GraphLayoutSize) {
+  for (let iteration = 0; iteration < 260; iteration += 1) {
+    let maxOverlap = 0;
+    for (let i = 0; i < nodes.length; i += 1) {
+      const a = nodes[i];
+      if (!a) continue;
+      for (let j = i + 1; j < nodes.length; j += 1) {
+        const b = nodes[j];
+        if (!b) continue;
+        const dx = b.x - a.x || deterministicSign(a.id, b.id) * 0.01;
+        const dy = b.y - a.y || deterministicSign(`${a.id}:y`, `${b.id}:y`) * 0.01;
+        const overlapX = (a.width + b.width) / 2 + NODE_GAP - Math.abs(dx);
+        const overlapY = (a.height + b.height) / 2 + NODE_GAP - Math.abs(dy);
+        if (overlapX <= 0 || overlapY <= 0) {
+          continue;
+        }
+        maxOverlap = Math.max(maxOverlap, Math.min(overlapX, overlapY));
+        if (overlapX < overlapY) {
+          const direction = Math.sign(dx) || deterministicSign(a.id, b.id);
+          const push = overlapX / 2 + 0.25;
+          a.x -= direction * push;
+          b.x += direction * push;
+        } else {
+          const direction = Math.sign(dy) || deterministicSign(`${a.id}:y`, `${b.id}:y`);
+          const push = overlapY / 2 + 0.25;
+          a.y -= direction * push;
+          b.y += direction * push;
+        }
+      }
+    }
+    for (const node of nodes) {
+      node.x = clamp(node.x, node.width / 2, size.width - node.width / 2);
+      node.y = clamp(node.y, node.height / 2, size.height - node.height / 2);
+    }
+    if (maxOverlap <= 0.5) {
+      return;
+    }
+  }
+  packRows(nodes, size);
+}
+
+function packRows(nodes: SimNode[], size: GraphLayoutSize) {
+  const ordered = [...nodes].sort((a, b) => a.y - b.y || a.x - b.x || a.id.localeCompare(b.id));
+  let x = NODE_GAP;
+  let y = NODE_GAP;
+  let rowHeight = 0;
+  for (const node of ordered) {
+    if (x + node.width > size.width - NODE_GAP && x > NODE_GAP) {
+      x = NODE_GAP;
+      y += rowHeight + NODE_GAP;
+      rowHeight = 0;
+    }
+    if (y + node.height > size.height - NODE_GAP) {
+      y = NODE_GAP;
+    }
+    node.x = x + node.width / 2;
+    node.y = y + node.height / 2;
+    x += node.width + NODE_GAP;
+    rowHeight = Math.max(rowHeight, node.height);
+  }
+}
+
 function groupForPath(modulePath: string): string {
   const parts = modulePath.split("/");
   if ((parts[0] === "packages" || parts[0] === "apps") && parts[1]) {
@@ -195,6 +258,10 @@ function hashNumber(value: string): number {
     hash = Math.imul(hash, 16777619);
   }
   return hash >>> 0;
+}
+
+function deterministicSign(a: string, b: string): -1 | 1 {
+  return a.localeCompare(b) <= 0 ? -1 : 1;
 }
 
 function clamp(value: number, min: number, max: number): number {

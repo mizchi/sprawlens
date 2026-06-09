@@ -14,6 +14,12 @@ function distance(a: { x: number; y: number }, b: { x: number; y: number }) {
   return Math.hypot(a.x - b.x, a.y - b.y);
 }
 
+function overlapArea(a: { x0: number; y0: number; x1: number; y1: number }, b: { x0: number; y0: number; x1: number; y1: number }) {
+  const width = Math.max(0, Math.min(a.x1, b.x1) - Math.max(a.x0, b.x0));
+  const height = Math.max(0, Math.min(a.y1, b.y1) - Math.max(a.y0, b.y0));
+  return width * height;
+}
+
 describe("layoutDependencyMap", () => {
   it("keeps module rectangles inside bounds with minimum touch size", () => {
     const rects = layoutDependencyMap(
@@ -71,5 +77,25 @@ describe("layoutDependencyMap", () => {
     };
 
     expect(area("module:large")).toBeGreaterThan(area("module:small"));
+  });
+
+  it("keeps crowded dependency maps from overlapping", () => {
+    const items = Array.from({ length: 42 }, (_, index) => ({
+      id: `module:${index}`,
+      path: index < 22 ? `packages/pkg-${index}` : `tests/area-${index}`,
+      loc: Math.max(30, Math.round(32000 / (index + 1))),
+    }));
+    const dependencies = items.slice(1).map((item, index) => ({
+      from: "module:0",
+      to: item.id,
+      importCount: index % 5 === 0 ? 20 : 3,
+    }));
+    const rects = layoutDependencyMap(items, dependencies, { width: 747, height: 794 });
+
+    for (let i = 0; i < rects.length; i += 1) {
+      for (let j = i + 1; j < rects.length; j += 1) {
+        expect(overlapArea(rects[i]!, rects[j]!)).toBeLessThanOrEqual(1);
+      }
+    }
   });
 });
