@@ -1,0 +1,52 @@
+{
+  "name": "codesprawl-lens",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "bin": {
+    "codesprawl": "./dist/cli/index.js"
+  },
+  "scripts": {
+    "build": "pnpm run build:cli && pnpm run build:ui",
+    "build:cli": "tsc -p tsconfig.build.json",
+    "build:ui": "vite build",
+    "dev": "vite --host 127.0.0.1",
+    "preview": "vite preview --host 127.0.0.1",
+    "test": "vitest run",
+    "typecheck": "tsc -p tsconfig.json --noEmit"
+  },
+  "dependencies": {
+    "@deck.gl/core": "^9.3.3",
+    "@deck.gl/layers": "^9.3.3",
+    "@egjs/hammerjs": "^2.0.17",
+    "commander": "^14.0.0",
+    "component-emitter": "^2.0.0",
+    "d3-hierarchy": "^3.1.2",
+    "fast-glob": "^3.3.3",
+    "keycharm": "^0.4.0",
+    "lucide-react": "^0.468.0",
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0",
+    "three": "^0.184.0",
+    "typescript": "^5.7.2",
+    "uuid": "^14.0.0",
+    "vis-data": "^8.0.4",
+    "vis-graph3d": "^7.0.3",
+    "vis-util": "^6.0.0"
+  },
+  "devDependencies": {
+    "@types/d3-hierarchy": "^3.1.7",
+    "@types/node": "^22.10.2",
+    "@types/react": "^19.0.1",
+    "@types/react-dom": "^19.0.2",
+    "@types/three": "^0.184.1",
+    "@vitejs/plugin-react": "^5.0.0",
+    "tsx": "^4.19.2",
+    "vite": "^6.0.3",
+    "vitest": "^2.1.8"
+  },
+  "engines": {
+    "node": ">=24"
+  },
+  "packageManager": "pnpm@9.15.0"
+}
