@@ -13,6 +13,7 @@ import {
   type ModuleSymbol,
 } from "../core/moduleMap.js";
 import type { GraphDiff, Snapshot } from "../core/types.js";
+import { layoutDependencyMap } from "./moduleGraphLayout.js";
 import {
   filePreviewLimit,
   scaledSvgFontSize,
@@ -76,6 +77,8 @@ type DragState = {
   moved: boolean;
 };
 
+type ModuleLayoutMode = "dependency" | "area";
+
 const LAYERS: Array<{ key: CodeLayer; label: string; color: string }> = [
   { key: "runtime", label: "Runtime", color: "#9fb1c4" },
   { key: "test", label: "Test", color: "#6aa9a6" },
@@ -94,6 +97,7 @@ export function ModuleCityMap(props: ModuleCityMapProps) {
   const [gridRef, gridSize] = useElementSize<HTMLDivElement>();
   const [wrapRef, , wrapElement] = useElementSize<HTMLDivElement>();
   const [viewport, setViewport] = useState<MapViewport>({ x: 0, y: 0, zoom: 1 });
+  const [layoutMode, setLayoutMode] = useState<ModuleLayoutMode>("dependency");
   const [dragging, setDragging] = useState(false);
   const [inspectorOpen, setInspectorOpen] = useState(false);
   const dragRef = useRef<DragState | null>(null);
@@ -107,7 +111,7 @@ export function ModuleCityMap(props: ModuleCityMapProps) {
     () => (props.snapshot ? buildModuleMapFrame(props.snapshot, { diff: props.diff }) : null),
     [props.diff, props.snapshot],
   );
-  const layouts = useMemo(() => (frame ? layoutModules(frame, width, height) : []), [frame, height, width]);
+  const layouts = useMemo(() => (frame ? layoutModules(frame, width, height, layoutMode) : []), [frame, height, layoutMode, width]);
   const selectedModuleId = props.selectedModuleId || (props.selectedFile ? moduleIdForFilePath(props.selectedFile) : layouts[0]?.module.id ?? "");
   const selectedLayout = layouts.find((layout) => layout.module.id === selectedModuleId) ?? layouts[0];
   const dependencySet = useMemo(() => selectedDependencies(frame, selectedLayout?.module.id), [frame, selectedLayout?.module.id]);
@@ -396,6 +400,13 @@ export function ModuleCityMap(props: ModuleCityMapProps) {
         <ModuleMiniMap layouts={layouts} mapSize={mapSize} viewport={viewport} selectedModuleId={selectedLayout?.module.id ?? ""} />
         <div className="module-map-toolbar">
           <label>
+            Layout
+            <select value={layoutMode} onChange={(event) => setLayoutMode(event.target.value as ModuleLayoutMode)}>
+              <option value="dependency">Dependency</option>
+              <option value="area">Area</option>
+            </select>
+          </label>
+          <label>
             Zoom
             <input
               type="range"
@@ -601,7 +612,25 @@ function DependencyList(props: {
   );
 }
 
-function layoutModules(frame: ModuleMapFrame, width: number, height: number): LayoutNode[] {
+function layoutModules(frame: ModuleMapFrame, width: number, height: number, mode: ModuleLayoutMode): LayoutNode[] {
+  if (mode === "dependency") {
+    const moduleById = new Map(frame.modules.map((module) => [module.id, module]));
+    return layoutDependencyMap(frame.modules, frame.dependencies, { width, height }).flatMap((rect) => {
+      const module = moduleById.get(rect.id);
+      return module
+        ? [
+            {
+              module,
+              x0: rect.x0,
+              y0: rect.y0,
+              x1: rect.x1,
+              y1: rect.y1,
+            },
+          ]
+        : [];
+    });
+  }
+
   const root = hierarchy<{ children?: ModuleParcel[]; module?: ModuleParcel }>({ children: frame.modules })
     .sum((node) => node.module?.loc ?? ("loc" in node ? Number(node.loc) : 0))
     .sort((a, b) => (b.value ?? 0) - (a.value ?? 0));

@@ -828,6 +828,14 @@ input {
   width: min(160px, 34vw);
 }
 
+.module-map-toolbar select {
+  max-width: 118px;
+  padding: 3px 22px 3px 6px;
+  border: 1px solid #bdc7d1;
+  background: #ffffff;
+  color: #17202a;
+}
+
 .module-minimap {
   position: absolute;
   top: 10px;
