@@ -1,6 +1,14 @@
 import { describe, expect, it } from "vitest";
-import { relatedNodeIds, selectedDependencyEdgeIds, shouldShowSymbolLabel, stableInspectorNode } from "./SymbolMapView.js";
+import {
+  relatedNodeIds,
+  selectedDependencyEdgeIds,
+  shouldShowSymbolLabel,
+  stableInspectorNode,
+  symbolDependencyEdgesForMap,
+  symbolDependencyRelatedNodeIds,
+} from "./SymbolMapView.js";
 import type { SymbolMapEdge, SymbolMapFrame, SymbolMapNode } from "../core/symbolMap.js";
+import type { SymbolDependencyResult } from "../core/symbolDependencies.js";
 
 function symbol(overrides: Partial<SymbolMapNode> = {}): SymbolMapNode {
   return {
@@ -54,6 +62,37 @@ function edge(from: string, to: string, overrides: Partial<SymbolMapEdge> = {}):
   };
 }
 
+function dependencies(selectedId: string, incomingId: string, outgoingId: string): SymbolDependencyResult {
+  return {
+    schemaVersion: 1,
+    source: "typescript-language-service",
+    repoPath: "/repo",
+    symbolId: selectedId,
+    diagnostics: [],
+    nodes: [],
+    edges: [
+      {
+        id: `call:${incomingId}->${selectedId}:incoming`,
+        kind: "call",
+        direction: "incoming",
+        fromSymbolId: incomingId,
+        toSymbolId: selectedId,
+        callCount: 1,
+        locations: [],
+      },
+      {
+        id: `call:${selectedId}->${outgoingId}:outgoing`,
+        kind: "call",
+        direction: "outgoing",
+        fromSymbolId: selectedId,
+        toSymbolId: outgoingId,
+        callCount: 2,
+        locations: [],
+      },
+    ],
+  };
+}
+
 describe("symbol map visibility", () => {
   it("shows public labels early", () => {
     expect(shouldShowSymbolLabel(symbol({ surface: "public", crossModuleFanIn: 1 }), 0.8, false, false)).toBe(true);
@@ -87,5 +126,31 @@ describe("symbol map visibility", () => {
 
     expect([...selectedDependencyEdgeIds(map, selected.id)].sort()).toEqual([`edge:${incoming.id}->${selected.id}`, `edge:${selected.id}->${outgoing.id}`].sort());
     expect(relatedNodeIds(map, selected.id)).toEqual(new Set([selected.id, incoming.id, outgoing.id]));
+  });
+
+  it("turns on-demand symbol dependencies into focused map edges", () => {
+    const selected = symbol({ id: "symbol:selected", label: "selected", moduleId: "module:app" });
+    const incoming = symbol({ id: "symbol:incoming", label: "incoming", moduleId: "module:test" });
+    const outgoing = symbol({ id: "symbol:outgoing", label: "outgoing", moduleId: "module:app" });
+    const nodeById = new Map([selected, incoming, outgoing].map((node) => [node.id, node]));
+    const result = dependencies(selected.id, incoming.id, outgoing.id);
+
+    expect(symbolDependencyRelatedNodeIds(result, selected.id)).toEqual(new Set([incoming.id, outgoing.id]));
+    expect(symbolDependencyEdgesForMap(result, nodeById)).toEqual([
+      expect.objectContaining({
+        id: `lsp-call:${incoming.id}->${selected.id}`,
+        from: incoming.id,
+        to: selected.id,
+        crossModule: true,
+        importCount: 1,
+      }),
+      expect.objectContaining({
+        id: `lsp-call:${selected.id}->${outgoing.id}`,
+        from: selected.id,
+        to: outgoing.id,
+        crossModule: false,
+        importCount: 2,
+      }),
+    ]);
   });
 });

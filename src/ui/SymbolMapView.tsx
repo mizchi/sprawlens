@@ -2,6 +2,7 @@ import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import type { MouseEvent, PointerEvent } from "react";
 import { buildSymbolMapFrame, type SymbolMapEdge, type SymbolMapFrame, type SymbolMapNode } from "../core/symbolMap.js";
 import { moduleIdForFilePath } from "../core/moduleMap.js";
+import type { SymbolDependencyResult } from "../core/symbolDependencies.js";
 import type { GraphDiff, Snapshot } from "../core/types.js";
 import { wheelZoomFactor } from "./moduleViewport.js";
 
@@ -47,6 +48,9 @@ export function SymbolMapView(props: SymbolMapViewProps) {
   const [view, setView] = useState<MapView>(() => ({ x: 0, y: 0, zoom: 1 }));
   const [selectedNodeId, setSelectedNodeId] = useState("");
   const [hoveredNodeId, setHoveredNodeId] = useState("");
+  const [symbolDependencies, setSymbolDependencies] = useState<SymbolDependencyResult | null>(null);
+  const [symbolDependencyLoading, setSymbolDependencyLoading] = useState(false);
+  const [symbolDependencyError, setSymbolDependencyError] = useState("");
   const [dragging, setDragging] = useState(false);
   const dragRef = useRef<DragState | null>(null);
 
@@ -81,27 +85,61 @@ export function SymbolMapView(props: SymbolMapViewProps) {
     return () => wrapElement.removeEventListener("wheel", onWheel);
   }, [size, wrapElement]);
 
+  const selectedNodeForDependencies = frame?.nodes.find((node) => node.id === selectedNodeId);
+  useEffect(() => {
+    if (!selectedNodeForDependencies || selectedNodeForDependencies.kind !== "symbol") {
+      setSymbolDependencies(null);
+      setSymbolDependencyLoading(false);
+      setSymbolDependencyError("");
+      return;
+    }
+    const abort = new AbortController();
+    setSymbolDependencyLoading(true);
+    setSymbolDependencyError("");
+    loadSymbolDependencies(selectedNodeForDependencies.id, abort.signal)
+      .then((result) => {
+        if (!abort.signal.aborted) {
+          setSymbolDependencies(result);
+        }
+      })
+      .catch((error: unknown) => {
+        if (!abort.signal.aborted) {
+          setSymbolDependencies(null);
+          setSymbolDependencyError(error instanceof Error ? error.message : String(error));
+        }
+      })
+      .finally(() => {
+        if (!abort.signal.aborted) {
+          setSymbolDependencyLoading(false);
+        }
+      });
+    return () => abort.abort();
+  }, [selectedNodeForDependencies?.id, selectedNodeForDependencies?.kind]);
+
   if (!frame) {
     return <div className="empty-state">No symbol map</div>;
   }
 
-  const selectedNode = frame.nodes.find((node) => node.id === selectedNodeId);
+  const selectedNode = selectedNodeForDependencies;
   const hoveredNode = frame.nodes.find((node) => node.id === hoveredNodeId);
   const inspectorNode = stableInspectorNode(selectedNode, hoveredNode);
-  const relatedIds = relatedNodeIds(frame, selectedNodeId);
+  const importRelatedIds = relatedNodeIds(frame, selectedNodeId);
+  const callRelatedIds = symbolDependencyRelatedNodeIds(symbolDependencies, selectedNodeId);
+  const relatedIds = new Set([...importRelatedIds, ...callRelatedIds]);
   const visibleNodes = frame.nodes.filter((node) => shouldShowNode(node, view.zoom, node.id === selectedNodeId, relatedIds.has(node.id)));
   const visibleNodeIds = new Set(visibleNodes.map((node) => node.id));
   const visibleEdges = frame.edges.filter((edge) => visibleNodeIds.has(edge.from) && visibleNodeIds.has(edge.to) && edge.visibleAtZoom <= view.zoom);
   const focusEdgeIds = selectedDependencyEdgeIds(frame, selectedNodeId);
   const visibleFocusEdges = visibleEdges.filter((edge) => focusEdgeIds.has(edge.id));
   const visibleBackgroundEdges = visibleEdges.filter((edge) => !focusEdgeIds.has(edge.id));
+  const nodeById = new Map(frame.nodes.map((node) => [node.id, node]));
+  const visibleCallEdges = symbolDependencyEdgesForMap(symbolDependencies, nodeById).filter((edge) => visibleNodeIds.has(edge.from) && visibleNodeIds.has(edge.to));
   const visibleModuleNodes = visibleNodes.filter((node) => node.kind === "module");
   const visibleFileNodes = visibleNodes.filter((node) => node.kind === "file");
   const visibleSymbolNodes = visibleNodes.filter((node) => node.kind === "symbol");
   const focusedNodeIds = new Set([selectedNodeId, ...relatedIds]);
   const visibleBackgroundSymbols = visibleSymbolNodes.filter((node) => !focusedNodeIds.has(node.id));
   const visibleFocusSymbols = visibleSymbolNodes.filter((node) => focusedNodeIds.has(node.id));
-  const nodeById = new Map(frame.nodes.map((node) => [node.id, node]));
   const isSymbolFocus = selectedNode?.kind === "symbol";
 
   const onPointerDown = (event: PointerEvent<HTMLDivElement>) => {
@@ -222,6 +260,9 @@ export function SymbolMapView(props: SymbolMapViewProps) {
             {visibleFocusEdges.map((edge) => (
               <SymbolEdge key={edge.id} edge={edge} nodeById={nodeById} zoom={view.zoom} active />
             ))}
+            {visibleCallEdges.map((edge) => (
+              <SymbolEdge key={edge.id} edge={edge} nodeById={nodeById} zoom={view.zoom} active />
+            ))}
           </g>
           <g className="symbol-map-symbols">
             {visibleBackgroundSymbols.map((node) => (
@@ -271,7 +312,15 @@ export function SymbolMapView(props: SymbolMapViewProps) {
         </div>
         <SymbolHoverCard node={hoveredNode} />
       </div>
-      <SymbolInspector node={inspectorNode} selected={selectedNode} edges={frame.edges} nodeById={nodeById} />
+      <SymbolInspector
+        node={inspectorNode}
+        selected={selectedNode}
+        edges={frame.edges}
+        nodeById={nodeById}
+        symbolDependencies={symbolDependencies}
+        symbolDependencyLoading={symbolDependencyLoading}
+        symbolDependencyError={symbolDependencyError}
+      />
     </section>
   );
 }
@@ -388,6 +437,9 @@ function SymbolInspector(props: {
   selected?: SymbolMapNode;
   edges: SymbolMapEdge[];
   nodeById: Map<string, SymbolMapNode>;
+  symbolDependencies: SymbolDependencyResult | null;
+  symbolDependencyLoading: boolean;
+  symbolDependencyError: string;
 }) {
   const node = props.node;
   if (!node) {
@@ -423,6 +475,26 @@ function SymbolInspector(props: {
       </dl>
       <NeighborList title="Depends On" edges={outgoing} side="to" nodeById={props.nodeById} />
       <NeighborList title="Used By" edges={incoming} side="from" nodeById={props.nodeById} />
+      {node.kind === "symbol" ? (
+        <CallDependencyList
+          title="Calls"
+          direction="outgoing"
+          selectedNodeId={node.id}
+          dependencies={props.symbolDependencies}
+          loading={props.symbolDependencyLoading}
+          error={props.symbolDependencyError}
+        />
+      ) : null}
+      {node.kind === "symbol" ? (
+        <CallDependencyList
+          title="Called By"
+          direction="incoming"
+          selectedNodeId={node.id}
+          dependencies={props.symbolDependencies}
+          loading={props.symbolDependencyLoading}
+          error={props.symbolDependencyError}
+        />
+      ) : null}
     </aside>
   );
 }
@@ -480,6 +552,40 @@ function NeighborList(props: { title: string; edges: SymbolMapEdge[]; side: "fro
   );
 }
 
+function CallDependencyList(props: {
+  title: string;
+  direction: "incoming" | "outgoing";
+  selectedNodeId: string;
+  dependencies: SymbolDependencyResult | null;
+  loading: boolean;
+  error: string;
+}) {
+  const nodes = new Map(props.dependencies?.nodes.map((node) => [node.id, node]) ?? []);
+  const edges = props.dependencies?.edges.filter((edge) => edge.direction === props.direction) ?? [];
+  return (
+    <section>
+      <h3>{props.title}</h3>
+      <ul>
+        {props.loading ? <li className="empty-neighbor">Loading call hierarchy...</li> : null}
+        {!props.loading && props.error ? <li className="empty-neighbor">{props.error}</li> : null}
+        {!props.loading && !props.error
+          ? edges.slice(0, 8).map((edge) => {
+              const targetId = props.direction === "outgoing" ? edge.toSymbolId : edge.fromSymbolId;
+              const node = nodes.get(targetId);
+              return (
+                <li key={edge.id}>
+                  <span>{node ? `${node.name} · ${compactPath(node.filePath)}` : targetId}</span>
+                  <strong>{edge.callCount}</strong>
+                </li>
+              );
+            })
+          : null}
+        {!props.loading && !props.error && edges.length === 0 ? <li className="empty-neighbor">None</li> : null}
+      </ul>
+    </section>
+  );
+}
+
 export function relatedNodeIds(frame: SymbolMapFrame, selectedNodeId: string): Set<string> {
   const ids = new Set(selectedNodeId ? [selectedNodeId] : []);
   const selected = frame.nodes.find((node) => node.id === selectedNodeId);
@@ -507,6 +613,78 @@ export function selectedDependencyEdgeIds(frame: SymbolMapFrame, selectedNodeId:
     return new Set();
   }
   return new Set(frame.edges.filter((edge) => edge.from === selectedNodeId || edge.to === selectedNodeId).map((edge) => edge.id));
+}
+
+export function symbolDependencyRelatedNodeIds(dependencies: SymbolDependencyResult | null | undefined, selectedNodeId: string): Set<string> {
+  const ids = new Set<string>();
+  if (!dependencies || dependencies.symbolId !== selectedNodeId) {
+    return ids;
+  }
+  for (const edge of dependencies.edges) {
+    if (edge.fromSymbolId === selectedNodeId) {
+      ids.add(edge.toSymbolId);
+    }
+    if (edge.toSymbolId === selectedNodeId) {
+      ids.add(edge.fromSymbolId);
+    }
+  }
+  return ids;
+}
+
+export function symbolDependencyEdgesForMap(dependencies: SymbolDependencyResult | null | undefined, nodeById: Map<string, SymbolMapNode>): SymbolMapEdge[] {
+  if (!dependencies) {
+    return [];
+  }
+  return dependencies.edges.flatMap((edge): SymbolMapEdge[] => {
+    const from = nodeById.get(edge.fromSymbolId);
+    const to = nodeById.get(edge.toSymbolId);
+    if (!from || !to) {
+      return [];
+    }
+    return [
+      {
+        id: `lsp-call:${edge.fromSymbolId}->${edge.toSymbolId}`,
+        scope: "symbol",
+        from: edge.fromSymbolId,
+        to: edge.toSymbolId,
+        fromModuleId: from.moduleId ?? "",
+        toModuleId: to.moduleId ?? "",
+        importCount: edge.callCount,
+        crossModule: Boolean(from.moduleId && to.moduleId && from.moduleId !== to.moduleId),
+        status: "stable",
+        visibleAtZoom: 0,
+      },
+    ];
+  });
+}
+
+async function loadSymbolDependencies(symbolId: string, signal: AbortSignal): Promise<SymbolDependencyResult> {
+  const response = await fetch("/api/rpc", {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({
+      jsonrpc: "2.0",
+      id: `symbolDependencies:${symbolId}`,
+      method: "symbolDependencies",
+      params: {
+        symbolId,
+        maxIncoming: 24,
+        maxOutgoing: 24,
+      },
+    }),
+    signal,
+  });
+  if (!response.ok) {
+    throw new Error(`Call hierarchy request failed: ${response.status}`);
+  }
+  const payload = (await response.json()) as {
+    result?: SymbolDependencyResult;
+    error?: { message?: string };
+  };
+  if (!payload.result) {
+    throw new Error(payload.error?.message ?? "Call hierarchy request failed");
+  }
+  return payload.result;
 }
 
 function shouldShowNode(node: SymbolMapNode, zoom: number, selected: boolean, related: boolean): boolean {

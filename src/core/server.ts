@@ -3,6 +3,7 @@ import { readFile, stat } from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { analyzeRealtimeRepository, codesprawlDir, diffsDir, readDiffs, readSnapshots, snapshotsDir } from "./collect.js";
+import { resolveSymbolDependencies } from "./symbolDependencies.js";
 
 export type ServeOptions = {
   host?: string;
@@ -42,10 +43,12 @@ export async function startServer(repoPath: string, options: ServeOptions = {}):
       resolve();
     });
   });
+  const address = server.address();
+  const actualPort = typeof address === "object" && address ? address.port : port;
 
   return {
     server,
-    url: `http://${host}:${port}`,
+    url: `http://${host}:${actualPort}`,
   };
 }
 
@@ -60,14 +63,23 @@ async function handleRequest(input: {
   const pathname = decodeURIComponent(url.pathname);
 
   if (pathname.startsWith("/api/")) {
-    await handleApi(pathname, response, repo);
+    await handleApi(pathname, request, response, repo);
     return;
   }
 
   await serveStatic(pathname, response, staticDir);
 }
 
-async function handleApi(pathname: string, response: ServerResponse, repo: string) {
+async function handleApi(pathname: string, request: IncomingMessage, response: ServerResponse, repo: string) {
+  if (pathname === "/api/rpc") {
+    if (request.method !== "POST") {
+      sendJson(response, 405, { error: "Method not allowed" });
+      return;
+    }
+    sendJson(response, 200, await handleRpc(repo, await readRequestJson(request)));
+    return;
+  }
+
   if (pathname === "/api/config") {
     sendJson(response, 200, await readJson(path.join(codesprawlDir(repo), "config.json")));
     return;
@@ -126,6 +138,56 @@ async function handleApi(pathname: string, response: ServerResponse, repo: strin
   sendJson(response, 404, { error: "API route not found" });
 }
 
+type RpcRequest = {
+  jsonrpc?: string;
+  id?: string | number | null;
+  method?: string;
+  params?: unknown;
+};
+
+async function handleRpc(repo: string, payload: unknown): Promise<unknown> {
+  const request = payload as RpcRequest;
+  const id = request?.id ?? null;
+  if (!request || request.jsonrpc !== "2.0" || typeof request.method !== "string") {
+    return rpcError(id, -32600, "Invalid Request");
+  }
+  if (request.method === "symbolDependencies") {
+    const params = request.params as { symbolId?: unknown; maxIncoming?: unknown; maxOutgoing?: unknown } | undefined;
+    if (!params || typeof params.symbolId !== "string") {
+      return rpcError(id, -32602, "symbolDependencies requires params.symbolId");
+    }
+    return {
+      jsonrpc: "2.0",
+      id,
+      result: await resolveSymbolDependencies(repo, {
+        symbolId: params.symbolId,
+        maxIncoming: positiveIntegerOrUndefined(params.maxIncoming),
+        maxOutgoing: positiveIntegerOrUndefined(params.maxOutgoing),
+      }),
+    };
+  }
+  return rpcError(id, -32601, `Method not found: ${request.method}`);
+}
+
+function rpcError(id: string | number | null, code: number, message: string): unknown {
+  return {
+    jsonrpc: "2.0",
+    id,
+    error: {
+      code,
+      message,
+    },
+  };
+}
+
+function positiveIntegerOrUndefined(value: unknown): number | undefined {
+  if (value === undefined) {
+    return undefined;
+  }
+  const parsed = typeof value === "number" ? value : Number(value);
+  return Number.isInteger(parsed) && parsed > 0 ? parsed : undefined;
+}
+
 async function serveStatic(pathname: string, response: ServerResponse, staticDir: string) {
   const requestedPath = pathname === "/" ? "/index.html" : pathname;
   const resolvedPath = path.resolve(staticDir, `.${requestedPath}`);
@@ -156,6 +218,21 @@ function resolveStaticDir(): string {
 
 async function readJson(filePath: string): Promise<unknown> {
   return JSON.parse(await readFile(filePath, "utf8")) as unknown;
+}
+
+async function readRequestJson(request: IncomingMessage): Promise<unknown> {
+  const chunks: Buffer[] = [];
+  let size = 0;
+  for await (const chunk of request) {
+    const buffer = Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk);
+    size += buffer.length;
+    if (size > 1_000_000) {
+      throw new Error("Request body too large");
+    }
+    chunks.push(buffer);
+  }
+  const raw = Buffer.concat(chunks).toString("utf8");
+  return raw.length > 0 ? (JSON.parse(raw) as unknown) : null;
 }
 
 async function fileExists(filePath: string): Promise<boolean> {
