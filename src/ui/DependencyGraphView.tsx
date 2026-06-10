@@ -122,7 +122,9 @@ export function DependencyGraphView(props: DependencyGraphViewProps) {
       return;
     }
     props.onSelectFile(node.path);
-    if (node.parentId?.startsWith("module:")) {
+    if (node.moduleId?.startsWith("module:")) {
+      props.onSelectModule(node.moduleId);
+    } else if (node.parentId?.startsWith("module:")) {
       props.onSelectModule(node.parentId);
     }
   };
@@ -178,13 +180,17 @@ export function DependencyGraphView(props: DependencyGraphViewProps) {
     }
     if (node.kind === "port") {
       props.onSelectFile("");
-      if (node.parentId?.startsWith("module:")) {
+      if (node.moduleId?.startsWith("module:")) {
+        props.onSelectModule(node.moduleId);
+      } else if (node.parentId?.startsWith("module:")) {
         props.onSelectModule(node.parentId);
       }
       return;
     }
     props.onSelectFile(node.path);
-    if (node.parentId?.startsWith("module:")) {
+    if (node.moduleId?.startsWith("module:")) {
+      props.onSelectModule(node.moduleId);
+    } else if (node.parentId?.startsWith("module:")) {
       props.onSelectModule(node.parentId);
     }
   };
@@ -203,13 +209,17 @@ export function DependencyGraphView(props: DependencyGraphViewProps) {
     }
     if (node.kind === "port") {
       props.onSelectFile("");
-      if (node.parentId?.startsWith("module:")) {
+      if (node.moduleId?.startsWith("module:")) {
+        props.onSelectModule(node.moduleId);
+      } else if (node.parentId?.startsWith("module:")) {
         props.onSelectModule(node.parentId);
       }
       return;
     }
     props.onSelectFile(node.path);
-    if (node.parentId?.startsWith("module:")) {
+    if (node.moduleId?.startsWith("module:")) {
+      props.onSelectModule(node.moduleId);
+    } else if (node.parentId?.startsWith("module:")) {
       props.onSelectModule(node.parentId);
     }
   };
@@ -774,6 +784,9 @@ function graphModuleId(node?: DependencyGraphNode): string | undefined {
   }
   if (node.kind === "module") {
     return node.id;
+  }
+  if (node.moduleId?.startsWith("module:")) {
+    return node.moduleId;
   }
   return node.parentId?.startsWith("module:") ? node.parentId : undefined;
 }

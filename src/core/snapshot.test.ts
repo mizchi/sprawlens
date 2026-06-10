@@ -83,6 +83,56 @@ describe("createSnapshotFromWorkingTree", () => {
     );
   });
 
+  it("records named import bindings and symbol-level import usages", async () => {
+    await withFixture(
+      {
+        "src/api.ts": "export function createPage() {\n  return {};\n}\n",
+        "src/consumer.ts": [
+          "import { createPage as makePage } from './api';",
+          "",
+          "export function render() {",
+          "  return makePage();",
+          "}",
+          "",
+          "export function idle() {",
+          "  return 1;",
+          "}",
+        ].join("\n"),
+      },
+      async (root) => {
+        const snapshot = await createSnapshotFromWorkingTree(root, {
+          hash: "abc123",
+          shortHash: "abc123",
+          timestamp: "2026-06-09T00:00:00.000Z",
+          authorName: "Test",
+          message: "fixture",
+          aiIndicators: [],
+        });
+
+        const importEdge = snapshot.edges.find((edge) => edge.type === "imports" && edge.from === "file:src/consumer.ts");
+        expect(importEdge).toMatchObject({
+          type: "imports",
+          bindings: [
+            {
+              imported: "createPage",
+              local: "makePage",
+              kind: "named",
+            },
+          ],
+          symbolImports: [
+            expect.objectContaining({
+              imported: "createPage",
+              local: "makePage",
+              fromSymbolName: "render",
+              toSymbolName: "createPage",
+            }),
+          ],
+        });
+        expect(importEdge?.type === "imports" ? importEdge.symbolImports?.some((usage) => usage.fromSymbolName === "idle") : false).toBe(false);
+      },
+    );
+  });
+
   it("extracts top-level function and class symbols for file zoom detail", async () => {
     await withFixture(
       {

@@ -1,8 +1,12 @@
 import { describe, expect, it } from "vitest";
 import { buildDependencyGraphFrame } from "./dependencyGraph.js";
-import type { Snapshot } from "./types.js";
+import type { CodeSymbolImport, Snapshot } from "./types.js";
 
-function snapshot(hash: string, files: Array<{ path: string; loc: number; exported?: string[] }>, imports: Array<[string, string, string]>): Snapshot {
+function snapshot(
+  hash: string,
+  files: Array<{ path: string; loc: number; exported?: string[] }>,
+  imports: Array<[string, string, string, CodeSymbolImport[]?]>,
+): Snapshot {
   return {
     schemaVersion: 1,
     repoPath: "/repo",
@@ -34,13 +38,14 @@ function snapshot(hash: string, files: Array<{ path: string; loc: number; export
         })),
       })),
     ],
-    edges: imports.map(([from, to, specifier]) => ({
+    edges: imports.map(([from, to, specifier, symbolImports]) => ({
       id: `imports:file:${from}->file:${to}:${specifier}`,
       type: "imports" as const,
       from: `file:${from}`,
       to: `file:${to}`,
       specifier,
       resolved: true,
+      symbolImports,
     })),
     metrics: {
       loc: files.reduce((sum, file) => sum + file.loc, 0),
@@ -154,6 +159,63 @@ describe("dependency graph model", () => {
         expect.objectContaining({
           from: "api:packages/app/src/router.ts",
           to: "module:packages/core",
+          scope: "detail",
+        }),
+      ]),
+    );
+  });
+
+  it("prefers symbol-level detail routes over file-level routes when import usages are available", () => {
+    const frame = buildDependencyGraphFrame(
+      snapshot(
+        "abc",
+        [
+          { path: "packages/app/src/index.ts", loc: 120, exported: ["start"] },
+          { path: "packages/app/src/router.ts", loc: 90, exported: ["createRouter"] },
+        ],
+        [
+          [
+            "packages/app/src/index.ts",
+            "packages/app/src/router.ts",
+            "./router",
+            [
+              {
+                imported: "createRouter",
+                local: "createRouter",
+                kind: "named",
+                fromSymbolId: "symbol:packages/app/src/index.ts:start",
+                fromSymbolName: "start",
+                toSymbolId: "symbol:packages/app/src/router.ts:createRouter",
+                toSymbolName: "createRouter",
+              },
+            ],
+          ],
+        ],
+      ),
+      { focusModuleId: "module:packages/app" },
+    );
+
+    expect(frame.nodes).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ id: "symbol:packages/app/src/index.ts:start", kind: "symbol" }),
+        expect.objectContaining({ id: "symbol:packages/app/src/router.ts:createRouter", kind: "symbol" }),
+      ]),
+    );
+    expect(frame.edges).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          from: "symbol:packages/app/src/index.ts:start",
+          to: "symbol:packages/app/src/router.ts:createRouter",
+          scope: "detail",
+          importCount: 1,
+        }),
+      ]),
+    );
+    expect(frame.edges).not.toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          from: "api:packages/app/src/index.ts",
+          to: "api:packages/app/src/router.ts",
           scope: "detail",
         }),
       ]),

@@ -68,6 +68,22 @@ export type CodeSymbol = {
   exported: boolean;
 };
 
+export type CodeImportBindingKind = "named" | "default" | "namespace" | "side-effect" | "reexport-named" | "reexport-all" | "require" | "dynamic";
+
+export type CodeImportBinding = {
+  imported: string;
+  local: string;
+  kind: CodeImportBindingKind;
+  typeOnly?: boolean;
+};
+
+export type CodeSymbolImport = CodeImportBinding & {
+  fromSymbolId?: string;
+  fromSymbolName?: string;
+  toSymbolId?: string;
+  toSymbolName?: string;
+};
+
 export type ContainsEdge = {
   id: string;
   type: "contains";
@@ -82,6 +98,8 @@ export type ImportsEdge = {
   to: string;
   specifier: string;
   resolved: boolean;
+  bindings?: CodeImportBinding[];
+  symbolImports?: CodeSymbolImport[];
 };
 
 export type CodeEdge = ContainsEdge | ImportsEdge;

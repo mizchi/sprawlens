@@ -32,6 +32,7 @@ export type DependencyGraphNode = {
   id: string;
   kind: DependencyGraphNodeKind;
   parentId?: string;
+  moduleId?: string;
   expanded: boolean;
   path: string;
   label: string;
@@ -103,6 +104,7 @@ export type BuildDependencyGraphOptions = {
   focusModuleId?: string;
   focusFilePath?: string;
   maxApiNodes?: number;
+  maxSymbolNodes?: number;
 };
 
 const GRAPH_WIDTH = 1600;
@@ -134,6 +136,7 @@ export function buildDependencyGraphFrame(snapshot: Snapshot, options: BuildDepe
   const fileById = new Map(moduleFrame.modules.flatMap((module) => module.files.map((file) => [file.id, file] as const)));
   const moduleByFileId = new Map<string, string>();
   const apiNodeByFileId = new Map<string, string>();
+  const symbolNodeBySymbolId = new Map<string, string>();
 
   for (const module of moduleFrame.modules) {
     for (const file of module.files) {
@@ -152,25 +155,34 @@ export function buildDependencyGraphFrame(snapshot: Snapshot, options: BuildDepe
     if (focusModule && parent) {
       const apiFiles = selectApiFiles(focusModule, options.maxApiNodes ?? 20);
       const apiNodes = layoutApiNodes(parent, apiFiles);
+      const apiNodeByPath = new Map<string, DependencyGraphNode>();
       for (const apiNode of apiNodes) {
         nodes.push(apiNode.node);
         visibleNodeIds.add(apiNode.node.id);
         apiNodeByFileId.set(apiNode.file.id, apiNode.node.id);
+        apiNodeByPath.set(apiNode.file.path, apiNode.node);
       }
 
       const focusFile = options.focusFilePath ? apiFiles.find((file) => file.path === options.focusFilePath) : apiFiles[0];
-      const focusApiNode = focusFile ? nodes.find((node) => node.id === apiIdForPath(focusFile.path)) : undefined;
-      if (focusFile && focusApiNode) {
-        for (const symbolNode of layoutSymbolNodes(focusApiNode, focusFile.symbols.filter((symbol) => symbol.exported))) {
+      const symbolNodes = layoutVisibleSymbolNodes(apiFiles, apiNodeByPath, options.maxSymbolNodes ?? 120, focusFile?.path);
+      for (const symbolNode of symbolNodes) {
+        nodes.push(symbolNode);
+        visibleNodeIds.add(symbolNode.id);
+        symbolNodeBySymbolId.set(symbolNode.id, symbolNode.id);
+      }
+      if (symbolNodes.length === 0 && focusFile) {
+        const focusApiNode = apiNodeByPath.get(focusFile.path);
+        for (const symbolNode of focusApiNode ? layoutSymbolNodes(focusApiNode, focusFile.symbols.filter((symbol) => symbol.exported)) : []) {
           nodes.push(symbolNode);
           visibleNodeIds.add(symbolNode.id);
+          symbolNodeBySymbolId.set(symbolNode.id, symbolNode.id);
         }
       }
     }
   }
 
-  const edges = aggregateVisibleEdges(snapshot, moduleFrame, fileById, moduleByFileId, apiNodeByFileId, visibleNodeIds, options.diff ?? null);
-  const breakdowns = buildImportBreakdowns(snapshot, moduleFrame, fileById, moduleByFileId, apiNodeByFileId, options.diff ?? null);
+  const edges = aggregateVisibleEdges(snapshot, moduleFrame, fileById, moduleByFileId, apiNodeByFileId, symbolNodeBySymbolId, visibleNodeIds, options.diff ?? null);
+  const breakdowns = buildImportBreakdowns(snapshot, moduleFrame, fileById, moduleByFileId, apiNodeByFileId, symbolNodeBySymbolId, options.diff ?? null);
   return {
     schemaVersion: 1,
     commitHash: snapshot.commit.hash,
@@ -186,6 +198,7 @@ function moduleNode(positioned: PositionedModule): DependencyGraphNode {
   return {
     id: module.id,
     kind: "module",
+    moduleId: module.id,
     expanded: positioned.expanded,
     path: module.path,
     label: module.label,
@@ -217,6 +230,7 @@ function portNode(
     id: portIdForDependency(owner.module.id, peer.module.id, direction),
     kind: "port",
     parentId: owner.module.id,
+    moduleId: owner.module.id,
     expanded: false,
     path: owner.module.path,
     label: `${direction === "out" ? "to" : "from"} ${peer.module.label}`,
@@ -243,6 +257,7 @@ function apiNode(file: ModuleFile, parent: PositionedModule, x: number, y: numbe
     id: apiIdForPath(file.path),
     kind: "api",
     parentId: parent.module.id,
+    moduleId: parent.module.id,
     expanded: false,
     path: file.path,
     label: file.label,
@@ -299,6 +314,7 @@ function symbolNode(symbol: ModuleSymbol, parent: DependencyGraphNode, x: number
     id: symbol.id,
     kind: "symbol",
     parentId: parent.id,
+    moduleId: parent.moduleId,
     expanded: false,
     path: symbol.filePath,
     label: symbol.label,
@@ -497,6 +513,47 @@ function expandedModuleRadius(module: ModuleParcel): number {
   return clamp(138 + Math.sqrt(apiCapacity) * 15, 168, 240);
 }
 
+function layoutVisibleSymbolNodes(
+  files: ModuleFile[],
+  apiNodeByPath: Map<string, DependencyGraphNode>,
+  maxSymbolNodes: number,
+  focusFilePath?: string,
+): DependencyGraphNode[] {
+  const selected = files
+    .flatMap((file) =>
+      file.symbols.map((symbol) => ({
+        file,
+        symbol,
+        score:
+          (file.path === focusFilePath ? 2_000 : 0) +
+          (symbol.exported ? 1_000 : 0) +
+          file.fanIn * 18 +
+          file.fanOut * 12 +
+          symbol.loc,
+      })),
+    )
+    .sort((a, b) => b.score - a.score || a.file.path.localeCompare(b.file.path) || a.symbol.name.localeCompare(b.symbol.name))
+    .slice(0, maxSymbolNodes)
+    .sort((a, b) => a.file.path.localeCompare(b.file.path) || a.symbol.name.localeCompare(b.symbol.name));
+
+  const byFile = new Map<string, ModuleSymbol[]>();
+  for (const item of selected) {
+    const current = byFile.get(item.file.path) ?? [];
+    current.push(item.symbol);
+    byFile.set(item.file.path, current);
+  }
+
+  const nodes: DependencyGraphNode[] = [];
+  for (const [filePath, symbols] of byFile) {
+    const parent = apiNodeByPath.get(filePath);
+    if (!parent) {
+      continue;
+    }
+    nodes.push(...layoutSymbolNodes(parent, symbols));
+  }
+  return nodes;
+}
+
 function layoutSymbolNodes(parent: DependencyGraphNode, symbols: ModuleSymbol[]): DependencyGraphNode[] {
   const radius = parent.r + 24 + Math.sqrt(symbols.length) * 2;
   return symbols.slice(0, 18).map((symbol, index) => {
@@ -511,6 +568,7 @@ function aggregateVisibleEdges(
   fileById: Map<string, ModuleFile>,
   moduleByFileId: Map<string, string>,
   apiNodeByFileId: Map<string, string>,
+  symbolNodeBySymbolId: Map<string, string>,
   visibleNodeIds: Set<string>,
   diff: BuildDependencyGraphOptions["diff"],
 ): DependencyGraphEdge[] {
@@ -537,6 +595,16 @@ function aggregateVisibleEdges(
     if (edge.type !== "imports" || !edge.resolved) {
       continue;
     }
+    const fromModuleId = moduleByFileId.get(edge.from);
+    const toModuleId = moduleByFileId.get(edge.to);
+    if (!fromModuleId || !toModuleId || fromModuleId !== toModuleId) {
+      continue;
+    }
+    const symbolEdgesAdded = addSymbolDetailEdges(edgeMap, edge, fromModuleId, toModuleId, symbolNodeBySymbolId, visibleNodeIds, addedEdges);
+    if (symbolEdgesAdded) {
+      continue;
+    }
+
     const from = visibleEndpoint(edge, fileById, moduleByFileId, apiNodeByFileId, visibleNodeIds, "from");
     const to = visibleEndpoint(edge, fileById, moduleByFileId, apiNodeByFileId, visibleNodeIds, "to");
     if (!from || !to || from === to) {
@@ -546,11 +614,6 @@ function aggregateVisibleEdges(
       continue;
     }
     const id = `detail-route:${from}->${to}`;
-    const fromModuleId = moduleByFileId.get(edge.from);
-    const toModuleId = moduleByFileId.get(edge.to);
-    if (!fromModuleId || !toModuleId || fromModuleId !== toModuleId) {
-      continue;
-    }
     const current = edgeMap.get(id) ?? {
       id,
       scope: "detail" as DependencyGraphEdgeScope,
@@ -581,6 +644,46 @@ function aggregateVisibleEdges(
   );
 }
 
+function addSymbolDetailEdges(
+  edgeMap: Map<string, DependencyGraphEdge>,
+  edge: ImportsEdge,
+  fromModuleId: string,
+  toModuleId: string,
+  symbolNodeBySymbolId: Map<string, string>,
+  visibleNodeIds: Set<string>,
+  addedEdges: Set<string>,
+): boolean {
+  let added = false;
+  for (const symbolImport of edge.symbolImports ?? []) {
+    if (!symbolImport.fromSymbolId || !symbolImport.toSymbolId) {
+      continue;
+    }
+    const from = symbolNodeBySymbolId.get(symbolImport.fromSymbolId);
+    const to = symbolNodeBySymbolId.get(symbolImport.toSymbolId);
+    if (!from || !to || from === to || !visibleNodeIds.has(from) || !visibleNodeIds.has(to)) {
+      continue;
+    }
+    const id = `detail-route:${from}->${to}`;
+    const current = edgeMap.get(id) ?? {
+      id,
+      scope: "detail" as DependencyGraphEdgeScope,
+      from,
+      to,
+      fromModuleId,
+      toModuleId,
+      importCount: 0,
+      status: "stable" as DependencyGraphStatus,
+    };
+    current.importCount += 1;
+    if (addedEdges.has(edge.id)) {
+      current.status = "added";
+    }
+    edgeMap.set(id, current);
+    added = true;
+  }
+  return added;
+}
+
 function edgeScopeRank(scope: DependencyGraphEdgeScope): number {
   return scope === "detail" ? 0 : 1;
 }
@@ -591,6 +694,7 @@ function buildImportBreakdowns(
   fileById: Map<string, ModuleFile>,
   moduleByFileId: Map<string, string>,
   apiNodeByFileId: Map<string, string>,
+  symbolNodeBySymbolId: Map<string, string>,
   diff: BuildDependencyGraphOptions["diff"],
 ): Record<string, DependencyGraphBreakdown> {
   const addedEdges = new Set(diff?.addedEdges ?? []);
@@ -601,6 +705,9 @@ function buildImportBreakdowns(
   }
   for (const apiNodeId of apiNodeByFileId.values()) {
     ensureBreakdown(breakdowns, apiNodeId);
+  }
+  for (const symbolNodeId of symbolNodeBySymbolId.values()) {
+    ensureBreakdown(breakdowns, symbolNodeId);
   }
 
   for (const edge of snapshot.edges) {
@@ -636,6 +743,26 @@ function buildImportBreakdowns(
     }
     if (toApiNodeId) {
       addBreakdownDetail(breakdowns, toApiNodeId, "incoming", detailBase);
+    }
+    for (const symbolImport of edge.symbolImports ?? []) {
+      const fromSymbolNodeId = symbolImport.fromSymbolId ? symbolNodeBySymbolId.get(symbolImport.fromSymbolId) : undefined;
+      const toSymbolNodeId = symbolImport.toSymbolId ? symbolNodeBySymbolId.get(symbolImport.toSymbolId) : undefined;
+      if (fromSymbolNodeId) {
+        addBreakdownDetail(breakdowns, fromSymbolNodeId, "outgoing", {
+          ...detailBase,
+          fromNodeId: fromSymbolNodeId,
+          toNodeId: toSymbolNodeId ?? detailBase.toNodeId,
+          specifier: symbolImport.imported,
+        });
+      }
+      if (toSymbolNodeId) {
+        addBreakdownDetail(breakdowns, toSymbolNodeId, "incoming", {
+          ...detailBase,
+          fromNodeId: fromSymbolNodeId ?? detailBase.fromNodeId,
+          toNodeId: toSymbolNodeId,
+          specifier: symbolImport.imported,
+        });
+      }
     }
   }
 

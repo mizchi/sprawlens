@@ -3,7 +3,18 @@ import path from "node:path";
 import fg from "fast-glob";
 import ts from "typescript";
 import { computeGraphMetrics } from "./metrics.js";
-import type { CodeEdge, CodeNode, CodeSymbol, CodeSymbolKind, FileNode, Snapshot, SnapshotCommit } from "./types.js";
+import type {
+  CodeEdge,
+  CodeImportBinding,
+  CodeImportBindingKind,
+  CodeNode,
+  CodeSymbol,
+  CodeSymbolImport,
+  CodeSymbolKind,
+  FileNode,
+  Snapshot,
+  SnapshotCommit,
+} from "./types.js";
 
 export const SOURCE_EXTENSIONS = [".ts", ".tsx", ".js", ".jsx", ".mts", ".cts", ".mjs", ".cjs"] as const;
 
@@ -78,7 +89,7 @@ export async function createSnapshotFromWorkingTree(
 
   const edges = [
     ...createContainsEdges(dirPaths, fileNodes.map((node) => node.path)),
-    ...createImportEdges(root, fileContents, fileSet),
+    ...createImportEdges(root, fileContents, fileSet, fileNodes),
   ];
   const { metrics } = computeGraphMetrics(nodes, edges);
 
@@ -163,12 +174,20 @@ function createContainsEdges(dirPaths: string[], filePaths: string[]): CodeEdge[
   return [...edges.values()].sort((a, b) => a.id.localeCompare(b.id));
 }
 
-function createImportEdges(root: string, fileContents: Map<string, string>, fileSet: Set<string>): CodeEdge[] {
+type ExtractedImport = {
+  specifier: string;
+  bindings: CodeImportBinding[];
+};
+
+function createImportEdges(root: string, fileContents: Map<string, string>, fileSet: Set<string>, fileNodes: FileNode[]): CodeEdge[] {
   const edges = new Map<string, CodeEdge>();
+  const fileByPath = new Map(fileNodes.map((file) => [file.path, file]));
 
   for (const [fromPath, content] of fileContents) {
-    const specifiers = extractImportSpecifiers(content, fromPath);
-    for (const specifier of specifiers) {
+    const imports = extractImports(content, fromPath);
+    const usageByLocal = collectTopLevelSymbolUsages(content, fromPath, new Set(imports.flatMap((item) => item.bindings.map((binding) => binding.local))));
+    for (const item of imports) {
+      const { specifier, bindings } = item;
       if (!specifier.startsWith(".")) {
         continue;
       }
@@ -177,6 +196,7 @@ function createImportEdges(root: string, fileContents: Map<string, string>, file
       const from = fileId(fromPath);
       const to = resolvedPath ? fileId(resolvedPath) : unresolvedId(fromPath, specifier);
       const id = importId(from, to, specifier);
+      const symbolImports = resolvedPath ? resolveSymbolImports(bindings, usageByLocal, fileByPath.get(resolvedPath)) : [];
       edges.set(id, {
         id,
         type: "imports",
@@ -184,6 +204,8 @@ function createImportEdges(root: string, fileContents: Map<string, string>, file
         to,
         specifier,
         resolved: Boolean(resolvedPath),
+        bindings: bindings.length > 0 ? bindings : undefined,
+        symbolImports: symbolImports.length > 0 ? symbolImports : undefined,
       });
     }
   }
@@ -192,22 +214,28 @@ function createImportEdges(root: string, fileContents: Map<string, string>, file
   return [...edges.values()].sort((a, b) => a.id.localeCompare(b.id));
 }
 
-function extractImportSpecifiers(content: string, fileName: string): string[] {
+function extractImports(content: string, fileName: string): ExtractedImport[] {
   const sourceFile = ts.createSourceFile(fileName, content, ts.ScriptTarget.Latest, true, scriptKindFor(fileName));
-  const specifiers: string[] = [];
+  const imports: ExtractedImport[] = [];
 
   function visit(node: ts.Node) {
     if (ts.isImportDeclaration(node) && ts.isStringLiteralLike(node.moduleSpecifier)) {
-      specifiers.push(node.moduleSpecifier.text);
+      imports.push({
+        specifier: node.moduleSpecifier.text,
+        bindings: bindingsFromImportDeclaration(node),
+      });
     } else if (ts.isExportDeclaration(node) && node.moduleSpecifier && ts.isStringLiteralLike(node.moduleSpecifier)) {
-      specifiers.push(node.moduleSpecifier.text);
+      imports.push({
+        specifier: node.moduleSpecifier.text,
+        bindings: bindingsFromExportDeclaration(node),
+      });
     } else if (ts.isCallExpression(node) && node.arguments.length > 0) {
       const firstArg = node.arguments[0];
       if (firstArg && ts.isStringLiteralLike(firstArg)) {
         if (node.expression.kind === ts.SyntaxKind.ImportKeyword) {
-          specifiers.push(firstArg.text);
+          imports.push({ specifier: firstArg.text, bindings: [{ imported: "*", local: "*", kind: "dynamic" }] });
         } else if (ts.isIdentifier(node.expression) && node.expression.text === "require") {
-          specifiers.push(firstArg.text);
+          imports.push({ specifier: firstArg.text, bindings: [{ imported: "*", local: "*", kind: "require" }] });
         }
       }
     }
@@ -216,7 +244,122 @@ function extractImportSpecifiers(content: string, fileName: string): string[] {
   }
 
   visit(sourceFile);
-  return specifiers;
+  return imports;
+}
+
+function bindingsFromImportDeclaration(node: ts.ImportDeclaration): CodeImportBinding[] {
+  const importClause = node.importClause;
+  if (!importClause) {
+    return [{ imported: "*", local: "*", kind: "side-effect" }];
+  }
+  const bindings: CodeImportBinding[] = [];
+  const typeOnly = importClause.isTypeOnly || undefined;
+  if (importClause.name) {
+    bindings.push({ imported: "default", local: importClause.name.text, kind: "default", typeOnly });
+  }
+  const namedBindings = importClause.namedBindings;
+  if (namedBindings && ts.isNamespaceImport(namedBindings)) {
+    bindings.push({ imported: "*", local: namedBindings.name.text, kind: "namespace", typeOnly });
+  } else if (namedBindings && ts.isNamedImports(namedBindings)) {
+    for (const element of namedBindings.elements) {
+      bindings.push({
+        imported: element.propertyName?.text ?? element.name.text,
+        local: element.name.text,
+        kind: "named",
+        typeOnly: importClause.isTypeOnly || element.isTypeOnly || undefined,
+      });
+    }
+  }
+  return bindings;
+}
+
+function bindingsFromExportDeclaration(node: ts.ExportDeclaration): CodeImportBinding[] {
+  const exportClause = node.exportClause;
+  if (!exportClause) {
+    return [{ imported: "*", local: "*", kind: "reexport-all", typeOnly: node.isTypeOnly || undefined }];
+  }
+  if (ts.isNamespaceExport(exportClause)) {
+    return [{ imported: "*", local: exportClause.name.text, kind: "reexport-all", typeOnly: node.isTypeOnly || undefined }];
+  }
+  return exportClause.elements.map((element) => ({
+    imported: element.propertyName?.text ?? element.name.text,
+    local: element.name.text,
+    kind: "reexport-named" as CodeImportBindingKind,
+    typeOnly: node.isTypeOnly || element.isTypeOnly || undefined,
+  }));
+}
+
+function resolveSymbolImports(
+  bindings: CodeImportBinding[],
+  usageByLocal: Map<string, CodeSymbol[]>,
+  targetFile?: FileNode,
+): CodeSymbolImport[] {
+  if (!targetFile) {
+    return [];
+  }
+  const exportedSymbols = new Map((targetFile.symbols ?? []).filter((symbol) => symbol.exported).map((symbol) => [symbol.name, symbol]));
+  const imports: CodeSymbolImport[] = [];
+  for (const binding of bindings) {
+    if (binding.typeOnly || binding.imported === "*" || binding.kind === "side-effect" || binding.kind === "dynamic" || binding.kind === "require") {
+      continue;
+    }
+    const target = exportedSymbols.get(binding.imported);
+    if (!target) {
+      continue;
+    }
+    const fromSymbols = binding.kind === "reexport-named" ? [] : (usageByLocal.get(binding.local) ?? []);
+    if (fromSymbols.length === 0) {
+      imports.push({
+        ...binding,
+        toSymbolId: target.id,
+        toSymbolName: target.name,
+      });
+      continue;
+    }
+    for (const fromSymbol of fromSymbols) {
+      imports.push({
+        ...binding,
+        fromSymbolId: fromSymbol.id,
+        fromSymbolName: fromSymbol.name,
+        toSymbolId: target.id,
+        toSymbolName: target.name,
+      });
+    }
+  }
+  return imports;
+}
+
+function collectTopLevelSymbolUsages(content: string, fileName: string, localNames: Set<string>): Map<string, CodeSymbol[]> {
+  const usages = new Map<string, CodeSymbol[]>();
+  if (localNames.size === 0 || (localNames.size === 1 && localNames.has("*"))) {
+    return usages;
+  }
+  const sourceFile = ts.createSourceFile(fileName, content, ts.ScriptTarget.Latest, true, scriptKindFor(fileName));
+
+  for (const statement of sourceFile.statements) {
+    if (ts.isImportDeclaration(statement) || ts.isExportDeclaration(statement)) {
+      continue;
+    }
+    const exported = hasExportModifier(statement);
+    const symbols = symbolsFromTopLevelStatement(statement, sourceFile, fileName, exported);
+    for (const symbol of symbols) {
+      const seenLocals = new Set<string>();
+      const visit = (node: ts.Node) => {
+        if (ts.isIdentifier(node) && localNames.has(node.text)) {
+          seenLocals.add(node.text);
+        }
+        ts.forEachChild(node, visit);
+      };
+      visit(statement);
+      for (const local of seenLocals) {
+        const current = usages.get(local) ?? [];
+        current.push(symbol);
+        usages.set(local, current);
+      }
+    }
+  }
+
+  return usages;
 }
 
 function extractTopLevelSymbols(content: string, fileName: string): CodeSymbol[] {
@@ -225,23 +368,24 @@ function extractTopLevelSymbols(content: string, fileName: string): CodeSymbol[]
 
   for (const statement of sourceFile.statements) {
     const exported = hasExportModifier(statement);
-    const direct = symbolFromStatement(statement, sourceFile, fileName, exported);
-    if (direct) {
-      symbols.push(direct);
-      continue;
-    }
-
-    if (ts.isVariableStatement(statement)) {
-      for (const declaration of statement.declarationList.declarations) {
-        const variableSymbol = symbolFromVariableDeclaration(declaration, statement, sourceFile, fileName, exported);
-        if (variableSymbol) {
-          symbols.push(variableSymbol);
-        }
-      }
-    }
+    symbols.push(...symbolsFromTopLevelStatement(statement, sourceFile, fileName, exported));
   }
 
   return symbols.sort((a, b) => a.startLine - b.startLine || a.name.localeCompare(b.name));
+}
+
+function symbolsFromTopLevelStatement(statement: ts.Statement, sourceFile: ts.SourceFile, fileName: string, exported: boolean): CodeSymbol[] {
+  const direct = symbolFromStatement(statement, sourceFile, fileName, exported);
+  if (direct) {
+    return [direct];
+  }
+  if (!ts.isVariableStatement(statement)) {
+    return [];
+  }
+  return statement.declarationList.declarations.flatMap((declaration) => {
+    const variableSymbol = symbolFromVariableDeclaration(declaration, statement, sourceFile, fileName, exported);
+    return variableSymbol ? [variableSymbol] : [];
+  });
 }
 
 function symbolFromStatement(statement: ts.Statement, sourceFile: ts.SourceFile, fileName: string, exported: boolean): CodeSymbol | undefined {
@@ -283,7 +427,7 @@ function symbolFromVariableDeclaration(
       : ts.isClassExpression(initializer)
         ? "class"
         : "variable";
-  if (kind === "variable") {
+  if (kind === "variable" && !exported) {
     return undefined;
   }
   return createSymbol(fileName, sourceFile, statement, kind, declaration.name.text, exported);
