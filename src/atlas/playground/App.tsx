@@ -191,6 +191,30 @@ export function App() {
   /** Symbols whose call hierarchy was already fetched from the LSP server. */
   const fetchedHierarchyRef = useRef(new Set<string>());
   const [hierarchyVersion, setHierarchyVersion] = useState(0);
+  // Graph-derived lookups, rebuilt only when the graph changes. Recomputing
+  // these per render allocated heavily and drove major-GC pauses during
+  // zoom gestures (lightbringer drilldown: GC marking dominated the spans).
+  const locOfRef = useRef(new Map<string, number>());
+  const labelsRef = useRef(new Map<string, string>());
+  const exportedIdsRef = useRef(new Set<string>());
+  const testFileIdsRef = useRef(new Set<string>());
+  const testTargetsRef = useRef(new Map<string, string>());
+  /** Flattened inner cells, rebuilt only when a nested layout changed. */
+  const innerCellsRef = useRef<CellResult[]>([]);
+  const innerDirtyRef = useRef(true);
+
+  const refreshGraphLookups = () => {
+    const graph = graphRef.current;
+    locOfRef.current = new Map(graph.nodes.map((n) => [n.id, n.metrics.loc]));
+    testFileIdsRef.current = new Set(
+      graph.nodes
+        .filter((n) => defaultLayerOf(n.id) === "test")
+        .map((n) => n.id),
+    );
+    testTargetsRef.current = matchTestTargets(graph);
+    const labels = labelsRef.current;
+    for (const node of graph.nodes) labels.set(node.id, node.label);
+  };
 
   const ringsOptions = (p: PlaygroundParams) => ({
     width: WIDTH,
@@ -228,14 +252,18 @@ export function App() {
     budgetMs: number,
   ) => {
     const inner = innerLayoutsRef.current;
-    const alive = new Set<string>();
-    for (const cell of outerCells) alive.add(cell.id);
-    for (const id of [...inner.keys()]) {
-      if (!alive.has(id)) inner.delete(id);
+    // deletions only happen after graph changes; skip the per-tick set churn
+    if (inner.size > outerCells.length) {
+      const alive = new Set<string>();
+      for (const cell of outerCells) alive.add(cell.id);
+      for (const id of [...inner.keys()]) {
+        if (!alive.has(id)) {
+          inner.delete(id);
+          innerDirtyRef.current = true;
+        }
+      }
     }
-    const locOf = new Map(
-      graphRef.current.nodes.map((n) => [n.id, n.metrics.loc]),
-    );
+    const locOf = locOfRef.current;
     const start = performance.now();
     const total = outerCells.length;
     for (let step = 0; step < total; step++) {
@@ -261,6 +289,8 @@ export function App() {
             exported: symbol.exported === true,
             fileId: cell.id,
           });
+          labelsRef.current.set(symbol.id, symbol.label);
+          if (symbol.exported === true) exportedIdsRef.current.add(symbol.id);
         }
         layout = createCapacityLayout(
           symbols.map((s) => ({ id: s.id, weight: s.metrics.loc })),
@@ -276,6 +306,7 @@ export function App() {
         layout = capacityStep(layout);
       }
       inner.set(cell.id, layout);
+      innerDirtyRef.current = true;
     }
     innerCursorRef.current = 0;
   };
@@ -332,6 +363,11 @@ export function App() {
     innerLayoutsRef.current = new Map();
     symbolMetaRef.current = new Map();
     fetchedHierarchyRef.current = new Set();
+    labelsRef.current = new Map();
+    exportedIdsRef.current = new Set();
+    innerCellsRef.current = [];
+    innerDirtyRef.current = true;
+    refreshGraphLookups();
     setFocusId(null);
   };
 
@@ -469,6 +505,12 @@ export function App() {
           }
         }
       }
+      if (innerDirtyRef.current) {
+        innerDirtyRef.current = false;
+        innerCellsRef.current = [...innerLayoutsRef.current.values()].flatMap(
+          (l) => l.cells,
+        );
+      }
       // re-render only while a solver is actually advancing; a converged
       // layout would otherwise burn CPU at full frame rate
       if (outerActive || innerActive) setFrame((f) => f + 1);
@@ -483,6 +525,7 @@ export function App() {
   }, []);
 
   const afterGraphMutation = (changedFileId?: string) => {
+    refreshGraphLookups();
     if (ringsRef.current) {
       ringsRef.current = applyRingsChanges(
         ringsRef.current,
@@ -674,31 +717,14 @@ export function App() {
     };
   };
   const focusView = focusId ? computeFocus(focusId) : null;
-  const exportedIds = new Set(
-    [...symbolMetaRef.current]
-      .filter(([, meta]) => meta.exported)
-      .map(([id]) => id),
-  );
+  const exportedIds = exportedIdsRef.current;
 
   const allCells: CellResult[] = ringsRef.current
     ? [...ringsRef.current.moduleLayouts.values()].flatMap((l) => l.cells)
     : (layoutRef.current?.cells ?? []);
-  const allInnerCells = [...innerLayoutsRef.current.values()].flatMap(
-    (l) => l.cells,
-  );
-
-  /** Test files in the layout get a muted fill; the map shows their ratio. */
-  const testFileIds = new Set(
-    graphRef.current.nodes
-      .filter((n) => defaultLayerOf(n.id) === "test")
-      .map((n) => n.id),
-  );
-  /** test file id → covered source file, for the details panel. */
-  const testTargets = useMemo(
-    () => matchTestTargets(graphRef.current),
-    // graph mutations bump the frame; recompute cheaply on selection change
-    [selectedId, params.source, params.count, params.seed],
-  );
+  const allInnerCells = innerCellsRef.current;
+  const testFileIds = testFileIdsRef.current;
+  const testTargets = testTargetsRef.current;
   const selected = useMemo(
     () =>
       allCells.find((c) => c.id === selectedId) ??
@@ -766,15 +792,15 @@ export function App() {
         ),
       )
     : (layoutRef.current?.maxRelativeError ?? 0);
-  const labels = new Map(graphRef.current.nodes.map((n) => [n.id, n.label]));
-  if (symbolsRef.current) {
-    for (const symbols of symbolsRef.current.values()) {
-      for (const symbol of symbols) labels.set(symbol.id, symbol.label);
-    }
-  }
+  const labels = labelsRef.current;
   const innerCells = params.showNested ? allInnerCells : [];
   const labelOf = (id: string) =>
     labels.get(id) ?? id.slice(id.indexOf("#") + 1).split("/").pop() ?? id;
+  const parentFileOf = (id: string) =>
+    symbolMetaRef.current.get(id)?.fileId ??
+    (id.startsWith("symbol:")
+      ? (id.split(":")[1] ?? id)
+      : id.split("#")[0]!);
   /** Parent file name for disambiguating symbol references in lists. */
   const fileOf = (id: string) => {
     if (id.includes("#")) return id.split("#")[0]!.split("/").pop()!;
@@ -818,6 +844,7 @@ export function App() {
             focus={focusView}
             testFileIds={testFileIds}
             hiddenLayers={new Set(params.hiddenLayers)}
+            parentFileOf={parentFileOf}
             width={WIDTH}
             height={HEIGHT}
             selectedId={selectedId}

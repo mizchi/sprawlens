@@ -5,3 +5,5 @@ dist/
 *.log
 .playwright-mcp/
 codesprawl-*.png
+test-results/
+perf-results/

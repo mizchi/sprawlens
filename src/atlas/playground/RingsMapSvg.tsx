@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "preact/hooks";
+import { useEffect, useMemo, useRef, useState } from "preact/hooks";
 import type { AtlasEdge } from "../contracts/graph.js";
 import type { CellResult } from "../kernel/capacityLayout.js";
 import type { Vec2 } from "../kernel/vec.js";
@@ -40,6 +40,8 @@ type Props = {
   testFileIds: Set<string>;
   /** Layer ids switched off; "source" hides the file/symbol map itself. */
   hiddenLayers: Set<string>;
+  /** Symbol id → parent file id (precomputed; string parsing here was hot). */
+  parentFileOf: (id: string) => string;
   width: number;
   height: number;
   selectedId: string | null;
@@ -79,6 +81,7 @@ export function RingsMapSvg(props: Props) {
     focus,
     testFileIds,
     hiddenLayers,
+    parentFileOf,
     width,
     height,
     selectedId,
@@ -147,16 +150,27 @@ export function RingsMapSvg(props: Props) {
     applyView();
   };
 
-  const fileCells = [...rings.moduleLayouts.values()].flatMap((l) => l.cells);
-  const fileSiteById = new Map(fileCells.map((c) => [c.id, c.site]));
-  const symbolSiteById = new Map(innerCells.map((c) => [c.id, c.site]));
+  // rings keeps its identity once converged, innerCells once settled — these
+  // memos stop per-commit Map/array rebuilds (a major GC-pressure source)
+  const fileCells = useMemo(
+    () => [...rings.moduleLayouts.values()].flatMap((l) => l.cells),
+    [rings],
+  );
+  const fileSiteById = useMemo(
+    () => new Map(fileCells.map((c) => [c.id, c.site])),
+    [fileCells],
+  );
+  const symbolSiteById = useMemo(
+    () => new Map(innerCells.map((c) => [c.id, c.site])),
+    [innerCells],
+  );
   const resolveSite = (id: string): Vec2 | undefined => {
     const site = symbolSiteById.get(id) ?? fileSiteById.get(id);
     if (site) return site;
     const circle = rings.circles.get(id);
     return circle ? { x: circle.cx, y: circle.cy } : undefined;
   };
-  const moduleList = [...rings.circles.entries()];
+  const moduleList = useMemo(() => [...rings.circles.entries()], [rings]);
 
   const zoom = width / committedView.w;
   const sourceVisible = !hiddenLayers.has("source");
@@ -172,15 +186,6 @@ export function RingsMapSvg(props: Props) {
     p.y <= committedView.y + committedView.h + slack;
   const cellVisible = (cell: CellResult) =>
     inView(cell.site, Math.sqrt(cell.actualArea) * 1.5);
-
-  /** Parent file id of a symbol cell (synthetic `file#sN` / `symbol:path:...`). */
-  const parentFileOf = (symbolId: string): string => {
-    if (symbolId.startsWith("symbol:")) {
-      return symbolId.split(":")[1] ?? symbolId;
-    }
-    const hash = symbolId.indexOf("#");
-    return hash >= 0 ? symbolId.slice(0, hash) : symbolId;
-  };
 
   // Dynamic nested-symbol LOD: instead of fixed zoom thresholds, budget the
   // on-screen element count. Visible file cells get their internals in
