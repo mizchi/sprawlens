@@ -40,6 +40,7 @@ import {
 } from "./synthetic.ts";
 import type { AtlasEdge } from "../contracts/graph.js";
 import { defaultLayerOf, matchTestTargets } from "../contracts/layers.js";
+import { fetchCallHierarchy, refsToEdges } from "./callHierarchyClient.ts";
 
 const WIDTH = 960;
 const HEIGHT = 640;
@@ -187,6 +188,9 @@ export function App() {
   );
   /** Lazily fetched large fixture (served from public-atlas/). */
   const playwrightSnapRef = useRef<SnapshotLike | null>(null);
+  /** Symbols whose call hierarchy was already fetched from the LSP server. */
+  const fetchedHierarchyRef = useRef(new Set<string>());
+  const [hierarchyVersion, setHierarchyVersion] = useState(0);
 
   const ringsOptions = (p: PlaygroundParams) => ({
     width: WIDTH,
@@ -327,6 +331,7 @@ export function App() {
     historyRef.current = [];
     innerLayoutsRef.current = new Map();
     symbolMetaRef.current = new Map();
+    fetchedHierarchyRef.current = new Set();
     setFocusId(null);
   };
 
@@ -719,6 +724,39 @@ export function App() {
         .filter((e) => e.source === selectedId)
         .map((e) => e.target),
     };
+  }, [selectedId, hierarchyVersion]);
+
+  // Phase 3: on-demand call hierarchy from the LSP server. Static
+  // symbolImports only know file→symbol; the LSP upgrades the selection to
+  // real symbol→symbol caller/callee edges, merged into the edge set.
+  useEffect(() => {
+    const id = selectedId;
+    if (!id || !id.startsWith("symbol:")) return;
+    const repo = paramsRef.current.source;
+    if (repo === "synthetic") return;
+    if (fetchedHierarchyRef.current.has(id)) return;
+    fetchedHierarchyRef.current.add(id);
+    const parts = id.split(":"); // symbol:<path>:<kind>:<name>:<line>
+    fetchCallHierarchy(repo, parts[1]!, parts[3]!)
+      .then((response) => {
+        const symbolsByFile = symbolsRef.current ?? new Map();
+        const fileIds = new Set(graphRef.current.nodes.map((n) => n.id));
+        const edges = refsToEdges(id, response, symbolsByFile, fileIds);
+        const seen = new Set(
+          symbolEdgesRef.current.map((e) => `${e.source}->${e.target}`),
+        );
+        const fresh = edges.filter(
+          (e) => !seen.has(`${e.source}->${e.target}`),
+        );
+        if (fresh.length > 0) {
+          symbolEdgesRef.current = [...symbolEdgesRef.current, ...fresh];
+        }
+        setHierarchyVersion((v) => v + 1);
+      })
+      .catch(() => {
+        // server not running or transient failure: allow a later retry
+        fetchedHierarchyRef.current.delete(id);
+      });
   }, [selectedId]);
   const maxError = ringsRef.current
     ? Math.max(
