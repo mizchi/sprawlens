@@ -96,6 +96,7 @@ function Section(props: {
   title: string;
   children: preact.ComponentChildren;
   defaultOpen?: boolean;
+  style?: Record<string, string | number>;
 }) {
   const [open, setOpen] = useState(props.defaultOpen ?? true);
   return (
@@ -108,7 +109,10 @@ function Section(props: {
         border: "1px solid #cbd5e1",
         padding: "6px 8px",
         minWidth: "0",
+        maxHeight: "100%",
+        boxSizing: "border-box",
         overflowY: "auto",
+        ...props.style,
       }}
     >
       <summary
@@ -698,6 +702,7 @@ export function App() {
           borderRadius: "8px",
           overflow: "hidden",
           border: "1px solid #cbd5e1",
+          position: "relative",
         }}
       >
         {ringsRef.current ? (
@@ -731,6 +736,53 @@ export function App() {
             onSelect={setSelectedId}
           />
         ) : null}
+        {/* debug stats float over the map, folded by default */}
+        <Section
+          title="ステータス"
+          defaultOpen={false}
+          style={{
+            position: "absolute",
+            right: "8px",
+            bottom: "8px",
+            width: "248px",
+            background: "rgba(248, 250, 252, 0.92)",
+            fontSize: "12px",
+          }}
+        >
+          <div style={{ display: "flex", flexDirection: "column", gap: "4px" }}>
+            <div>
+              max relative error: {(maxError * 100).toFixed(2)}%
+              {maxError < CONVERGENCE_TOLERANCE ? " (converged)" : ""}
+            </div>
+            <div>fps: {fpsRef.current.ema.toFixed(0)}</div>
+            <div>
+              cells: {allCells.length}
+              {ringsRef.current
+                ? ` / modules: ${ringsRef.current.circles.size}`
+                : ""}
+            </div>
+            {focusView ? (
+              <div
+                style={{ display: "flex", alignItems: "center", gap: "6px" }}
+              >
+                <span style={{ color: "#0369a1" }}>
+                  focus: {labelOf(focusId!)} ({focusView.level})
+                </span>
+                <button
+                  onClick={() => setFocusId(null)}
+                  style={{
+                    padding: "2px 6px",
+                    fontSize: "11px",
+                    cursor: "pointer",
+                  }}
+                >
+                  解除
+                </button>
+              </div>
+            ) : null}
+            <Sparkline values={historyRef.current} />
+          </div>
+        </Section>
       </div>
       <div
         style={{
@@ -785,41 +837,6 @@ export function App() {
             onAddNode={addNode}
             onRemoveNode={removeNode}
           />
-        </Section>
-        <Section title="ステータス">
-          <div
-            style={{
-              display: "flex",
-              flexDirection: "column",
-              gap: "4px",
-            }}
-          >
-          <div>
-            max relative error: {(maxError * 100).toFixed(2)}%
-            {maxError < CONVERGENCE_TOLERANCE ? " (converged)" : ""}
-          </div>
-          <div>fps: {fpsRef.current.ema.toFixed(0)}</div>
-          <div>
-            cells: {allCells.length}
-            {ringsRef.current
-              ? ` / modules: ${ringsRef.current.circles.size}`
-              : ""}
-          </div>
-          {focusView ? (
-            <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
-              <span style={{ color: "#0369a1" }}>
-                focus: {labelOf(focusId!)} ({focusView.level})
-              </span>
-              <button
-                onClick={() => setFocusId(null)}
-                style={{ padding: "2px 6px", fontSize: "11px", cursor: "pointer" }}
-              >
-                解除
-              </button>
-            </div>
-          ) : null}
-          <Sparkline values={historyRef.current} />
-          </div>
         </Section>
         {selected || selectedIsModule || selectedTest ? (
           <Section title="選択ノード">
