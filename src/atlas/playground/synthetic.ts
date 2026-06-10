@@ -1,4 +1,4 @@
-import type { AtlasGraph, AtlasNode } from "../contracts/graph.js";
+import type { AtlasEdge, AtlasGraph, AtlasNode } from "../contracts/graph.js";
 import { createRng } from "../kernel/rng.js";
 
 export type SyntheticOptions = {
@@ -44,11 +44,56 @@ export function synthesizeSymbols(
     remaining -= symbolLoc;
     return {
       id: `${fileId}#s${i}`,
-      kind: "symbol",
+      kind: "symbol" as const,
       label: `${fileId}#s${i}`,
       metrics: { loc: Math.max(1, symbolLoc) },
+      // first symbol is always part of the public surface
+      exported: i === 0 || rng() < 0.3,
     };
   });
+}
+
+/**
+ * Symbol→symbol reference edges: cross-file references follow the file
+ * dependency edges; a few intra-file references link symbols within a file.
+ * Symbol ids match `synthesizeSymbols(fileId, loc, 1)`.
+ */
+export function synthesizeSymbolEdges(
+  graph: AtlasGraph,
+  seed: number,
+): AtlasEdge[] {
+  const rng = createRng(seed ^ 0x5f3759df);
+  const symbolIds = new Map<string, string[]>(
+    graph.nodes.map((n) => [
+      n.id,
+      synthesizeSymbols(n.id, n.metrics.loc, 1).map((s) => s.id),
+    ]),
+  );
+  const edges: AtlasEdge[] = [];
+  for (const node of graph.nodes) {
+    const symbols = symbolIds.get(node.id)!;
+    for (let i = 1; i < symbols.length; i++) {
+      if (rng() < 0.4) {
+        edges.push({
+          source: symbols[i]!,
+          target: symbols[Math.floor(rng() * i)]!,
+        });
+      }
+    }
+  }
+  for (const edge of graph.edges) {
+    const sources = symbolIds.get(edge.source);
+    const targets = symbolIds.get(edge.target);
+    if (!sources?.length || !targets?.length) continue;
+    const links = 1 + Math.floor(rng() * 2);
+    for (let i = 0; i < links; i++) {
+      edges.push({
+        source: sources[Math.floor(rng() * sources.length)]!,
+        target: targets[Math.floor(rng() * targets.length)]!,
+      });
+    }
+  }
+  return edges;
 }
 
 export function createSyntheticGraph(options: SyntheticOptions): AtlasGraph {
@@ -106,6 +151,22 @@ export function createSyntheticGraph(options: SyntheticOptions): AtlasGraph {
       const j = candidates[Math.floor(rng() * candidates.length)]!;
       edges.push({ source: idOf(i), target: idOf(j) });
     }
+  }
+
+  // test layer: roughly a quarter of the files get a name-matched unit test
+  for (let i = 0; i < count; i++) {
+    if (rng() >= 0.25) continue;
+    const subject = nodes[i]!;
+    const testId = subject.id.replace(/\.ts$/, ".test.ts");
+    nodes.push({
+      id: testId,
+      kind: "file",
+      label: `f${i}.test.ts`,
+      metrics: {
+        loc: Math.max(10, Math.round(subject.metrics.loc * (0.3 + rng() * 0.6))),
+      },
+    });
+    edges.push({ source: testId, target: subject.id });
   }
   return { nodes, edges };
 }

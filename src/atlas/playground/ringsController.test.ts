@@ -8,6 +8,29 @@ import { createSyntheticGraph } from "./synthetic.js";
 
 const opts = { width: 960, height: 640, seed: 1 };
 
+describe("createRingsState layers", () => {
+  it("lays out only source files and carries tests as an overlay layer", () => {
+    const graph = createSyntheticGraph({ count: 40, seed: 9 });
+    const testNode = {
+      id: "mod0/f0.test.ts",
+      kind: "file" as const,
+      label: "f0.test.ts",
+      metrics: { loc: 50 },
+    };
+    const withTest = {
+      nodes: [...graph.nodes, testNode],
+      edges: [...graph.edges, { source: testNode.id, target: "mod0/f0.ts" }],
+    };
+    const state = createRingsState(withTest, opts);
+    const allCellIds = [...state.moduleLayouts.values()].flatMap((l) =>
+      l.cells.map((c) => c.id),
+    );
+    expect(allCellIds.some((id) => id.includes(".test."))).toBe(false);
+    expect(state.testFiles.map((n) => n.id)).toContain(testNode.id);
+    expect(state.testTargets.get(testNode.id)).toBe("mod0/f0.ts");
+  });
+});
+
 describe("createRingsState", () => {
   it("creates one capacity layout per module, clipped to its circle", () => {
     const graph = createSyntheticGraph({ count: 60, seed: 1 });

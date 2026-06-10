@@ -14,13 +14,15 @@ export const sprawlensSnapshot: SnapshotLike = {
      "id": "symbol:src/cli/index.ts:function:parsePositiveInteger:44",
      "name": "parsePositiveInteger",
      "kind": "function",
-     "loc": 7
+     "loc": 7,
+     "exported": false
     },
     {
      "id": "symbol:src/cli/index.ts:function:parseStep:52",
      "name": "parseStep",
      "kind": "function",
-     "loc": 6
+     "loc": 6,
+     "exported": false
     }
    ]
   },
@@ -41,7 +43,8 @@ export const sprawlensSnapshot: SnapshotLike = {
      "id": "symbol:src/core/ai.ts:function:detectAIIndicators:17",
      "name": "detectAIIndicators",
      "kind": "function",
-     "loc": 19
+     "loc": 19,
+     "exported": true
     }
    ]
   },
@@ -55,13 +58,15 @@ export const sprawlensSnapshot: SnapshotLike = {
      "id": "symbol:src/core/collect.test.ts:function:git:11",
      "name": "git",
      "kind": "function",
-     "loc": 3
+     "loc": 3,
+     "exported": false
     },
     {
      "id": "symbol:src/core/collect.test.ts:function:withGitRepo:15",
      "name": "withGitRepo",
      "kind": "function",
-     "loc": 18
+     "loc": 18,
+     "exported": false
     }
    ]
   },
@@ -75,157 +80,183 @@ export const sprawlensSnapshot: SnapshotLike = {
      "id": "symbol:src/core/collect.ts:type:CollectOptions:13",
      "name": "CollectOptions",
      "kind": "type",
-     "loc": 5
+     "loc": 5,
+     "exported": true
     },
     {
      "id": "symbol:src/core/collect.ts:type:CollectResult:19",
      "name": "CollectResult",
      "kind": "type",
-     "loc": 5
+     "loc": 5,
+     "exported": true
     },
     {
      "id": "symbol:src/core/collect.ts:type:AnalyzeResult:25",
      "name": "AnalyzeResult",
      "kind": "type",
-     "loc": 4
+     "loc": 4,
+     "exported": true
     },
     {
      "id": "symbol:src/core/collect.ts:type:RealtimeAnalyzeResult:30",
      "name": "RealtimeAnalyzeResult",
      "kind": "type",
-     "loc": 6
+     "loc": 6,
+     "exported": true
     },
     {
      "id": "symbol:src/core/collect.ts:function:collectRepository:37",
      "name": "collectRepository",
      "kind": "function",
-     "loc": 47
+     "loc": 47,
+     "exported": true
     },
     {
      "id": "symbol:src/core/collect.ts:function:analyzeRepository:85",
      "name": "analyzeRepository",
      "kind": "function",
-     "loc": 26
+     "loc": 26,
+     "exported": true
     },
     {
      "id": "symbol:src/core/collect.ts:function:analyzeRealtimeRepository:112",
      "name": "analyzeRealtimeRepository",
      "kind": "function",
-     "loc": 39
+     "loc": 39,
+     "exported": true
     },
     {
      "id": "symbol:src/core/collect.ts:function:readSnapshots:152",
      "name": "readSnapshots",
      "kind": "function",
-     "loc": 18
+     "loc": 18,
+     "exported": true
     },
     {
      "id": "symbol:src/core/collect.ts:function:readDiffs:171",
      "name": "readDiffs",
      "kind": "function",
-     "loc": 11
+     "loc": 11,
+     "exported": true
     },
     {
      "id": "symbol:src/core/collect.ts:function:codesprawlDir:183",
      "name": "codesprawlDir",
      "kind": "function",
-     "loc": 3
+     "loc": 3,
+     "exported": true
     },
     {
      "id": "symbol:src/core/collect.ts:function:snapshotsDir:187",
      "name": "snapshotsDir",
      "kind": "function",
-     "loc": 3
+     "loc": 3,
+     "exported": true
     },
     {
      "id": "symbol:src/core/collect.ts:function:diffsDir:191",
      "name": "diffsDir",
      "kind": "function",
-     "loc": 3
+     "loc": 3,
+     "exported": true
     },
     {
      "id": "symbol:src/core/collect.ts:function:resetCodesprawlOutput:195",
      "name": "resetCodesprawlOutput",
      "kind": "function",
-     "loc": 7
+     "loc": 7,
+     "exported": false
     },
     {
      "id": "symbol:src/core/collect.ts:function:getGitCommits:203",
      "name": "getGitCommits",
      "kind": "function",
-     "loc": 12
+     "loc": 12,
+     "exported": false
     },
     {
      "id": "symbol:src/core/collect.ts:function:getGitCommit:216",
      "name": "getGitCommit",
      "kind": "function",
-     "loc": 8
+     "loc": 8,
+     "exported": false
     },
     {
      "id": "symbol:src/core/collect.ts:function:getGitStatus:225",
      "name": "getGitStatus",
      "kind": "function",
-     "loc": 8
+     "loc": 8,
+     "exported": false
     },
     {
      "id": "symbol:src/core/collect.ts:function:isCodesprawlStatusLine:234",
      "name": "isCodesprawlStatusLine",
      "kind": "function",
-     "loc": 4
+     "loc": 4,
+     "exported": false
     },
     {
      "id": "symbol:src/core/collect.ts:function:parseGitCommitLog:239",
      "name": "parseGitCommitLog",
      "kind": "function",
-     "loc": 28
+     "loc": 28,
+     "exported": false
     },
     {
      "id": "symbol:src/core/collect.ts:function:normalizeSince:268",
      "name": "normalizeSince",
      "kind": "function",
-     "loc": 13
+     "loc": 13,
+     "exported": false
     },
     {
      "id": "symbol:src/core/collect.ts:function:sampleWeekly:282",
      "name": "sampleWeekly",
      "kind": "function",
-     "loc": 7
+     "loc": 7,
+     "exported": false
     },
     {
      "id": "symbol:src/core/collect.ts:function:weekKey:290",
      "name": "weekKey",
      "kind": "function",
-     "loc": 7
+     "loc": 7,
+     "exported": false
     },
     {
      "id": "symbol:src/core/collect.ts:function:writeMetricsCsv:298",
      "name": "writeMetricsCsv",
      "kind": "function",
-     "loc": 31
+     "loc": 31,
+     "exported": false
     },
     {
      "id": "symbol:src/core/collect.ts:function:csvCell:330",
      "name": "csvCell",
      "kind": "function",
-     "loc": 4
+     "loc": 4,
+     "exported": false
     },
     {
      "id": "symbol:src/core/collect.ts:function:readSnapshot:335",
      "name": "readSnapshot",
      "kind": "function",
-     "loc": 3
+     "loc": 3,
+     "exported": false
     },
     {
      "id": "symbol:src/core/collect.ts:function:writeJson:339",
      "name": "writeJson",
      "kind": "function",
-     "loc": 4
+     "loc": 4,
+     "exported": false
     },
     {
      "id": "symbol:src/core/collect.ts:function:git:344",
      "name": "git",
      "kind": "function",
-     "loc": 6
+     "loc": 6,
+     "exported": false
     }
    ]
   },
@@ -239,7 +270,8 @@ export const sprawlensSnapshot: SnapshotLike = {
      "id": "symbol:src/core/dependencyGraph.test.ts:function:snapshot:5",
      "name": "snapshot",
      "kind": "function",
-     "loc": 58
+     "loc": 58,
+     "exported": false
     }
    ]
   },
@@ -253,241 +285,281 @@ export const sprawlensSnapshot: SnapshotLike = {
      "id": "symbol:src/core/dependencyGraph.ts:type:DependencyGraphNodeKind:14",
      "name": "DependencyGraphNodeKind",
      "kind": "type",
-     "loc": 1
+     "loc": 1,
+     "exported": true
     },
     {
      "id": "symbol:src/core/dependencyGraph.ts:type:DependencyGraphStatus:15",
      "name": "DependencyGraphStatus",
      "kind": "type",
-     "loc": 1
+     "loc": 1,
+     "exported": true
     },
     {
      "id": "symbol:src/core/dependencyGraph.ts:type:DependencyGraphEdgeScope:16",
      "name": "DependencyGraphEdgeScope",
      "kind": "type",
-     "loc": 1
+     "loc": 1,
+     "exported": true
     },
     {
      "id": "symbol:src/core/dependencyGraph.ts:type:DependencyGraphPortDirection:17",
      "name": "DependencyGraphPortDirection",
      "kind": "type",
-     "loc": 1
+     "loc": 1,
+     "exported": true
     },
     {
      "id": "symbol:src/core/dependencyGraph.ts:type:DependencyGraphPreviewNode:19",
      "name": "DependencyGraphPreviewNode",
      "kind": "type",
-     "loc": 11
+     "loc": 11,
+     "exported": true
     },
     {
      "id": "symbol:src/core/dependencyGraph.ts:type:DependencyGraphNode:31",
      "name": "DependencyGraphNode",
      "kind": "type",
-     "loc": 25
+     "loc": 25,
+     "exported": true
     },
     {
      "id": "symbol:src/core/dependencyGraph.ts:type:DependencyGraphEdge:57",
      "name": "DependencyGraphEdge",
      "kind": "type",
-     "loc": 10
+     "loc": 10,
+     "exported": true
     },
     {
      "id": "symbol:src/core/dependencyGraph.ts:type:DependencyGraphImportDetail:68",
      "name": "DependencyGraphImportDetail",
      "kind": "type",
-     "loc": 13
+     "loc": 13,
+     "exported": true
     },
     {
      "id": "symbol:src/core/dependencyGraph.ts:type:DependencyGraphBreakdown:82",
      "name": "DependencyGraphBreakdown",
      "kind": "type",
-     "loc": 5
+     "loc": 5,
+     "exported": true
     },
     {
      "id": "symbol:src/core/dependencyGraph.ts:type:DependencyGraphFrame:88",
      "name": "DependencyGraphFrame",
      "kind": "type",
-     "loc": 13
+     "loc": 13,
+     "exported": true
     },
     {
      "id": "symbol:src/core/dependencyGraph.ts:type:BuildDependencyGraphOptions:102",
      "name": "BuildDependencyGraphOptions",
      "kind": "type",
-     "loc": 7
+     "loc": 7,
+     "exported": true
     },
     {
      "id": "symbol:src/core/dependencyGraph.ts:type:PositionedModule:119",
      "name": "PositionedModule",
      "kind": "type",
-     "loc": 9
+     "loc": 9,
+     "exported": false
     },
     {
      "id": "symbol:src/core/dependencyGraph.ts:function:buildDependencyGraphFrame:129",
      "name": "buildDependencyGraphFrame",
      "kind": "function",
-     "loc": 66
+     "loc": 66,
+     "exported": true
     },
     {
      "id": "symbol:src/core/dependencyGraph.ts:function:moduleNode:196",
      "name": "moduleNode",
      "kind": "function",
-     "loc": 24
+     "loc": 24,
+     "exported": false
     },
     {
      "id": "symbol:src/core/dependencyGraph.ts:function:portNode:221",
      "name": "portNode",
      "kind": "function",
-     "loc": 33
+     "loc": 33,
+     "exported": false
     },
     {
      "id": "symbol:src/core/dependencyGraph.ts:function:apiNode:255",
      "name": "apiNode",
      "kind": "function",
-     "loc": 25
+     "loc": 25,
+     "exported": false
     },
     {
      "id": "symbol:src/core/dependencyGraph.ts:function:layoutPortNodes:281",
      "name": "layoutPortNodes",
      "kind": "function",
-     "loc": 16
+     "loc": 16,
+     "exported": false
     },
     {
      "id": "symbol:src/core/dependencyGraph.ts:function:boundaryPoint:298",
      "name": "boundaryPoint",
      "kind": "function",
-     "loc": 13
+     "loc": 13,
+     "exported": false
     },
     {
      "id": "symbol:src/core/dependencyGraph.ts:function:symbolNode:312",
      "name": "symbolNode",
      "kind": "function",
-     "loc": 24
+     "loc": 24,
+     "exported": false
     },
     {
      "id": "symbol:src/core/dependencyGraph.ts:function:selectApiFiles:337",
      "name": "selectApiFiles",
      "kind": "function",
-     "loc": 16
+     "loc": 16,
+     "exported": false
     },
     {
      "id": "symbol:src/core/dependencyGraph.ts:function:modulePreviewNodes:354",
      "name": "modulePreviewNodes",
      "kind": "function",
-     "loc": 34
+     "loc": 34,
+     "exported": false
     },
     {
      "id": "symbol:src/core/dependencyGraph.ts:function:selectPreviewFiles:389",
      "name": "selectPreviewFiles",
      "kind": "function",
-     "loc": 17
+     "loc": 17,
+     "exported": false
     },
     {
      "id": "symbol:src/core/dependencyGraph.ts:function:layoutModules:407",
      "name": "layoutModules",
      "kind": "function",
-     "loc": 74
+     "loc": 74,
+     "exported": false
     },
     {
      "id": "symbol:src/core/dependencyGraph.ts:function:layoutApiNodes:482",
      "name": "layoutApiNodes",
      "kind": "function",
-     "loc": 28
+     "loc": 28,
+     "exported": false
     },
     {
      "id": "symbol:src/core/dependencyGraph.ts:function:expandedModuleRadius:511",
      "name": "expandedModuleRadius",
      "kind": "function",
-     "loc": 4
+     "loc": 4,
+     "exported": false
     },
     {
      "id": "symbol:src/core/dependencyGraph.ts:function:layoutVisibleSymbolNodes:516",
      "name": "layoutVisibleSymbolNodes",
      "kind": "function",
-     "loc": 40
+     "loc": 40,
+     "exported": false
     },
     {
      "id": "symbol:src/core/dependencyGraph.ts:function:layoutSymbolNodes:557",
      "name": "layoutSymbolNodes",
      "kind": "function",
-     "loc": 7
+     "loc": 7,
+     "exported": false
     },
     {
      "id": "symbol:src/core/dependencyGraph.ts:function:aggregateVisibleEdges:565",
      "name": "aggregateVisibleEdges",
      "kind": "function",
-     "loc": 81
+     "loc": 81,
+     "exported": false
     },
     {
      "id": "symbol:src/core/dependencyGraph.ts:function:addSymbolDetailEdges:647",
      "name": "addSymbolDetailEdges",
      "kind": "function",
-     "loc": 39
+     "loc": 39,
+     "exported": false
     },
     {
      "id": "symbol:src/core/dependencyGraph.ts:function:edgeScopeRank:687",
      "name": "edgeScopeRank",
      "kind": "function",
-     "loc": 3
+     "loc": 3,
+     "exported": false
     },
     {
      "id": "symbol:src/core/dependencyGraph.ts:function:buildImportBreakdowns:691",
      "name": "buildImportBreakdowns",
      "kind": "function",
-     "loc": 89
+     "loc": 89,
+     "exported": false
     },
     {
      "id": "symbol:src/core/dependencyGraph.ts:function:ensureBreakdown:781",
      "name": "ensureBreakdown",
      "kind": "function",
-     "loc": 8
+     "loc": 8,
+     "exported": false
     },
     {
      "id": "symbol:src/core/dependencyGraph.ts:function:addBreakdownDetail:790",
      "name": "addBreakdownDetail",
      "kind": "function",
-     "loc": 34
+     "loc": 34,
+     "exported": false
     },
     {
      "id": "symbol:src/core/dependencyGraph.ts:function:sortedBreakdownDetails:825",
      "name": "sortedBreakdownDetails",
      "kind": "function",
-     "loc": 11
+     "loc": 11,
+     "exported": false
     },
     {
      "id": "symbol:src/core/dependencyGraph.ts:function:visibleEndpoint:837",
      "name": "visibleEndpoint",
      "kind": "function",
-     "loc": 20
+     "loc": 20,
+     "exported": false
     },
     {
      "id": "symbol:src/core/dependencyGraph.ts:function:apiIdForPath:858",
      "name": "apiIdForPath",
      "kind": "function",
-     "loc": 3
+     "loc": 3,
+     "exported": false
     },
     {
      "id": "symbol:src/core/dependencyGraph.ts:function:portIdForDependency:862",
      "name": "portIdForDependency",
      "kind": "function",
-     "loc": 3
+     "loc": 3,
+     "exported": false
     },
     {
      "id": "symbol:src/core/dependencyGraph.ts:function:computeBounds:866",
      "name": "computeBounds",
      "kind": "function",
-     "loc": 11
+     "loc": 11,
+     "exported": false
     },
     {
      "id": "symbol:src/core/dependencyGraph.ts:function:deterministicSign:878",
      "name": "deterministicSign",
      "kind": "function",
-     "loc": 3
+     "loc": 3,
+     "exported": false
     },
     {
      "id": "symbol:src/core/dependencyGraph.ts:function:clamp:882",
      "name": "clamp",
      "kind": "function",
-     "loc": 3
+     "loc": 3,
+     "exported": false
     }
    ]
   },
@@ -501,7 +573,8 @@ export const sprawlensSnapshot: SnapshotLike = {
      "id": "symbol:src/core/diff.test.ts:function:snapshot:5",
      "name": "snapshot",
      "kind": "function",
-     "loc": 44
+     "loc": 44,
+     "exported": false
     }
    ]
   },
@@ -515,49 +588,57 @@ export const sprawlensSnapshot: SnapshotLike = {
      "id": "symbol:src/core/diff.ts:function:diffSnapshots:14",
      "name": "diffSnapshots",
      "kind": "function",
-     "loc": 23
+     "loc": 23,
+     "exported": true
     },
     {
      "id": "symbol:src/core/diff.ts:function:computeChangedFiles:38",
      "name": "computeChangedFiles",
      "kind": "function",
-     "loc": 46
+     "loc": 46,
+     "exported": false
     },
     {
      "id": "symbol:src/core/diff.ts:function:computeHotspots:85",
      "name": "computeHotspots",
      "kind": "function",
-     "loc": 58
+     "loc": 58,
+     "exported": false
     },
     {
      "id": "symbol:src/core/diff.ts:function:addedImportEdges:144",
      "name": "addedImportEdges",
      "kind": "function",
-     "loc": 4
+     "loc": 4,
+     "exported": false
     },
     {
      "id": "symbol:src/core/diff.ts:function:fileMap:149",
      "name": "fileMap",
      "kind": "function",
-     "loc": 9
+     "loc": 9,
+     "exported": false
     },
     {
      "id": "symbol:src/core/diff.ts:function:computeMetricDelta:159",
      "name": "computeMetricDelta",
      "kind": "function",
-     "loc": 13
+     "loc": 13,
+     "exported": false
     },
     {
      "id": "symbol:src/core/diff.ts:function:difference:173",
      "name": "difference",
      "kind": "function",
-     "loc": 3
+     "loc": 3,
+     "exported": false
     },
     {
      "id": "symbol:src/core/diff.ts:function:pathFromFileId:177",
      "name": "pathFromFileId",
      "kind": "function",
-     "loc": 3
+     "loc": 3,
+     "exported": false
     }
    ]
   },
@@ -578,31 +659,36 @@ export const sprawlensSnapshot: SnapshotLike = {
      "id": "symbol:src/core/metrics.ts:function:isFileNode:11",
      "name": "isFileNode",
      "kind": "function",
-     "loc": 3
+     "loc": 3,
+     "exported": false
     },
     {
      "id": "symbol:src/core/metrics.ts:function:isImportEdge:15",
      "name": "isImportEdge",
      "kind": "function",
-     "loc": 3
+     "loc": 3,
+     "exported": false
     },
     {
      "id": "symbol:src/core/metrics.ts:function:computeGraphMetrics:19",
      "name": "computeGraphMetrics",
      "kind": "function",
-     "loc": 64
+     "loc": 64,
+     "exported": true
     },
     {
      "id": "symbol:src/core/metrics.ts:function:largestConnectedComponentSize:84",
      "name": "largestConnectedComponentSize",
      "kind": "function",
-     "loc": 33
+     "loc": 33,
+     "exported": false
     },
     {
      "id": "symbol:src/core/metrics.ts:function:findCyclicComponents:118",
      "name": "findCyclicComponents",
      "kind": "function",
-     "loc": 71
+     "loc": 71,
+     "exported": false
     }
    ]
   },
@@ -616,7 +702,8 @@ export const sprawlensSnapshot: SnapshotLike = {
      "id": "symbol:src/core/moduleMap.test.ts:function:snapshot:5",
      "name": "snapshot",
      "kind": "function",
-     "loc": 44
+     "loc": 44,
+     "exported": false
     }
    ]
   },
@@ -630,109 +717,127 @@ export const sprawlensSnapshot: SnapshotLike = {
      "id": "symbol:src/core/moduleMap.ts:type:CodeLayer:4",
      "name": "CodeLayer",
      "kind": "type",
-     "loc": 1
+     "loc": 1,
+     "exported": true
     },
     {
      "id": "symbol:src/core/moduleMap.ts:type:ModuleStatus:5",
      "name": "ModuleStatus",
      "kind": "type",
-     "loc": 1
+     "loc": 1,
+     "exported": true
     },
     {
      "id": "symbol:src/core/moduleMap.ts:type:ModuleFile:7",
      "name": "ModuleFile",
      "kind": "type",
-     "loc": 13
+     "loc": 13,
+     "exported": true
     },
     {
      "id": "symbol:src/core/moduleMap.ts:type:ModuleSymbol:21",
      "name": "ModuleSymbol",
      "kind": "type",
-     "loc": 10
+     "loc": 10,
+     "exported": true
     },
     {
      "id": "symbol:src/core/moduleMap.ts:type:ModuleParcel:32",
      "name": "ModuleParcel",
      "kind": "type",
-     "loc": 11
+     "loc": 11,
+     "exported": true
     },
     {
      "id": "symbol:src/core/moduleMap.ts:type:ModuleDependency:44",
      "name": "ModuleDependency",
      "kind": "type",
-     "loc": 8
+     "loc": 8,
+     "exported": true
     },
     {
      "id": "symbol:src/core/moduleMap.ts:type:ModuleMapFrame:53",
      "name": "ModuleMapFrame",
      "kind": "type",
-     "loc": 6
+     "loc": 6,
+     "exported": true
     },
     {
      "id": "symbol:src/core/moduleMap.ts:type:BuildModuleMapOptions:60",
      "name": "BuildModuleMapOptions",
      "kind": "type",
-     "loc": 3
+     "loc": 3,
+     "exported": true
     },
     {
      "id": "symbol:src/core/moduleMap.ts:function:buildModuleMapFrame:64",
      "name": "buildModuleMapFrame",
      "kind": "function",
-     "loc": 104
+     "loc": 104,
+     "exported": true
     },
     {
      "id": "symbol:src/core/moduleMap.ts:function:moduleIdForFilePath:169",
      "name": "moduleIdForFilePath",
      "kind": "function",
-     "loc": 3
+     "loc": 3,
+     "exported": true
     },
     {
      "id": "symbol:src/core/moduleMap.ts:function:modulePathForFile:173",
      "name": "modulePathForFile",
      "kind": "function",
-     "loc": 22
+     "loc": 22,
+     "exported": true
     },
     {
      "id": "symbol:src/core/moduleMap.ts:function:classifyCodeLayer:196",
      "name": "classifyCodeLayer",
      "kind": "function",
-     "loc": 14
+     "loc": 14,
+     "exported": true
     },
     {
      "id": "symbol:src/core/moduleMap.ts:function:moduleIdForPath:211",
      "name": "moduleIdForPath",
      "kind": "function",
-     "loc": 3
+     "loc": 3,
+     "exported": false
     },
     {
      "id": "symbol:src/core/moduleMap.ts:function:fileStatus:215",
      "name": "fileStatus",
      "kind": "function",
-     "loc": 18
+     "loc": 18,
+     "exported": false
     },
     {
      "id": "symbol:src/core/moduleMap.ts:function:moduleStatus:234",
      "name": "moduleStatus",
      "kind": "function",
-     "loc": 12
+     "loc": 12,
+     "exported": false
     },
     {
      "id": "symbol:src/core/moduleMap.ts:function:emptyLayerCounts:247",
      "name": "emptyLayerCounts",
      "kind": "function",
-     "loc": 8
+     "loc": 8,
+     "exported": false
     },
     {
      "id": "symbol:src/core/moduleMap.ts:function:moduleLabel:256",
      "name": "moduleLabel",
      "kind": "function",
-     "loc": 3
+     "loc": 3,
+     "exported": false
     },
     {
      "id": "symbol:src/core/moduleMap.ts:function:basename:260",
      "name": "basename",
      "kind": "function",
-     "loc": 3
+     "loc": 3,
+     "exported": false
     }
    ]
   },
@@ -746,7 +851,8 @@ export const sprawlensSnapshot: SnapshotLike = {
      "id": "symbol:src/core/network.test.ts:function:snapshot:5",
      "name": "snapshot",
      "kind": "function",
-     "loc": 44
+     "loc": 44,
+     "exported": false
     }
    ]
   },
@@ -760,115 +866,134 @@ export const sprawlensSnapshot: SnapshotLike = {
      "id": "symbol:src/core/network.ts:type:ReviewGraphLayer:4",
      "name": "ReviewGraphLayer",
      "kind": "type",
-     "loc": 1
+     "loc": 1,
+     "exported": true
     },
     {
      "id": "symbol:src/core/network.ts:type:ReviewGraphStatus:5",
      "name": "ReviewGraphStatus",
      "kind": "type",
-     "loc": 1
+     "loc": 1,
+     "exported": true
     },
     {
      "id": "symbol:src/core/network.ts:type:ReviewGraphNode:7",
      "name": "ReviewGraphNode",
      "kind": "type",
-     "loc": 18
+     "loc": 18,
+     "exported": true
     },
     {
      "id": "symbol:src/core/network.ts:type:ReviewGraphEdge:26",
      "name": "ReviewGraphEdge",
      "kind": "type",
-     "loc": 7
+     "loc": 7,
+     "exported": true
     },
     {
      "id": "symbol:src/core/network.ts:type:ReviewGraphFrame:34",
      "name": "ReviewGraphFrame",
      "kind": "type",
-     "loc": 14
+     "loc": 14,
+     "exported": true
     },
     {
      "id": "symbol:src/core/network.ts:type:ReviewGraphFeatureCollection:49",
      "name": "ReviewGraphFeatureCollection",
      "kind": "type",
-     "loc": 4
+     "loc": 4,
+     "exported": true
     },
     {
      "id": "symbol:src/core/network.ts:type:ReviewGraphFeature:54",
      "name": "ReviewGraphFeature",
      "kind": "type",
-     "loc": 17
+     "loc": 17,
+     "exported": true
     },
     {
      "id": "symbol:src/core/network.ts:type:BuildReviewGraphOptions:72",
      "name": "BuildReviewGraphOptions",
      "kind": "type",
-     "loc": 5
+     "loc": 5,
+     "exported": true
     },
     {
      "id": "symbol:src/core/network.ts:function:buildReviewGraphFrame:89",
      "name": "buildReviewGraphFrame",
      "kind": "function",
-     "loc": 67
+     "loc": 67,
+     "exported": true
     },
     {
      "id": "symbol:src/core/network.ts:function:reviewGraphToGeoJson:157",
      "name": "reviewGraphToGeoJson",
      "kind": "function",
-     "loc": 58
+     "loc": 58,
+     "exported": true
     },
     {
      "id": "symbol:src/core/network.ts:function:interpolateReviewGraphFrames:216",
      "name": "interpolateReviewGraphFrames",
      "kind": "function",
-     "loc": 48
+     "loc": 48,
+     "exported": true
     },
     {
      "id": "symbol:src/core/network.ts:function:selectFileIds:265",
      "name": "selectFileIds",
      "kind": "function",
-     "loc": 38
+     "loc": 38,
+     "exported": false
     },
     {
      "id": "symbol:src/core/network.ts:function:groupIndexMap:304",
      "name": "groupIndexMap",
      "kind": "function",
-     "loc": 4
+     "loc": 4,
+     "exported": false
     },
     {
      "id": "symbol:src/core/network.ts:function:computeBounds:309",
      "name": "computeBounds",
      "kind": "function",
-     "loc": 14
+     "loc": 14,
+     "exported": false
     },
     {
      "id": "symbol:src/core/network.ts:function:nodeStatus:324",
      "name": "nodeStatus",
      "kind": "function",
-     "loc": 22
+     "loc": 22,
+     "exported": false
     },
     {
      "id": "symbol:src/core/network.ts:function:classifyLayer:347",
      "name": "classifyLayer",
      "kind": "function",
-     "loc": 14
+     "loc": 14,
+     "exported": false
     },
     {
      "id": "symbol:src/core/network.ts:function:topLevelGroup:362",
      "name": "topLevelGroup",
      "kind": "function",
-     "loc": 3
+     "loc": 3,
+     "exported": false
     },
     {
      "id": "symbol:src/core/network.ts:function:basename:366",
      "name": "basename",
      "kind": "function",
-     "loc": 3
+     "loc": 3,
+     "exported": false
     },
     {
      "id": "symbol:src/core/network.ts:function:lerp:370",
      "name": "lerp",
      "kind": "function",
-     "loc": 3
+     "loc": 3,
+     "exported": false
     }
    ]
   },
@@ -882,7 +1007,8 @@ export const sprawlensSnapshot: SnapshotLike = {
      "id": "symbol:src/core/server.test.ts:function:withFixture:8",
      "name": "withFixture",
      "kind": "function",
-     "loc": 13
+     "loc": 13,
+     "exported": false
     }
    ]
   },
@@ -896,103 +1022,120 @@ export const sprawlensSnapshot: SnapshotLike = {
      "id": "symbol:src/core/server.ts:type:ServeOptions:8",
      "name": "ServeOptions",
      "kind": "type",
-     "loc": 4
+     "loc": 4,
+     "exported": true
     },
     {
      "id": "symbol:src/core/server.ts:type:RunningServer:13",
      "name": "RunningServer",
      "kind": "type",
-     "loc": 4
+     "loc": 4,
+     "exported": true
     },
     {
      "id": "symbol:src/core/server.ts:function:startServer:18",
      "name": "startServer",
      "kind": "function",
-     "loc": 36
+     "loc": 36,
+     "exported": true
     },
     {
      "id": "symbol:src/core/server.ts:function:handleRequest:55",
      "name": "handleRequest",
      "kind": "function",
-     "loc": 17
+     "loc": 17,
+     "exported": false
     },
     {
      "id": "symbol:src/core/server.ts:function:handleApi:73",
      "name": "handleApi",
      "kind": "function",
-     "loc": 67
+     "loc": 67,
+     "exported": false
     },
     {
      "id": "symbol:src/core/server.ts:type:RpcRequest:141",
      "name": "RpcRequest",
      "kind": "type",
-     "loc": 6
+     "loc": 6,
+     "exported": false
     },
     {
      "id": "symbol:src/core/server.ts:function:handleRpc:148",
      "name": "handleRpc",
      "kind": "function",
-     "loc": 23
+     "loc": 23,
+     "exported": false
     },
     {
      "id": "symbol:src/core/server.ts:function:rpcError:172",
      "name": "rpcError",
      "kind": "function",
-     "loc": 10
+     "loc": 10,
+     "exported": false
     },
     {
      "id": "symbol:src/core/server.ts:function:positiveIntegerOrUndefined:183",
      "name": "positiveIntegerOrUndefined",
      "kind": "function",
-     "loc": 7
+     "loc": 7,
+     "exported": false
     },
     {
      "id": "symbol:src/core/server.ts:function:serveStatic:191",
      "name": "serveStatic",
      "kind": "function",
-     "loc": 22
+     "loc": 22,
+     "exported": false
     },
     {
      "id": "symbol:src/core/server.ts:function:resolveStaticDir:214",
      "name": "resolveStaticDir",
      "kind": "function",
-     "loc": 4
+     "loc": 4,
+     "exported": false
     },
     {
      "id": "symbol:src/core/server.ts:function:readJson:219",
      "name": "readJson",
      "kind": "function",
-     "loc": 3
+     "loc": 3,
+     "exported": false
     },
     {
      "id": "symbol:src/core/server.ts:function:readRequestJson:223",
      "name": "readRequestJson",
      "kind": "function",
-     "loc": 14
+     "loc": 14,
+     "exported": false
     },
     {
      "id": "symbol:src/core/server.ts:function:fileExists:238",
      "name": "fileExists",
      "kind": "function",
-     "loc": 8
+     "loc": 8,
+     "exported": false
     },
     {
      "id": "symbol:src/core/server.ts:function:sendJson:247",
      "name": "sendJson",
      "kind": "function",
-     "loc": 7
+     "loc": 7,
+     "exported": false
     },
     {
      "id": "symbol:src/core/server.ts:function:sendText:255",
      "name": "sendText",
      "kind": "function",
-     "loc": 7
+     "loc": 7,
+     "exported": false
     },
     {
      "id": "symbol:src/core/server.ts:function:contentType:263",
      "name": "contentType",
      "kind": "function",
-     "loc": 19
+     "loc": 19,
+     "exported": false
     }
    ]
   },
@@ -1006,7 +1149,8 @@ export const sprawlensSnapshot: SnapshotLike = {
      "id": "symbol:src/core/snapshot.test.ts:function:withFixture:7",
      "name": "withFixture",
      "kind": "function",
-     "loc": 13
+     "loc": 13,
+     "exported": false
     }
    ]
   },
@@ -1020,181 +1164,211 @@ export const sprawlensSnapshot: SnapshotLike = {
      "id": "symbol:src/core/snapshot.ts:variable:SOURCE_EXTENSIONS:19",
      "name": "SOURCE_EXTENSIONS",
      "kind": "variable",
-     "loc": 1
+     "loc": 1,
+     "exported": true
     },
     {
      "id": "symbol:src/core/snapshot.ts:type:SnapshotOptions:44",
      "name": "SnapshotOptions",
      "kind": "type",
-     "loc": 4
+     "loc": 4,
+     "exported": false
     },
     {
      "id": "symbol:src/core/snapshot.ts:function:createSnapshotFromWorkingTree:49",
      "name": "createSnapshotFromWorkingTree",
      "kind": "function",
-     "loc": 56
+     "loc": 56,
+     "exported": true
     },
     {
      "id": "symbol:src/core/snapshot.ts:function:normalizePath:106",
      "name": "normalizePath",
      "kind": "function",
-     "loc": 3
+     "loc": 3,
+     "exported": false
     },
     {
      "id": "symbol:src/core/snapshot.ts:function:sourceExtension:110",
      "name": "sourceExtension",
      "kind": "function",
-     "loc": 6
+     "loc": 6,
+     "exported": false
     },
     {
      "id": "symbol:src/core/snapshot.ts:function:countLoc:117",
      "name": "countLoc",
      "kind": "function",
-     "loc": 11
+     "loc": 11,
+     "exported": false
     },
     {
      "id": "symbol:src/core/snapshot.ts:function:collectDirectoryPaths:129",
      "name": "collectDirectoryPaths",
      "kind": "function",
-     "loc": 17
+     "loc": 17,
+     "exported": false
     },
     {
      "id": "symbol:src/core/snapshot.ts:function:createContainsEdges:147",
      "name": "createContainsEdges",
      "kind": "function",
-     "loc": 29
+     "loc": 29,
+     "exported": false
     },
     {
      "id": "symbol:src/core/snapshot.ts:type:ExtractedImport:177",
      "name": "ExtractedImport",
      "kind": "type",
-     "loc": 4
+     "loc": 4,
+     "exported": false
     },
     {
      "id": "symbol:src/core/snapshot.ts:function:createImportEdges:182",
      "name": "createImportEdges",
      "kind": "function",
-     "loc": 34
+     "loc": 34,
+     "exported": false
     },
     {
      "id": "symbol:src/core/snapshot.ts:function:extractImports:217",
      "name": "extractImports",
      "kind": "function",
-     "loc": 32
+     "loc": 32,
+     "exported": false
     },
     {
      "id": "symbol:src/core/snapshot.ts:function:bindingsFromImportDeclaration:250",
      "name": "bindingsFromImportDeclaration",
      "kind": "function",
-     "loc": 25
+     "loc": 25,
+     "exported": false
     },
     {
      "id": "symbol:src/core/snapshot.ts:function:bindingsFromExportDeclaration:276",
      "name": "bindingsFromExportDeclaration",
      "kind": "function",
-     "loc": 15
+     "loc": 15,
+     "exported": false
     },
     {
      "id": "symbol:src/core/snapshot.ts:function:resolveSymbolImports:292",
      "name": "resolveSymbolImports",
      "kind": "function",
-     "loc": 39
+     "loc": 39,
+     "exported": false
     },
     {
      "id": "symbol:src/core/snapshot.ts:function:collectTopLevelSymbolUsages:332",
      "name": "collectTopLevelSymbolUsages",
      "kind": "function",
-     "loc": 32
+     "loc": 32,
+     "exported": false
     },
     {
      "id": "symbol:src/core/snapshot.ts:function:extractTopLevelSymbols:365",
      "name": "extractTopLevelSymbols",
      "kind": "function",
-     "loc": 11
+     "loc": 11,
+     "exported": false
     },
     {
      "id": "symbol:src/core/snapshot.ts:function:symbolsFromTopLevelStatement:377",
      "name": "symbolsFromTopLevelStatement",
      "kind": "function",
-     "loc": 13
+     "loc": 13,
+     "exported": false
     },
     {
      "id": "symbol:src/core/snapshot.ts:function:symbolFromStatement:391",
      "name": "symbolFromStatement",
      "kind": "function",
-     "loc": 18
+     "loc": 18,
+     "exported": false
     },
     {
      "id": "symbol:src/core/snapshot.ts:function:symbolFromVariableDeclaration:410",
      "name": "symbolFromVariableDeclaration",
      "kind": "function",
-     "loc": 25
+     "loc": 25,
+     "exported": false
     },
     {
      "id": "symbol:src/core/snapshot.ts:function:createSymbol:436",
      "name": "createSymbol",
      "kind": "function",
-     "loc": 20
+     "loc": 20,
+     "exported": false
     },
     {
      "id": "symbol:src/core/snapshot.ts:function:hasExportModifier:457",
      "name": "hasExportModifier",
      "kind": "function",
-     "loc": 3
+     "loc": 3,
+     "exported": false
     },
     {
      "id": "symbol:src/core/snapshot.ts:function:scriptKindFor:461",
      "name": "scriptKindFor",
      "kind": "function",
-     "loc": 12
+     "loc": 12,
+     "exported": false
     },
     {
      "id": "symbol:src/core/snapshot.ts:function:resolveRelativeImport:474",
      "name": "resolveRelativeImport",
      "kind": "function",
-     "loc": 15
+     "loc": 15,
+     "exported": false
     },
     {
      "id": "symbol:src/core/snapshot.ts:function:resolutionCandidates:490",
      "name": "resolutionCandidates",
      "kind": "function",
-     "loc": 22
+     "loc": 22,
+     "exported": false
     },
     {
      "id": "symbol:src/core/snapshot.ts:function:fileId:513",
      "name": "fileId",
      "kind": "function",
-     "loc": 3
+     "loc": 3,
+     "exported": false
     },
     {
      "id": "symbol:src/core/snapshot.ts:function:symbolId:517",
      "name": "symbolId",
      "kind": "function",
-     "loc": 3
+     "loc": 3,
+     "exported": false
     },
     {
      "id": "symbol:src/core/snapshot.ts:function:dirId:521",
      "name": "dirId",
      "kind": "function",
-     "loc": 3
+     "loc": 3,
+     "exported": false
     },
     {
      "id": "symbol:src/core/snapshot.ts:function:containsId:525",
      "name": "containsId",
      "kind": "function",
-     "loc": 3
+     "loc": 3,
+     "exported": false
     },
     {
      "id": "symbol:src/core/snapshot.ts:function:importId:529",
      "name": "importId",
      "kind": "function",
-     "loc": 3
+     "loc": 3,
+     "exported": false
     },
     {
      "id": "symbol:src/core/snapshot.ts:function:unresolvedId:533",
      "name": "unresolvedId",
      "kind": "function",
-     "loc": 3
+     "loc": 3,
+     "exported": false
     }
    ]
   },
@@ -1208,7 +1382,8 @@ export const sprawlensSnapshot: SnapshotLike = {
      "id": "symbol:src/core/symbolDependencies.test.ts:function:withFixture:7",
      "name": "withFixture",
      "kind": "function",
-     "loc": 13
+     "loc": 13,
+     "exported": false
     }
    ]
   },
@@ -1222,157 +1397,183 @@ export const sprawlensSnapshot: SnapshotLike = {
      "id": "symbol:src/core/symbolDependencies.ts:type:SymbolDependencyDirection:6",
      "name": "SymbolDependencyDirection",
      "kind": "type",
-     "loc": 1
+     "loc": 1,
+     "exported": true
     },
     {
      "id": "symbol:src/core/symbolDependencies.ts:type:SymbolDependencyKind:7",
      "name": "SymbolDependencyKind",
      "kind": "type",
-     "loc": 1
+     "loc": 1,
+     "exported": true
     },
     {
      "id": "symbol:src/core/symbolDependencies.ts:type:SymbolDependencyNode:9",
      "name": "SymbolDependencyNode",
      "kind": "type",
-     "loc": 8
+     "loc": 8,
+     "exported": true
     },
     {
      "id": "symbol:src/core/symbolDependencies.ts:type:SymbolDependencyEdge:18",
      "name": "SymbolDependencyEdge",
      "kind": "type",
-     "loc": 9
+     "loc": 9,
+     "exported": true
     },
     {
      "id": "symbol:src/core/symbolDependencies.ts:type:SymbolDependencyLocation:28",
      "name": "SymbolDependencyLocation",
      "kind": "type",
-     "loc": 7
+     "loc": 7,
+     "exported": true
     },
     {
      "id": "symbol:src/core/symbolDependencies.ts:type:SymbolDependencyResult:36",
      "name": "SymbolDependencyResult",
      "kind": "type",
-     "loc": 9
+     "loc": 9,
+     "exported": true
     },
     {
      "id": "symbol:src/core/symbolDependencies.ts:type:ResolveSymbolDependenciesOptions:46",
      "name": "ResolveSymbolDependenciesOptions",
      "kind": "type",
-     "loc": 5
+     "loc": 5,
+     "exported": true
     },
     {
      "id": "symbol:src/core/symbolDependencies.ts:type:ParsedSymbolId:52",
      "name": "ParsedSymbolId",
      "kind": "type",
-     "loc": 6
+     "loc": 6,
+     "exported": false
     },
     {
      "id": "symbol:src/core/symbolDependencies.ts:function:resolveSymbolDependencies:82",
      "name": "resolveSymbolDependencies",
      "kind": "function",
-     "loc": 77
+     "loc": 77,
+     "exported": true
     },
     {
      "id": "symbol:src/core/symbolDependencies.ts:function:emptyResult:160",
      "name": "emptyResult",
      "kind": "function",
-     "loc": 11
+     "loc": 11,
+     "exported": false
     },
     {
      "id": "symbol:src/core/symbolDependencies.ts:function:createLanguageServiceProject:172",
      "name": "createLanguageServiceProject",
      "kind": "function",
-     "loc": 29
+     "loc": 29,
+     "exported": false
     },
     {
      "id": "symbol:src/core/symbolDependencies.ts:function:parseTsConfig:202",
      "name": "parseTsConfig",
      "kind": "function",
-     "loc": 7
+     "loc": 7,
+     "exported": false
     },
     {
      "id": "symbol:src/core/symbolDependencies.ts:function:fallbackConfig:210",
      "name": "fallbackConfig",
      "kind": "function",
-     "loc": 18
+     "loc": 18,
+     "exported": false
     },
     {
      "id": "symbol:src/core/symbolDependencies.ts:function:fallbackCompilerOptions:229",
      "name": "fallbackCompilerOptions",
      "kind": "function",
-     "loc": 13
+     "loc": 13,
+     "exported": false
     },
     {
      "id": "symbol:src/core/symbolDependencies.ts:function:parseSymbolId:243",
      "name": "parseSymbolId",
      "kind": "function",
-     "loc": 23
+     "loc": 23,
+     "exported": false
     },
     {
      "id": "symbol:src/core/symbolDependencies.ts:function:findSymbolNamePosition:267",
      "name": "findSymbolNamePosition",
      "kind": "function",
-     "loc": 22
+     "loc": 22,
+     "exported": false
     },
     {
      "id": "symbol:src/core/symbolDependencies.ts:function:namedDeclarationFromTopLevelStatement:290",
      "name": "namedDeclarationFromTopLevelStatement",
      "kind": "function",
-     "loc": 16
+     "loc": 16,
+     "exported": false
     },
     {
      "id": "symbol:src/core/symbolDependencies.ts:function:declarationKind:307",
      "name": "declarationKind",
      "kind": "function",
-     "loc": 28
+     "loc": 28,
+     "exported": false
     },
     {
      "id": "symbol:src/core/symbolDependencies.ts:function:declarationName:336",
      "name": "declarationName",
      "kind": "function",
-     "loc": 16
+     "loc": 16,
+     "exported": false
     },
     {
      "id": "symbol:src/core/symbolDependencies.ts:function:nodeFromCallHierarchyItem:353",
      "name": "nodeFromCallHierarchyItem",
      "kind": "function",
-     "loc": 14
+     "loc": 14,
+     "exported": false
     },
     {
      "id": "symbol:src/core/symbolDependencies.ts:function:shouldIncludeCallHierarchyItem:368",
      "name": "shouldIncludeCallHierarchyItem",
      "kind": "function",
-     "loc": 11
+     "loc": 11,
+     "exported": false
     },
     {
      "id": "symbol:src/core/symbolDependencies.ts:function:locationFromTextSpan:380",
      "name": "locationFromTextSpan",
      "kind": "function",
-     "loc": 13
+     "loc": 13,
+     "exported": false
     },
     {
      "id": "symbol:src/core/symbolDependencies.ts:function:callHierarchyKind:394",
      "name": "callHierarchyKind",
      "kind": "function",
-     "loc": 18
+     "loc": 18,
+     "exported": false
     },
     {
      "id": "symbol:src/core/symbolDependencies.ts:function:symbolId:413",
      "name": "symbolId",
      "kind": "function",
-     "loc": 3
+     "loc": 3,
+     "exported": false
     },
     {
      "id": "symbol:src/core/symbolDependencies.ts:function:normalizePath:417",
      "name": "normalizePath",
      "kind": "function",
-     "loc": 3
+     "loc": 3,
+     "exported": false
     },
     {
      "id": "symbol:src/core/symbolDependencies.ts:function:scriptKindFor:421",
      "name": "scriptKindFor",
      "kind": "function",
-     "loc": 12
+     "loc": 12,
+     "exported": false
     }
    ]
   },
@@ -1386,25 +1587,29 @@ export const sprawlensSnapshot: SnapshotLike = {
      "id": "symbol:src/core/symbolMap.test.ts:function:snapshot:5",
      "name": "snapshot",
      "kind": "function",
-     "loc": 68
+     "loc": 68,
+     "exported": false
     },
     {
      "id": "symbol:src/core/symbolMap.test.ts:function:distance:345",
      "name": "distance",
      "kind": "function",
-     "loc": 3
+     "loc": 3,
+     "exported": false
     },
     {
      "id": "symbol:src/core/symbolMap.test.ts:function:distanceToPoint:349",
      "name": "distanceToPoint",
      "kind": "function",
-     "loc": 3
+     "loc": 3,
+     "exported": false
     },
     {
      "id": "symbol:src/core/symbolMap.test.ts:function:aspectRatio:353",
      "name": "aspectRatio",
      "kind": "function",
-     "loc": 5
+     "loc": 5,
+     "exported": false
     }
    ]
   },
@@ -1418,241 +1623,281 @@ export const sprawlensSnapshot: SnapshotLike = {
      "id": "symbol:src/core/symbolMap.ts:type:SymbolMapNodeKind:15",
      "name": "SymbolMapNodeKind",
      "kind": "type",
-     "loc": 1
+     "loc": 1,
+     "exported": true
     },
     {
      "id": "symbol:src/core/symbolMap.ts:type:SymbolMapStatus:16",
      "name": "SymbolMapStatus",
      "kind": "type",
-     "loc": 1
+     "loc": 1,
+     "exported": true
     },
     {
      "id": "symbol:src/core/symbolMap.ts:type:SymbolSurface:17",
      "name": "SymbolSurface",
      "kind": "type",
-     "loc": 1
+     "loc": 1,
+     "exported": true
     },
     {
      "id": "symbol:src/core/symbolMap.ts:type:SymbolMapNode:19",
      "name": "SymbolMapNode",
      "kind": "type",
-     "loc": 24
+     "loc": 24,
+     "exported": true
     },
     {
      "id": "symbol:src/core/symbolMap.ts:type:SymbolMapEdge:44",
      "name": "SymbolMapEdge",
      "kind": "type",
-     "loc": 12
+     "loc": 12,
+     "exported": true
     },
     {
      "id": "symbol:src/core/symbolMap.ts:type:SymbolMapFrame:57",
      "name": "SymbolMapFrame",
      "kind": "type",
-     "loc": 19
+     "loc": 19,
+     "exported": true
     },
     {
      "id": "symbol:src/core/symbolMap.ts:type:BuildSymbolMapOptions:77",
      "name": "BuildSymbolMapOptions",
      "kind": "type",
-     "loc": 7
+     "loc": 7,
+     "exported": true
     },
     {
      "id": "symbol:src/core/symbolMap.ts:type:ModuleRectDatum:93",
      "name": "ModuleRectDatum",
      "kind": "type",
-     "loc": 6
+     "loc": 6,
+     "exported": false
     },
     {
      "id": "symbol:src/core/symbolMap.ts:type:FileRectDatum:100",
      "name": "FileRectDatum",
      "kind": "type",
-     "loc": 6
+     "loc": 6,
+     "exported": false
     },
     {
      "id": "symbol:src/core/symbolMap.ts:type:SymbolStats:107",
      "name": "SymbolStats",
      "kind": "type",
-     "loc": 6
+     "loc": 6,
+     "exported": false
     },
     {
      "id": "symbol:src/core/symbolMap.ts:type:ModuleLayoutNode:114",
      "name": "ModuleLayoutNode",
      "kind": "type",
-     "loc": 8
+     "loc": 8,
+     "exported": false
     },
     {
      "id": "symbol:src/core/symbolMap.ts:type:ModuleAttraction:123",
      "name": "ModuleAttraction",
      "kind": "type",
-     "loc": 6
+     "loc": 6,
+     "exported": false
     },
     {
      "id": "symbol:src/core/symbolMap.ts:type:RectLayout:130",
      "name": "RectLayout",
      "kind": "type",
-     "loc": 12
+     "loc": 12,
+     "exported": false
     },
     {
      "id": "symbol:src/core/symbolMap.ts:type:SymbolLayout:143",
      "name": "SymbolLayout",
      "kind": "type",
-     "loc": 6
+     "loc": 6,
+     "exported": false
     },
     {
      "id": "symbol:src/core/symbolMap.ts:function:buildSymbolMapFrame:150",
      "name": "buildSymbolMapFrame",
      "kind": "function",
-     "loc": 65
+     "loc": 65,
+     "exported": true
     },
     {
      "id": "symbol:src/core/symbolMap.ts:function:mapModuleByFileId:216",
      "name": "mapModuleByFileId",
      "kind": "function",
-     "loc": 9
+     "loc": 9,
+     "exported": false
     },
     {
      "id": "symbol:src/core/symbolMap.ts:function:collectSymbolStats:226",
      "name": "collectSymbolStats",
      "kind": "function",
-     "loc": 31
+     "loc": 31,
+     "exported": false
     },
     {
      "id": "symbol:src/core/symbolMap.ts:function:ensureSymbolStats:258",
      "name": "ensureSymbolStats",
      "kind": "function",
-     "loc": 5
+     "loc": 5,
+     "exported": false
     },
     {
      "id": "symbol:src/core/symbolMap.ts:function:selectFiles:264",
      "name": "selectFiles",
      "kind": "function",
-     "loc": 37
+     "loc": 37,
+     "exported": false
     },
     {
      "id": "symbol:src/core/symbolMap.ts:function:selectSymbolsByFile:302",
      "name": "selectSymbolsByFile",
      "kind": "function",
-     "loc": 27
+     "loc": 27,
+     "exported": false
     },
     {
      "id": "symbol:src/core/symbolMap.ts:function:layoutModules:330",
      "name": "layoutModules",
      "kind": "function",
-     "loc": 56
+     "loc": 56,
+     "exported": false
     },
     {
      "id": "symbol:src/core/symbolMap.ts:function:moduleDegree:387",
      "name": "moduleDegree",
      "kind": "function",
-     "loc": 12
+     "loc": 12,
+     "exported": false
     },
     {
      "id": "symbol:src/core/symbolMap.ts:function:seedDependencyClusters:400",
      "name": "seedDependencyClusters",
      "kind": "function",
-     "loc": 64
+     "loc": 64,
+     "exported": false
     },
     {
      "id": "symbol:src/core/symbolMap.ts:function:moduleAttractions:465",
      "name": "moduleAttractions",
      "kind": "function",
-     "loc": 47
+     "loc": 47,
+     "exported": false
     },
     {
      "id": "symbol:src/core/symbolMap.ts:function:applyCenterForces:513",
      "name": "applyCenterForces",
      "kind": "function",
-     "loc": 7
+     "loc": 7,
+     "exported": false
     },
     {
      "id": "symbol:src/core/symbolMap.ts:function:applyAttractions:521",
      "name": "applyAttractions",
      "kind": "function",
-     "loc": 20
+     "loc": 20,
+     "exported": false
     },
     {
      "id": "symbol:src/core/symbolMap.ts:function:applyCollisions:542",
      "name": "applyCollisions",
      "kind": "function",
-     "loc": 26
+     "loc": 26,
+     "exported": false
     },
     {
      "id": "symbol:src/core/symbolMap.ts:function:keepNodesInBounds:569",
      "name": "keepNodesInBounds",
      "kind": "function",
-     "loc": 6
+     "loc": 6,
+     "exported": false
     },
     {
      "id": "symbol:src/core/symbolMap.ts:function:rectLayout:576",
      "name": "rectLayout",
      "kind": "function",
-     "loc": 20
+     "loc": 20,
+     "exported": false
     },
     {
      "id": "symbol:src/core/symbolMap.ts:function:layoutFiles:597",
      "name": "layoutFiles",
      "kind": "function",
-     "loc": 18
+     "loc": 18,
+     "exported": false
     },
     {
      "id": "symbol:src/core/symbolMap.ts:function:layoutSymbols:616",
      "name": "layoutSymbols",
      "kind": "function",
-     "loc": 26
+     "loc": 26,
+     "exported": false
     },
     {
      "id": "symbol:src/core/symbolMap.ts:function:symbolLayoutScore:643",
      "name": "symbolLayoutScore",
      "kind": "function",
-     "loc": 4
+     "loc": 4,
+     "exported": false
     },
     {
      "id": "symbol:src/core/symbolMap.ts:function:moduleNode:648",
      "name": "moduleNode",
      "kind": "function",
-     "loc": 23
+     "loc": 23,
+     "exported": false
     },
     {
      "id": "symbol:src/core/symbolMap.ts:function:fileBoxNode:672",
      "name": "fileBoxNode",
      "kind": "function",
-     "loc": 26
+     "loc": 26,
+     "exported": false
     },
     {
      "id": "symbol:src/core/symbolMap.ts:function:symbolNode:699",
      "name": "symbolNode",
      "kind": "function",
-     "loc": 33
+     "loc": 33,
+     "exported": false
     },
     {
      "id": "symbol:src/core/symbolMap.ts:function:symbolVisibleAtZoom:733",
      "name": "symbolVisibleAtZoom",
      "kind": "function",
-     "loc": 18
+     "loc": 18,
+     "exported": false
     },
     {
      "id": "symbol:src/core/symbolMap.ts:function:buildSymbolEdges:752",
      "name": "buildSymbolEdges",
      "kind": "function",
-     "loc": 62
+     "loc": 62,
+     "exported": false
     },
     {
      "id": "symbol:src/core/symbolMap.ts:function:computeBounds:815",
      "name": "computeBounds",
      "kind": "function",
-     "loc": 11
+     "loc": 11,
+     "exported": false
     },
     {
      "id": "symbol:src/core/symbolMap.ts:function:groupBy:827",
      "name": "groupBy",
      "kind": "function",
-     "loc": 10
+     "loc": 10,
+     "exported": false
     },
     {
      "id": "symbol:src/core/symbolMap.ts:function:clamp:838",
      "name": "clamp",
      "kind": "function",
-     "loc": 3
+     "loc": 3,
+     "exported": false
     }
    ]
   },
@@ -1666,157 +1911,183 @@ export const sprawlensSnapshot: SnapshotLike = {
      "id": "symbol:src/core/types.ts:type:AIIndicator:1",
      "name": "AIIndicator",
      "kind": "type",
-     "loc": 8
+     "loc": 8,
+     "exported": true
     },
     {
      "id": "symbol:src/core/types.ts:type:CommitAIInfo:10",
      "name": "CommitAIInfo",
      "kind": "type",
-     "loc": 5
+     "loc": 5,
+     "exported": true
     },
     {
      "id": "symbol:src/core/types.ts:type:CommitMetadataInput:16",
      "name": "CommitMetadataInput",
      "kind": "type",
-     "loc": 8
+     "loc": 8,
+     "exported": true
     },
     {
      "id": "symbol:src/core/types.ts:type:SnapshotCommit:25",
      "name": "SnapshotCommit",
      "kind": "type",
-     "loc": 9
+     "loc": 9,
+     "exported": true
     },
     {
      "id": "symbol:src/core/types.ts:type:RepoNode:35",
      "name": "RepoNode",
      "kind": "type",
-     "loc": 5
+     "loc": 5,
+     "exported": true
     },
     {
      "id": "symbol:src/core/types.ts:type:DirNode:41",
      "name": "DirNode",
      "kind": "type",
-     "loc": 5
+     "loc": 5,
+     "exported": true
     },
     {
      "id": "symbol:src/core/types.ts:type:FileNode:47",
      "name": "FileNode",
      "kind": "type",
-     "loc": 9
+     "loc": 9,
+     "exported": true
     },
     {
      "id": "symbol:src/core/types.ts:type:CodeNode:57",
      "name": "CodeNode",
      "kind": "type",
-     "loc": 1
+     "loc": 1,
+     "exported": true
     },
     {
      "id": "symbol:src/core/types.ts:type:CodeSymbolKind:59",
      "name": "CodeSymbolKind",
      "kind": "type",
-     "loc": 1
+     "loc": 1,
+     "exported": true
     },
     {
      "id": "symbol:src/core/types.ts:type:CodeSymbol:61",
      "name": "CodeSymbol",
      "kind": "type",
-     "loc": 9
+     "loc": 9,
+     "exported": true
     },
     {
      "id": "symbol:src/core/types.ts:type:CodeImportBindingKind:71",
      "name": "CodeImportBindingKind",
      "kind": "type",
-     "loc": 1
+     "loc": 1,
+     "exported": true
     },
     {
      "id": "symbol:src/core/types.ts:type:CodeImportBinding:73",
      "name": "CodeImportBinding",
      "kind": "type",
-     "loc": 6
+     "loc": 6,
+     "exported": true
     },
     {
      "id": "symbol:src/core/types.ts:type:CodeSymbolImport:80",
      "name": "CodeSymbolImport",
      "kind": "type",
-     "loc": 6
+     "loc": 6,
+     "exported": true
     },
     {
      "id": "symbol:src/core/types.ts:type:ContainsEdge:87",
      "name": "ContainsEdge",
      "kind": "type",
-     "loc": 6
+     "loc": 6,
+     "exported": true
     },
     {
      "id": "symbol:src/core/types.ts:type:ImportsEdge:94",
      "name": "ImportsEdge",
      "kind": "type",
-     "loc": 10
+     "loc": 10,
+     "exported": true
     },
     {
      "id": "symbol:src/core/types.ts:type:CodeEdge:105",
      "name": "CodeEdge",
      "kind": "type",
-     "loc": 1
+     "loc": 1,
+     "exported": true
     },
     {
      "id": "symbol:src/core/types.ts:type:SnapshotMetrics:107",
      "name": "SnapshotMetrics",
      "kind": "type",
-     "loc": 11
+     "loc": 11,
+     "exported": true
     },
     {
      "id": "symbol:src/core/types.ts:type:Snapshot:119",
      "name": "Snapshot",
      "kind": "type",
-     "loc": 8
+     "loc": 8,
+     "exported": true
     },
     {
      "id": "symbol:src/core/types.ts:type:FileGraphMetric:128",
      "name": "FileGraphMetric",
      "kind": "type",
-     "loc": 5
+     "loc": 5,
+     "exported": true
     },
     {
      "id": "symbol:src/core/types.ts:type:MetricsComputation:134",
      "name": "MetricsComputation",
      "kind": "type",
-     "loc": 6
+     "loc": 6,
+     "exported": true
     },
     {
      "id": "symbol:src/core/types.ts:type:ChangedFile:141",
      "name": "ChangedFile",
      "kind": "type",
-     "loc": 10
+     "loc": 10,
+     "exported": true
     },
     {
      "id": "symbol:src/core/types.ts:type:HotspotReason:152",
      "name": "HotspotReason",
      "kind": "type",
-     "loc": 9
+     "loc": 9,
+     "exported": true
     },
     {
      "id": "symbol:src/core/types.ts:type:Hotspot:162",
      "name": "Hotspot",
      "kind": "type",
-     "loc": 5
+     "loc": 5,
+     "exported": true
     },
     {
      "id": "symbol:src/core/types.ts:type:GraphDiff:168",
      "name": "GraphDiff",
      "kind": "type",
-     "loc": 12
+     "loc": 12,
+     "exported": true
     },
     {
      "id": "symbol:src/core/types.ts:type:CodesprawlConfig:181",
      "name": "CodesprawlConfig",
      "kind": "type",
-     "loc": 10
+     "loc": 10,
+     "exported": true
     },
     {
      "id": "symbol:src/core/types.ts:type:CommitRecord:192",
      "name": "CommitRecord",
      "kind": "type",
-     "loc": 3
+     "loc": 3,
+     "exported": true
     }
    ]
   },
@@ -1830,289 +2101,337 @@ export const sprawlensSnapshot: SnapshotLike = {
      "id": "symbol:src/ui/App.tsx:type:SnapshotSummary:10",
      "name": "SnapshotSummary",
      "kind": "type",
-     "loc": 1
+     "loc": 1,
+     "exported": false
     },
     {
      "id": "symbol:src/ui/App.tsx:type:DiffSummary:11",
      "name": "DiffSummary",
      "kind": "type",
-     "loc": 1
+     "loc": 1,
+     "exported": false
     },
     {
      "id": "symbol:src/ui/App.tsx:type:MetricKey:12",
      "name": "MetricKey",
      "kind": "type",
-     "loc": 1
+     "loc": 1,
+     "exported": false
     },
     {
      "id": "symbol:src/ui/App.tsx:type:ViewMode:13",
      "name": "ViewMode",
      "kind": "type",
-     "loc": 1
+     "loc": 1,
+     "exported": false
     },
     {
      "id": "symbol:src/ui/App.tsx:type:RealtimePayload:14",
      "name": "RealtimePayload",
      "kind": "type",
-     "loc": 6
+     "loc": 6,
+     "exported": false
     },
     {
      "id": "symbol:src/ui/App.tsx:function:App:36",
      "name": "App",
      "kind": "function",
-     "loc": 262
+     "loc": 262,
+     "exported": true
     },
     {
      "id": "symbol:src/ui/App.tsx:function:selectSnapshot:299",
      "name": "selectSnapshot",
      "kind": "function",
-     "loc": 10
+     "loc": 10,
+     "exported": false
     },
     {
      "id": "symbol:src/ui/App.tsx:function:ModeSelector:310",
      "name": "ModeSelector",
      "kind": "function",
-     "loc": 14
+     "loc": 14,
+     "exported": false
     },
     {
      "id": "symbol:src/ui/App.tsx:function:SnapshotSelector:325",
      "name": "SnapshotSelector",
      "kind": "function",
-     "loc": 18
+     "loc": 18,
+     "exported": false
     },
     {
      "id": "symbol:src/ui/App.tsx:function:CommitPairSelector:344",
      "name": "CommitPairSelector",
      "kind": "function",
-     "loc": 32
+     "loc": 32,
+     "exported": false
     },
     {
      "id": "symbol:src/ui/App.tsx:function:MetricToggles:377",
      "name": "MetricToggles",
      "kind": "function",
-     "loc": 22
+     "loc": 22,
+     "exported": false
     },
     {
      "id": "symbol:src/ui/App.tsx:function:SnapshotMetricsPanel:400",
      "name": "SnapshotMetricsPanel",
      "kind": "function",
-     "loc": 34
+     "loc": 34,
+     "exported": false
     },
     {
      "id": "symbol:src/ui/App.tsx:function:MetricDeltaCards:435",
      "name": "MetricDeltaCards",
      "kind": "function",
-     "loc": 24
+     "loc": 24,
+     "exported": false
     },
     {
      "id": "symbol:src/ui/App.tsx:function:RealtimeStatus:460",
      "name": "RealtimeStatus",
      "kind": "function",
-     "loc": 18
+     "loc": 18,
+     "exported": false
     },
     {
      "id": "symbol:src/ui/App.tsx:function:Timeline:479",
      "name": "Timeline",
      "kind": "function",
-     "loc": 50
+     "loc": 50,
+     "exported": false
     },
     {
      "id": "symbol:src/ui/App.tsx:function:TreemapView:530",
      "name": "TreemapView",
      "kind": "function",
-     "loc": 71
+     "loc": 71,
+     "exported": false
     },
     {
      "id": "symbol:src/ui/App.tsx:type:TreemapHover:602",
      "name": "TreemapHover",
      "kind": "type",
-     "loc": 8
+     "loc": 8,
+     "exported": false
     },
     {
      "id": "symbol:src/ui/App.tsx:function:toTreemapHover:611",
      "name": "toTreemapHover",
      "kind": "function",
-     "loc": 17
+     "loc": 17,
+     "exported": false
     },
     {
      "id": "symbol:src/ui/App.tsx:function:TreemapTooltip:629",
      "name": "TreemapTooltip",
      "kind": "function",
-     "loc": 25
+     "loc": 25,
+     "exported": false
     },
     {
      "id": "symbol:src/ui/App.tsx:function:HotspotList:655",
      "name": "HotspotList",
      "kind": "function",
-     "loc": 41
+     "loc": 41,
+     "exported": false
     },
     {
      "id": "symbol:src/ui/App.tsx:function:DependencyDiff:697",
      "name": "DependencyDiff",
      "kind": "function",
-     "loc": 83
+     "loc": 83,
+     "exported": false
     },
     {
      "id": "symbol:src/ui/App.tsx:function:NeighborList:781",
      "name": "NeighborList",
      "kind": "function",
-     "loc": 18
+     "loc": 18,
+     "exported": false
     },
     {
      "id": "symbol:src/ui/App.tsx:type:TreeNode:800",
      "name": "TreeNode",
      "kind": "type",
-     "loc": 6
+     "loc": 6,
+     "exported": false
     },
     {
      "id": "symbol:src/ui/App.tsx:function:buildTreemapRoot:807",
      "name": "buildTreemapRoot",
      "kind": "function",
-     "loc": 25
+     "loc": 25,
+     "exported": false
     },
     {
      "id": "symbol:src/ui/App.tsx:type:DepStatus:833",
      "name": "DepStatus",
      "kind": "type",
-     "loc": 1
+     "loc": 1,
+     "exported": false
     },
     {
      "id": "symbol:src/ui/App.tsx:type:DepEdge:835",
      "name": "DepEdge",
      "kind": "type",
-     "loc": 3
+     "loc": 3,
+     "exported": false
     },
     {
      "id": "symbol:src/ui/App.tsx:type:DepNeighbor:839",
      "name": "DepNeighbor",
      "kind": "type",
-     "loc": 5
+     "loc": 5,
+     "exported": false
     },
     {
      "id": "symbol:src/ui/App.tsx:type:DepNodePlacement:845",
      "name": "DepNodePlacement",
      "kind": "type",
-     "loc": 7
+     "loc": 7,
+     "exported": false
     },
     {
      "id": "symbol:src/ui/App.tsx:function:viewModeFromHash:855",
      "name": "viewModeFromHash",
      "kind": "function",
-     "loc": 10
+     "loc": 10,
+     "exported": false
     },
     {
      "id": "symbol:src/ui/App.tsx:function:setViewHash:866",
      "name": "setViewHash",
      "kind": "function",
-     "loc": 3
+     "loc": 3,
+     "exported": false
     },
     {
      "id": "symbol:src/ui/App.tsx:function:dependencyNeighborhood:870",
      "name": "dependencyNeighborhood",
      "kind": "function",
-     "loc": 59
+     "loc": 59,
+     "exported": false
     },
     {
      "id": "symbol:src/ui/App.tsx:function:rankNeighbors:930",
      "name": "rankNeighbors",
      "kind": "function",
-     "loc": 9
+     "loc": 9,
+     "exported": false
     },
     {
      "id": "symbol:src/ui/App.tsx:function:statusFor:940",
      "name": "statusFor",
      "kind": "function",
-     "loc": 10
+     "loc": 10,
+     "exported": false
     },
     {
      "id": "symbol:src/ui/App.tsx:function:statusRank:951",
      "name": "statusRank",
      "kind": "function",
-     "loc": 9
+     "loc": 9,
+     "exported": false
     },
     {
      "id": "symbol:src/ui/App.tsx:function:placeColumn:961",
      "name": "placeColumn",
      "kind": "function",
-     "loc": 11
+     "loc": 11,
+     "exported": false
     },
     {
      "id": "symbol:src/ui/App.tsx:function:dependencyPoint:973",
      "name": "dependencyPoint",
      "kind": "function",
-     "loc": 10
+     "loc": 10,
+     "exported": false
     },
     {
      "id": "symbol:src/ui/App.tsx:function:isImportEdge:984",
      "name": "isImportEdge",
      "kind": "function",
-     "loc": 3
+     "loc": 3,
+     "exported": false
     },
     {
      "id": "symbol:src/ui/App.tsx:function:cellClass:988",
      "name": "cellClass",
      "kind": "function",
-     "loc": 17
+     "loc": 17,
+     "exported": false
     },
     {
      "id": "symbol:src/ui/App.tsx:function:AlertTriangleMarker:1006",
      "name": "AlertTriangleMarker",
      "kind": "function",
-     "loc": 9
+     "loc": 9,
+     "exported": false
     },
     {
      "id": "symbol:src/ui/App.tsx:function:formatDate:1016",
      "name": "formatDate",
      "kind": "function",
-     "loc": 3
+     "loc": 3,
+     "exported": false
     },
     {
      "id": "symbol:src/ui/App.tsx:function:basename:1020",
      "name": "basename",
      "kind": "function",
-     "loc": 3
+     "loc": 3,
+     "exported": false
     },
     {
      "id": "symbol:src/ui/App.tsx:function:formatNumber:1024",
      "name": "formatNumber",
      "kind": "function",
-     "loc": 3
+     "loc": 3,
+     "exported": false
     },
     {
      "id": "symbol:src/ui/App.tsx:function:formatSigned:1028",
      "name": "formatSigned",
      "kind": "function",
-     "loc": 6
+     "loc": 6,
+     "exported": false
     },
     {
      "id": "symbol:src/ui/App.tsx:function:shortenMiddle:1035",
      "name": "shortenMiddle",
      "kind": "function",
-     "loc": 13
+     "loc": 13,
+     "exported": false
     },
     {
      "id": "symbol:src/ui/App.tsx:function:measuredLength:1049",
      "name": "measuredLength",
      "kind": "function",
-     "loc": 3
+     "loc": 3,
+     "exported": false
     },
     {
      "id": "symbol:src/ui/App.tsx:function:useElementSize:1053",
      "name": "useElementSize",
      "kind": "function",
-     "loc": 36
+     "loc": 36,
+     "exported": false
     },
     {
      "id": "symbol:src/ui/App.tsx:function:measureElement:1090",
      "name": "measureElement",
      "kind": "function",
-     "loc": 9
+     "loc": 9,
+     "exported": false
     },
     {
      "id": "symbol:src/ui/App.tsx:function:viewportSize:1100",
      "name": "viewportSize",
      "kind": "function",
-     "loc": 9
+     "loc": 9,
+     "exported": false
     }
    ]
   },
@@ -2126,193 +2445,225 @@ export const sprawlensSnapshot: SnapshotLike = {
      "id": "symbol:src/ui/DependencyGraphView.tsx:type:DependencyGraphViewProps:15",
      "name": "DependencyGraphViewProps",
      "kind": "type",
-     "loc": 8
+     "loc": 8,
+     "exported": false
     },
     {
      "id": "symbol:src/ui/DependencyGraphView.tsx:type:GraphView:24",
      "name": "GraphView",
      "kind": "type",
-     "loc": 5
+     "loc": 5,
+     "exported": false
     },
     {
      "id": "symbol:src/ui/DependencyGraphView.tsx:type:DragState:30",
      "name": "DragState",
      "kind": "type",
-     "loc": 7
+     "loc": 7,
+     "exported": false
     },
     {
      "id": "symbol:src/ui/DependencyGraphView.tsx:type:SelectionEdgeRelation:38",
      "name": "SelectionEdgeRelation",
      "kind": "type",
-     "loc": 1
+     "loc": 1,
+     "exported": true
     },
     {
      "id": "symbol:src/ui/DependencyGraphView.tsx:type:SelectionNodeRelation:39",
      "name": "SelectionNodeRelation",
      "kind": "type",
-     "loc": 1
+     "loc": 1,
+     "exported": true
     },
     {
      "id": "symbol:src/ui/DependencyGraphView.tsx:function:DependencyGraphView:44",
      "name": "DependencyGraphView",
      "kind": "function",
-     "loc": 274
+     "loc": 274,
+     "exported": true
     },
     {
      "id": "symbol:src/ui/DependencyGraphView.tsx:function:GraphEdge:319",
      "name": "GraphEdge",
      "kind": "function",
-     "loc": 34
+     "loc": 34,
+     "exported": false
     },
     {
      "id": "symbol:src/ui/DependencyGraphView.tsx:function:GraphNode:354",
      "name": "GraphNode",
      "kind": "function",
-     "loc": 70
+     "loc": 70,
+     "exported": false
     },
     {
      "id": "symbol:src/ui/DependencyGraphView.tsx:function:GraphInspector:425",
      "name": "GraphInspector",
      "kind": "function",
-     "loc": 64
+     "loc": 64,
+     "exported": false
     },
     {
      "id": "symbol:src/ui/DependencyGraphView.tsx:function:ImportBreakdownPanel:490",
      "name": "ImportBreakdownPanel",
      "kind": "function",
-     "loc": 37
+     "loc": 37,
+     "exported": false
     },
     {
      "id": "symbol:src/ui/DependencyGraphView.tsx:function:ImportBreakdownList:528",
      "name": "ImportBreakdownList",
      "kind": "function",
-     "loc": 32
+     "loc": 32,
+     "exported": false
     },
     {
      "id": "symbol:src/ui/DependencyGraphView.tsx:type:ImportBreakdownRow:561",
      "name": "ImportBreakdownRow",
      "kind": "type",
-     "loc": 6
+     "loc": 6,
+     "exported": false
     },
     {
      "id": "symbol:src/ui/DependencyGraphView.tsx:function:groupedImportRows:568",
      "name": "groupedImportRows",
      "kind": "function",
-     "loc": 28
+     "loc": 28,
+     "exported": false
     },
     {
      "id": "symbol:src/ui/DependencyGraphView.tsx:function:directImportRows:597",
      "name": "directImportRows",
      "kind": "function",
-     "loc": 14
+     "loc": 14,
+     "exported": false
     },
     {
      "id": "symbol:src/ui/DependencyGraphView.tsx:function:GraphNeighborList:612",
      "name": "GraphNeighborList",
      "kind": "function",
-     "loc": 26
+     "loc": 26,
+     "exported": false
     },
     {
      "id": "symbol:src/ui/DependencyGraphView.tsx:function:relatedNodeIds:639",
      "name": "relatedNodeIds",
      "kind": "function",
-     "loc": 28
+     "loc": 28,
+     "exported": false
     },
     {
      "id": "symbol:src/ui/DependencyGraphView.tsx:function:fitFrame:668",
      "name": "fitFrame",
      "kind": "function",
-     "loc": 9
+     "loc": 9,
+     "exported": false
     },
     {
      "id": "symbol:src/ui/DependencyGraphView.tsx:function:viewBoxFor:678",
      "name": "viewBoxFor",
      "kind": "function",
-     "loc": 5
+     "loc": 5,
+     "exported": false
     },
     {
      "id": "symbol:src/ui/DependencyGraphView.tsx:function:zoomAt:684",
      "name": "zoomAt",
      "kind": "function",
-     "loc": 12
+     "loc": 12,
+     "exported": false
     },
     {
      "id": "symbol:src/ui/DependencyGraphView.tsx:function:shouldShowNodeLabel:697",
      "name": "shouldShowNodeLabel",
      "kind": "function",
-     "loc": 21
+     "loc": 21,
+     "exported": true
     },
     {
      "id": "symbol:src/ui/DependencyGraphView.tsx:function:drillZoomForNode:719",
      "name": "drillZoomForNode",
      "kind": "function",
-     "loc": 9
+     "loc": 9,
+     "exported": true
     },
     {
      "id": "symbol:src/ui/DependencyGraphView.tsx:function:edgeRelationToSelection:729",
      "name": "edgeRelationToSelection",
      "kind": "function",
-     "loc": 22
+     "loc": 22,
+     "exported": true
     },
     {
      "id": "symbol:src/ui/DependencyGraphView.tsx:function:nodeRelationToSelection:752",
      "name": "nodeRelationToSelection",
      "kind": "function",
-     "loc": 28
+     "loc": 28,
+     "exported": true
     },
     {
      "id": "symbol:src/ui/DependencyGraphView.tsx:function:graphModuleId:781",
      "name": "graphModuleId",
      "kind": "function",
-     "loc": 12
+     "loc": 12,
+     "exported": false
     },
     {
      "id": "symbol:src/ui/DependencyGraphView.tsx:function:nodeModuleId:794",
      "name": "nodeModuleId",
      "kind": "function",
-     "loc": 7
+     "loc": 7,
+     "exported": false
     },
     {
      "id": "symbol:src/ui/DependencyGraphView.tsx:function:moduleIdForEndpoint:802",
      "name": "moduleIdForEndpoint",
      "kind": "function",
-     "loc": 15
+     "loc": 15,
+     "exported": false
     },
     {
      "id": "symbol:src/ui/DependencyGraphView.tsx:function:visualRadius:818",
      "name": "visualRadius",
      "kind": "function",
-     "loc": 6
+     "loc": 6,
+     "exported": false
     },
     {
      "id": "symbol:src/ui/DependencyGraphView.tsx:function:shortenLine:825",
      "name": "shortenLine",
      "kind": "function",
-     "loc": 15
+     "loc": 15,
+     "exported": false
     },
     {
      "id": "symbol:src/ui/DependencyGraphView.tsx:function:formatNumber:841",
      "name": "formatNumber",
      "kind": "function",
-     "loc": 3
+     "loc": 3,
+     "exported": false
     },
     {
      "id": "symbol:src/ui/DependencyGraphView.tsx:function:compactPath:845",
      "name": "compactPath",
      "kind": "function",
-     "loc": 7
+     "loc": 7,
+     "exported": false
     },
     {
      "id": "symbol:src/ui/DependencyGraphView.tsx:function:clamp:853",
      "name": "clamp",
      "kind": "function",
-     "loc": 3
+     "loc": 3,
+     "exported": false
     },
     {
      "id": "symbol:src/ui/DependencyGraphView.tsx:function:useElementSize:857",
      "name": "useElementSize",
      "kind": "function",
-     "loc": 29
+     "loc": 29,
+     "exported": false
     }
    ]
   },
@@ -2326,157 +2677,183 @@ export const sprawlensSnapshot: SnapshotLike = {
      "id": "symbol:src/ui/ModuleCityMap.tsx:type:ModuleCityMapProps:37",
      "name": "ModuleCityMapProps",
      "kind": "type",
-     "loc": 8
+     "loc": 8,
+     "exported": false
     },
     {
      "id": "symbol:src/ui/ModuleCityMap.tsx:type:LayoutNode:46",
      "name": "LayoutNode",
      "kind": "type",
-     "loc": 7
+     "loc": 7,
+     "exported": false
     },
     {
      "id": "symbol:src/ui/ModuleCityMap.tsx:type:FileLayoutNode:54",
      "name": "FileLayoutNode",
      "kind": "type",
-     "loc": 8
+     "loc": 8,
+     "exported": false
     },
     {
      "id": "symbol:src/ui/ModuleCityMap.tsx:type:SymbolLayoutNode:63",
      "name": "SymbolLayoutNode",
      "kind": "type",
-     "loc": 8
+     "loc": 8,
+     "exported": false
     },
     {
      "id": "symbol:src/ui/ModuleCityMap.tsx:type:DragState:72",
      "name": "DragState",
      "kind": "type",
-     "loc": 7
+     "loc": 7,
+     "exported": false
     },
     {
      "id": "symbol:src/ui/ModuleCityMap.tsx:type:ModuleLayoutMode:80",
      "name": "ModuleLayoutMode",
      "kind": "type",
-     "loc": 1
+     "loc": 1,
+     "exported": false
     },
     {
      "id": "symbol:src/ui/ModuleCityMap.tsx:function:ModuleCityMap:96",
      "name": "ModuleCityMap",
      "kind": "function",
-     "loc": 348
+     "loc": 348,
+     "exported": true
     },
     {
      "id": "symbol:src/ui/ModuleCityMap.tsx:function:ModuleMiniMap:445",
      "name": "ModuleMiniMap",
      "kind": "function",
-     "loc": 27
+     "loc": 27,
+     "exported": false
     },
     {
      "id": "symbol:src/ui/ModuleCityMap.tsx:function:ModuleDependencyLines:473",
      "name": "ModuleDependencyLines",
      "kind": "function",
-     "loc": 29
+     "loc": 29,
+     "exported": false
     },
     {
      "id": "symbol:src/ui/ModuleCityMap.tsx:function:LayerBars:503",
      "name": "LayerBars",
      "kind": "function",
-     "loc": 17
+     "loc": 17,
+     "exported": false
     },
     {
      "id": "symbol:src/ui/ModuleCityMap.tsx:function:ModuleInspector:521",
      "name": "ModuleInspector",
      "kind": "function",
-     "loc": 65
+     "loc": 65,
+     "exported": false
     },
     {
      "id": "symbol:src/ui/ModuleCityMap.tsx:function:DependencyList:587",
      "name": "DependencyList",
      "kind": "function",
-     "loc": 27
+     "loc": 27,
+     "exported": false
     },
     {
      "id": "symbol:src/ui/ModuleCityMap.tsx:function:layoutModules:615",
      "name": "layoutModules",
      "kind": "function",
-     "loc": 39
+     "loc": 39,
+     "exported": false
     },
     {
      "id": "symbol:src/ui/ModuleCityMap.tsx:function:layoutPreviewFiles:655",
      "name": "layoutPreviewFiles",
      "kind": "function",
-     "loc": 4
+     "loc": 4,
+     "exported": false
     },
     {
      "id": "symbol:src/ui/ModuleCityMap.tsx:function:layoutFiles:660",
      "name": "layoutFiles",
      "kind": "function",
-     "loc": 32
+     "loc": 32,
+     "exported": false
     },
     {
      "id": "symbol:src/ui/ModuleCityMap.tsx:function:layoutSymbols:693",
      "name": "layoutSymbols",
      "kind": "function",
-     "loc": 29
+     "loc": 29,
+     "exported": false
     },
     {
      "id": "symbol:src/ui/ModuleCityMap.tsx:function:selectedDependencies:723",
      "name": "selectedDependencies",
      "kind": "function",
-     "loc": 19
+     "loc": 19,
+     "exported": false
     },
     {
      "id": "symbol:src/ui/ModuleCityMap.tsx:function:rectCenter:743",
      "name": "rectCenter",
      "kind": "function",
-     "loc": 6
+     "loc": 6,
+     "exported": false
     },
     {
      "id": "symbol:src/ui/ModuleCityMap.tsx:function:moduleClass:750",
      "name": "moduleClass",
      "kind": "function",
-     "loc": 3
+     "loc": 3,
+     "exported": false
     },
     {
      "id": "symbol:src/ui/ModuleCityMap.tsx:function:fileClass:754",
      "name": "fileClass",
      "kind": "function",
-     "loc": 3
+     "loc": 3,
+     "exported": false
     },
     {
      "id": "symbol:src/ui/ModuleCityMap.tsx:function:symbolClass:758",
      "name": "symbolClass",
      "kind": "function",
-     "loc": 3
+     "loc": 3,
+     "exported": false
     },
     {
      "id": "symbol:src/ui/ModuleCityMap.tsx:function:formatNumber:762",
      "name": "formatNumber",
      "kind": "function",
-     "loc": 3
+     "loc": 3,
+     "exported": false
     },
     {
      "id": "symbol:src/ui/ModuleCityMap.tsx:function:clamp:766",
      "name": "clamp",
      "kind": "function",
-     "loc": 3
+     "loc": 3,
+     "exported": false
     },
     {
      "id": "symbol:src/ui/ModuleCityMap.tsx:function:pointInElement:770",
      "name": "pointInElement",
      "kind": "function",
-     "loc": 7
+     "loc": 7,
+     "exported": false
     },
     {
      "id": "symbol:src/ui/ModuleCityMap.tsx:function:isToolbarTarget:778",
      "name": "isToolbarTarget",
      "kind": "function",
-     "loc": 3
+     "loc": 3,
+     "exported": false
     },
     {
      "id": "symbol:src/ui/ModuleCityMap.tsx:function:useElementSize:782",
      "name": "useElementSize",
      "kind": "function",
-     "loc": 33
+     "loc": 33,
+     "exported": false
     }
    ]
   },
@@ -2490,157 +2867,183 @@ export const sprawlensSnapshot: SnapshotLike = {
      "id": "symbol:src/ui/NetworkLab.tsx:type:RendererKind:18",
      "name": "RendererKind",
      "kind": "type",
-     "loc": 1
+     "loc": 1,
+     "exported": false
     },
     {
      "id": "symbol:src/ui/NetworkLab.tsx:type:NetworkLabProps:20",
      "name": "NetworkLabProps",
      "kind": "type",
-     "loc": 7
+     "loc": 7,
+     "exported": false
     },
     {
      "id": "symbol:src/ui/NetworkLab.tsx:function:NetworkLab:35",
      "name": "NetworkLab",
      "kind": "function",
-     "loc": 99
+     "loc": 99,
+     "exported": true
     },
     {
      "id": "symbol:src/ui/NetworkLab.tsx:function:ThreeNetworkRenderer:135",
      "name": "ThreeNetworkRenderer",
      "kind": "function",
-     "loc": 132
+     "loc": 132,
+     "exported": false
     },
     {
      "id": "symbol:src/ui/NetworkLab.tsx:function:DeckNetworkRenderer:268",
      "name": "DeckNetworkRenderer",
      "kind": "function",
-     "loc": 69
+     "loc": 69,
+     "exported": false
     },
     {
      "id": "symbol:src/ui/NetworkLab.tsx:function:GeoJsonTileRenderer:338",
      "name": "GeoJsonTileRenderer",
      "kind": "function",
-     "loc": 76
+     "loc": 76,
+     "exported": false
     },
     {
      "id": "symbol:src/ui/NetworkLab.tsx:function:VisGraph3dRenderer:415",
      "name": "VisGraph3dRenderer",
      "kind": "function",
-     "loc": 44
+     "loc": 44,
+     "exported": false
     },
     {
      "id": "symbol:src/ui/NetworkLab.tsx:type:ReactPointerWheelEvent:460",
      "name": "ReactPointerWheelEvent",
      "kind": "type",
-     "loc": 1
+     "loc": 1,
+     "exported": false
     },
     {
      "id": "symbol:src/ui/NetworkLab.tsx:type:GraphView:462",
      "name": "GraphView",
      "kind": "type",
-     "loc": 5
+     "loc": 5,
+     "exported": false
     },
     {
      "id": "symbol:src/ui/NetworkLab.tsx:function:initialView:468",
      "name": "initialView",
      "kind": "function",
-     "loc": 7
+     "loc": 7,
+     "exported": false
     },
     {
      "id": "symbol:src/ui/NetworkLab.tsx:function:centerOf:476",
      "name": "centerOf",
      "kind": "function",
-     "loc": 6
+     "loc": 6,
+     "exported": false
     },
     {
      "id": "symbol:src/ui/NetworkLab.tsx:function:edgeLineGroups:483",
      "name": "edgeLineGroups",
      "kind": "function",
-     "loc": 31
+     "loc": 31,
+     "exported": false
     },
     {
      "id": "symbol:src/ui/NetworkLab.tsx:function:renderThreeScene:515",
      "name": "renderThreeScene",
      "kind": "function",
-     "loc": 18
+     "loc": 18,
+     "exported": false
     },
     {
      "id": "symbol:src/ui/NetworkLab.tsx:function:threeProjectedPosition:534",
      "name": "threeProjectedPosition",
      "kind": "function",
-     "loc": 7
+     "loc": 7,
+     "exported": false
     },
     {
      "id": "symbol:src/ui/NetworkLab.tsx:function:drawGeoJsonTiles:542",
      "name": "drawGeoJsonTiles",
      "kind": "function",
-     "loc": 46
+     "loc": 46,
+     "exported": false
     },
     {
      "id": "symbol:src/ui/NetworkLab.tsx:function:drawTileGrid:589",
      "name": "drawTileGrid",
      "kind": "function",
-     "loc": 16
+     "loc": 16,
+     "exported": false
     },
     {
      "id": "symbol:src/ui/NetworkLab.tsx:function:worldToScreen:606",
      "name": "worldToScreen",
      "kind": "function",
-     "loc": 11
+     "loc": 11,
+     "exported": false
     },
     {
      "id": "symbol:src/ui/NetworkLab.tsx:function:pickCanvasNode:618",
      "name": "pickCanvasNode",
      "kind": "function",
-     "loc": 17
+     "loc": 17,
+     "exported": false
     },
     {
      "id": "symbol:src/ui/NetworkLab.tsx:function:pickThreeNode:636",
      "name": "pickThreeNode",
      "kind": "function",
-     "loc": 17
+     "loc": 17,
+     "exported": false
     },
     {
      "id": "symbol:src/ui/NetworkLab.tsx:function:rgbaForStatus:654",
      "name": "rgbaForStatus",
      "kind": "function",
-     "loc": 4
+     "loc": 4,
+     "exported": false
     },
     {
      "id": "symbol:src/ui/NetworkLab.tsx:function:rgbaCss:659",
      "name": "rgbaCss",
      "kind": "function",
-     "loc": 4
+     "loc": 4,
+     "exported": false
     },
     {
      "id": "symbol:src/ui/NetworkLab.tsx:function:nodeColor:664",
      "name": "nodeColor",
      "kind": "function",
-     "loc": 7
+     "loc": 7,
+     "exported": false
     },
     {
      "id": "symbol:src/ui/NetworkLab.tsx:function:rgbForStatus:672",
      "name": "rgbForStatus",
      "kind": "function",
-     "loc": 15
+     "loc": 15,
+     "exported": false
     },
     {
      "id": "symbol:src/ui/NetworkLab.tsx:function:snap:688",
      "name": "snap",
      "kind": "function",
-     "loc": 3
+     "loc": 3,
+     "exported": false
     },
     {
      "id": "symbol:src/ui/NetworkLab.tsx:function:clamp:692",
      "name": "clamp",
      "kind": "function",
-     "loc": 3
+     "loc": 3,
+     "exported": false
     },
     {
      "id": "symbol:src/ui/NetworkLab.tsx:function:useElementSize:696",
      "name": "useElementSize",
      "kind": "function",
-     "loc": 31
+     "loc": 31,
+     "exported": false
     }
    ]
   },
@@ -2654,283 +3057,330 @@ export const sprawlensSnapshot: SnapshotLike = {
      "id": "symbol:src/ui/SymbolMapView.tsx:type:SymbolMapViewProps:9",
      "name": "SymbolMapViewProps",
      "kind": "type",
-     "loc": 8
+     "loc": 8,
+     "exported": false
     },
     {
      "id": "symbol:src/ui/SymbolMapView.tsx:type:MapView:18",
      "name": "MapView",
      "kind": "type",
-     "loc": 5
+     "loc": 5,
+     "exported": false
     },
     {
      "id": "symbol:src/ui/SymbolMapView.tsx:type:DragState:24",
      "name": "DragState",
      "kind": "type",
-     "loc": 6
+     "loc": 6,
+     "exported": false
     },
     {
      "id": "symbol:src/ui/SymbolMapView.tsx:type:SelectedEdgeDirection:31",
      "name": "SelectedEdgeDirection",
      "kind": "type",
-     "loc": 1
+     "loc": 1,
+     "exported": false
     },
     {
      "id": "symbol:src/ui/SymbolMapView.tsx:type:ModuleRouteEdge:33",
      "name": "ModuleRouteEdge",
      "kind": "type",
-     "loc": 7
+     "loc": 7,
+     "exported": false
     },
     {
      "id": "symbol:src/ui/SymbolMapView.tsx:type:SymbolEdgeVisibilityContext:45",
      "name": "SymbolEdgeVisibilityContext",
      "kind": "type",
-     "loc": 7
+     "loc": 7,
+     "exported": false
     },
     {
      "id": "symbol:src/ui/SymbolMapView.tsx:function:SymbolMapView:53",
      "name": "SymbolMapView",
      "kind": "function",
-     "loc": 317
+     "loc": 317,
+     "exported": true
     },
     {
      "id": "symbol:src/ui/SymbolMapView.tsx:function:ModuleNode:371",
      "name": "ModuleNode",
      "kind": "function",
-     "loc": 26
+     "loc": 26,
+     "exported": false
     },
     {
      "id": "symbol:src/ui/SymbolMapView.tsx:function:ModuleRouteLine:398",
      "name": "ModuleRouteLine",
      "kind": "function",
-     "loc": 19
+     "loc": 19,
+     "exported": false
     },
     {
      "id": "symbol:src/ui/SymbolMapView.tsx:function:FileNode:418",
      "name": "FileNode",
      "kind": "function",
-     "loc": 27
+     "loc": 27,
+     "exported": false
     },
     {
      "id": "symbol:src/ui/SymbolMapView.tsx:function:SymbolNode:446",
      "name": "SymbolNode",
      "kind": "function",
-     "loc": 28
+     "loc": 28,
+     "exported": false
     },
     {
      "id": "symbol:src/ui/SymbolMapView.tsx:function:SymbolEdge:475",
      "name": "SymbolEdge",
      "kind": "function",
-     "loc": 25
+     "loc": 25,
+     "exported": false
     },
     {
      "id": "symbol:src/ui/SymbolMapView.tsx:function:SymbolInspector:501",
      "name": "SymbolInspector",
      "kind": "function",
-     "loc": 66
+     "loc": 66,
+     "exported": false
     },
     {
      "id": "symbol:src/ui/SymbolMapView.tsx:function:SymbolHoverCard:568",
      "name": "SymbolHoverCard",
      "kind": "function",
-     "loc": 28
+     "loc": 28,
+     "exported": false
     },
     {
      "id": "symbol:src/ui/SymbolMapView.tsx:function:stableInspectorNode:597",
      "name": "stableInspectorNode",
      "kind": "function",
-     "loc": 3
+     "loc": 3,
+     "exported": true
     },
     {
      "id": "symbol:src/ui/SymbolMapView.tsx:function:syncedSelectedNodeId:601",
      "name": "syncedSelectedNodeId",
      "kind": "function",
-     "loc": 10
+     "loc": 10,
+     "exported": true
     },
     {
      "id": "symbol:src/ui/SymbolMapView.tsx:function:selectionBelongsToFocusModule:612",
      "name": "selectionBelongsToFocusModule",
      "kind": "function",
-     "loc": 6
+     "loc": 6,
+     "exported": false
     },
     {
      "id": "symbol:src/ui/SymbolMapView.tsx:function:NeighborList:619",
      "name": "NeighborList",
      "kind": "function",
-     "loc": 19
+     "loc": 19,
+     "exported": false
     },
     {
      "id": "symbol:src/ui/SymbolMapView.tsx:function:CallDependencyList:639",
      "name": "CallDependencyList",
      "kind": "function",
-     "loc": 33
+     "loc": 33,
+     "exported": false
     },
     {
      "id": "symbol:src/ui/SymbolMapView.tsx:function:relatedNodeIds:673",
      "name": "relatedNodeIds",
      "kind": "function",
-     "loc": 20
+     "loc": 20,
+     "exported": true
     },
     {
      "id": "symbol:src/ui/SymbolMapView.tsx:function:selectedDependencyEdgeIds:694",
      "name": "selectedDependencyEdgeIds",
      "kind": "function",
-     "loc": 7
+     "loc": 7,
+     "exported": true
     },
     {
      "id": "symbol:src/ui/SymbolMapView.tsx:function:visibleSymbolEdgesForSelection:702",
      "name": "visibleSymbolEdgesForSelection",
      "kind": "function",
-     "loc": 36
+     "loc": 36,
+     "exported": true
     },
     {
      "id": "symbol:src/ui/SymbolMapView.tsx:function:moduleRouteEdgesForMap:739",
      "name": "moduleRouteEdgesForMap",
      "kind": "function",
-     "loc": 29
+     "loc": 29,
+     "exported": true
     },
     {
      "id": "symbol:src/ui/SymbolMapView.tsx:function:routeTouches:769",
      "name": "routeTouches",
      "kind": "function",
-     "loc": 3
+     "loc": 3,
+     "exported": false
     },
     {
      "id": "symbol:src/ui/SymbolMapView.tsx:function:mergeRouteStatus:773",
      "name": "mergeRouteStatus",
      "kind": "function",
-     "loc": 10
+     "loc": 10,
+     "exported": false
     },
     {
      "id": "symbol:src/ui/SymbolMapView.tsx:function:edgeMatchesSelectedScope:784",
      "name": "edgeMatchesSelectedScope",
      "kind": "function",
-     "loc": 12
+     "loc": 12,
+     "exported": false
     },
     {
      "id": "symbol:src/ui/SymbolMapView.tsx:function:backgroundEdgeBudget:797",
      "name": "backgroundEdgeBudget",
      "kind": "function",
-     "loc": 15
+     "loc": 15,
+     "exported": false
     },
     {
      "id": "symbol:src/ui/SymbolMapView.tsx:function:backgroundEdgeScore:813",
      "name": "backgroundEdgeScore",
      "kind": "function",
-     "loc": 7
+     "loc": 7,
+     "exported": false
     },
     {
      "id": "symbol:src/ui/SymbolMapView.tsx:function:edgeDistancePenalty:821",
      "name": "edgeDistancePenalty",
      "kind": "function",
-     "loc": 13
+     "loc": 13,
+     "exported": false
     },
     {
      "id": "symbol:src/ui/SymbolMapView.tsx:function:selectedEdgeDirection:835",
      "name": "selectedEdgeDirection",
      "kind": "function",
-     "loc": 9
+     "loc": 9,
+     "exported": true
     },
     {
      "id": "symbol:src/ui/SymbolMapView.tsx:function:symbolDependencyRelatedNodeIds:845",
      "name": "symbolDependencyRelatedNodeIds",
      "kind": "function",
-     "loc": 15
+     "loc": 15,
+     "exported": true
     },
     {
      "id": "symbol:src/ui/SymbolMapView.tsx:function:markerIdForEdge:861",
      "name": "markerIdForEdge",
      "kind": "function",
-     "loc": 9
+     "loc": 9,
+     "exported": false
     },
     {
      "id": "symbol:src/ui/SymbolMapView.tsx:function:symbolDependencyEdgesForMap:871",
      "name": "symbolDependencyEdgesForMap",
      "kind": "function",
-     "loc": 26
+     "loc": 26,
+     "exported": true
     },
     {
      "id": "symbol:src/ui/SymbolMapView.tsx:function:loadSymbolDependencies:898",
      "name": "loadSymbolDependencies",
      "kind": "function",
-     "loc": 28
+     "loc": 28,
+     "exported": false
     },
     {
      "id": "symbol:src/ui/SymbolMapView.tsx:function:shouldShowNode:927",
      "name": "shouldShowNode",
      "kind": "function",
-     "loc": 9
+     "loc": 9,
+     "exported": false
     },
     {
      "id": "symbol:src/ui/SymbolMapView.tsx:function:shouldShowSymbolLabel:937",
      "name": "shouldShowSymbolLabel",
      "kind": "function",
-     "loc": 13
+     "loc": 13,
+     "exported": true
     },
     {
      "id": "symbol:src/ui/SymbolMapView.tsx:function:fitFrame:951",
      "name": "fitFrame",
      "kind": "function",
-     "loc": 9
+     "loc": 9,
+     "exported": false
     },
     {
      "id": "symbol:src/ui/SymbolMapView.tsx:function:viewBoxFor:961",
      "name": "viewBoxFor",
      "kind": "function",
-     "loc": 5
+     "loc": 5,
+     "exported": false
     },
     {
      "id": "symbol:src/ui/SymbolMapView.tsx:function:paddedViewRect:967",
      "name": "paddedViewRect",
      "kind": "function",
-     "loc": 12
+     "loc": 12,
+     "exported": false
     },
     {
      "id": "symbol:src/ui/SymbolMapView.tsx:function:edgeIntersectsRect:980",
      "name": "edgeIntersectsRect",
      "kind": "function",
-     "loc": 12
+     "loc": 12,
+     "exported": false
     },
     {
      "id": "symbol:src/ui/SymbolMapView.tsx:function:zoomAt:993",
      "name": "zoomAt",
      "kind": "function",
-     "loc": 12
+     "loc": 12,
+     "exported": false
     },
     {
      "id": "symbol:src/ui/SymbolMapView.tsx:function:visualRadius:1006",
      "name": "visualRadius",
      "kind": "function",
-     "loc": 3
+     "loc": 3,
+     "exported": false
     },
     {
      "id": "symbol:src/ui/SymbolMapView.tsx:function:shortenLine:1010",
      "name": "shortenLine",
      "kind": "function",
-     "loc": 15
+     "loc": 15,
+     "exported": false
     },
     {
      "id": "symbol:src/ui/SymbolMapView.tsx:function:formatNumber:1026",
      "name": "formatNumber",
      "kind": "function",
-     "loc": 3
+     "loc": 3,
+     "exported": false
     },
     {
      "id": "symbol:src/ui/SymbolMapView.tsx:function:compactPath:1030",
      "name": "compactPath",
      "kind": "function",
-     "loc": 4
+     "loc": 4,
+     "exported": false
     },
     {
      "id": "symbol:src/ui/SymbolMapView.tsx:function:clamp:1035",
      "name": "clamp",
      "kind": "function",
-     "loc": 3
+     "loc": 3,
+     "exported": false
     },
     {
      "id": "symbol:src/ui/SymbolMapView.tsx:function:useElementSize:1039",
      "name": "useElementSize",
      "kind": "function",
-     "loc": 29
+     "loc": 29,
+     "exported": false
     }
    ]
   },
@@ -2944,19 +3394,22 @@ export const sprawlensSnapshot: SnapshotLike = {
      "id": "symbol:src/ui/dependencyGraphSelection.test.ts:function:edge:5",
      "name": "edge",
      "kind": "function",
-     "loc": 11
+     "loc": 11,
+     "exported": false
     },
     {
      "id": "symbol:src/ui/dependencyGraphSelection.test.ts:function:frame:17",
      "name": "frame",
      "kind": "function",
-     "loc": 10
+     "loc": 10,
+     "exported": false
     },
     {
      "id": "symbol:src/ui/dependencyGraphSelection.test.ts:function:node:28",
      "name": "node",
      "kind": "function",
-     "loc": 23
+     "loc": 23,
+     "exported": false
     }
    ]
   },
@@ -2977,19 +3430,22 @@ export const sprawlensSnapshot: SnapshotLike = {
      "id": "symbol:src/ui/moduleGraphLayout.test.ts:function:center:6",
      "name": "center",
      "kind": "function",
-     "loc": 6
+     "loc": 6,
+     "exported": false
     },
     {
      "id": "symbol:src/ui/moduleGraphLayout.test.ts:function:distance:13",
      "name": "distance",
      "kind": "function",
-     "loc": 3
+     "loc": 3,
+     "exported": false
     },
     {
      "id": "symbol:src/ui/moduleGraphLayout.test.ts:function:overlapArea:17",
      "name": "overlapArea",
      "kind": "function",
-     "loc": 5
+     "loc": 5,
+     "exported": false
     }
    ]
   },
@@ -3003,109 +3459,127 @@ export const sprawlensSnapshot: SnapshotLike = {
      "id": "symbol:src/ui/moduleGraphLayout.ts:type:GraphLayoutItem:1",
      "name": "GraphLayoutItem",
      "kind": "type",
-     "loc": 5
+     "loc": 5,
+     "exported": true
     },
     {
      "id": "symbol:src/ui/moduleGraphLayout.ts:type:GraphLayoutDependency:7",
      "name": "GraphLayoutDependency",
      "kind": "type",
-     "loc": 5
+     "loc": 5,
+     "exported": true
     },
     {
      "id": "symbol:src/ui/moduleGraphLayout.ts:type:GraphLayoutSize:13",
      "name": "GraphLayoutSize",
      "kind": "type",
-     "loc": 4
+     "loc": 4,
+     "exported": true
     },
     {
      "id": "symbol:src/ui/moduleGraphLayout.ts:type:GraphLayoutRect:18",
      "name": "GraphLayoutRect",
      "kind": "type",
-     "loc": 7
+     "loc": 7,
+     "exported": true
     },
     {
      "id": "symbol:src/ui/moduleGraphLayout.ts:type:SimNode:26",
      "name": "SimNode",
      "kind": "type",
-     "loc": 9
+     "loc": 9,
+     "exported": false
     },
     {
      "id": "symbol:src/ui/moduleGraphLayout.ts:function:layoutDependencyMap:40",
      "name": "layoutDependencyMap",
      "kind": "function",
-     "loc": 33
+     "loc": 33,
+     "exported": true
     },
     {
      "id": "symbol:src/ui/moduleGraphLayout.ts:function:createNodes:74",
      "name": "createNodes",
      "kind": "function",
-     "loc": 27
+     "loc": 27,
+     "exported": false
     },
     {
      "id": "symbol:src/ui/moduleGraphLayout.ts:function:applyLinkForces:102",
      "name": "applyLinkForces",
      "kind": "function",
-     "loc": 15
+     "loc": 15,
+     "exported": false
     },
     {
      "id": "symbol:src/ui/moduleGraphLayout.ts:function:applyClusterForces:118",
      "name": "applyClusterForces",
      "kind": "function",
-     "loc": 19
+     "loc": 19,
+     "exported": false
     },
     {
      "id": "symbol:src/ui/moduleGraphLayout.ts:function:applyCollisionForces:138",
      "name": "applyCollisionForces",
      "kind": "function",
-     "loc": 26
+     "loc": 26,
+     "exported": false
     },
     {
      "id": "symbol:src/ui/moduleGraphLayout.ts:function:applyCenterForce:165",
      "name": "applyCenterForce",
      "kind": "function",
-     "loc": 8
+     "loc": 8,
+     "exported": false
     },
     {
      "id": "symbol:src/ui/moduleGraphLayout.ts:function:integrate:174",
      "name": "integrate",
      "kind": "function",
-     "loc": 9
+     "loc": 9,
+     "exported": false
     },
     {
      "id": "symbol:src/ui/moduleGraphLayout.ts:function:resolveOverlaps:184",
      "name": "resolveOverlaps",
      "kind": "function",
-     "loc": 40
+     "loc": 40,
+     "exported": false
     },
     {
      "id": "symbol:src/ui/moduleGraphLayout.ts:function:packRows:225",
      "name": "packRows",
      "kind": "function",
-     "loc": 20
+     "loc": 20,
+     "exported": false
     },
     {
      "id": "symbol:src/ui/moduleGraphLayout.ts:function:groupForPath:246",
      "name": "groupForPath",
      "kind": "function",
-     "loc": 7
+     "loc": 7,
+     "exported": false
     },
     {
      "id": "symbol:src/ui/moduleGraphLayout.ts:function:hashNumber:254",
      "name": "hashNumber",
      "kind": "function",
-     "loc": 8
+     "loc": 8,
+     "exported": false
     },
     {
      "id": "symbol:src/ui/moduleGraphLayout.ts:function:deterministicSign:263",
      "name": "deterministicSign",
      "kind": "function",
-     "loc": 3
+     "loc": 3,
+     "exported": false
     },
     {
      "id": "symbol:src/ui/moduleGraphLayout.ts:function:clamp:267",
      "name": "clamp",
      "kind": "function",
-     "loc": 3
+     "loc": 3,
+     "exported": false
     }
    ]
   },
@@ -3126,97 +3600,113 @@ export const sprawlensSnapshot: SnapshotLike = {
      "id": "symbol:src/ui/moduleLayer.ts:type:FileLayerMode:1",
      "name": "FileLayerMode",
      "kind": "type",
-     "loc": 1
+     "loc": 1,
+     "exported": true
     },
     {
      "id": "symbol:src/ui/moduleLayer.ts:variable:FILE_DETAIL_ZOOM:3",
      "name": "FILE_DETAIL_ZOOM",
      "kind": "variable",
-     "loc": 1
+     "loc": 1,
+     "exported": true
     },
     {
      "id": "symbol:src/ui/moduleLayer.ts:variable:FILE_LABEL_ZOOM:4",
      "name": "FILE_LABEL_ZOOM",
      "kind": "variable",
-     "loc": 1
+     "loc": 1,
+     "exported": true
     },
     {
      "id": "symbol:src/ui/moduleLayer.ts:variable:SYMBOL_DETAIL_ZOOM:5",
      "name": "SYMBOL_DETAIL_ZOOM",
      "kind": "variable",
-     "loc": 1
+     "loc": 1,
+     "exported": true
     },
     {
      "id": "symbol:src/ui/moduleLayer.ts:variable:SYMBOL_LABEL_ZOOM:6",
      "name": "SYMBOL_LABEL_ZOOM",
      "kind": "variable",
-     "loc": 1
+     "loc": 1,
+     "exported": true
     },
     {
      "id": "symbol:src/ui/moduleLayer.ts:function:fileLayerMode:8",
      "name": "fileLayerMode",
      "kind": "function",
-     "loc": 3
+     "loc": 3,
+     "exported": true
     },
     {
      "id": "symbol:src/ui/moduleLayer.ts:function:filePreviewLimit:12",
      "name": "filePreviewLimit",
      "kind": "function",
-     "loc": 9
+     "loc": 9,
+     "exported": true
     },
     {
      "id": "symbol:src/ui/moduleLayer.ts:function:shouldShowFileLabels:22",
      "name": "shouldShowFileLabels",
      "kind": "function",
-     "loc": 3
+     "loc": 3,
+     "exported": true
     },
     {
      "id": "symbol:src/ui/moduleLayer.ts:function:scaledSvgFontSize:26",
      "name": "scaledSvgFontSize",
      "kind": "function",
-     "loc": 3
+     "loc": 3,
+     "exported": true
     },
     {
      "id": "symbol:src/ui/moduleLayer.ts:function:shouldShowSymbols:30",
      "name": "shouldShowSymbols",
      "kind": "function",
-     "loc": 3
+     "loc": 3,
+     "exported": true
     },
     {
      "id": "symbol:src/ui/moduleLayer.ts:function:shouldShowSymbolLabels:34",
      "name": "shouldShowSymbolLabels",
      "kind": "function",
-     "loc": 3
+     "loc": 3,
+     "exported": true
     },
     {
      "id": "symbol:src/ui/moduleLayer.ts:function:zoomPercentLabel:38",
      "name": "zoomPercentLabel",
      "kind": "function",
-     "loc": 3
+     "loc": 3,
+     "exported": true
     },
     {
      "id": "symbol:src/ui/moduleLayer.ts:type:LayerRect:42",
      "name": "LayerRect",
      "kind": "type",
-     "loc": 6
+     "loc": 6,
+     "exported": true
     },
     {
      "id": "symbol:src/ui/moduleLayer.ts:type:ScreenSizeThreshold:49",
      "name": "ScreenSizeThreshold",
      "kind": "type",
-     "loc": 4
+     "loc": 4,
+     "exported": true
     },
     {
      "id": "symbol:src/ui/moduleLayer.ts:function:rectScreenSize:54",
      "name": "rectScreenSize",
      "kind": "function",
-     "loc": 6
+     "loc": 6,
+     "exported": true
     },
     {
      "id": "symbol:src/ui/moduleLayer.ts:function:shouldShowNestedBlocks:61",
      "name": "shouldShowNestedBlocks",
      "kind": "function",
-     "loc": 4
+     "loc": 4,
+     "exported": true
     }
    ]
   },
@@ -3230,7 +3720,8 @@ export const sprawlensSnapshot: SnapshotLike = {
      "id": "symbol:src/ui/moduleViewport.test.ts:function:worldAt:16",
      "name": "worldAt",
      "kind": "function",
-     "loc": 6
+     "loc": 6,
+     "exported": false
     }
    ]
   },
@@ -3244,97 +3735,113 @@ export const sprawlensSnapshot: SnapshotLike = {
      "id": "symbol:src/ui/moduleViewport.ts:type:MapViewport:1",
      "name": "MapViewport",
      "kind": "type",
-     "loc": 5
+     "loc": 5,
+     "exported": true
     },
     {
      "id": "symbol:src/ui/moduleViewport.ts:type:MapSize:7",
      "name": "MapSize",
      "kind": "type",
-     "loc": 4
+     "loc": 4,
+     "exported": true
     },
     {
      "id": "symbol:src/ui/moduleViewport.ts:type:MapRect:12",
      "name": "MapRect",
      "kind": "type",
-     "loc": 6
+     "loc": 6,
+     "exported": true
     },
     {
      "id": "symbol:src/ui/moduleViewport.ts:type:ScreenPoint:19",
      "name": "ScreenPoint",
      "kind": "type",
-     "loc": 4
+     "loc": 4,
+     "exported": true
     },
     {
      "id": "symbol:src/ui/moduleViewport.ts:variable:MIN_MODULE_MAP_ZOOM:24",
      "name": "MIN_MODULE_MAP_ZOOM",
      "kind": "variable",
-     "loc": 1
+     "loc": 1,
+     "exported": true
     },
     {
      "id": "symbol:src/ui/moduleViewport.ts:variable:MAX_MODULE_MAP_ZOOM:25",
      "name": "MAX_MODULE_MAP_ZOOM",
      "kind": "variable",
-     "loc": 1
+     "loc": 1,
+     "exported": true
     },
     {
      "id": "symbol:src/ui/moduleViewport.ts:function:clampZoom:27",
      "name": "clampZoom",
      "kind": "function",
-     "loc": 3
+     "loc": 3,
+     "exported": true
     },
     {
      "id": "symbol:src/ui/moduleViewport.ts:function:clampViewport:31",
      "name": "clampViewport",
      "kind": "function",
-     "loc": 10
+     "loc": 10,
+     "exported": true
     },
     {
      "id": "symbol:src/ui/moduleViewport.ts:function:viewportToViewBox:42",
      "name": "viewportToViewBox",
      "kind": "function",
-     "loc": 4
+     "loc": 4,
+     "exported": true
     },
     {
      "id": "symbol:src/ui/moduleViewport.ts:function:viewportRect:47",
      "name": "viewportRect",
      "kind": "function",
-     "loc": 9
+     "loc": 9,
+     "exported": true
     },
     {
      "id": "symbol:src/ui/moduleViewport.ts:function:rectIntersectsViewport:57",
      "name": "rectIntersectsViewport",
      "kind": "function",
-     "loc": 4
+     "loc": 4,
+     "exported": true
     },
     {
      "id": "symbol:src/ui/moduleViewport.ts:function:focusViewport:62",
      "name": "focusViewport",
      "kind": "function",
-     "loc": 15
+     "loc": 15,
+     "exported": true
     },
     {
      "id": "symbol:src/ui/moduleViewport.ts:function:zoomViewportAt:78",
      "name": "zoomViewportAt",
      "kind": "function",
-     "loc": 14
+     "loc": 14,
+     "exported": true
     },
     {
      "id": "symbol:src/ui/moduleViewport.ts:function:panViewport:93",
      "name": "panViewport",
      "kind": "function",
-     "loc": 11
+     "loc": 11,
+     "exported": true
     },
     {
      "id": "symbol:src/ui/moduleViewport.ts:function:wheelZoomFactor:105",
      "name": "wheelZoomFactor",
      "kind": "function",
-     "loc": 3
+     "loc": 3,
+     "exported": true
     },
     {
      "id": "symbol:src/ui/moduleViewport.ts:function:clamp:109",
      "name": "clamp",
      "kind": "function",
-     "loc": 3
+     "loc": 3,
+     "exported": false
     }
    ]
   },
@@ -3348,31 +3855,36 @@ export const sprawlensSnapshot: SnapshotLike = {
      "id": "symbol:src/ui/symbolMapVisibility.test.ts:function:symbol:17",
      "name": "symbol",
      "kind": "function",
-     "loc": 24
+     "loc": 24,
+     "exported": false
     },
     {
      "id": "symbol:src/ui/symbolMapVisibility.test.ts:function:moduleNode:42",
      "name": "moduleNode",
      "kind": "function",
-     "loc": 21
+     "loc": 21,
+     "exported": false
     },
     {
      "id": "symbol:src/ui/symbolMapVisibility.test.ts:function:frame:64",
      "name": "frame",
      "kind": "function",
-     "loc": 10
+     "loc": 10,
+     "exported": false
     },
     {
      "id": "symbol:src/ui/symbolMapVisibility.test.ts:function:edge:75",
      "name": "edge",
      "kind": "function",
-     "loc": 15
+     "loc": 15,
+     "exported": false
     },
     {
      "id": "symbol:src/ui/symbolMapVisibility.test.ts:function:dependencies:91",
      "name": "dependencies",
      "kind": "function",
-     "loc": 30
+     "loc": 30,
+     "exported": false
     }
    ]
   },
@@ -3396,415 +3908,840 @@ export const sprawlensSnapshot: SnapshotLike = {
    "type": "imports",
    "from": "file:src/cli/index.ts",
    "to": "file:src/core/collect.ts",
-   "resolved": true
+   "resolved": true,
+   "symbolImports": [
+    {
+     "toSymbolId": "symbol:src/core/collect.ts:function:analyzeRepository:85"
+    },
+    {
+     "toSymbolId": "symbol:src/core/collect.ts:function:collectRepository:37"
+    }
+   ]
   },
   {
    "type": "imports",
    "from": "file:src/cli/index.ts",
    "to": "file:src/core/server.ts",
-   "resolved": true
+   "resolved": true,
+   "symbolImports": [
+    {
+     "toSymbolId": "symbol:src/core/server.ts:function:startServer:18"
+    }
+   ]
   },
   {
    "type": "imports",
    "from": "file:src/core/ai.test.ts",
    "to": "file:src/core/ai.ts",
-   "resolved": true
+   "resolved": true,
+   "symbolImports": [
+    {
+     "toSymbolId": "symbol:src/core/ai.ts:function:detectAIIndicators:17"
+    }
+   ]
   },
   {
    "type": "imports",
    "from": "file:src/core/ai.ts",
    "to": "file:src/core/types.ts",
-   "resolved": true
+   "resolved": true,
+   "symbolImports": []
   },
   {
    "type": "imports",
    "from": "file:src/core/collect.test.ts",
    "to": "file:src/core/collect.ts",
-   "resolved": true
+   "resolved": true,
+   "symbolImports": [
+    {
+     "toSymbolId": "symbol:src/core/collect.ts:function:analyzeRealtimeRepository:112"
+    },
+    {
+     "toSymbolId": "symbol:src/core/collect.ts:function:analyzeRepository:85"
+    },
+    {
+     "toSymbolId": "symbol:src/core/collect.ts:function:collectRepository:37"
+    }
+   ]
   },
   {
    "type": "imports",
    "from": "file:src/core/collect.ts",
    "to": "file:src/core/ai.ts",
-   "resolved": true
+   "resolved": true,
+   "symbolImports": [
+    {
+     "toSymbolId": "symbol:src/core/ai.ts:function:detectAIIndicators:17"
+    }
+   ]
   },
   {
    "type": "imports",
    "from": "file:src/core/collect.ts",
    "to": "file:src/core/diff.ts",
-   "resolved": true
+   "resolved": true,
+   "symbolImports": [
+    {
+     "toSymbolId": "symbol:src/core/diff.ts:function:diffSnapshots:14"
+    },
+    {
+     "toSymbolId": "symbol:src/core/diff.ts:function:diffSnapshots:14"
+    }
+   ]
   },
   {
    "type": "imports",
    "from": "file:src/core/collect.ts",
    "to": "file:src/core/snapshot.ts",
-   "resolved": true
+   "resolved": true,
+   "symbolImports": [
+    {
+     "toSymbolId": "symbol:src/core/snapshot.ts:function:createSnapshotFromWorkingTree:49"
+    },
+    {
+     "toSymbolId": "symbol:src/core/snapshot.ts:function:createSnapshotFromWorkingTree:49"
+    }
+   ]
   },
   {
    "type": "imports",
    "from": "file:src/core/collect.ts",
    "to": "file:src/core/types.ts",
-   "resolved": true
+   "resolved": true,
+   "symbolImports": []
   },
   {
    "type": "imports",
    "from": "file:src/core/dependencyGraph.test.ts",
    "to": "file:src/core/dependencyGraph.ts",
-   "resolved": true
+   "resolved": true,
+   "symbolImports": [
+    {
+     "toSymbolId": "symbol:src/core/dependencyGraph.ts:function:buildDependencyGraphFrame:129"
+    }
+   ]
   },
   {
    "type": "imports",
    "from": "file:src/core/dependencyGraph.test.ts",
    "to": "file:src/core/types.ts",
-   "resolved": true
+   "resolved": true,
+   "symbolImports": []
   },
   {
    "type": "imports",
    "from": "file:src/core/dependencyGraph.ts",
    "to": "file:src/core/moduleMap.ts",
-   "resolved": true
+   "resolved": true,
+   "symbolImports": [
+    {
+     "toSymbolId": "symbol:src/core/moduleMap.ts:function:buildModuleMapFrame:64"
+    },
+    {
+     "toSymbolId": "symbol:src/core/moduleMap.ts:function:moduleIdForFilePath:169"
+    }
+   ]
   },
   {
    "type": "imports",
    "from": "file:src/core/dependencyGraph.ts",
    "to": "file:src/core/types.ts",
-   "resolved": true
+   "resolved": true,
+   "symbolImports": []
   },
   {
    "type": "imports",
    "from": "file:src/core/diff.test.ts",
    "to": "file:src/core/diff.ts",
-   "resolved": true
+   "resolved": true,
+   "symbolImports": [
+    {
+     "toSymbolId": "symbol:src/core/diff.ts:function:diffSnapshots:14"
+    }
+   ]
   },
   {
    "type": "imports",
    "from": "file:src/core/diff.test.ts",
    "to": "file:src/core/types.ts",
-   "resolved": true
+   "resolved": true,
+   "symbolImports": []
   },
   {
    "type": "imports",
    "from": "file:src/core/diff.ts",
    "to": "file:src/core/metrics.ts",
-   "resolved": true
+   "resolved": true,
+   "symbolImports": [
+    {
+     "toSymbolId": "symbol:src/core/metrics.ts:function:computeGraphMetrics:19"
+    },
+    {
+     "toSymbolId": "symbol:src/core/metrics.ts:function:computeGraphMetrics:19"
+    }
+   ]
   },
   {
    "type": "imports",
    "from": "file:src/core/diff.ts",
    "to": "file:src/core/types.ts",
-   "resolved": true
+   "resolved": true,
+   "symbolImports": []
   },
   {
    "type": "imports",
    "from": "file:src/core/metrics.test.ts",
    "to": "file:src/core/metrics.ts",
-   "resolved": true
+   "resolved": true,
+   "symbolImports": [
+    {
+     "toSymbolId": "symbol:src/core/metrics.ts:function:computeGraphMetrics:19"
+    }
+   ]
   },
   {
    "type": "imports",
    "from": "file:src/core/metrics.test.ts",
    "to": "file:src/core/types.ts",
-   "resolved": true
+   "resolved": true,
+   "symbolImports": []
   },
   {
    "type": "imports",
    "from": "file:src/core/metrics.ts",
    "to": "file:src/core/types.ts",
-   "resolved": true
+   "resolved": true,
+   "symbolImports": []
   },
   {
    "type": "imports",
    "from": "file:src/core/moduleMap.test.ts",
    "to": "file:src/core/moduleMap.ts",
-   "resolved": true
+   "resolved": true,
+   "symbolImports": [
+    {
+     "toSymbolId": "symbol:src/core/moduleMap.ts:function:buildModuleMapFrame:64"
+    },
+    {
+     "toSymbolId": "symbol:src/core/moduleMap.ts:function:classifyCodeLayer:196"
+    },
+    {
+     "toSymbolId": "symbol:src/core/moduleMap.ts:function:moduleIdForFilePath:169"
+    },
+    {
+     "toSymbolId": "symbol:src/core/moduleMap.ts:function:modulePathForFile:173"
+    }
+   ]
   },
   {
    "type": "imports",
    "from": "file:src/core/moduleMap.test.ts",
    "to": "file:src/core/types.ts",
-   "resolved": true
+   "resolved": true,
+   "symbolImports": []
   },
   {
    "type": "imports",
    "from": "file:src/core/moduleMap.ts",
    "to": "file:src/core/metrics.ts",
-   "resolved": true
+   "resolved": true,
+   "symbolImports": [
+    {
+     "toSymbolId": "symbol:src/core/metrics.ts:function:computeGraphMetrics:19"
+    }
+   ]
   },
   {
    "type": "imports",
    "from": "file:src/core/moduleMap.ts",
    "to": "file:src/core/types.ts",
-   "resolved": true
+   "resolved": true,
+   "symbolImports": []
   },
   {
    "type": "imports",
    "from": "file:src/core/network.test.ts",
    "to": "file:src/core/network.ts",
-   "resolved": true
+   "resolved": true,
+   "symbolImports": [
+    {
+     "toSymbolId": "symbol:src/core/network.ts:function:buildReviewGraphFrame:89"
+    },
+    {
+     "toSymbolId": "symbol:src/core/network.ts:function:interpolateReviewGraphFrames:216"
+    },
+    {
+     "toSymbolId": "symbol:src/core/network.ts:function:reviewGraphToGeoJson:157"
+    }
+   ]
   },
   {
    "type": "imports",
    "from": "file:src/core/network.test.ts",
    "to": "file:src/core/types.ts",
-   "resolved": true
+   "resolved": true,
+   "symbolImports": []
   },
   {
    "type": "imports",
    "from": "file:src/core/network.ts",
    "to": "file:src/core/metrics.ts",
-   "resolved": true
+   "resolved": true,
+   "symbolImports": [
+    {
+     "toSymbolId": "symbol:src/core/metrics.ts:function:computeGraphMetrics:19"
+    },
+    {
+     "toSymbolId": "symbol:src/core/metrics.ts:function:computeGraphMetrics:19"
+    }
+   ]
   },
   {
    "type": "imports",
    "from": "file:src/core/network.ts",
    "to": "file:src/core/types.ts",
-   "resolved": true
+   "resolved": true,
+   "symbolImports": []
   },
   {
    "type": "imports",
    "from": "file:src/core/server.test.ts",
    "to": "file:src/core/server.ts",
-   "resolved": true
+   "resolved": true,
+   "symbolImports": [
+    {
+     "toSymbolId": "symbol:src/core/server.ts:function:startServer:18"
+    }
+   ]
   },
   {
    "type": "imports",
    "from": "file:src/core/server.ts",
    "to": "file:src/core/collect.ts",
-   "resolved": true
+   "resolved": true,
+   "symbolImports": [
+    {
+     "toSymbolId": "symbol:src/core/collect.ts:function:analyzeRealtimeRepository:112"
+    },
+    {
+     "toSymbolId": "symbol:src/core/collect.ts:function:codesprawlDir:183"
+    },
+    {
+     "toSymbolId": "symbol:src/core/collect.ts:function:diffsDir:191"
+    },
+    {
+     "toSymbolId": "symbol:src/core/collect.ts:function:readDiffs:171"
+    },
+    {
+     "toSymbolId": "symbol:src/core/collect.ts:function:readSnapshots:152"
+    },
+    {
+     "toSymbolId": "symbol:src/core/collect.ts:function:snapshotsDir:187"
+    }
+   ]
   },
   {
    "type": "imports",
    "from": "file:src/core/server.ts",
    "to": "file:src/core/symbolDependencies.ts",
-   "resolved": true
+   "resolved": true,
+   "symbolImports": [
+    {
+     "toSymbolId": "symbol:src/core/symbolDependencies.ts:function:resolveSymbolDependencies:82"
+    }
+   ]
   },
   {
    "type": "imports",
    "from": "file:src/core/snapshot.test.ts",
    "to": "file:src/core/snapshot.ts",
-   "resolved": true
+   "resolved": true,
+   "symbolImports": [
+    {
+     "toSymbolId": "symbol:src/core/snapshot.ts:function:createSnapshotFromWorkingTree:49"
+    }
+   ]
   },
   {
    "type": "imports",
    "from": "file:src/core/snapshot.ts",
    "to": "file:src/core/metrics.ts",
-   "resolved": true
+   "resolved": true,
+   "symbolImports": [
+    {
+     "toSymbolId": "symbol:src/core/metrics.ts:function:computeGraphMetrics:19"
+    }
+   ]
   },
   {
    "type": "imports",
    "from": "file:src/core/snapshot.ts",
    "to": "file:src/core/types.ts",
-   "resolved": true
+   "resolved": true,
+   "symbolImports": []
   },
   {
    "type": "imports",
    "from": "file:src/core/symbolDependencies.test.ts",
    "to": "file:src/core/symbolDependencies.ts",
-   "resolved": true
+   "resolved": true,
+   "symbolImports": [
+    {
+     "toSymbolId": "symbol:src/core/symbolDependencies.ts:function:resolveSymbolDependencies:82"
+    }
+   ]
   },
   {
    "type": "imports",
    "from": "file:src/core/symbolDependencies.ts",
    "to": "file:src/core/types.ts",
-   "resolved": true
+   "resolved": true,
+   "symbolImports": []
   },
   {
    "type": "imports",
    "from": "file:src/core/symbolMap.test.ts",
    "to": "file:src/core/symbolMap.ts",
-   "resolved": true
+   "resolved": true,
+   "symbolImports": [
+    {
+     "toSymbolId": "symbol:src/core/symbolMap.ts:function:buildSymbolMapFrame:150"
+    }
+   ]
   },
   {
    "type": "imports",
    "from": "file:src/core/symbolMap.test.ts",
    "to": "file:src/core/types.ts",
-   "resolved": true
+   "resolved": true,
+   "symbolImports": []
   },
   {
    "type": "imports",
    "from": "file:src/core/symbolMap.ts",
    "to": "file:src/core/moduleMap.ts",
-   "resolved": true
+   "resolved": true,
+   "symbolImports": [
+    {
+     "toSymbolId": "symbol:src/core/moduleMap.ts:function:buildModuleMapFrame:64"
+    },
+    {
+     "toSymbolId": "symbol:src/core/moduleMap.ts:function:moduleIdForFilePath:169"
+    },
+    {
+     "toSymbolId": "symbol:src/core/moduleMap.ts:function:moduleIdForFilePath:169"
+    }
+   ]
   },
   {
    "type": "imports",
    "from": "file:src/core/symbolMap.ts",
    "to": "file:src/core/types.ts",
-   "resolved": true
+   "resolved": true,
+   "symbolImports": []
   },
   {
    "type": "imports",
    "from": "file:src/ui/App.tsx",
    "to": "file:src/core/moduleMap.ts",
-   "resolved": true
+   "resolved": true,
+   "symbolImports": [
+    {
+     "toSymbolId": "symbol:src/core/moduleMap.ts:function:moduleIdForFilePath:169"
+    }
+   ]
   },
   {
    "type": "imports",
    "from": "file:src/ui/App.tsx",
    "to": "file:src/core/types.ts",
-   "resolved": true
+   "resolved": true,
+   "symbolImports": []
   },
   {
    "type": "imports",
    "from": "file:src/ui/App.tsx",
    "to": "file:src/ui/ModuleCityMap.tsx",
-   "resolved": true
+   "resolved": true,
+   "symbolImports": [
+    {
+     "toSymbolId": "symbol:src/ui/ModuleCityMap.tsx:function:ModuleCityMap:96"
+    }
+   ]
   },
   {
    "type": "imports",
    "from": "file:src/ui/App.tsx",
    "to": "file:src/ui/SymbolMapView.tsx",
-   "resolved": true
+   "resolved": true,
+   "symbolImports": [
+    {
+     "toSymbolId": "symbol:src/ui/SymbolMapView.tsx:function:SymbolMapView:53"
+    }
+   ]
   },
   {
    "type": "imports",
    "from": "file:src/ui/dependencyGraphSelection.test.ts",
    "to": "file:src/core/dependencyGraph.ts",
-   "resolved": true
+   "resolved": true,
+   "symbolImports": []
   },
   {
    "type": "imports",
    "from": "file:src/ui/dependencyGraphSelection.test.ts",
    "to": "file:src/ui/DependencyGraphView.tsx",
-   "resolved": true
+   "resolved": true,
+   "symbolImports": [
+    {
+     "toSymbolId": "symbol:src/ui/DependencyGraphView.tsx:function:drillZoomForNode:719"
+    },
+    {
+     "toSymbolId": "symbol:src/ui/DependencyGraphView.tsx:function:edgeRelationToSelection:729"
+    },
+    {
+     "toSymbolId": "symbol:src/ui/DependencyGraphView.tsx:function:nodeRelationToSelection:752"
+    },
+    {
+     "toSymbolId": "symbol:src/ui/DependencyGraphView.tsx:function:shouldShowNodeLabel:697"
+    }
+   ]
   },
   {
    "type": "imports",
    "from": "file:src/ui/DependencyGraphView.tsx",
    "to": "file:src/core/dependencyGraph.ts",
-   "resolved": true
+   "resolved": true,
+   "symbolImports": [
+    {
+     "toSymbolId": "symbol:src/core/dependencyGraph.ts:function:buildDependencyGraphFrame:129"
+    }
+   ]
   },
   {
    "type": "imports",
    "from": "file:src/ui/DependencyGraphView.tsx",
    "to": "file:src/core/moduleMap.ts",
-   "resolved": true
+   "resolved": true,
+   "symbolImports": [
+    {
+     "toSymbolId": "symbol:src/core/moduleMap.ts:function:moduleIdForFilePath:169"
+    }
+   ]
   },
   {
    "type": "imports",
    "from": "file:src/ui/DependencyGraphView.tsx",
    "to": "file:src/core/types.ts",
-   "resolved": true
+   "resolved": true,
+   "symbolImports": []
   },
   {
    "type": "imports",
    "from": "file:src/ui/DependencyGraphView.tsx",
    "to": "file:src/ui/moduleViewport.ts",
-   "resolved": true
+   "resolved": true,
+   "symbolImports": [
+    {
+     "toSymbolId": "symbol:src/ui/moduleViewport.ts:function:wheelZoomFactor:105"
+    }
+   ]
   },
   {
    "type": "imports",
    "from": "file:src/ui/main.tsx",
    "to": "file:src/ui/App.tsx",
-   "resolved": true
+   "resolved": true,
+   "symbolImports": [
+    {
+     "toSymbolId": "symbol:src/ui/App.tsx:function:App:36"
+    }
+   ]
   },
   {
    "type": "imports",
    "from": "file:src/ui/ModuleCityMap.tsx",
    "to": "file:src/core/moduleMap.ts",
-   "resolved": true
+   "resolved": true,
+   "symbolImports": [
+    {
+     "toSymbolId": "symbol:src/core/moduleMap.ts:function:buildModuleMapFrame:64"
+    },
+    {
+     "toSymbolId": "symbol:src/core/moduleMap.ts:function:moduleIdForFilePath:169"
+    }
+   ]
   },
   {
    "type": "imports",
    "from": "file:src/ui/ModuleCityMap.tsx",
    "to": "file:src/core/types.ts",
-   "resolved": true
+   "resolved": true,
+   "symbolImports": []
   },
   {
    "type": "imports",
    "from": "file:src/ui/ModuleCityMap.tsx",
    "to": "file:src/ui/moduleGraphLayout.ts",
-   "resolved": true
+   "resolved": true,
+   "symbolImports": [
+    {
+     "toSymbolId": "symbol:src/ui/moduleGraphLayout.ts:function:layoutDependencyMap:40"
+    }
+   ]
   },
   {
    "type": "imports",
    "from": "file:src/ui/ModuleCityMap.tsx",
    "to": "file:src/ui/moduleLayer.ts",
-   "resolved": true
+   "resolved": true,
+   "symbolImports": [
+    {
+     "toSymbolId": "symbol:src/ui/moduleLayer.ts:function:filePreviewLimit:12"
+    },
+    {
+     "toSymbolId": "symbol:src/ui/moduleLayer.ts:function:scaledSvgFontSize:26"
+    },
+    {
+     "toSymbolId": "symbol:src/ui/moduleLayer.ts:function:shouldShowNestedBlocks:61"
+    },
+    {
+     "toSymbolId": "symbol:src/ui/moduleLayer.ts:function:zoomPercentLabel:38"
+    }
+   ]
   },
   {
    "type": "imports",
    "from": "file:src/ui/ModuleCityMap.tsx",
    "to": "file:src/ui/moduleViewport.ts",
-   "resolved": true
+   "resolved": true,
+   "symbolImports": [
+    {
+     "toSymbolId": "symbol:src/ui/moduleViewport.ts:function:focusViewport:62"
+    },
+    {
+     "toSymbolId": "symbol:src/ui/moduleViewport.ts:function:panViewport:93"
+    },
+    {
+     "toSymbolId": "symbol:src/ui/moduleViewport.ts:function:rectIntersectsViewport:57"
+    },
+    {
+     "toSymbolId": "symbol:src/ui/moduleViewport.ts:function:viewportRect:47"
+    },
+    {
+     "toSymbolId": "symbol:src/ui/moduleViewport.ts:function:viewportToViewBox:42"
+    },
+    {
+     "toSymbolId": "symbol:src/ui/moduleViewport.ts:function:wheelZoomFactor:105"
+    },
+    {
+     "toSymbolId": "symbol:src/ui/moduleViewport.ts:function:zoomViewportAt:78"
+    }
+   ]
   },
   {
    "type": "imports",
    "from": "file:src/ui/moduleGraphLayout.test.ts",
    "to": "file:src/ui/moduleGraphLayout.ts",
-   "resolved": true
+   "resolved": true,
+   "symbolImports": [
+    {
+     "toSymbolId": "symbol:src/ui/moduleGraphLayout.ts:function:layoutDependencyMap:40"
+    }
+   ]
   },
   {
    "type": "imports",
    "from": "file:src/ui/moduleLayer.test.ts",
    "to": "file:src/ui/moduleLayer.ts",
-   "resolved": true
+   "resolved": true,
+   "symbolImports": [
+    {
+     "toSymbolId": "symbol:src/ui/moduleLayer.ts:function:fileLayerMode:8"
+    },
+    {
+     "toSymbolId": "symbol:src/ui/moduleLayer.ts:function:filePreviewLimit:12"
+    },
+    {
+     "toSymbolId": "symbol:src/ui/moduleLayer.ts:function:rectScreenSize:54"
+    },
+    {
+     "toSymbolId": "symbol:src/ui/moduleLayer.ts:function:scaledSvgFontSize:26"
+    },
+    {
+     "toSymbolId": "symbol:src/ui/moduleLayer.ts:function:shouldShowFileLabels:22"
+    },
+    {
+     "toSymbolId": "symbol:src/ui/moduleLayer.ts:function:shouldShowNestedBlocks:61"
+    },
+    {
+     "toSymbolId": "symbol:src/ui/moduleLayer.ts:function:shouldShowSymbolLabels:34"
+    },
+    {
+     "toSymbolId": "symbol:src/ui/moduleLayer.ts:function:shouldShowSymbols:30"
+    },
+    {
+     "toSymbolId": "symbol:src/ui/moduleLayer.ts:function:zoomPercentLabel:38"
+    }
+   ]
   },
   {
    "type": "imports",
    "from": "file:src/ui/moduleViewport.test.ts",
    "to": "file:src/ui/moduleViewport.ts",
-   "resolved": true
+   "resolved": true,
+   "symbolImports": [
+    {
+     "toSymbolId": "symbol:src/ui/moduleViewport.ts:function:clampViewport:31"
+    },
+    {
+     "toSymbolId": "symbol:src/ui/moduleViewport.ts:function:focusViewport:62"
+    },
+    {
+     "toSymbolId": "symbol:src/ui/moduleViewport.ts:function:panViewport:93"
+    },
+    {
+     "toSymbolId": "symbol:src/ui/moduleViewport.ts:function:rectIntersectsViewport:57"
+    },
+    {
+     "toSymbolId": "symbol:src/ui/moduleViewport.ts:function:viewportRect:47"
+    },
+    {
+     "toSymbolId": "symbol:src/ui/moduleViewport.ts:function:viewportToViewBox:42"
+    },
+    {
+     "toSymbolId": "symbol:src/ui/moduleViewport.ts:function:zoomViewportAt:78"
+    },
+    {
+     "toSymbolId": "symbol:src/ui/moduleViewport.ts:function:wheelZoomFactor:105"
+    }
+   ]
   },
   {
    "type": "imports",
    "from": "file:src/ui/NetworkLab.tsx",
    "to": "file:src/core/network.ts",
-   "resolved": true
+   "resolved": true,
+   "symbolImports": [
+    {
+     "toSymbolId": "symbol:src/core/network.ts:function:buildReviewGraphFrame:89"
+    },
+    {
+     "toSymbolId": "symbol:src/core/network.ts:function:interpolateReviewGraphFrames:216"
+    },
+    {
+     "toSymbolId": "symbol:src/core/network.ts:function:reviewGraphToGeoJson:157"
+    },
+    {
+     "toSymbolId": "symbol:src/core/network.ts:function:reviewGraphToGeoJson:157"
+    }
+   ]
   },
   {
    "type": "imports",
    "from": "file:src/ui/NetworkLab.tsx",
    "to": "file:src/core/types.ts",
-   "resolved": true
+   "resolved": true,
+   "symbolImports": []
   },
   {
    "type": "imports",
    "from": "file:src/ui/SymbolMapView.tsx",
    "to": "file:src/core/moduleMap.ts",
-   "resolved": true
+   "resolved": true,
+   "symbolImports": [
+    {
+     "toSymbolId": "symbol:src/core/moduleMap.ts:function:moduleIdForFilePath:169"
+    }
+   ]
   },
   {
    "type": "imports",
    "from": "file:src/ui/SymbolMapView.tsx",
    "to": "file:src/core/symbolDependencies.ts",
-   "resolved": true
+   "resolved": true,
+   "symbolImports": []
   },
   {
    "type": "imports",
    "from": "file:src/ui/SymbolMapView.tsx",
    "to": "file:src/core/symbolMap.ts",
-   "resolved": true
+   "resolved": true,
+   "symbolImports": [
+    {
+     "toSymbolId": "symbol:src/core/symbolMap.ts:function:buildSymbolMapFrame:150"
+    }
+   ]
   },
   {
    "type": "imports",
    "from": "file:src/ui/SymbolMapView.tsx",
    "to": "file:src/core/types.ts",
-   "resolved": true
+   "resolved": true,
+   "symbolImports": []
   },
   {
    "type": "imports",
    "from": "file:src/ui/SymbolMapView.tsx",
    "to": "file:src/ui/moduleViewport.ts",
-   "resolved": true
+   "resolved": true,
+   "symbolImports": [
+    {
+     "toSymbolId": "symbol:src/ui/moduleViewport.ts:function:wheelZoomFactor:105"
+    }
+   ]
   },
   {
    "type": "imports",
    "from": "file:src/ui/symbolMapVisibility.test.ts",
    "to": "file:src/core/symbolDependencies.ts",
-   "resolved": true
+   "resolved": true,
+   "symbolImports": []
   },
   {
    "type": "imports",
    "from": "file:src/ui/symbolMapVisibility.test.ts",
    "to": "file:src/core/symbolMap.ts",
-   "resolved": true
+   "resolved": true,
+   "symbolImports": []
   },
   {
    "type": "imports",
    "from": "file:src/ui/symbolMapVisibility.test.ts",
    "to": "file:src/ui/SymbolMapView.tsx",
-   "resolved": true
+   "resolved": true,
+   "symbolImports": [
+    {
+     "toSymbolId": "symbol:src/ui/SymbolMapView.tsx:function:moduleRouteEdgesForMap:739"
+    },
+    {
+     "toSymbolId": "symbol:src/ui/SymbolMapView.tsx:function:relatedNodeIds:673"
+    },
+    {
+     "toSymbolId": "symbol:src/ui/SymbolMapView.tsx:function:selectedEdgeDirection:835"
+    },
+    {
+     "toSymbolId": "symbol:src/ui/SymbolMapView.tsx:function:selectedDependencyEdgeIds:694"
+    },
+    {
+     "toSymbolId": "symbol:src/ui/SymbolMapView.tsx:function:syncedSelectedNodeId:601"
+    },
+    {
+     "toSymbolId": "symbol:src/ui/SymbolMapView.tsx:function:shouldShowSymbolLabel:937"
+    },
+    {
+     "toSymbolId": "symbol:src/ui/SymbolMapView.tsx:function:stableInspectorNode:597"
+    },
+    {
+     "toSymbolId": "symbol:src/ui/SymbolMapView.tsx:function:symbolDependencyEdgesForMap:871"
+    },
+    {
+     "toSymbolId": "symbol:src/ui/SymbolMapView.tsx:function:symbolDependencyRelatedNodeIds:845"
+    },
+    {
+     "toSymbolId": "symbol:src/ui/SymbolMapView.tsx:function:visibleSymbolEdgesForSelection:702"
+    }
+   ]
   }
  ]
 };

@@ -14,6 +14,7 @@ export type PlaygroundParams = {
   stepsPerFrame: number;
   showEdges: boolean;
   showNested: boolean;
+  showTests: boolean;
 };
 
 type Props = {
@@ -178,6 +179,16 @@ export function Controls(props: Props) {
           checked={params.showNested}
           onInput={(e) =>
             set("showNested", (e.target as HTMLInputElement).checked)
+          }
+        />
+      </label>
+      <label style={row}>
+        <span style={{ width: "110px" }}>test layer</span>
+        <input
+          type="checkbox"
+          checked={params.showTests}
+          onInput={(e) =>
+            set("showTests", (e.target as HTMLInputElement).checked)
           }
         />
       </label>

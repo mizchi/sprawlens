@@ -1,4 +1,4 @@
-import type { AtlasGraph, AtlasNode } from "../contracts/graph.js";
+import type { AtlasEdge, AtlasGraph, AtlasNode } from "../contracts/graph.js";
 
 /**
  * Minimal structural view of a `.codesprawl` snapshot JSON. Deliberately
@@ -10,6 +10,7 @@ export type SnapshotSymbolLike = {
   name: string;
   kind: string;
   loc: number;
+  exported?: boolean;
 };
 
 export type SnapshotNodeLike = {
@@ -25,6 +26,8 @@ export type SnapshotEdgeLike = {
   from: string;
   to: string;
   resolved?: boolean;
+  /** Symbol-level import targets; the using symbol is unknown statically. */
+  symbolImports?: { toSymbolId: string }[];
 };
 
 export type SnapshotLike = {
@@ -66,6 +69,32 @@ export function snapshotToAtlasGraph(snapshot: SnapshotLike): AtlasGraph {
 }
 
 /**
+ * Symbol-reference edges from static imports: the importing *file* points at
+ * the imported *symbol* (the using symbol is not known statically — the LSP
+ * provider upgrades these to symbol→symbol call-hierarchy edges later).
+ */
+export function snapshotSymbolEdges(snapshot: SnapshotLike): AtlasEdge[] {
+  const pathByNodeId = new Map<string, string>();
+  for (const node of snapshot.nodes) {
+    if (node.type === "file" && node.path) pathByNodeId.set(node.id, node.path);
+  }
+  const edges: AtlasEdge[] = [];
+  const seen = new Set<string>();
+  for (const edge of snapshot.edges) {
+    if (edge.type !== "imports" || edge.resolved !== true) continue;
+    const source = pathByNodeId.get(edge.from);
+    if (!source) continue;
+    for (const symbolImport of edge.symbolImports ?? []) {
+      const key = `${source}->${symbolImport.toSymbolId}`;
+      if (seen.has(key)) continue;
+      seen.add(key);
+      edges.push({ source, target: symbolImport.toSymbolId });
+    }
+  }
+  return edges;
+}
+
+/**
  * Real symbols per file for the nested layout. Symbol LOC rarely covers the
  * whole file (imports, module-level statements), so the remainder is added
  * as an unnamed filler node to keep the nested areas proportional to LOC.
@@ -82,10 +111,12 @@ export function snapshotSymbols(
       kind: "symbol",
       label: symbol.name,
       metrics: { loc: Math.max(symbol.loc, 1) },
+      exported: symbol.exported === true,
     }));
     const covered = symbols.reduce((sum, s) => sum + s.metrics.loc, 0);
     const remainder = fileLoc - covered;
     if (symbols.length === 0 || remainder > 0) {
+      // "#rest" suffix marks the filler; renderers suppress its label
       symbols.push({
         id: `${node.path}#rest`,
         kind: "symbol",

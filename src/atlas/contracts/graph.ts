@@ -13,6 +13,8 @@ export type AtlasNode = {
   kind: AtlasNodeKind;
   label: string;
   metrics: AtlasNodeMetrics;
+  /** Public surface marker (exported symbol / public API file). */
+  exported?: boolean;
 };
 
 export type AtlasEdge = {

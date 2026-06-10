@@ -1,5 +1,9 @@
 import { describe, expect, it } from "vitest";
-import { createSyntheticGraph, synthesizeSymbols } from "./synthetic.js";
+import {
+  createSyntheticGraph,
+  synthesizeSymbolEdges,
+  synthesizeSymbols,
+} from "./synthetic.js";
 
 describe("createSyntheticGraph", () => {
   it("is deterministic for the same seed", () => {
@@ -8,11 +12,18 @@ describe("createSyntheticGraph", () => {
     expect(a).toEqual(b);
   });
 
-  it("produces the requested node count with positive LOC", () => {
+  it("produces the requested source count plus name-matched test files", () => {
     const graph = createSyntheticGraph({ count: 25, seed: 1 });
-    expect(graph.nodes).toHaveLength(25);
+    const source = graph.nodes.filter((n) => !n.id.includes(".test."));
+    const tests = graph.nodes.filter((n) => n.id.includes(".test."));
+    expect(source).toHaveLength(25);
+    expect(tests.length).toBeGreaterThan(0);
     for (const node of graph.nodes) {
       expect(node.metrics.loc).toBeGreaterThan(0);
+    }
+    for (const test of tests) {
+      const subject = test.id.replace(".test.ts", ".ts");
+      expect(source.some((n) => n.id === subject)).toBe(true);
     }
   });
 
@@ -27,6 +38,40 @@ describe("createSyntheticGraph", () => {
       expect(symbol.kind).toBe("symbol");
       expect(symbol.metrics.loc).toBeGreaterThan(0);
     }
+  });
+
+  it("synthesizes symbol edges along and inside file edges, deterministically", () => {
+    const graph = createSyntheticGraph({ count: 30, seed: 2 });
+    const a = synthesizeSymbolEdges(graph, 2);
+    const b = synthesizeSymbolEdges(graph, 2);
+    expect(a).toEqual(b);
+    expect(a.length).toBeGreaterThan(0);
+    const symbolIdsOf = (fileId: string) =>
+      new Set(synthesizeSymbols(fileId, 100, 1).map((s) => s.id));
+    for (const edge of a) {
+      // endpoints are symbol ids of the form <fileId>#sN
+      expect(edge.source).toContain("#");
+      expect(edge.target).toContain("#");
+      const sourceFile = edge.source.split("#")[0]!;
+      const targetFile = edge.target.split("#")[0]!;
+      // cross edges follow a file edge; intra edges stay within one file
+      if (sourceFile !== targetFile) {
+        expect(
+          graph.edges.some(
+            (e) => e.source === sourceFile && e.target === targetFile,
+          ),
+        ).toBe(true);
+      }
+      expect(symbolIdsOf(sourceFile).has(edge.source)).toBe(true);
+    }
+  });
+
+  it("marks a deterministic public surface on synthesized symbols", () => {
+    const a = synthesizeSymbols("f1", 400, 7);
+    expect(a[0]!.exported).toBe(true);
+    expect(a.map((s) => s.exported)).toEqual(
+      synthesizeSymbols("f1", 400, 7).map((s) => s.exported),
+    );
   });
 
   it("synthesizes different symbols for different files", () => {

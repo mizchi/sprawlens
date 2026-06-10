@@ -14,7 +14,11 @@ import { centroid, type Ring } from "../kernel/polygon.js";
 import { createRng, type Rng } from "../kernel/rng.js";
 import { CellMapSvg } from "./CellMapSvg.tsx";
 import { Controls, type ClipKind, type PlaygroundParams } from "./Controls.tsx";
-import { snapshotSymbols, snapshotToAtlasGraph } from "./fixtureAdapter.ts";
+import {
+  snapshotSymbolEdges,
+  snapshotSymbols,
+  snapshotToAtlasGraph,
+} from "./fixtureAdapter.ts";
 import { sprawlensSnapshot } from "./fixtures/sprawlens.ts";
 import {
   applyRingsChanges,
@@ -22,8 +26,19 @@ import {
   stepRingsState,
   type RingsState,
 } from "./ringsController.ts";
-import { RingsMapSvg } from "./RingsMapSvg.tsx";
-import { createSyntheticGraph, synthesizeSymbols } from "./synthetic.ts";
+import { reachSubgraph } from "../kernel/reach.js";
+import {
+  RingsMapSvg,
+  type FocusRequest,
+  type FocusView,
+} from "./RingsMapSvg.tsx";
+import {
+  createSyntheticGraph,
+  synthesizeSymbolEdges,
+  synthesizeSymbols,
+} from "./synthetic.ts";
+import type { AtlasEdge } from "../contracts/graph.js";
+import { defaultModuleIdOf } from "../contracts/modules.js";
 
 const WIDTH = 960;
 const HEIGHT = 640;
@@ -89,8 +104,11 @@ export function App() {
     stepsPerFrame: 2,
     showEdges: true,
     showNested: true,
+    showTests: true,
   });
   const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [focusId, setFocusId] = useState<string | null>(null);
+  const [focusRequest, setFocusRequest] = useState<FocusRequest | null>(null);
   const [, setFrame] = useState(0);
 
   const graphRef = useRef<AtlasGraph>(null as unknown as AtlasGraph);
@@ -105,6 +123,12 @@ export function App() {
   const innerLayoutsRef = useRef(new Map<string, CapacityLayoutState>());
   /** Real per-file symbols when a fixture is loaded; null = synthesize. */
   const symbolsRef = useRef<Map<string, AtlasNode[]> | null>(null);
+  /** Symbol references (call-hierarchy precursor); endpoints: symbol or file ids. */
+  const symbolEdgesRef = useRef<AtlasEdge[]>([]);
+  /** Per-symbol metadata accumulated as nested layouts materialize. */
+  const symbolMetaRef = useRef(
+    new Map<string, { exported: boolean; fileId: string }>(),
+  );
 
   const ringsOptions = (p: PlaygroundParams) => ({
     width: WIDTH,
@@ -136,6 +160,12 @@ export function App() {
         const symbols =
           symbolsRef.current?.get(cell.id) ??
           synthesizeSymbols(cell.id, loc, 1);
+        for (const symbol of symbols) {
+          symbolMetaRef.current.set(symbol.id, {
+            exported: symbol.exported === true,
+            fileId: cell.id,
+          });
+        }
         layout = createCapacityLayout(
           symbols.map((s) => ({ id: s.id, weight: s.metrics.loc })),
           clip,
@@ -159,9 +189,11 @@ export function App() {
     if (p.source === "sprawlens") {
       graph = snapshotToAtlasGraph(sprawlensSnapshot);
       symbolsRef.current = snapshotSymbols(sprawlensSnapshot);
+      symbolEdgesRef.current = snapshotSymbolEdges(sprawlensSnapshot);
     } else {
       graph = createSyntheticGraph({ count: p.count, seed: p.seed });
       symbolsRef.current = null;
+      symbolEdgesRef.current = synthesizeSymbolEdges(graph, p.seed);
     }
     graphRef.current = graph;
     nextNodeId.current = p.count;
@@ -179,6 +211,8 @@ export function App() {
     }
     historyRef.current = [];
     innerLayoutsRef.current = new Map();
+    symbolMetaRef.current = new Map();
+    setFocusId(null);
   };
 
   if (layoutRef.current === null && ringsRef.current === null) rebuild(params);
@@ -308,7 +342,39 @@ export function App() {
       );
     }
     if (changedFileId) innerLayoutsRef.current.delete(changedFileId);
+    if (paramsRef.current.source === "synthetic") {
+      symbolEdgesRef.current = synthesizeSymbolEdges(
+        graphRef.current,
+        paramsRef.current.seed,
+      );
+    }
     setFrame((f) => f + 1);
+  };
+
+  /** Select an id and move the viewport onto its site (rings mode). */
+  const jumpTo = (id: string) => {
+    setSelectedId(id);
+    const innerCell = [...innerLayoutsRef.current.values()]
+      .flatMap((l) => l.cells)
+      .find((c) => c.id === id);
+    const fileCellOf = (fileId: string) =>
+      ringsRef.current
+        ? [...ringsRef.current.moduleLayouts.values()]
+            .flatMap((l) => l.cells)
+            .find((c) => c.id === fileId)
+        : null;
+    // test files sit on top of their covered source file
+    const testTarget = ringsRef.current?.testTargets.get(id);
+    const fileCell = fileCellOf(id) ?? (testTarget ? fileCellOf(testTarget) : null);
+    const site = innerCell?.site ?? fileCell?.site;
+    if (site) {
+      setFocusRequest({
+        x: site.x,
+        y: site.y,
+        zoom: innerCell ? 6 : 3,
+        token: (focusRequest?.token ?? 0) + 1,
+      });
+    }
   };
 
   const mutateWeight = () => {
@@ -385,13 +451,169 @@ export function App() {
     if (selectedId === node.id) setSelectedId(null);
   };
 
+  /** Dependency-path extraction across the three levels. */
+  const computeFocus = (id: string): FocusView | null => {
+    const rings = ringsRef.current;
+    if (!rings) return null;
+    const fileToModule = new Map<string, string>();
+    for (const [moduleId, layout] of rings.moduleLayouts) {
+      for (const cell of layout.cells) fileToModule.set(cell.id, moduleId);
+    }
+    const symbolsOfFiles = (fileIds: Set<string>): Set<string> => {
+      const out = new Set<string>();
+      for (const [symbolId, meta] of symbolMetaRef.current) {
+        if (fileIds.has(meta.fileId)) out.add(symbolId);
+      }
+      return out;
+    };
+    const filesOfModules = (moduleIds: Set<string>): Set<string> => {
+      const out = new Set<string>();
+      for (const [fileId, moduleId] of fileToModule) {
+        if (moduleIds.has(moduleId)) out.add(fileId);
+      }
+      return out;
+    };
+
+    if (rings.circles.has(id)) {
+      const reach = reachSubgraph(rings.moduleEdges, id);
+      const fileIds = filesOfModules(reach.nodes);
+      return {
+        level: "module",
+        moduleIds: reach.nodes,
+        fileIds,
+        symbolIds: symbolsOfFiles(fileIds),
+        downstreamEdges: reach.downstreamEdges,
+        upstreamEdges: reach.upstreamEdges,
+      };
+    }
+    if (graphRef.current.nodes.some((n) => n.id === id)) {
+      const reach = reachSubgraph(graphRef.current.edges, id);
+      const moduleIds = new Set<string>();
+      for (const fileId of reach.nodes) {
+        const moduleId = fileToModule.get(fileId);
+        if (moduleId) moduleIds.add(moduleId);
+      }
+      return {
+        level: "file",
+        moduleIds,
+        fileIds: reach.nodes,
+        symbolIds: symbolsOfFiles(reach.nodes),
+        downstreamEdges: reach.downstreamEdges,
+        upstreamEdges: reach.upstreamEdges,
+      };
+    }
+    const reach = reachSubgraph(symbolEdgesRef.current, id);
+    const fileIds = new Set<string>();
+    const symbolIds = new Set<string>();
+    for (const nodeId of reach.nodes) {
+      const meta = symbolMetaRef.current.get(nodeId);
+      if (meta) {
+        symbolIds.add(nodeId);
+        fileIds.add(meta.fileId);
+      } else if (fileToModule.has(nodeId)) {
+        fileIds.add(nodeId);
+      }
+    }
+    const moduleIds = new Set<string>();
+    for (const fileId of fileIds) {
+      const moduleId = fileToModule.get(fileId);
+      if (moduleId) moduleIds.add(moduleId);
+    }
+    return {
+      level: "symbol",
+      moduleIds,
+      fileIds,
+      symbolIds,
+      downstreamEdges: reach.downstreamEdges,
+      upstreamEdges: reach.upstreamEdges,
+    };
+  };
+  const focusView = focusId ? computeFocus(focusId) : null;
+  const exportedIds = new Set(
+    [...symbolMetaRef.current]
+      .filter(([, meta]) => meta.exported)
+      .map(([id]) => id),
+  );
+
   const allCells: CellResult[] = ringsRef.current
     ? [...ringsRef.current.moduleLayouts.values()].flatMap((l) => l.cells)
     : (layoutRef.current?.cells ?? []);
-  const selected = useMemo(
-    () => allCells.find((c) => c.id === selectedId) ?? null,
-    [allCells, selectedId],
+  const allInnerCells = [...innerLayoutsRef.current.values()].flatMap(
+    (l) => l.cells,
   );
+
+  /** Test-layer overlay: each test sits on its covered source cell. */
+  const testOverlay = (() => {
+    const rings = ringsRef.current;
+    if (!rings || !params.showTests) return [];
+    const cellById = new Map(allCells.map((c) => [c.id, c]));
+    const locOf = new Map(
+      graphRef.current.nodes.map((n) => [n.id, n.metrics.loc]),
+    );
+    const out: {
+      id: string;
+      label: string;
+      x: number;
+      y: number;
+      r: number;
+      targetId: string | null;
+    }[] = [];
+    for (const file of rings.testFiles) {
+      const targetId = rings.testTargets.get(file.id) ?? null;
+      const target = targetId ? cellById.get(targetId) : undefined;
+      if (target && target.polygon.length >= 3) {
+        const pxPerLoc =
+          target.actualArea / Math.max(locOf.get(targetId!) ?? 1, 1);
+        out.push({
+          id: file.id,
+          label: file.label,
+          x: target.site.x,
+          y: target.site.y,
+          r: Math.sqrt((file.metrics.loc * pxPerLoc) / Math.PI),
+          targetId,
+        });
+      } else {
+        const circle = rings.circles.get(defaultModuleIdOf(file.id));
+        if (circle) {
+          out.push({
+            id: file.id,
+            label: file.label,
+            x: circle.cx,
+            y: circle.cy + circle.r * 0.55,
+            r: circle.r * 0.18,
+            targetId,
+          });
+        }
+      }
+    }
+    return out;
+  })();
+  const selected = useMemo(
+    () =>
+      allCells.find((c) => c.id === selectedId) ??
+      allInnerCells.find((c) => c.id === selectedId) ??
+      null,
+    [allCells, allInnerCells, selectedId],
+  );
+  const selectedIsModule =
+    selectedId !== null && (ringsRef.current?.circles.has(selectedId) ?? false);
+  const selectedTest =
+    selectedId !== null
+      ? (ringsRef.current?.testFiles.find((f) => f.id === selectedId) ?? null)
+      : null;
+  const selectedIsSymbol =
+    selected !== null && !allCells.some((c) => c.id === selected.id);
+  const selectedRefs = useMemo(() => {
+    if (!selectedId) return { incoming: [], outgoing: [] };
+    return {
+      incoming: symbolEdgesRef.current
+        .filter((e) => e.target === selectedId)
+        .map((e) => e.source),
+      outgoing: symbolEdgesRef.current
+        .filter((e) => e.source === selectedId)
+        .map((e) => e.target),
+    };
+  }, [selectedId]);
   const maxError = ringsRef.current
     ? Math.max(
         0,
@@ -401,9 +623,20 @@ export function App() {
       )
     : (layoutRef.current?.maxRelativeError ?? 0);
   const labels = new Map(graphRef.current.nodes.map((n) => [n.id, n.label]));
-  const innerCells = params.showNested
-    ? [...innerLayoutsRef.current.values()].flatMap((l) => l.cells)
-    : [];
+  if (symbolsRef.current) {
+    for (const symbols of symbolsRef.current.values()) {
+      for (const symbol of symbols) labels.set(symbol.id, symbol.label);
+    }
+  }
+  const innerCells = params.showNested ? allInnerCells : [];
+  const labelOf = (id: string) =>
+    labels.get(id) ?? id.slice(id.indexOf("#") + 1).split("/").pop() ?? id;
+  /** Parent file name for disambiguating symbol references in lists. */
+  const fileOf = (id: string) => {
+    if (id.includes("#")) return id.split("#")[0]!.split("/").pop()!;
+    if (id.startsWith("symbol:")) return id.split(":")[1]!.split("/").pop()!;
+    return "";
+  };
 
   return (
     <div
@@ -431,12 +664,17 @@ export function App() {
             rings={ringsRef.current}
             innerCells={innerCells}
             fileEdges={graphRef.current.edges}
+            symbolEdges={symbolEdgesRef.current}
             showEdges={params.showEdges}
             labels={labels}
+            exportedIds={exportedIds}
+            focus={focusView}
+            testOverlay={testOverlay}
             width={WIDTH}
             height={HEIGHT}
             selectedId={selectedId}
             onSelect={setSelectedId}
+            focusRequest={focusRequest}
           />
         ) : layoutRef.current ? (
           <CellMapSvg
@@ -491,29 +729,151 @@ export function App() {
               ? ` / modules: ${ringsRef.current.circles.size}`
               : ""}
           </div>
+          {focusView ? (
+            <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
+              <span style={{ color: "#0369a1" }}>
+                focus: {labelOf(focusId!)} ({focusView.level})
+              </span>
+              <button
+                onClick={() => setFocusId(null)}
+                style={{ padding: "2px 6px", fontSize: "11px", cursor: "pointer" }}
+              >
+                解除
+              </button>
+            </div>
+          ) : null}
           <Sparkline values={historyRef.current} />
         </div>
-        {selected ? (
+        {selected || selectedIsModule || selectedTest ? (
           <div
             style={{
               padding: "8px",
               background: "#f8fafc",
               borderRadius: "6px",
               border: "1px solid #cbd5e1",
+              overflowY: "auto",
+              minHeight: "0",
             }}
           >
-            <div style={{ fontWeight: "600" }}>{selected.id}</div>
-            <div>target: {selected.targetArea.toFixed(1)} px²</div>
-            <div>actual: {selected.actualArea.toFixed(1)} px²</div>
-            <div>
-              error:{" "}
-              {(
-                ((selected.actualArea - selected.targetArea) /
-                  selected.targetArea) *
-                100
-              ).toFixed(2)}
-              %
+            <div style={{ fontWeight: "600", wordBreak: "break-all" }}>
+              {labelOf(selectedId!)}
+              {selectedIsSymbol
+                ? " (symbol)"
+                : selectedIsModule
+                  ? " (module)"
+                  : selectedTest
+                    ? " (test)"
+                    : ""}
             </div>
+            <div style={{ color: "#64748b", wordBreak: "break-all" }}>
+              {selectedId}
+            </div>
+            <div style={{ display: "flex", gap: "6px", margin: "6px 0" }}>
+              {focusId !== selectedId ? (
+                <button
+                  onClick={() => setFocusId(selectedId)}
+                  style={{ padding: "4px 8px", fontSize: "11px", cursor: "pointer" }}
+                >
+                  依存経路を抽出
+                </button>
+              ) : null}
+              {focusId ? (
+                <button
+                  onClick={() => setFocusId(null)}
+                  style={{ padding: "4px 8px", fontSize: "11px", cursor: "pointer" }}
+                >
+                  全体表示に戻す
+                </button>
+              ) : null}
+            </div>
+            {selected ? (
+              <>
+                <div>target: {selected.targetArea.toFixed(1)} px²</div>
+                <div>actual: {selected.actualArea.toFixed(1)} px²</div>
+              </>
+            ) : null}
+            {selectedTest ? (
+              <div style={{ marginTop: "4px" }}>
+                <div>loc: {selectedTest.metrics.loc}</div>
+                {ringsRef.current?.testTargets.get(selectedTest.id) ? (
+                  <button
+                    onClick={() =>
+                      jumpTo(ringsRef.current!.testTargets.get(selectedTest.id)!)
+                    }
+                    style={{
+                      padding: "2px 4px",
+                      fontSize: "11px",
+                      cursor: "pointer",
+                      background: "none",
+                      border: "none",
+                      color: "#0891b2",
+                      textAlign: "left",
+                    }}
+                  >
+                    covers:{" "}
+                    {labelOf(ringsRef.current!.testTargets.get(selectedTest.id)!)}
+                  </button>
+                ) : null}
+              </div>
+            ) : null}
+            {selectedRefs.incoming.length > 0 ? (
+              <div style={{ marginTop: "6px" }}>
+                <div style={{ fontWeight: "600" }}>
+                  referenced by ({selectedRefs.incoming.length})
+                </div>
+                {selectedRefs.incoming.slice(0, 12).map((id) => (
+                  <button
+                    key={id}
+                    onClick={() => jumpTo(id)}
+                    style={{
+                      display: "block",
+                      width: "100%",
+                      textAlign: "left",
+                      padding: "2px 4px",
+                      fontSize: "11px",
+                      cursor: "pointer",
+                      background: "none",
+                      border: "none",
+                      color: "#0891b2",
+                    }}
+                  >
+                    ← {labelOf(id)}
+                    {fileOf(id) ? (
+                      <span style={{ color: "#94a3b8" }}> · {fileOf(id)}</span>
+                    ) : null}
+                  </button>
+                ))}
+              </div>
+            ) : null}
+            {selectedRefs.outgoing.length > 0 ? (
+              <div style={{ marginTop: "6px" }}>
+                <div style={{ fontWeight: "600" }}>
+                  references ({selectedRefs.outgoing.length})
+                </div>
+                {selectedRefs.outgoing.slice(0, 12).map((id) => (
+                  <button
+                    key={id}
+                    onClick={() => jumpTo(id)}
+                    style={{
+                      display: "block",
+                      width: "100%",
+                      textAlign: "left",
+                      padding: "2px 4px",
+                      fontSize: "11px",
+                      cursor: "pointer",
+                      background: "none",
+                      border: "none",
+                      color: "#ea580c",
+                    }}
+                  >
+                    → {labelOf(id)}
+                    {fileOf(id) ? (
+                      <span style={{ color: "#94a3b8" }}> · {fileOf(id)}</span>
+                    ) : null}
+                  </button>
+                ))}
+              </div>
+            ) : null}
           </div>
         ) : null}
       </div>
