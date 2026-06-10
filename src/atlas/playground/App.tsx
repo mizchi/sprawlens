@@ -41,6 +41,7 @@ import {
 import type { AtlasEdge } from "../contracts/graph.js";
 import { defaultLayerOf, matchTestTargets } from "../contracts/layers.js";
 import { fetchCallHierarchy, refsToEdges } from "./callHierarchyClient.ts";
+import { diffGraphs, type HistoryEntry } from "./history.ts";
 
 const WIDTH = 960;
 const HEIGHT = 640;
@@ -188,6 +189,11 @@ export function App() {
   );
   /** Lazily fetched large fixture (served from public-atlas/). */
   const playwrightSnapRef = useRef<SnapshotLike | null>(null);
+  /** Git-log history fixture and the commit currently on display. */
+  const commitsRef = useRef<HistoryEntry[] | null>(null);
+  const commitIndexRef = useRef(-1);
+  const changedFilesRef = useRef(new Map<string, "added" | "modified">());
+  const lastDiffRef = useRef({ added: 0, modified: 0, removed: 0 });
   /** Symbols whose call hierarchy was already fetched from the LSP server. */
   const fetchedHierarchyRef = useRef(new Set<string>());
   const [hierarchyVersion, setHierarchyVersion] = useState(0);
@@ -317,6 +323,36 @@ export function App() {
       graph = snapshotToAtlasGraph(sprawlensSnapshot);
       symbolsRef.current = snapshotSymbols(sprawlensSnapshot);
       symbolEdgesRef.current = snapshotSymbolEdges(sprawlensSnapshot);
+    } else if (p.source === "sprawlens-history") {
+      const history = commitsRef.current;
+      if (!history) {
+        graph = { nodes: [], edges: [] };
+        symbolsRef.current = null;
+        symbolEdgesRef.current = [];
+        fetch("/fixtures/sprawlens-history.json")
+          .then((r) => r.json())
+          .then((json: HistoryEntry[]) => {
+            commitsRef.current = json;
+            if (paramsRef.current.source === "sprawlens-history") {
+              rebuild(paramsRef.current);
+              setFrame((f) => f + 1);
+            }
+          })
+          .catch((error) => console.error("history load failed", error));
+      } else {
+        const index =
+          commitIndexRef.current >= 0 &&
+          commitIndexRef.current < history.length
+            ? commitIndexRef.current
+            : history.length - 1;
+        commitIndexRef.current = index;
+        const snapshot = history[index]!.snapshot;
+        graph = snapshotToAtlasGraph(snapshot);
+        symbolsRef.current = snapshotSymbols(snapshot);
+        symbolEdgesRef.current = snapshotSymbolEdges(snapshot);
+        changedFilesRef.current = new Map();
+        lastDiffRef.current = { added: 0, modified: 0, removed: 0 };
+      }
     } else if (p.source === "playwright") {
       const snapshot = playwrightSnapRef.current;
       if (!snapshot) {
@@ -543,6 +579,50 @@ export function App() {
     setFrame((f) => f + 1);
   };
 
+  /**
+   * Display another commit of the loaded history: the file-level diff drives
+   * the highlight, and the warm-started layout re-flow IS the animation.
+   */
+  const goToCommit = (index: number) => {
+    const history = commitsRef.current;
+    if (!history || index < 0 || index >= history.length) return;
+    if (index === commitIndexRef.current) return;
+    const snapshot = history[index]!.snapshot;
+    const nextGraph = snapshotToAtlasGraph(snapshot);
+    const diff = diffGraphs(graphRef.current, nextGraph);
+    changedFilesRef.current = diff.changed;
+    lastDiffRef.current = {
+      added: [...diff.changed.values()].filter((k) => k === "added").length,
+      modified: [...diff.changed.values()].filter((k) => k === "modified")
+        .length,
+      removed: diff.removed.length,
+    };
+    // changed files get new symbol ids (line numbers move); reset their nests
+    for (const [id] of diff.changed) innerLayoutsRef.current.delete(id);
+    for (const id of diff.removed) innerLayoutsRef.current.delete(id);
+    innerDirtyRef.current = true;
+    graphRef.current = nextGraph;
+    symbolsRef.current = snapshotSymbols(snapshot);
+    symbolEdgesRef.current = snapshotSymbolEdges(snapshot);
+    fetchedHierarchyRef.current = new Set();
+    refreshGraphLookups();
+    commitIndexRef.current = index;
+    if (ringsRef.current) {
+      ringsRef.current = applyRingsChanges(
+        ringsRef.current,
+        effectiveGraph(paramsRef.current),
+        ringsOptions(paramsRef.current),
+      );
+    } else if (layoutRef.current) {
+      layoutRef.current = createGraphLayout(
+        effectiveGraph(paramsRef.current),
+        clipOf(paramsRef.current.clipKind),
+        { seed: paramsRef.current.seed },
+      );
+    }
+    setFrame((f) => f + 1);
+  };
+
   /** Select an id and move the viewport onto its site (rings mode). */
   const jumpTo = (id: string) => {
     setSelectedId(id);
@@ -759,7 +839,8 @@ export function App() {
     const id = selectedId;
     if (!id || !id.startsWith("symbol:")) return;
     const repo = paramsRef.current.source;
-    if (repo === "synthetic") return;
+    // history snapshots don't match the working tree the LSP sees
+    if (repo === "synthetic" || repo === "sprawlens-history") return;
     if (fetchedHierarchyRef.current.has(id)) return;
     fetchedHierarchyRef.current.add(id);
     const parts = id.split(":"); // symbol:<path>:<kind>:<name>:<line>
@@ -845,6 +926,7 @@ export function App() {
             testFileIds={testFileIds}
             hiddenLayers={new Set(params.hiddenLayers)}
             parentFileOf={parentFileOf}
+            changedFiles={changedFilesRef.current}
             width={WIDTH}
             height={HEIGHT}
             selectedId={selectedId}
@@ -911,6 +993,66 @@ export function App() {
             <Sparkline values={historyRef.current} />
           </div>
         </Section>
+        {params.source === "sprawlens-history" && commitsRef.current ? (
+          <div
+            style={{
+              position: "absolute",
+              left: "8px",
+              bottom: "8px",
+              right: "270px",
+              display: "flex",
+              alignItems: "center",
+              gap: "8px",
+              padding: "6px 10px",
+              background: "rgba(248, 250, 252, 0.92)",
+              border: "1px solid #cbd5e1",
+              borderRadius: "6px",
+              fontSize: "12px",
+            }}
+          >
+            <button
+              onClick={() => goToCommit(commitIndexRef.current - 1)}
+              style={{ cursor: "pointer", padding: "2px 8px" }}
+            >
+              ◀
+            </button>
+            <input
+              type="range"
+              min={0}
+              max={commitsRef.current.length - 1}
+              value={commitIndexRef.current}
+              onInput={(e) =>
+                goToCommit(Number((e.target as HTMLInputElement).value))
+              }
+              style={{ flex: "1", minWidth: "80px" }}
+            />
+            <button
+              onClick={() => goToCommit(commitIndexRef.current + 1)}
+              style={{ cursor: "pointer", padding: "2px 8px" }}
+            >
+              ▶
+            </button>
+            <span
+              style={{
+                whiteSpace: "nowrap",
+                overflow: "hidden",
+                textOverflow: "ellipsis",
+                maxWidth: "300px",
+              }}
+            >
+              <b>
+                {commitsRef.current[commitIndexRef.current]?.shortHash}
+              </b>{" "}
+              {commitsRef.current[commitIndexRef.current]?.message.split(
+                "\n",
+              )[0] ?? ""}
+            </span>
+            <span style={{ color: "#64748b", whiteSpace: "nowrap" }}>
+              +{lastDiffRef.current.added} ~{lastDiffRef.current.modified} −
+              {lastDiffRef.current.removed}
+            </span>
+          </div>
+        ) : null}
       </div>
       <div
         style={{

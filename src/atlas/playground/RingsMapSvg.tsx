@@ -42,6 +42,8 @@ type Props = {
   hiddenLayers: Set<string>;
   /** Symbol id → parent file id (precomputed; string parsing here was hot). */
   parentFileOf: (id: string) => string;
+  /** History diff: files changed by the displayed commit get accent strokes. */
+  changedFiles: Map<string, "added" | "modified">;
   width: number;
   height: number;
   selectedId: string | null;
@@ -82,6 +84,7 @@ export function RingsMapSvg(props: Props) {
     testFileIds,
     hiddenLayers,
     parentFileOf,
+    changedFiles,
     width,
     height,
     selectedId,
@@ -364,8 +367,18 @@ export function RingsMapSvg(props: Props) {
                   ? TEST_FILL
                   : cellFill(cell.targetArea, cell.actualArea)
               }
-              stroke={cell.id === selectedId ? "#1d4ed8" : "#475569"}
-              stroke-width={cell.id === selectedId ? 2 : 0.8}
+              stroke={
+                cell.id === selectedId
+                  ? "#1d4ed8"
+                  : changedFiles.get(cell.id) === "added"
+                    ? "#059669"
+                    : changedFiles.get(cell.id) === "modified"
+                      ? "#d97706"
+                      : "#475569"
+              }
+              stroke-width={
+                cell.id === selectedId || changedFiles.has(cell.id) ? 2 : 0.8
+              }
               opacity={fileOpacity(cell.id)}
               onClick={(event) => {
                 event.stopPropagation();
