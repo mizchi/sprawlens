@@ -91,6 +91,43 @@ function Sparkline(props: { values: number[] }) {
   );
 }
 
+/** Collapsible panel section; user toggles survive re-renders via state. */
+function Section(props: {
+  title: string;
+  children: preact.ComponentChildren;
+  defaultOpen?: boolean;
+}) {
+  const [open, setOpen] = useState(props.defaultOpen ?? true);
+  return (
+    <details
+      open={open}
+      onToggle={(e) => setOpen((e.target as HTMLDetailsElement).open)}
+      style={{
+        background: "#f8fafc",
+        borderRadius: "6px",
+        border: "1px solid #cbd5e1",
+        padding: "6px 8px",
+        minWidth: "0",
+        overflowY: "auto",
+      }}
+    >
+      <summary
+        style={{
+          cursor: "pointer",
+          fontWeight: "600",
+          fontSize: "12px",
+          userSelect: "none",
+        }}
+      >
+        {props.title}
+      </summary>
+      <div style={{ paddingTop: "6px" }}>{props.children}</div>
+    </details>
+  );
+}
+
+type PanelPosition = "auto" | "right" | "bottom";
+
 export function App() {
   const [params, setParams] = useState<PlaygroundParams>({
     source: "synthetic",
@@ -110,6 +147,19 @@ export function App() {
   const [focusId, setFocusId] = useState<string | null>(null);
   const [focusRequest, setFocusRequest] = useState<FocusRequest | null>(null);
   const [, setFrame] = useState(0);
+  // DevTools-style panel docking: auto follows the window aspect ratio
+  const [panelPos, setPanelPos] = useState<PanelPosition>("auto");
+  const [landscape, setLandscape] = useState(
+    window.innerWidth > window.innerHeight * 1.1,
+  );
+  useEffect(() => {
+    const onResize = () =>
+      setLandscape(window.innerWidth > window.innerHeight * 1.1);
+    window.addEventListener("resize", onResize);
+    return () => window.removeEventListener("resize", onResize);
+  }, []);
+  const panelSide: "right" | "bottom" =
+    panelPos === "auto" ? (landscape ? "right" : "bottom") : panelPos;
 
   const graphRef = useRef<AtlasGraph>(null as unknown as AtlasGraph);
   const layoutRef = useRef<CapacityLayoutState | null>(null);
@@ -631,7 +681,9 @@ export function App() {
     <div
       style={{
         display: "grid",
-        gridTemplateColumns: "1fr 280px",
+        ...(panelSide === "right"
+          ? { gridTemplateColumns: "1fr 300px", gridTemplateRows: "1fr" }
+          : { gridTemplateColumns: "1fr", gridTemplateRows: "1fr 260px" }),
         gap: "12px",
         height: "100vh",
         padding: "12px",
@@ -683,34 +735,65 @@ export function App() {
       <div
         style={{
           display: "flex",
-          flexDirection: "column",
+          flexDirection: panelSide === "right" ? "column" : "row",
+          alignItems: panelSide === "right" ? "stretch" : "flex-start",
           gap: "12px",
           fontSize: "12px",
           color: "#0f172a",
+          minHeight: "0",
+          minWidth: "0",
+          overflow: panelSide === "right" ? "hidden auto" : "auto hidden",
         }}
       >
-        <Controls
-          params={params}
-          availableLayers={[
-            ...new Set(graphRef.current.nodes.map((n) => defaultLayerOf(n.id))),
-          ].sort()}
-          onChange={setParams}
-          onRegenerate={() => rebuild(paramsRef.current)}
-          onMutateWeight={mutateWeight}
-          onAddNode={addNode}
-          onRemoveNode={removeNode}
-        />
         <div
           style={{
             display: "flex",
-            flexDirection: "column",
             gap: "4px",
-            padding: "8px",
-            background: "#f8fafc",
-            borderRadius: "6px",
-            border: "1px solid #cbd5e1",
+            flex: "none",
+            flexDirection: panelSide === "right" ? "row" : "column",
           }}
         >
+          {(["auto", "right", "bottom"] as PanelPosition[]).map((pos) => (
+            <button
+              key={pos}
+              onClick={() => setPanelPos(pos)}
+              style={{
+                padding: "2px 8px",
+                fontSize: "11px",
+                cursor: "pointer",
+                border: "1px solid #cbd5e1",
+                borderRadius: "4px",
+                background: panelPos === pos ? "#1d4ed8" : "#f8fafc",
+                color: panelPos === pos ? "#fff" : "#0f172a",
+              }}
+            >
+              {pos}
+            </button>
+          ))}
+        </div>
+        <Section title="表示オプション">
+          <Controls
+            params={params}
+            availableLayers={[
+              ...new Set(
+                graphRef.current.nodes.map((n) => defaultLayerOf(n.id)),
+              ),
+            ].sort()}
+            onChange={setParams}
+            onRegenerate={() => rebuild(paramsRef.current)}
+            onMutateWeight={mutateWeight}
+            onAddNode={addNode}
+            onRemoveNode={removeNode}
+          />
+        </Section>
+        <Section title="ステータス">
+          <div
+            style={{
+              display: "flex",
+              flexDirection: "column",
+              gap: "4px",
+            }}
+          >
           <div>
             max relative error: {(maxError * 100).toFixed(2)}%
             {maxError < CONVERGENCE_TOLERANCE ? " (converged)" : ""}
@@ -736,18 +819,10 @@ export function App() {
             </div>
           ) : null}
           <Sparkline values={historyRef.current} />
-        </div>
+          </div>
+        </Section>
         {selected || selectedIsModule || selectedTest ? (
-          <div
-            style={{
-              padding: "8px",
-              background: "#f8fafc",
-              borderRadius: "6px",
-              border: "1px solid #cbd5e1",
-              overflowY: "auto",
-              minHeight: "0",
-            }}
-          >
+          <Section title="選択ノード">
             <div style={{ fontWeight: "600", wordBreak: "break-all" }}>
               {labelOf(selectedId!)}
               {selectedIsSymbol
@@ -860,7 +935,7 @@ export function App() {
                 ))}
               </div>
             ) : null}
-          </div>
+          </Section>
         ) : null}
       </div>
     </div>

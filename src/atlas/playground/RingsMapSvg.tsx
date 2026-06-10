@@ -23,6 +23,8 @@ const DOWNSTREAM_COLOR = "#ea580c";
 const UPSTREAM_COLOR = "#0891b2";
 /** Muted fill for test-layer cells: visible for ratio reading, not loud. */
 const TEST_FILL = "hsl(210 10% 81%)";
+/** Public API marker: the site dot, not the cell area, carries the signal. */
+const EXPORTED_DOT = "#059669";
 
 type Props = {
   rings: RingsState;
@@ -64,7 +66,6 @@ type ViewBox = { x: number; y: number; w: number; h: number };
 /** Zoom level at which individual symbols become interactive nodes. */
 const SYMBOL_ZOOM = 2.2;
 const DIM = 0.1;
-const EXPORTED_FILL = "rgba(16, 185, 129, 0.22)";
 
 export function RingsMapSvg(props: Props) {
   const {
@@ -324,9 +325,7 @@ export function RingsMapSvg(props: Props) {
               <polygon
                 key={cell.id}
                 points={cell.polygon.map((p) => `${p.x},${p.y}`).join(" ")}
-                fill={
-                  exportedIds.has(cell.id) ? EXPORTED_FILL : "transparent"
-                }
+                fill="transparent"
                 stroke={cell.id === selectedId ? "#1d4ed8" : undefined}
                 stroke-width={cell.id === selectedId ? 1.6 : undefined}
                 opacity={symbolOpacity(cell.id)}
@@ -462,22 +461,29 @@ export function RingsMapSvg(props: Props) {
           ) : null,
         )}
       </g>
-      {symbolMode || selectedIsSymbol ? (
+      {showInner || selectedIsSymbol ? (
         <g fill="#6d28d9">
-          {innerCells.map((cell) =>
-            cell.polygon.length >= 3 &&
-            (symbolMode || cell.id === selectedId) &&
-            (cellVisible(cell) || cell.id === selectedId) ? (
+          {innerCells.map((cell) => {
+            if (cell.polygon.length < 3) return null;
+            const exported = exportedIds.has(cell.id);
+            // public API dots surface before private symbols do
+            const visible =
+              cell.id === selectedId ||
+              ((symbolMode || exported) && cellVisible(cell));
+            if (!visible) return null;
+            return (
               <circle
                 key={cell.id}
                 cx={cell.site.x}
                 cy={cell.site.y}
-                r={screenRadius(cell.id === selectedId ? 3.2 : 1.8)}
+                r={screenRadius(
+                  cell.id === selectedId ? 3.2 : exported ? 2.4 : 1.8,
+                )}
                 fill={
                   cell.id === selectedId
                     ? "#1d4ed8"
-                    : exportedIds.has(cell.id)
-                      ? "#059669"
+                    : exported
+                      ? EXPORTED_DOT
                       : "#6d28d9"
                 }
                 opacity={symbolOpacity(cell.id)}
@@ -486,8 +492,8 @@ export function RingsMapSvg(props: Props) {
                   onSelect(cell.id);
                 }}
               />
-            ) : null,
-          )}
+            );
+          })}
         </g>
       ) : null}
       <g
@@ -537,15 +543,18 @@ export function RingsMapSvg(props: Props) {
               );
             })
           : null}
-        {symbolMode
+        {showInner
           ? innerCells.map((cell) => {
               if (cell.polygon.length < 3 || !cellVisible(cell)) return null;
               // module-scope filler cells stay unlabeled to reduce noise
               if (cell.id.endsWith("#rest") && cell.id !== selectedId)
                 return null;
-              // public API first: exported symbols label earlier (lower
-              // threshold), private ones only once zoomed further in
+              // public API first: exported symbols label from file-level
+              // zoom with a lower threshold; private ones wait for symbol
+              // mode and a deeper zoom
               const exported = exportedIds.has(cell.id);
+              if (!symbolMode && !exported && cell.id !== selectedId)
+                return null;
               const fontSize = screenFont(
                 Math.sqrt(cell.actualArea) * 0.3,
                 exported ? 7 : 13,
@@ -560,7 +569,7 @@ export function RingsMapSvg(props: Props) {
                   x={cell.site.x}
                   y={cell.site.y - screenRadius(4)}
                   font-size={fontSize}
-                  fill={exportedIds.has(cell.id) ? "#047857" : "#5b21b6"}
+                  fill={exported ? "#047857" : "#5b21b6"}
                   opacity={symbolOpacity(cell.id)}
                 >
                   {labels.get(cell.id) ?? fallbackLabel(cell.id)}
