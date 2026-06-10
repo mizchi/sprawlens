@@ -160,15 +160,14 @@ export function RingsMapSvg(props: Props) {
   const sourceVisible = !hiddenLayers.has("source");
   const showInner = sourceVisible && zoom > 0.8;
   const symbolMode = sourceVisible && zoom >= SYMBOL_ZOOM;
-  // viewport culling: when zoomed in, most cells sit outside the view —
-  // skip their DOM entirely (slack = own size so partially-visible survive)
-  const cullActive = zoom > 1.5;
+  // viewport culling, always on — visibility is decided by the committed
+  // view rect, never by zoom alone (slack = own size keeps partially
+  // visible cells alive)
   const inView = (p: Vec2, slack: number) =>
-    !cullActive ||
-    (p.x >= committedView.x - slack &&
-      p.x <= committedView.x + committedView.w + slack &&
-      p.y >= committedView.y - slack &&
-      p.y <= committedView.y + committedView.h + slack);
+    p.x >= committedView.x - slack &&
+    p.x <= committedView.x + committedView.w + slack &&
+    p.y >= committedView.y - slack &&
+    p.y <= committedView.y + committedView.h + slack;
   const cellVisible = (cell: CellResult) =>
     inView(cell.site, Math.sqrt(cell.actualArea) * 1.5);
 
