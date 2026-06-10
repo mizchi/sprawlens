@@ -1,9 +1,10 @@
 import { hierarchy, treemap } from "d3-hierarchy";
 import { RefreshCw } from "lucide-react";
-import { lazy, Suspense, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import type { CSSProperties, PointerEvent } from "react";
 import { moduleIdForFilePath } from "../core/moduleMap.js";
 import type { CodeEdge, FileNode, GraphDiff, Hotspot, ImportsEdge, Snapshot } from "../core/types.js";
+import { DependencyGraphView } from "./DependencyGraphView.js";
 import { ModuleCityMap } from "./ModuleCityMap.js";
 
 type SnapshotSummary = Pick<Snapshot, "commit" | "metrics">;
@@ -27,14 +28,10 @@ const METRICS: Array<{ key: MetricKey; label: string; color: string }> = [
 
 const VIEW_TABS: Array<{ mode: ViewMode; label: string }> = [
   { mode: "overview", label: "Overview" },
+  { mode: "network", label: "Dependency Graph" },
   { mode: "diff", label: "Diff View" },
   { mode: "realtime", label: "Realtime" },
 ];
-
-const NetworkLab = lazy(async () => {
-  const module = await import("./NetworkLab.js");
-  return { default: module.NetworkLab };
-});
 
 export function App() {
   const [viewMode, setViewMode] = useState<ViewMode>(() => viewModeFromHash());
@@ -175,7 +172,7 @@ export function App() {
         </div>
         <div className="topbar-controls">
           <ModeSelector viewMode={viewMode} onViewMode={setViewHash} />
-          {viewMode === "overview" ? (
+          {viewMode === "overview" || viewMode === "network" ? (
             <SnapshotSelector
               snapshots={snapshots}
               selectedCommit={toCommit}
@@ -284,16 +281,15 @@ export function App() {
       ) : null}
 
       {viewMode === "network" ? (
-        <section className="section screen-section">
-          <Suspense fallback={<div className="empty-state">Loading network renderer...</div>}>
-            <NetworkLab
-              snapshot={toSnapshot}
-              beforeSnapshot={fromSnapshot}
-              diff={selectedDiff}
-              selectedFile={selectedFile}
-              onSelectFile={setSelectedFile}
-            />
-          </Suspense>
+        <section className="graph-screen-section">
+          <DependencyGraphView
+            snapshot={toSnapshot}
+            diff={selectedDiff}
+            selectedFile={selectedFile}
+            selectedModuleId={selectedModuleId}
+            onSelectFile={setSelectedFile}
+            onSelectModule={setSelectedModuleId}
+          />
         </section>
       ) : null}
     </main>
