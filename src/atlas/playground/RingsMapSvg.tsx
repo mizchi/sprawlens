@@ -4,7 +4,13 @@ import type { CellResult } from "../kernel/capacityLayout.js";
 import type { Vec2 } from "../kernel/vec.js";
 import type { RingsState } from "./ringsController.ts";
 
-export type FocusRequest = { x: number; y: number; zoom: number; token: number };
+/** Camera-flight target: the view rect that frames the jump target's bbox. */
+export type FocusRequest = {
+  cx: number;
+  cy: number;
+  viewW: number;
+  token: number;
+};
 
 /** Dependency-path extraction state, precomputed by the App per level. */
 export type FocusView = {
@@ -116,17 +122,56 @@ export function RingsMapSvg(props: Props) {
   };
   useEffect(() => () => clearTimeout(commitTimer.current), []);
 
+  // camera flight: ease the view toward the requested rect instead of
+  // teleporting. Zoom interpolates in log space (perceptually linear);
+  // any user input cancels the flight.
+  const flightRef = useRef(0);
+  const cancelFlight = () => {
+    cancelAnimationFrame(flightRef.current);
+    flightRef.current = 0;
+  };
   useEffect(() => {
     if (!focusRequest) return;
-    const w = width / focusRequest.zoom;
-    const h = height / focusRequest.zoom;
-    viewRef.current = {
-      x: focusRequest.x - w / 2,
-      y: focusRequest.y - h / 2,
-      w,
-      h,
+    cancelFlight();
+    const from = { ...viewRef.current };
+    const fromCx = from.x + from.w / 2;
+    const fromCy = from.y + from.h / 2;
+    const toW = Math.min(Math.max(focusRequest.viewW, width / 40), width * 3);
+    const toH = toW * (height / width);
+    // rAF never fires in hidden tabs — land instantly there
+    if (document.visibilityState === "hidden") {
+      viewRef.current = {
+        x: focusRequest.cx - toW / 2,
+        y: focusRequest.cy - toH / 2,
+        w: toW,
+        h: toH,
+      };
+      const v = viewRef.current;
+      svgRef.current?.setAttribute("viewBox", `${v.x} ${v.y} ${v.w} ${v.h}`);
+      setCommittedView({ ...v });
+      return;
+    }
+    const start = performance.now();
+    const DURATION_MS = 450;
+    const step = (now: number) => {
+      const t = Math.min((now - start) / DURATION_MS, 1);
+      const e = 1 - (1 - t) ** 3; // easeOutCubic
+      const w = from.w * (toW / from.w) ** e;
+      const h = from.h * (toH / from.h) ** e;
+      const cx = fromCx + (focusRequest.cx - fromCx) * e;
+      const cy = fromCy + (focusRequest.cy - fromCy) * e;
+      viewRef.current = { x: cx - w / 2, y: cy - h / 2, w, h };
+      const v = viewRef.current;
+      svgRef.current?.setAttribute("viewBox", `${v.x} ${v.y} ${v.w} ${v.h}`);
+      if (t < 1) {
+        flightRef.current = requestAnimationFrame(step);
+      } else {
+        flightRef.current = 0;
+        setCommittedView({ ...viewRef.current });
+      }
     };
-    setCommittedView({ ...viewRef.current });
+    flightRef.current = requestAnimationFrame(step);
+    return cancelFlight;
   }, [focusRequest?.token]);
 
   const toViewScale = () => {
@@ -136,6 +181,7 @@ export function RingsMapSvg(props: Props) {
 
   const onWheel = (event: WheelEvent) => {
     event.preventDefault();
+    cancelFlight();
     const rect = svgRef.current?.getBoundingClientRect();
     if (!rect) return;
     const factor = Math.exp(event.deltaY * 0.0018);
@@ -291,6 +337,7 @@ export function RingsMapSvg(props: Props) {
       onClick={() => onSelect(null)}
       onWheel={onWheel}
       onPointerDown={(e) => {
+        cancelFlight();
         dragRef.current = {
           pointerId: e.pointerId,
           last: { x: e.clientX, y: e.clientY },

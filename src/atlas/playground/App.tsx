@@ -623,23 +623,45 @@ export function App() {
     setFrame((f) => f + 1);
   };
 
-  /** Select an id and move the viewport onto its site (rings mode). */
+  /** Fly the camera to a view rect framing the target's bounding box. */
   const jumpTo = (id: string) => {
     setSelectedId(id);
-    const innerCell = [...innerLayoutsRef.current.values()]
-      .flatMap((l) => l.cells)
-      .find((c) => c.id === id);
+    const innerCell = innerCellsRef.current.find((c) => c.id === id);
     const fileCell = ringsRef.current
       ? [...ringsRef.current.moduleLayouts.values()]
           .flatMap((l) => l.cells)
           .find((c) => c.id === id)
       : null;
-    const site = innerCell?.site ?? fileCell?.site;
-    if (site) {
+    const circle = ringsRef.current?.circles.get(id);
+    let bbox: { cx: number; cy: number; w: number; h: number } | null = null;
+    const polygon = innerCell?.polygon ?? fileCell?.polygon;
+    if (polygon && polygon.length >= 3) {
+      let minX = Infinity;
+      let maxX = -Infinity;
+      let minY = Infinity;
+      let maxY = -Infinity;
+      for (const p of polygon) {
+        minX = Math.min(minX, p.x);
+        maxX = Math.max(maxX, p.x);
+        minY = Math.min(minY, p.y);
+        maxY = Math.max(maxY, p.y);
+      }
+      bbox = {
+        cx: (minX + maxX) / 2,
+        cy: (minY + maxY) / 2,
+        w: maxX - minX,
+        h: maxY - minY,
+      };
+    } else if (circle) {
+      bbox = { cx: circle.cx, cy: circle.cy, w: circle.r * 2, h: circle.r * 2 };
+    }
+    if (bbox) {
+      // frame the bbox with padding: the target ends up ~40% of the view
+      const viewW = Math.max(bbox.w, (bbox.h * WIDTH) / HEIGHT) * 2.5;
       setFocusRequest({
-        x: site.x,
-        y: site.y,
-        zoom: innerCell ? 6 : 3,
+        cx: bbox.cx,
+        cy: bbox.cy,
+        viewW,
         token: (focusRequest?.token ?? 0) + 1,
       });
     }
