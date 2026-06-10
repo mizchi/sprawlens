@@ -26,8 +26,13 @@ describe("defaultModuleIdOf", () => {
     expect(defaultModuleIdOf("src/atlas/kernel/vec.ts")).toBe("src/atlas");
   });
 
-  it("groups non-src files by their first directory", () => {
-    expect(defaultModuleIdOf("packages/foo/index.ts")).toBe("packages");
+  it("treats monorepo container dirs as two-segment modules", () => {
+    expect(defaultModuleIdOf("packages/foo/index.ts")).toBe("packages/foo");
+    expect(defaultModuleIdOf("tests/page/click.spec.ts")).toBe("tests/page");
+  });
+
+  it("groups other files by their first directory", () => {
+    expect(defaultModuleIdOf("docs/intro.md")).toBe("docs");
     expect(defaultModuleIdOf("vite.config.ts")).toBe("(root)");
   });
 

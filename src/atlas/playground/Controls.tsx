@@ -1,5 +1,5 @@
 export type ClipKind = "rect" | "circle" | "hexadecagon";
-export type DataSource = "synthetic" | "sprawlens";
+export type DataSource = "synthetic" | "sprawlens" | "playwright";
 export type LayoutKind = "rings" | "flat";
 
 export type PlaygroundParams = {
@@ -109,6 +109,7 @@ export function Controls(props: Props) {
         >
           <option value="synthetic">synthetic</option>
           <option value="sprawlens">sprawlens (this repo)</option>
+          <option value="playwright">playwright (monorepo)</option>
         </select>
       </label>
       <NumberField

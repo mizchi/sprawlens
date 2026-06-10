@@ -52,6 +52,17 @@ export function matchTestTargets(
   const sourceIds = new Set(
     graph.nodes.filter((n) => layerOf(n.id) === "source").map((n) => n.id),
   );
+  // single pass over edges; per-test scans don't scale to monorepo sizes
+  const importCounts = new Map<string, Map<string, number>>();
+  for (const edge of graph.edges) {
+    if (!sourceIds.has(edge.target)) continue;
+    let counts = importCounts.get(edge.source);
+    if (!counts) {
+      counts = new Map();
+      importCounts.set(edge.source, counts);
+    }
+    counts.set(edge.target, (counts.get(edge.target) ?? 0) + 1);
+  }
   const result = new Map<string, string>();
   for (const node of graph.nodes) {
     if (layerOf(node.id) !== "test") continue;
@@ -60,14 +71,9 @@ export function matchTestTargets(
       result.set(node.id, nameMatch);
       continue;
     }
-    const importCounts = new Map<string, number>();
-    for (const edge of graph.edges) {
-      if (edge.source !== node.id || !sourceIds.has(edge.target)) continue;
-      importCounts.set(edge.target, (importCounts.get(edge.target) ?? 0) + 1);
-    }
     let best: string | null = null;
     let bestCount = 0;
-    for (const [target, count] of importCounts) {
+    for (const [target, count] of importCounts.get(node.id) ?? []) {
       if (count > bestCount) {
         best = target;
         bestCount = count;

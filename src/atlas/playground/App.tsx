@@ -18,6 +18,7 @@ import {
   snapshotSymbolEdges,
   snapshotSymbols,
   snapshotToAtlasGraph,
+  type SnapshotLike,
 } from "./fixtureAdapter.ts";
 import { sprawlensSnapshot } from "./fixtures/sprawlens.ts";
 import {
@@ -143,7 +144,8 @@ export function App() {
     adaptationRate: 0.8,
     lloydRate: 0.7,
     stepsPerFrame: 2,
-    showEdges: true,
+    // ambient edges add noise; macro module deps are opt-in via this toggle
+    showEdges: false,
     showNested: true,
     hiddenLayers: [],
   });
@@ -183,6 +185,8 @@ export function App() {
   const symbolMetaRef = useRef(
     new Map<string, { exported: boolean; fileId: string }>(),
   );
+  /** Lazily fetched large fixture (served from public-atlas/). */
+  const playwrightSnapRef = useRef<SnapshotLike | null>(null);
 
   const ringsOptions = (p: PlaygroundParams) => ({
     width: WIDTH,
@@ -208,18 +212,37 @@ export function App() {
     };
   };
 
-  /** Per-frame sync: each file cell hosts a nested symbol layout clipped to it. */
-  const syncInnerLayouts = (outerCells: CellResult[], outerMoved: boolean) => {
+  /**
+   * Per-frame sync: each file cell hosts a nested symbol layout clipped to
+   * it. Work is time-budgeted with a rotating cursor so monorepo-scale maps
+   * (1000+ files) never block the main thread; cells catch up over frames.
+   */
+  const innerCursorRef = useRef(0);
+  const syncInnerLayouts = (
+    outerCells: CellResult[],
+    outerMoved: boolean,
+    budgetMs: number,
+  ) => {
     const inner = innerLayoutsRef.current;
     const alive = new Set<string>();
+    for (const cell of outerCells) alive.add(cell.id);
+    for (const id of [...inner.keys()]) {
+      if (!alive.has(id)) inner.delete(id);
+    }
     const locOf = new Map(
       graphRef.current.nodes.map((n) => [n.id, n.metrics.loc]),
     );
-    for (const cell of outerCells) {
+    const start = performance.now();
+    const total = outerCells.length;
+    for (let step = 0; step < total; step++) {
+      if (performance.now() - start > budgetMs) {
+        innerCursorRef.current = (innerCursorRef.current + step) % total;
+        return;
+      }
+      const cell = outerCells[(innerCursorRef.current + step) % total]!;
       if (cell.polygon.length < 3) continue;
       const loc = locOf.get(cell.id);
       if (loc === undefined) continue;
-      alive.add(cell.id);
       const clip: ClipRegion = {
         kind: "polygon",
         ring: insetRing(cell.polygon, 0.94),
@@ -242,15 +265,15 @@ export function App() {
         );
       } else if (outerMoved) {
         layout = applyGraphChanges(layout, { clip });
+      } else if (isConverged(layout, CONVERGENCE_TOLERANCE)) {
+        continue;
       }
       if (!isConverged(layout, CONVERGENCE_TOLERANCE)) {
         layout = capacityStep(layout);
       }
       inner.set(cell.id, layout);
     }
-    for (const id of [...inner.keys()]) {
-      if (!alive.has(id)) inner.delete(id);
-    }
+    innerCursorRef.current = 0;
   };
 
   const rebuild = (p: PlaygroundParams) => {
@@ -259,6 +282,28 @@ export function App() {
       graph = snapshotToAtlasGraph(sprawlensSnapshot);
       symbolsRef.current = snapshotSymbols(sprawlensSnapshot);
       symbolEdgesRef.current = snapshotSymbolEdges(sprawlensSnapshot);
+    } else if (p.source === "playwright") {
+      const snapshot = playwrightSnapRef.current;
+      if (!snapshot) {
+        // fetch once, then rebuild with the real data
+        graph = { nodes: [], edges: [] };
+        symbolsRef.current = null;
+        symbolEdgesRef.current = [];
+        fetch("/fixtures/playwright.json")
+          .then((r) => r.json())
+          .then((json: SnapshotLike) => {
+            playwrightSnapRef.current = json;
+            if (paramsRef.current.source === "playwright") {
+              rebuild(paramsRef.current);
+              setFrame((f) => f + 1);
+            }
+          })
+          .catch((error) => console.error("fixture load failed", error));
+      } else {
+        graph = snapshotToAtlasGraph(snapshot);
+        symbolsRef.current = snapshotSymbols(snapshot);
+        symbolEdgesRef.current = snapshotSymbolEdges(snapshot);
+      }
     } else {
       graph = createSyntheticGraph({ count: p.count, seed: p.seed });
       symbolsRef.current = null;
@@ -359,31 +404,49 @@ export function App() {
       }
       fps.last = now;
 
-      // hidden tabs throttle the fallback timer to ~1 tick/s; batch more
-      // solver steps per tick there so convergence keeps a similar pace
-      const stepBatch =
-        paramsRef.current.stepsPerFrame *
-        (document.visibilityState === "hidden" ? 30 : 1);
+      // time-budgeted stepping: fixed step counts block the main thread for
+      // seconds on monorepo-scale graphs. Hidden tabs get a bigger budget to
+      // compensate for the ~1 tick/s timer throttling.
+      const hidden = document.visibilityState === "hidden";
+      const solverBudget = hidden ? 150 : 10;
+      const innerBudget = hidden ? 60 : 6;
+      const maxSteps = paramsRef.current.stepsPerFrame * (hidden ? 30 : 1);
+      const solverStart = performance.now();
       let outerActive = false;
       let outerCells: CellResult[] = [];
       let maxError = 0;
       if (ringsRef.current) {
-        const result = stepRingsState(ringsRef.current, stepBatch);
-        ringsRef.current = result.state;
-        outerActive = result.active;
-        for (const layout of result.state.moduleLayouts.values()) {
+        let steps = 0;
+        let active = true;
+        while (
+          active &&
+          steps < maxSteps &&
+          performance.now() - solverStart < solverBudget
+        ) {
+          const result = stepRingsState(ringsRef.current, 1);
+          ringsRef.current = result.state;
+          active = result.active;
+          steps++;
+        }
+        outerActive = active;
+        for (const layout of ringsRef.current.moduleLayouts.values()) {
           outerCells.push(...layout.cells);
           maxError = Math.max(maxError, layout.maxRelativeError);
         }
       } else if (layoutRef.current) {
         let state = layoutRef.current;
         outerActive = !isConverged(state, CONVERGENCE_TOLERANCE / 4);
-        if (outerActive) {
-          for (let i = 0; i < stepBatch; i++) {
-            state = capacityStep(state);
-          }
-          layoutRef.current = state;
+        let steps = 0;
+        while (
+          outerActive &&
+          steps < maxSteps &&
+          performance.now() - solverStart < solverBudget
+        ) {
+          state = capacityStep(state);
+          outerActive = !isConverged(state, CONVERGENCE_TOLERANCE / 4);
+          steps++;
         }
+        layoutRef.current = state;
         outerCells = state.cells;
         maxError = state.maxRelativeError;
       }
@@ -393,7 +456,7 @@ export function App() {
 
       let innerActive = false;
       if (paramsRef.current.showNested) {
-        syncInnerLayouts(outerCells, outerActive);
+        syncInnerLayouts(outerCells, outerActive, innerBudget);
         for (const layout of innerLayoutsRef.current.values()) {
           if (!isConverged(layout, CONVERGENCE_TOLERANCE)) {
             innerActive = true;
