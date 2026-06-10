@@ -364,8 +364,8 @@ export function RingsMapSvg(props: Props) {
       {/* vector-effect does not inherit from <g>; apply to every shape so
           stroke widths (including selection highlights) stay in screen px */}
       <style>{"polygon, line, circle { vector-effect: non-scaling-stroke; }"}</style>
-      {/* aggregated module dependencies (macro view), opt-in via showEdges */}
-      {showEdges && !focus ? (
+      {/* aggregated module dependencies: the macro structure, always on */}
+      {!focus ? (
         <g stroke="#475569" fill="none">
           {rings.moduleEdges.map((edge) => {
             const a = rings.circles.get(edge.source);

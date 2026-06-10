@@ -171,7 +171,7 @@ export function Controls(props: Props) {
         </select>
       </label>
       <label style={row}>
-        <span style={{ width: "110px" }}>edges</span>
+        <span style={{ width: "110px" }}>detail edges</span>
         <input
           type="checkbox"
           checked={params.showEdges}
