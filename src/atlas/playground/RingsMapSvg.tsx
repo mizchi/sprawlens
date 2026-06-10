@@ -158,13 +158,8 @@ export function RingsMapSvg(props: Props) {
 
   const zoom = width / committedView.w;
   const sourceVisible = !hiddenLayers.has("source");
-  // monorepo-scale maps melt the renderer if every symbol cell and every
-  // exported dot is in the DOM from low zoom: raise the inner-detail
-  // threshold into culling territory and drop the early public-API dots
-  const largeGraph = innerCells.length > 2000;
-  const showInner = sourceVisible && zoom > (largeGraph ? 1.6 : 0.8);
+  const showInner = sourceVisible && zoom > 0.8;
   const symbolMode = sourceVisible && zoom >= SYMBOL_ZOOM;
-  const exportedEarly = !largeGraph;
   // viewport culling: when zoomed in, most cells sit outside the view —
   // skip their DOM entirely (slack = own size so partially-visible survive)
   const cullActive = zoom > 1.5;
@@ -176,6 +171,46 @@ export function RingsMapSvg(props: Props) {
       p.y <= committedView.y + committedView.h + slack);
   const cellVisible = (cell: CellResult) =>
     inView(cell.site, Math.sqrt(cell.actualArea) * 1.5);
+
+  /** Parent file id of a symbol cell (synthetic `file#sN` / `symbol:path:...`). */
+  const parentFileOf = (symbolId: string): string => {
+    if (symbolId.startsWith("symbol:")) {
+      return symbolId.split(":")[1] ?? symbolId;
+    }
+    const hash = symbolId.indexOf("#");
+    return hash >= 0 ? symbolId.slice(0, hash) : symbolId;
+  };
+
+  // Dynamic nested-symbol LOD: instead of fixed zoom thresholds, budget the
+  // on-screen element count. Visible file cells get their internals in
+  // descending screen-area order until the symbol budget is spent, so the
+  // biggest cells in view always show detail and dense overviews stay flat.
+  const SYMBOL_BUDGET = 1500;
+  const allowedFiles = (() => {
+    const allowed = new Set<string>();
+    if (!showInner) return allowed;
+    const symbolCountByFile = new Map<string, number>();
+    for (const cell of innerCells) {
+      const file = parentFileOf(cell.id);
+      symbolCountByFile.set(file, (symbolCountByFile.get(file) ?? 0) + 1);
+    }
+    const candidates = fileCells
+      .filter((c) => c.polygon.length >= 3 && cellVisible(c))
+      .map((c) => ({ id: c.id, screenArea: c.actualArea * zoom * zoom }))
+      .sort((a, b) => b.screenArea - a.screenArea);
+    let used = 0;
+    for (const candidate of candidates) {
+      const count = symbolCountByFile.get(candidate.id) ?? 0;
+      if (used + count > SYMBOL_BUDGET) break;
+      used += count;
+      allowed.add(candidate.id);
+    }
+    // the selection's file always shows its internals
+    if (selectedId !== null) allowed.add(parentFileOf(selectedId));
+    return allowed;
+  })();
+  const innerVisible = (cell: CellResult) =>
+    allowedFiles.has(parentFileOf(cell.id)) && cellVisible(cell);
   const selectedIsSymbol =
     selectedId !== null && symbolSiteById.has(selectedId);
   // reference edges touching the selection stay visible at any zoom,
@@ -326,7 +361,7 @@ export function RingsMapSvg(props: Props) {
          
         >
           {innerCells.map((cell) =>
-            cell.polygon.length >= 3 && cellVisible(cell) ? (
+            cell.polygon.length >= 3 && innerVisible(cell) ? (
               <polygon
                 key={cell.id}
                 points={cell.polygon.map((p) => `${p.x},${p.y}`).join(" ")}
@@ -471,11 +506,10 @@ export function RingsMapSvg(props: Props) {
           {innerCells.map((cell) => {
             if (cell.polygon.length < 3) return null;
             const exported = exportedIds.has(cell.id);
-            // public API dots surface before private symbols do (small maps)
+            // public API dots surface before private symbols do
             const visible =
               cell.id === selectedId ||
-              ((symbolMode || (exported && exportedEarly)) &&
-                cellVisible(cell));
+              ((symbolMode || exported) && innerVisible(cell));
             if (!visible) return null;
             return (
               <circle
@@ -551,7 +585,7 @@ export function RingsMapSvg(props: Props) {
           : null}
         {showInner
           ? innerCells.map((cell) => {
-              if (cell.polygon.length < 3 || !cellVisible(cell)) return null;
+              if (cell.polygon.length < 3 || !innerVisible(cell)) return null;
               // module-scope filler cells stay unlabeled to reduce noise
               if (cell.id.endsWith("#rest") && cell.id !== selectedId)
                 return null;
