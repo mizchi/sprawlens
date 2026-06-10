@@ -99,12 +99,14 @@ export function RingsMapSvg(props: Props) {
   const applyView = () => {
     const v = viewRef.current;
     svgRef.current?.setAttribute("viewBox", `${v.x} ${v.y} ${v.w} ${v.h}`);
-    if (commitTimer.current === 0) {
-      commitTimer.current = window.setTimeout(() => {
-        commitTimer.current = 0;
-        setCommittedView({ ...viewRef.current });
-      }, COMMIT_MS);
-    }
+    // trailing debounce: committing (and thus re-running LOD + inserting
+    // hundreds of nodes) mid-gesture made zooming back out janky — the
+    // gesture stays on the cheap scaled-raster path until it settles
+    clearTimeout(commitTimer.current);
+    commitTimer.current = window.setTimeout(() => {
+      commitTimer.current = 0;
+      setCommittedView({ ...viewRef.current });
+    }, COMMIT_MS);
   };
   useEffect(() => () => clearTimeout(commitTimer.current), []);
 
@@ -217,6 +219,15 @@ export function RingsMapSvg(props: Props) {
     (Math.sqrt(cell.actualArea) * zoom >= MIN_SYMBOL_PX &&
       allowedFiles.has(parentFileOf(cell.id)) &&
       cellVisible(cell));
+
+  // filter once; the render lists below share these instead of re-testing
+  // visibility per layer (3x the cells each render adds up at 4k+ symbols)
+  const visibleFileCells = fileCells.filter(
+    (c) => c.polygon.length >= 3 && cellVisible(c),
+  );
+  const visibleInnerCells = innerCells.filter(
+    (c) => c.polygon.length >= 3 && innerVisible(c),
+  );
   const selectedIsSymbol =
     selectedId !== null && symbolSiteById.has(selectedId);
   // reference edges touching the selection stay visible at any zoom,
@@ -338,8 +349,8 @@ export function RingsMapSvg(props: Props) {
         ))}
       </g>
       <g style={{ display: sourceVisible ? "" : "none" }}>
-        {fileCells.map((cell) =>
-          cell.polygon.length >= 3 && cellVisible(cell) ? (
+        {visibleFileCells.map((cell) =>
+          true ? (
             <polygon
               key={cell.id}
               points={cell.polygon.map((p) => `${p.x},${p.y}`).join(" ")}
@@ -366,8 +377,8 @@ export function RingsMapSvg(props: Props) {
           stroke-opacity={0.8}
          
         >
-          {innerCells.map((cell) =>
-            cell.polygon.length >= 3 && innerVisible(cell) ? (
+          {visibleInnerCells.map((cell) =>
+            true ? (
               <polygon
                 key={cell.id}
                 points={cell.polygon.map((p) => `${p.x},${p.y}`).join(" ")}
@@ -494,8 +505,8 @@ export function RingsMapSvg(props: Props) {
         ) : null,
       )}
       <g fill="#1e293b" style={{ display: sourceVisible ? "" : "none" }}>
-        {fileCells.map((cell) =>
-          cell.polygon.length >= 3 && cellVisible(cell) ? (
+        {visibleFileCells.map((cell) =>
+          true ? (
             <circle
               key={cell.id}
               cx={cell.site.x}
@@ -509,13 +520,11 @@ export function RingsMapSvg(props: Props) {
       </g>
       {showInner || selectedIsSymbol ? (
         <g fill="#6d28d9">
-          {innerCells.map((cell) => {
-            if (cell.polygon.length < 3) return null;
+          {visibleInnerCells.map((cell) => {
             const exported = exportedIds.has(cell.id);
             // public API dots surface before private symbols do
             const visible =
-              cell.id === selectedId ||
-              ((symbolMode || exported) && innerVisible(cell));
+              cell.id === selectedId || symbolMode || exported;
             if (!visible) return null;
             return (
               <circle
@@ -565,8 +574,7 @@ export function RingsMapSvg(props: Props) {
           );
         })}
         {showInner
-          ? fileCells.map((cell) => {
-              if (cell.polygon.length < 3 || !cellVisible(cell)) return null;
+          ? visibleFileCells.map((cell) => {
               const fontSize = screenFont(
                 Math.sqrt(cell.actualArea) * 0.18,
                 9,
@@ -590,8 +598,7 @@ export function RingsMapSvg(props: Props) {
             })
           : null}
         {showInner
-          ? innerCells.map((cell) => {
-              if (cell.polygon.length < 3 || !innerVisible(cell)) return null;
+          ? visibleInnerCells.map((cell) => {
               // module-scope filler cells stay unlabeled to reduce noise
               if (cell.id.endsWith("#rest") && cell.id !== selectedId)
                 return null;
