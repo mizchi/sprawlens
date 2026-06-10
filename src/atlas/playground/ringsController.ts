@@ -1,5 +1,4 @@
-import type { AtlasEdge, AtlasGraph, AtlasNode } from "../contracts/graph.js";
-import { matchTestTargets, splitByLayer } from "../contracts/layers.js";
+import type { AtlasEdge, AtlasGraph } from "../contracts/graph.js";
 import { deriveModules } from "../contracts/modules.js";
 import {
   applyGraphChanges,
@@ -26,10 +25,6 @@ export type RingsState = {
   moduleLayouts: Map<string, CapacityLayoutState>;
   moduleEdges: AtlasEdge[];
   ranks: Map<string, number>;
-  /** Test-layer files (not part of the capacity layout). */
-  testFiles: AtlasNode[];
-  /** test file id → the source file it covers. */
-  testTargets: Map<string, string>;
 };
 
 const CONVERGENCE = 0.005;
@@ -85,10 +80,7 @@ export function createRingsState(
   graph: AtlasGraph,
   options: RingsOptions,
 ): RingsState {
-  // the capacity layout subdivides source code only; tests overlay it
-  const { source, test } = splitByLayer(graph);
-  const testTargets = matchTestTargets(graph);
-  const base = placeCircles(source, options);
+  const base = placeCircles(graph, options);
   const moduleLayouts = new Map<string, CapacityLayoutState>();
   for (const [moduleId, circle] of base.circles) {
     const files = base.filesByModule.get(moduleId) ?? [];
@@ -114,8 +106,6 @@ export function createRingsState(
     moduleLayouts,
     moduleEdges: base.moduleEdges,
     ranks: base.ranks,
-    testFiles: test,
-    testTargets,
   };
 }
 
@@ -150,9 +140,7 @@ export function applyRingsChanges(
   graph: AtlasGraph,
   options: RingsOptions,
 ): RingsState {
-  const { source, test } = splitByLayer(graph);
-  const testTargets = matchTestTargets(graph);
-  const base = placeCircles(source, options);
+  const base = placeCircles(graph, options);
   const moduleLayouts = new Map<string, CapacityLayoutState>();
   for (const [moduleId, circle] of base.circles) {
     const files = base.filesByModule.get(moduleId) ?? [];
@@ -197,7 +185,5 @@ export function applyRingsChanges(
     moduleLayouts,
     moduleEdges: base.moduleEdges,
     ranks: base.ranks,
-    testFiles: test,
-    testTargets,
   };
 }

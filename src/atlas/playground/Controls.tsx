@@ -14,11 +14,13 @@ export type PlaygroundParams = {
   stepsPerFrame: number;
   showEdges: boolean;
   showNested: boolean;
-  showTests: boolean;
+  /** Layer ids switched off (layers come from the graph: source, test, ...). */
+  hiddenLayers: string[];
 };
 
 type Props = {
   params: PlaygroundParams;
+  availableLayers: string[];
   onChange: (params: PlaygroundParams) => void;
   onRegenerate: () => void;
   onMutateWeight: () => void;
@@ -61,7 +63,7 @@ function NumberField(props: {
 }
 
 export function Controls(props: Props) {
-  const { params, onChange } = props;
+  const { params, availableLayers, onChange } = props;
   const set = <K extends keyof PlaygroundParams>(
     key: K,
     value: PlaygroundParams[K],
@@ -182,16 +184,32 @@ export function Controls(props: Props) {
           }
         />
       </label>
-      <label style={row}>
-        <span style={{ width: "110px" }}>test layer</span>
-        <input
-          type="checkbox"
-          checked={params.showTests}
-          onInput={(e) =>
-            set("showTests", (e.target as HTMLInputElement).checked)
-          }
-        />
-      </label>
+      <div style={row}>
+        <span style={{ width: "110px" }}>layers</span>
+        <div style={{ display: "flex", gap: "10px", flexWrap: "wrap" }}>
+          {availableLayers.map((layer) => (
+            <label
+              key={layer}
+              style={{ display: "flex", alignItems: "center", gap: "4px" }}
+            >
+              <input
+                type="checkbox"
+                checked={!params.hiddenLayers.includes(layer)}
+                onInput={(e) => {
+                  const visible = (e.target as HTMLInputElement).checked;
+                  set(
+                    "hiddenLayers",
+                    visible
+                      ? params.hiddenLayers.filter((l) => l !== layer)
+                      : [...params.hiddenLayers, layer],
+                  );
+                }}
+              />
+              {layer}
+            </label>
+          ))}
+        </div>
+      </div>
       <div style={{ display: "flex", gap: "6px", flexWrap: "wrap" }}>
         <button style={button} onClick={props.onRegenerate}>
           regenerate

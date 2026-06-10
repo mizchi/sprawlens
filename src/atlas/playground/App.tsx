@@ -38,7 +38,7 @@ import {
   synthesizeSymbols,
 } from "./synthetic.ts";
 import type { AtlasEdge } from "../contracts/graph.js";
-import { defaultModuleIdOf } from "../contracts/modules.js";
+import { defaultLayerOf, matchTestTargets } from "../contracts/layers.js";
 
 const WIDTH = 960;
 const HEIGHT = 640;
@@ -104,7 +104,7 @@ export function App() {
     stepsPerFrame: 2,
     showEdges: true,
     showNested: true,
-    showTests: true,
+    hiddenLayers: [],
   });
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [focusId, setFocusId] = useState<string | null>(null);
@@ -138,6 +138,21 @@ export function App() {
     adaptationRate: p.adaptationRate,
     lloydRate: p.lloydRate,
   });
+
+  /** Graph minus hidden layers — what the layout actually subdivides. */
+  const effectiveGraph = (p: PlaygroundParams): AtlasGraph => {
+    const graph = graphRef.current;
+    if (!p.hiddenLayers.length) return graph;
+    const hidden = new Set(p.hiddenLayers);
+    const nodes = graph.nodes.filter((n) => !hidden.has(defaultLayerOf(n.id)));
+    const ids = new Set(nodes.map((n) => n.id));
+    return {
+      nodes,
+      edges: graph.edges.filter(
+        (e) => ids.has(e.source) && ids.has(e.target),
+      ),
+    };
+  };
 
   /** Per-frame sync: each file cell hosts a nested symbol layout clipped to it. */
   const syncInnerLayouts = (outerCells: CellResult[], outerMoved: boolean) => {
@@ -197,11 +212,12 @@ export function App() {
     }
     graphRef.current = graph;
     nextNodeId.current = p.count;
+    const visible = effectiveGraph(p);
     if (p.layout === "rings") {
-      ringsRef.current = createRingsState(graph, ringsOptions(p));
+      ringsRef.current = createRingsState(visible, ringsOptions(p));
       layoutRef.current = null;
     } else {
-      layoutRef.current = createGraphLayout(graph, clipOf(p.clipKind), {
+      layoutRef.current = createGraphLayout(visible, clipOf(p.clipKind), {
         seed: p.seed,
         adaptationRate: p.adaptationRate,
         lloydRate: p.lloydRate,
@@ -222,6 +238,7 @@ export function App() {
   const structuralKey = `${params.source}|${params.layout}|${params.count}|${params.seed}|${params.clipKind}`;
   const structuralRef = useRef(structuralKey);
   const invertRef = useRef(params.invertRings);
+  const layersKeyRef = useRef(params.hiddenLayers.join(","));
   useEffect(() => {
     if (structuralRef.current !== structuralKey) {
       structuralRef.current = structuralKey;
@@ -229,14 +246,23 @@ export function App() {
       rebuild(paramsRef.current);
       return;
     }
-    if (invertRef.current !== params.invertRings) {
+    const layersKey = params.hiddenLayers.join(",");
+    if (
+      invertRef.current !== params.invertRings ||
+      layersKeyRef.current !== layersKey
+    ) {
       invertRef.current = params.invertRings;
+      layersKeyRef.current = layersKey;
       if (ringsRef.current) {
+        // layer toggles re-flow the map warm: tests melt out / back in
         ringsRef.current = applyRingsChanges(
           ringsRef.current,
-          graphRef.current,
+          effectiveGraph(paramsRef.current),
           ringsOptions(paramsRef.current),
         );
+      } else {
+        rebuild(paramsRef.current);
+        return;
       }
     }
     if (layoutRef.current) {
@@ -252,6 +278,7 @@ export function App() {
   }, [
     structuralKey,
     params.invertRings,
+    params.hiddenLayers.join(","),
     params.adaptationRate,
     params.lloydRate,
   ]);
@@ -337,7 +364,7 @@ export function App() {
     if (ringsRef.current) {
       ringsRef.current = applyRingsChanges(
         ringsRef.current,
-        graphRef.current,
+        effectiveGraph(paramsRef.current),
         ringsOptions(paramsRef.current),
       );
     }
@@ -357,15 +384,11 @@ export function App() {
     const innerCell = [...innerLayoutsRef.current.values()]
       .flatMap((l) => l.cells)
       .find((c) => c.id === id);
-    const fileCellOf = (fileId: string) =>
-      ringsRef.current
-        ? [...ringsRef.current.moduleLayouts.values()]
-            .flatMap((l) => l.cells)
-            .find((c) => c.id === fileId)
-        : null;
-    // test files sit on top of their covered source file
-    const testTarget = ringsRef.current?.testTargets.get(id);
-    const fileCell = fileCellOf(id) ?? (testTarget ? fileCellOf(testTarget) : null);
+    const fileCell = ringsRef.current
+      ? [...ringsRef.current.moduleLayouts.values()]
+          .flatMap((l) => l.cells)
+          .find((c) => c.id === id)
+      : null;
     const site = innerCell?.site ?? fileCell?.site;
     if (site) {
       setFocusRequest({
@@ -542,52 +565,18 @@ export function App() {
     (l) => l.cells,
   );
 
-  /** Test-layer overlay: each test sits on its covered source cell. */
-  const testOverlay = (() => {
-    const rings = ringsRef.current;
-    if (!rings || !params.showTests) return [];
-    const cellById = new Map(allCells.map((c) => [c.id, c]));
-    const locOf = new Map(
-      graphRef.current.nodes.map((n) => [n.id, n.metrics.loc]),
-    );
-    const out: {
-      id: string;
-      label: string;
-      x: number;
-      y: number;
-      r: number;
-      targetId: string | null;
-    }[] = [];
-    for (const file of rings.testFiles) {
-      const targetId = rings.testTargets.get(file.id) ?? null;
-      const target = targetId ? cellById.get(targetId) : undefined;
-      if (target && target.polygon.length >= 3) {
-        const pxPerLoc =
-          target.actualArea / Math.max(locOf.get(targetId!) ?? 1, 1);
-        out.push({
-          id: file.id,
-          label: file.label,
-          x: target.site.x,
-          y: target.site.y,
-          r: Math.sqrt((file.metrics.loc * pxPerLoc) / Math.PI),
-          targetId,
-        });
-      } else {
-        const circle = rings.circles.get(defaultModuleIdOf(file.id));
-        if (circle) {
-          out.push({
-            id: file.id,
-            label: file.label,
-            x: circle.cx,
-            y: circle.cy + circle.r * 0.55,
-            r: circle.r * 0.18,
-            targetId,
-          });
-        }
-      }
-    }
-    return out;
-  })();
+  /** Test files in the layout get a muted fill; the map shows their ratio. */
+  const testFileIds = new Set(
+    graphRef.current.nodes
+      .filter((n) => defaultLayerOf(n.id) === "test")
+      .map((n) => n.id),
+  );
+  /** test file id → covered source file, for the details panel. */
+  const testTargets = useMemo(
+    () => matchTestTargets(graphRef.current),
+    // graph mutations bump the frame; recompute cheaply on selection change
+    [selectedId, params.source, params.count, params.seed],
+  );
   const selected = useMemo(
     () =>
       allCells.find((c) => c.id === selectedId) ??
@@ -598,8 +587,8 @@ export function App() {
   const selectedIsModule =
     selectedId !== null && (ringsRef.current?.circles.has(selectedId) ?? false);
   const selectedTest =
-    selectedId !== null
-      ? (ringsRef.current?.testFiles.find((f) => f.id === selectedId) ?? null)
+    selectedId !== null && testFileIds.has(selectedId)
+      ? (graphRef.current.nodes.find((n) => n.id === selectedId) ?? null)
       : null;
   const selectedIsSymbol =
     selected !== null && !allCells.some((c) => c.id === selected.id);
@@ -669,7 +658,8 @@ export function App() {
             labels={labels}
             exportedIds={exportedIds}
             focus={focusView}
-            testOverlay={testOverlay}
+            testFileIds={testFileIds}
+            hiddenLayers={new Set(params.hiddenLayers)}
             width={WIDTH}
             height={HEIGHT}
             selectedId={selectedId}
@@ -701,6 +691,9 @@ export function App() {
       >
         <Controls
           params={params}
+          availableLayers={[
+            ...new Set(graphRef.current.nodes.map((n) => defaultLayerOf(n.id))),
+          ].sort()}
           onChange={setParams}
           onRegenerate={() => rebuild(paramsRef.current)}
           onMutateWeight={mutateWeight}
@@ -792,29 +785,22 @@ export function App() {
                 <div>actual: {selected.actualArea.toFixed(1)} px²</div>
               </>
             ) : null}
-            {selectedTest ? (
-              <div style={{ marginTop: "4px" }}>
-                <div>loc: {selectedTest.metrics.loc}</div>
-                {ringsRef.current?.testTargets.get(selectedTest.id) ? (
-                  <button
-                    onClick={() =>
-                      jumpTo(ringsRef.current!.testTargets.get(selectedTest.id)!)
-                    }
-                    style={{
-                      padding: "2px 4px",
-                      fontSize: "11px",
-                      cursor: "pointer",
-                      background: "none",
-                      border: "none",
-                      color: "#0891b2",
-                      textAlign: "left",
-                    }}
-                  >
-                    covers:{" "}
-                    {labelOf(ringsRef.current!.testTargets.get(selectedTest.id)!)}
-                  </button>
-                ) : null}
-              </div>
+            {selectedTest && testTargets.get(selectedTest.id) ? (
+              <button
+                onClick={() => jumpTo(testTargets.get(selectedTest.id)!)}
+                style={{
+                  marginTop: "4px",
+                  padding: "2px 4px",
+                  fontSize: "11px",
+                  cursor: "pointer",
+                  background: "none",
+                  border: "none",
+                  color: "#0891b2",
+                  textAlign: "left",
+                }}
+              >
+                covers: {labelOf(testTargets.get(selectedTest.id)!)}
+              </button>
             ) : null}
             {selectedRefs.incoming.length > 0 ? (
               <div style={{ marginTop: "6px" }}>

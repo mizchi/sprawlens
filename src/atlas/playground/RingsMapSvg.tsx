@@ -18,18 +18,11 @@ export type FocusView = {
   upstreamEdges: AtlasEdge[];
 };
 
-export type TestOverlayItem = {
-  id: string;
-  label: string;
-  x: number;
-  y: number;
-  r: number;
-  targetId: string | null;
-};
-
 /** Direction palette: what I depend on vs what depends on me. */
 const DOWNSTREAM_COLOR = "#ea580c";
 const UPSTREAM_COLOR = "#0891b2";
+/** Muted fill for test-layer cells: visible for ratio reading, not loud. */
+const TEST_FILL = "hsl(210 10% 81%)";
 
 type Props = {
   rings: RingsState;
@@ -41,7 +34,10 @@ type Props = {
   labels: Map<string, string>;
   exportedIds: Set<string>;
   focus: FocusView | null;
-  testOverlay: TestOverlayItem[];
+  /** File ids on the test layer; rendered with a muted fill. */
+  testFileIds: Set<string>;
+  /** Layer ids switched off; "source" hides the file/symbol map itself. */
+  hiddenLayers: Set<string>;
   width: number;
   height: number;
   selectedId: string | null;
@@ -80,7 +76,8 @@ export function RingsMapSvg(props: Props) {
     labels,
     exportedIds,
     focus,
-    testOverlay,
+    testFileIds,
+    hiddenLayers,
     width,
     height,
     selectedId,
@@ -150,12 +147,8 @@ export function RingsMapSvg(props: Props) {
   const fileCells = [...rings.moduleLayouts.values()].flatMap((l) => l.cells);
   const fileSiteById = new Map(fileCells.map((c) => [c.id, c.site]));
   const symbolSiteById = new Map(innerCells.map((c) => [c.id, c.site]));
-  const testSiteById = new Map(
-    testOverlay.map((t) => [t.id, { x: t.x, y: t.y }]),
-  );
   const resolveSite = (id: string): Vec2 | undefined => {
-    const site =
-      symbolSiteById.get(id) ?? fileSiteById.get(id) ?? testSiteById.get(id);
+    const site = symbolSiteById.get(id) ?? fileSiteById.get(id);
     if (site) return site;
     const circle = rings.circles.get(id);
     return circle ? { x: circle.cx, y: circle.cy } : undefined;
@@ -163,8 +156,9 @@ export function RingsMapSvg(props: Props) {
   const moduleList = [...rings.circles.entries()];
 
   const zoom = width / committedView.w;
-  const showInner = zoom > 0.8;
-  const symbolMode = zoom >= SYMBOL_ZOOM;
+  const sourceVisible = !hiddenLayers.has("source");
+  const showInner = sourceVisible && zoom > 0.8;
+  const symbolMode = sourceVisible && zoom >= SYMBOL_ZOOM;
   // viewport culling: when zoomed in, most cells sit outside the view —
   // skip their DOM entirely (slack = own size so partially-visible survive)
   const cullActive = zoom > 1.5;
@@ -296,13 +290,17 @@ export function RingsMapSvg(props: Props) {
           />
         ))}
       </g>
-      <g>
+      <g style={{ display: sourceVisible ? "" : "none" }}>
         {fileCells.map((cell) =>
           cell.polygon.length >= 3 && cellVisible(cell) ? (
             <polygon
               key={cell.id}
               points={cell.polygon.map((p) => `${p.x},${p.y}`).join(" ")}
-              fill={cellFill(cell.targetArea, cell.actualArea)}
+              fill={
+                testFileIds.has(cell.id)
+                  ? TEST_FILL
+                  : cellFill(cell.targetArea, cell.actualArea)
+              }
               stroke={cell.id === selectedId ? "#1d4ed8" : "#475569"}
               stroke-width={cell.id === selectedId ? 2 : 0.8}
               opacity={fileOpacity(cell.id)}
@@ -345,7 +343,7 @@ export function RingsMapSvg(props: Props) {
           )}
         </g>
       ) : null}
-      {showEdges && !focus && !symbolMode ? (
+      {showEdges && sourceVisible && !focus && !symbolMode ? (
         <g stroke="#f97316" stroke-opacity={0.4} fill="none">
           {fileEdges.map((edge) => {
             const a = fileSiteById.get(edge.source);
@@ -450,7 +448,7 @@ export function RingsMapSvg(props: Props) {
           </g>
         ) : null,
       )}
-      <g fill="#1e293b">
+      <g fill="#1e293b" style={{ display: sourceVisible ? "" : "none" }}>
         {fileCells.map((cell) =>
           cell.polygon.length >= 3 && cellVisible(cell) ? (
             <circle
@@ -492,50 +490,6 @@ export function RingsMapSvg(props: Props) {
           )}
         </g>
       ) : null}
-      {/* test layer: translucent circles stacked on the covered source cell */}
-      {testOverlay.length > 0 ? (
-        <g>
-          {testOverlay.map((t) => {
-            if (!inView({ x: t.x, y: t.y }, t.r * 2)) return null;
-            const opacity = focus
-              ? focus.fileIds.has(t.id) ||
-                (t.targetId !== null && focus.fileIds.has(t.targetId))
-                ? 1
-                : DIM
-              : 1;
-            const fontSize = screenFont(t.r * 0.4, 8, 12, t.id === selectedId);
-            return (
-              <g key={t.id} opacity={opacity}>
-                <circle
-                  cx={t.x}
-                  cy={t.y}
-                  r={t.r}
-                  fill="rgba(100, 116, 139, 0.18)"
-                  stroke={t.id === selectedId ? "#1d4ed8" : "#64748b"}
-                  stroke-width={t.id === selectedId ? 1.8 : 0.8}
-                  stroke-dasharray="4 3"
-                  onClick={(event) => {
-                    event.stopPropagation();
-                    onSelect(t.id);
-                  }}
-                />
-                {fontSize !== null ? (
-                  <text
-                    x={t.x}
-                    y={t.y + t.r + fontSize * 1.1}
-                    font-size={fontSize}
-                    text-anchor="middle"
-                    fill="#64748b"
-                    style={{ pointerEvents: "none", userSelect: "none" }}
-                  >
-                    {t.label}
-                  </text>
-                ) : null}
-              </g>
-            );
-          })}
-        </g>
-      ) : null}
       <g
         text-anchor="middle"
         style={{ pointerEvents: "none", userSelect: "none" }}
@@ -575,7 +529,7 @@ export function RingsMapSvg(props: Props) {
                   x={cell.site.x}
                   y={cell.site.y - screenRadius(5)}
                   font-size={fontSize}
-                  fill="#334155"
+                  fill={testFileIds.has(cell.id) ? "#7a8699" : "#334155"}
                   opacity={fileOpacity(cell.id)}
                 >
                   {labels.get(cell.id) ?? fallbackLabel(cell.id)}
