@@ -1,4 +1,4 @@
-import { hierarchy, treemap } from "d3-hierarchy";
+import { hierarchy, treemap, treemapDice } from "d3-hierarchy";
 import type { HierarchyRectangularNode } from "d3-hierarchy";
 import {
   buildModuleMapFrame,
@@ -82,10 +82,10 @@ export type BuildSymbolMapOptions = {
   maxSymbols?: number;
 };
 
-const MAP_WIDTH = 1600;
-const MAP_HEIGHT = 1060;
+const MAP_WIDTH = 1200;
+const MAP_HEIGHT = 1800;
 const MAP_PADDING = 24;
-const MODULE_COLUMN_GAP = 34;
+const MODULE_BAND_GAP = 34;
 const MODULE_PADDING = 18;
 const MODULE_HEADER = 34;
 const FILE_PADDING = 5;
@@ -316,27 +316,29 @@ function layoutModules(modules: ModuleParcel[], dependencies: ModuleMapFrame["de
   const ranks = moduleDependencyRanks(modules, dependencies);
   const rankedModules = groupBy(modules, (module) => String(ranks.get(module.id) ?? 0));
   const rankKeys = [...rankedModules.keys()].map(Number).sort((a, b) => a - b);
-  const availableWidth = Math.max(1, MAP_WIDTH - MAP_PADDING * 2 - Math.max(0, rankKeys.length - 1) * MODULE_COLUMN_GAP);
-  const availableHeight = Math.max(1, MAP_HEIGHT - MAP_PADDING * 2);
+  const availableWidth = Math.max(1, MAP_WIDTH - MAP_PADDING * 2);
+  const availableHeight = Math.max(1, MAP_HEIGHT - MAP_PADDING * 2 - Math.max(0, rankKeys.length - 1) * MODULE_BAND_GAP);
   const rankWeights = rankKeys.map((rank) => Math.max(1, (rankedModules.get(String(rank)) ?? []).reduce((sum, module) => sum + module.loc, 0)));
   const totalWeight = Math.max(1, rankWeights.reduce((sum, weight) => sum + weight, 0));
-  const minColumnWidth = Math.min(180, availableWidth / Math.max(1, rankKeys.length * 2.2));
-  const flexibleWidth = Math.max(0, availableWidth - minColumnWidth * rankKeys.length);
-  let x = MAP_PADDING;
+  const minBandHeight = Math.min(230, availableHeight / Math.max(1, rankKeys.length * 2.25));
+  const flexibleHeight = Math.max(0, availableHeight - minBandHeight * rankKeys.length);
+  let y = MAP_PADDING;
   const layouts = new Map<string, RectLayout<ModuleParcel>>();
+  const moduleOrder = new Map<string, number>();
 
   rankKeys.forEach((rank, index) => {
-    const modulesInRank = rankedModules.get(String(rank)) ?? [];
-    const columnWidth = minColumnWidth + flexibleWidth * ((rankWeights[index] ?? 1) / totalWeight);
+    const modulesInRank = orderModulesInRank(rankedModules.get(String(rank)) ?? [], dependencies, moduleOrder);
+    const bandHeight = minBandHeight + flexibleHeight * ((rankWeights[index] ?? 1) / totalWeight);
     const root = hierarchy<ModuleRectDatum>({
       type: "root",
       value: 0,
       children: modulesInRank.map((module) => ({ type: "module", module, value: Math.max(1, module.loc) })),
     })
       .sum((node) => node.value)
-      .sort((a, b) => (b.value ?? 0) - (a.value ?? 0));
+      .sort((a, b) => moduleSortIndex(modulesInRank, a.data.module) - moduleSortIndex(modulesInRank, b.data.module));
     const laidOut = treemap<ModuleRectDatum>()
-      .size([columnWidth, availableHeight])
+      .tile(treemapDice)
+      .size([availableWidth, bandHeight])
       .paddingOuter(2)
       .paddingInner(10)
       .round(true)(root);
@@ -344,12 +346,50 @@ function layoutModules(modules: ModuleParcel[], dependencies: ModuleMapFrame["de
       if (!leaf.data.module) {
         continue;
       }
-      layouts.set(leaf.data.module.id, rectLayout(leaf.data.module, leaf, x, MAP_PADDING));
+      layouts.set(leaf.data.module.id, rectLayout(leaf.data.module, leaf, MAP_PADDING, y));
+      moduleOrder.set(leaf.data.module.id, moduleOrder.size);
     }
-    x += columnWidth + MODULE_COLUMN_GAP;
+    y += bandHeight + MODULE_BAND_GAP;
   });
 
   return layouts;
+}
+
+function moduleSortIndex(modules: ModuleParcel[], module: ModuleParcel | undefined): number {
+  if (!module) {
+    return modules.length;
+  }
+  const index = modules.findIndex((item) => item.id === module.id);
+  return index === -1 ? modules.length : index;
+}
+
+function orderModulesInRank(modules: ModuleParcel[], dependencies: ModuleMapFrame["dependencies"], previousOrder: Map<string, number>): ModuleParcel[] {
+  return [...modules].sort((a, b) => {
+    const aCenter = dependencyBarycenter(a.id, dependencies, previousOrder);
+    const bCenter = dependencyBarycenter(b.id, dependencies, previousOrder);
+    if (aCenter !== bCenter) {
+      return aCenter - bCenter;
+    }
+    return b.loc - a.loc || a.path.localeCompare(b.path);
+  });
+}
+
+function dependencyBarycenter(moduleId: string, dependencies: ModuleMapFrame["dependencies"], previousOrder: Map<string, number>): number {
+  let weighted = 0;
+  let total = 0;
+  for (const dependency of dependencies) {
+    if (dependency.from !== moduleId) {
+      continue;
+    }
+    const targetOrder = previousOrder.get(dependency.to);
+    if (targetOrder === undefined) {
+      continue;
+    }
+    const weight = Math.max(1, dependency.importCount);
+    weighted += targetOrder * weight;
+    total += weight;
+  }
+  return total > 0 ? weighted / total : Number.POSITIVE_INFINITY;
 }
 
 function moduleDependencyRanks(modules: ModuleParcel[], dependencies: ModuleMapFrame["dependencies"]): Map<string, number> {

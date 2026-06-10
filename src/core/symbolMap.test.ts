@@ -108,7 +108,7 @@ describe("symbol map model", () => {
 
     expect(core).toMatchObject({ kind: "module", w: expect.any(Number), h: expect.any(Number) });
     expect(app).toMatchObject({ kind: "module", w: expect.any(Number), h: expect.any(Number) });
-    expect(core!.x).toBeLessThan(app!.x);
+    expect(core!.y).toBeLessThan(app!.y);
     expect((core!.w ?? 0) * (core!.h ?? 0)).toBeGreaterThan((app!.w ?? 0) * (app!.h ?? 0));
     expect(coreFile).toMatchObject({ kind: "file", parentId: core!.id, w: expect.any(Number), h: expect.any(Number) });
     expect(request).toMatchObject({ kind: "symbol", parentId: coreFile!.id });
@@ -116,6 +116,79 @@ describe("symbol map model", () => {
     expect(request!.x).toBeLessThanOrEqual(coreFile!.x + (coreFile!.w ?? 0) / 2);
     expect(request!.y).toBeGreaterThanOrEqual(coreFile!.y - (coreFile!.h ?? 0) / 2);
     expect(request!.y).toBeLessThanOrEqual(coreFile!.y + (coreFile!.h ?? 0) / 2);
+  });
+
+  it("keeps modules with nearby dependency targets close within a vertical rank", () => {
+    const frame = buildSymbolMapFrame(
+      snapshot(
+        [
+          { path: "packages/app-a/src/index.ts", loc: 120, exported: ["startA"] },
+          { path: "packages/app-b/src/index.ts", loc: 120, exported: ["startB"] },
+          { path: "packages/app-c/src/index.ts", loc: 120, exported: ["startC"] },
+          { path: "packages/core-a/src/api.ts", loc: 120, exported: ["apiA"] },
+          { path: "packages/core-b/src/api.ts", loc: 120, exported: ["apiB"] },
+        ],
+        [
+          [
+            "packages/app-a/src/index.ts",
+            "packages/core-a/src/api.ts",
+            "../core-a/api",
+            [
+              {
+                imported: "apiA",
+                local: "apiA",
+                kind: "named",
+                fromSymbolId: "symbol:packages/app-a/src/index.ts:startA",
+                fromSymbolName: "startA",
+                toSymbolId: "symbol:packages/core-a/src/api.ts:apiA",
+                toSymbolName: "apiA",
+              },
+            ],
+          ],
+          [
+            "packages/app-b/src/index.ts",
+            "packages/core-a/src/api.ts",
+            "../core-a/api",
+            [
+              {
+                imported: "apiA",
+                local: "apiA",
+                kind: "named",
+                fromSymbolId: "symbol:packages/app-b/src/index.ts:startB",
+                fromSymbolName: "startB",
+                toSymbolId: "symbol:packages/core-a/src/api.ts:apiA",
+                toSymbolName: "apiA",
+              },
+            ],
+          ],
+          [
+            "packages/app-c/src/index.ts",
+            "packages/core-b/src/api.ts",
+            "../core-b/api",
+            [
+              {
+                imported: "apiB",
+                local: "apiB",
+                kind: "named",
+                fromSymbolId: "symbol:packages/app-c/src/index.ts:startC",
+                fromSymbolName: "startC",
+                toSymbolId: "symbol:packages/core-b/src/api.ts:apiB",
+                toSymbolName: "apiB",
+              },
+            ],
+          ],
+        ],
+      ),
+    );
+
+    const appA = frame.nodes.find((node) => node.id === "module:packages/app-a");
+    const appB = frame.nodes.find((node) => node.id === "module:packages/app-b");
+    const appC = frame.nodes.find((node) => node.id === "module:packages/app-c");
+    const coreA = frame.nodes.find((node) => node.id === "module:packages/core-a");
+
+    expect(coreA!.y).toBeLessThan(appA!.y);
+    expect(Math.abs(appA!.y - appB!.y)).toBeLessThan(80);
+    expect(Math.abs(appA!.x - appB!.x)).toBeLessThan(Math.abs(appA!.x - appC!.x));
   });
 
   it("sizes file boxes by LOC while symbols remain graph nodes", () => {
