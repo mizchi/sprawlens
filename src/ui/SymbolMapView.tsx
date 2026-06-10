@@ -32,6 +32,15 @@ type SelectedEdgeDirection = "incoming" | "outgoing" | "neutral";
 
 const MIN_ZOOM = 0.18;
 const MAX_ZOOM = 8;
+const EDGE_VIEWPORT_PRUNE_ZOOM = 1.35;
+
+type SymbolEdgeVisibilityContext = {
+  nodeById?: Map<string, SymbolMapNode>;
+  selectedNodeId?: string;
+  view?: MapView;
+  size?: { width: number; height: number };
+  maxBackgroundEdges?: number;
+};
 
 export function SymbolMapView(props: SymbolMapViewProps) {
   const [wrapRef, size, wrapElement] = useElementSize<HTMLDivElement>();
@@ -131,10 +140,15 @@ export function SymbolMapView(props: SymbolMapViewProps) {
   const visibleNodes = frame.nodes.filter((node) => shouldShowNode(node, view.zoom, node.id === selectedNodeId, relatedIds.has(node.id)));
   const visibleNodeIds = new Set(visibleNodes.map((node) => node.id));
   const focusEdgeIds = selectedDependencyEdgeIds(frame, selectedNodeId);
-  const visibleEdges = visibleSymbolEdgesForSelection(frame.edges, visibleNodeIds, focusEdgeIds, view.zoom);
+  const nodeById = new Map(frame.nodes.map((node) => [node.id, node]));
+  const visibleEdges = visibleSymbolEdgesForSelection(frame.edges, visibleNodeIds, focusEdgeIds, view.zoom, {
+    nodeById,
+    selectedNodeId,
+    view,
+    size,
+  });
   const visibleFocusEdges = visibleEdges.focus;
   const visibleBackgroundEdges = visibleEdges.background;
-  const nodeById = new Map(frame.nodes.map((node) => [node.id, node]));
   const visibleCallEdges = symbolDependencyEdgesForMap(symbolDependencies, nodeById).filter((edge) => visibleNodeIds.has(edge.from) && visibleNodeIds.has(edge.to));
   const visibleModuleNodes = visibleNodes.filter((node) => node.kind === "module");
   const visibleFileNodes = visibleNodes.filter((node) => node.kind === "file");
@@ -642,9 +656,20 @@ export function selectedDependencyEdgeIds(frame: SymbolMapFrame, selectedNodeId:
   return new Set(frame.edges.filter((edge) => edge.from === selectedNodeId || edge.to === selectedNodeId).map((edge) => edge.id));
 }
 
-export function visibleSymbolEdgesForSelection(edges: SymbolMapEdge[], visibleNodeIds: Set<string>, focusEdgeIds: Set<string>, zoom: number): { background: SymbolMapEdge[]; focus: SymbolMapEdge[] } {
-  const background: SymbolMapEdge[] = [];
+export function visibleSymbolEdgesForSelection(
+  edges: SymbolMapEdge[],
+  visibleNodeIds: Set<string>,
+  focusEdgeIds: Set<string>,
+  zoom: number,
+  context: SymbolEdgeVisibilityContext = {},
+): { background: SymbolMapEdge[]; focus: SymbolMapEdge[] } {
+  const backgroundCandidates: Array<{ edge: SymbolMapEdge; score: number }> = [];
   const focus: SymbolMapEdge[] = [];
+  const selectedNode = context.selectedNodeId && context.nodeById ? context.nodeById.get(context.selectedNodeId) : undefined;
+  const suppressBackground = selectedNode?.kind === "symbol" && focusEdgeIds.size > 0;
+  const viewport = context.view && context.size ? paddedViewRect(context.view, context.size) : undefined;
+  const shouldPruneToViewport = Boolean(viewport && context.nodeById && zoom >= EDGE_VIEWPORT_PRUNE_ZOOM);
+
   for (const edge of edges) {
     if (!visibleNodeIds.has(edge.from) || !visibleNodeIds.has(edge.to)) {
       continue;
@@ -653,11 +678,70 @@ export function visibleSymbolEdgesForSelection(edges: SymbolMapEdge[], visibleNo
       focus.push(edge);
       continue;
     }
-    if (edge.visibleAtZoom <= zoom) {
-      background.push(edge);
+    if (suppressBackground || edge.visibleAtZoom > zoom) {
+      continue;
     }
+    if (!edgeMatchesSelectedScope(edge, selectedNode, context.nodeById)) {
+      continue;
+    }
+    if (shouldPruneToViewport && viewport && context.nodeById && !edgeIntersectsRect(edge, context.nodeById, viewport)) {
+      continue;
+    }
+    backgroundCandidates.push({ edge, score: backgroundEdgeScore(edge, selectedNode, context.nodeById, context.view) });
   }
-  return { background, focus };
+  backgroundCandidates.sort((a, b) => b.score - a.score || a.edge.from.localeCompare(b.edge.from) || a.edge.to.localeCompare(b.edge.to));
+  return { background: backgroundCandidates.slice(0, context.maxBackgroundEdges ?? backgroundEdgeBudget(zoom, selectedNode)).map((candidate) => candidate.edge), focus };
+}
+
+function edgeMatchesSelectedScope(edge: SymbolMapEdge, selectedNode: SymbolMapNode | undefined, nodeById: Map<string, SymbolMapNode> | undefined): boolean {
+  if (!selectedNode) {
+    return true;
+  }
+  if (selectedNode.kind === "module") {
+    return edge.fromModuleId === selectedNode.id || edge.toModuleId === selectedNode.id;
+  }
+  if (selectedNode.kind === "file" && nodeById) {
+    return nodeById.get(edge.from)?.fileId === selectedNode.id || nodeById.get(edge.to)?.fileId === selectedNode.id;
+  }
+  return false;
+}
+
+function backgroundEdgeBudget(zoom: number, selectedNode: SymbolMapNode | undefined): number {
+  if (selectedNode?.kind === "symbol") {
+    return 0;
+  }
+  if (zoom >= 4.5) {
+    return 80;
+  }
+  if (zoom >= 3) {
+    return 120;
+  }
+  if (zoom >= 1.6) {
+    return 180;
+  }
+  return 260;
+}
+
+function backgroundEdgeScore(edge: SymbolMapEdge, selectedNode: SymbolMapNode | undefined, nodeById: Map<string, SymbolMapNode> | undefined, view: MapView | undefined): number {
+  const focusScore = selectedNode && edgeMatchesSelectedScope(edge, selectedNode, nodeById) ? 500 : 0;
+  const changeScore = edge.status === "added" ? 260 : edge.status === "changed" ? 140 : 0;
+  const routeScore = edge.crossModule ? 120 : 0;
+  const weightScore = Math.min(160, edge.importCount * 18);
+  return focusScore + changeScore + routeScore + weightScore - edgeDistancePenalty(edge, nodeById, view);
+}
+
+function edgeDistancePenalty(edge: SymbolMapEdge, nodeById: Map<string, SymbolMapNode> | undefined, view: MapView | undefined): number {
+  if (!nodeById || !view) {
+    return 0;
+  }
+  const from = nodeById.get(edge.from);
+  const to = nodeById.get(edge.to);
+  if (!from || !to) {
+    return 0;
+  }
+  const midpointX = (from.x + to.x) / 2;
+  const midpointY = (from.y + to.y) / 2;
+  return Math.hypot(midpointX - view.x, midpointY - view.y) * 0.03;
 }
 
 export function selectedEdgeDirection(edge: SymbolMapEdge, selectedNodeId: string): SelectedEdgeDirection {
@@ -790,6 +874,32 @@ function viewBoxFor(view: MapView, size: { width: number; height: number }): str
   const width = size.width / view.zoom;
   const height = size.height / view.zoom;
   return `${view.x - width / 2} ${view.y - height / 2} ${width} ${height}`;
+}
+
+function paddedViewRect(view: MapView, size: { width: number; height: number }): { x0: number; y0: number; x1: number; y1: number } {
+  const width = size.width / view.zoom;
+  const height = size.height / view.zoom;
+  const padX = Math.max(24 / view.zoom, width * 0.18);
+  const padY = Math.max(24 / view.zoom, height * 0.18);
+  return {
+    x0: view.x - width / 2 - padX,
+    y0: view.y - height / 2 - padY,
+    x1: view.x + width / 2 + padX,
+    y1: view.y + height / 2 + padY,
+  };
+}
+
+function edgeIntersectsRect(edge: SymbolMapEdge, nodeById: Map<string, SymbolMapNode>, rect: { x0: number; y0: number; x1: number; y1: number }): boolean {
+  const from = nodeById.get(edge.from);
+  const to = nodeById.get(edge.to);
+  if (!from || !to) {
+    return false;
+  }
+  const edgeX0 = Math.min(from.x, to.x);
+  const edgeY0 = Math.min(from.y, to.y);
+  const edgeX1 = Math.max(from.x, to.x);
+  const edgeY1 = Math.max(from.y, to.y);
+  return edgeX1 >= rect.x0 && edgeX0 <= rect.x1 && edgeY1 >= rect.y0 && edgeY0 <= rect.y1;
 }
 
 function zoomAt(view: MapView, size: { width: number; height: number }, point: { x: number; y: number }, nextZoom: number): MapView {

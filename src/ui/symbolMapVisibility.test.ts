@@ -181,6 +181,48 @@ describe("symbol map visibility", () => {
     expect(selectedEdgeDirection(hiddenUnrelated, selected.id)).toBe("neutral");
   });
 
+  it("suppresses background edges while a symbol is selected", () => {
+    const selected = symbol({ id: "symbol:selected", label: "selected" });
+    const incoming = symbol({ id: "symbol:incoming", label: "incoming" });
+    const outgoing = symbol({ id: "symbol:outgoing", label: "outgoing" });
+    const unrelatedA = symbol({ id: "symbol:unrelatedA", label: "unrelatedA" });
+    const unrelatedB = symbol({ id: "symbol:unrelatedB", label: "unrelatedB" });
+    const focus = edge(incoming.id, selected.id, { visibleAtZoom: 4 });
+    const visibleUnrelated = edge(unrelatedA.id, unrelatedB.id, { visibleAtZoom: 1 });
+    const map = frame([selected, incoming, outgoing, unrelatedA, unrelatedB], [focus, visibleUnrelated]);
+
+    expect(
+      visibleSymbolEdgesForSelection(map.edges, new Set(map.nodes.map((node) => node.id)), selectedDependencyEdgeIds(map, selected.id), 6, {
+        selectedNodeId: selected.id,
+        nodeById: new Map(map.nodes.map((node) => [node.id, node])),
+      }),
+    ).toEqual({
+      background: [],
+      focus: [focus],
+    });
+  });
+
+  it("limits high-zoom background edges to the current viewport", () => {
+    const nearA = symbol({ id: "symbol:nearA", label: "nearA", x: 0, y: 0 });
+    const nearB = symbol({ id: "symbol:nearB", label: "nearB", x: 12, y: 8 });
+    const farA = symbol({ id: "symbol:farA", label: "farA", x: 1000, y: 1000 });
+    const farB = symbol({ id: "symbol:farB", label: "farB", x: 1020, y: 1020 });
+    const nearEdge = edge(nearA.id, nearB.id, { visibleAtZoom: 1 });
+    const farEdge = edge(farA.id, farB.id, { visibleAtZoom: 1 });
+    const map = frame([nearA, nearB, farA, farB], [nearEdge, farEdge]);
+
+    expect(
+      visibleSymbolEdgesForSelection(map.edges, new Set(map.nodes.map((node) => node.id)), new Set(), 5, {
+        nodeById: new Map(map.nodes.map((node) => [node.id, node])),
+        view: { x: 0, y: 0, zoom: 5 },
+        size: { width: 300, height: 240 },
+      }),
+    ).toEqual({
+      background: [nearEdge],
+      focus: [],
+    });
+  });
+
   it("turns on-demand symbol dependencies into focused map edges", () => {
     const selected = symbol({ id: "symbol:selected", label: "selected", moduleId: "module:app" });
     const incoming = symbol({ id: "symbol:incoming", label: "incoming", moduleId: "module:test" });
