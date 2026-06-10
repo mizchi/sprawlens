@@ -2003,6 +2003,63 @@ tbody tr:hover,
   cursor: pointer;
 }
 
+.symbol-map-hover-card {
+  position: absolute;
+  left: 10px;
+  top: 10px;
+  z-index: 5;
+  width: min(320px, calc(100% - 196px));
+  min-width: 180px;
+  padding: 7px 8px;
+  border: 1px solid #bdc7d1;
+  background: rgb(23 32 42 / 88%);
+  color: #ffffff;
+  box-shadow: 0 12px 24px rgb(23 32 42 / 18%);
+  pointer-events: none;
+}
+
+.symbol-map-hover-card strong,
+.symbol-map-hover-card span {
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.symbol-map-hover-card strong {
+  font-size: 12px;
+}
+
+.symbol-map-hover-card span {
+  color: rgb(255 255 255 / 78%);
+  font-size: 11px;
+}
+
+.symbol-map-hover-card dl {
+  display: flex;
+  gap: 10px;
+  margin: 5px 0 0;
+}
+
+.symbol-map-hover-card div {
+  min-width: 0;
+}
+
+.symbol-map-hover-card dt,
+.symbol-map-hover-card dd {
+  margin: 0;
+  font-size: 10px;
+}
+
+.symbol-map-hover-card dt {
+  color: rgb(255 255 255 / 62%);
+  text-transform: uppercase;
+}
+
+.symbol-map-hover-card dd {
+  font-weight: 800;
+}
+
 .symbol-map-inspector {
   min-width: 0;
   max-height: 172px;

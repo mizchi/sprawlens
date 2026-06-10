@@ -87,7 +87,7 @@ export function SymbolMapView(props: SymbolMapViewProps) {
 
   const selectedNode = frame.nodes.find((node) => node.id === selectedNodeId);
   const hoveredNode = frame.nodes.find((node) => node.id === hoveredNodeId);
-  const activeNode = hoveredNode ?? selectedNode;
+  const inspectorNode = stableInspectorNode(selectedNode, hoveredNode);
   const relatedIds = relatedNodeIds(frame, selectedNodeId);
   const visibleNodes = frame.nodes.filter((node) => shouldShowNode(node, view.zoom, node.id === selectedNodeId, relatedIds.has(node.id)));
   const visibleNodeIds = new Set(visibleNodes.map((node) => node.id));
@@ -240,8 +240,9 @@ export function SymbolMapView(props: SymbolMapViewProps) {
           </button>
           <span>Wheel zoom / drag pan / double click drill</span>
         </div>
+        <SymbolHoverCard node={hoveredNode} />
       </div>
-      <SymbolInspector node={activeNode} selected={selectedNode} edges={frame.edges} nodeById={nodeById} />
+      <SymbolInspector node={inspectorNode} selected={selectedNode} edges={frame.edges} nodeById={nodeById} />
     </section>
   );
 }
@@ -281,7 +282,7 @@ function FileNode(props: {
 }) {
   const w = props.node.w ?? 1;
   const h = props.node.h ?? 1;
-  const showLabel = props.zoom >= 1.55 || props.selected || props.related;
+  const showLabel = props.selected || props.related || (props.zoom >= 1.65 && w * props.zoom >= 92 && h * props.zoom >= 52);
   return (
     <g
       className={`symbol-map-node file ${props.node.layer ?? ""} ${props.node.status}${props.selected ? " selected" : ""}${props.related ? " related" : ""}`}
@@ -308,14 +309,14 @@ function SymbolNode(props: {
   onDoubleClick: (event: MouseEvent<SVGGElement>, node: SymbolMapNode) => void;
   onHover: (nodeId: string) => void;
 }) {
-  const showLabel = props.selected || props.related || props.node.surface === "public" || props.zoom >= 2.35 || (props.node.surface === "exported" && props.zoom >= 1.35);
+  const showLabel = shouldShowSymbolLabel(props.node, props.zoom, props.selected, props.related);
   return (
     <g
       className={`symbol-map-node symbol ${props.node.surface} ${props.node.status}${props.selected ? " selected" : ""}${props.related ? " related" : ""}`}
       onClick={(event) => props.onClick(event, props.node)}
       onDoubleClick={(event) => props.onDoubleClick(event, props.node)}
-      onMouseEnter={() => props.onHover(props.node.id)}
-      onMouseLeave={() => props.onHover("")}
+      onMouseOver={() => props.onHover(props.node.id)}
+      onMouseOut={() => props.onHover("")}
     >
       <circle cx={props.node.x} cy={props.node.y} r={visualRadius(props.node, props.zoom)} />
       {showLabel ? (
@@ -399,6 +400,39 @@ function SymbolInspector(props: {
   );
 }
 
+function SymbolHoverCard(props: { node?: SymbolMapNode }) {
+  const node = props.node;
+  if (!node) {
+    return null;
+  }
+  return (
+    <aside className="symbol-map-hover-card" aria-live="polite">
+      <strong>{node.label}</strong>
+      <span>{node.path}</span>
+      <dl>
+        <div>
+          <dt>{node.kind}</dt>
+          <dd>{node.surface}</dd>
+        </div>
+        <div>
+          <dt>LOC</dt>
+          <dd>{formatNumber(node.loc)}</dd>
+        </div>
+        <div>
+          <dt>Fan</dt>
+          <dd>
+            {node.fanIn}:{node.fanOut}
+          </dd>
+        </div>
+      </dl>
+    </aside>
+  );
+}
+
+export function stableInspectorNode(selectedNode?: SymbolMapNode, _hoveredNode?: SymbolMapNode): SymbolMapNode | undefined {
+  return selectedNode;
+}
+
 function NeighborList(props: { title: string; edges: SymbolMapEdge[]; side: "from" | "to"; nodeById: Map<string, SymbolMapNode> }) {
   return (
     <section>
@@ -448,6 +482,20 @@ function shouldShowNode(node: SymbolMapNode, zoom: number, selected: boolean, re
     return true;
   }
   return node.visibleAtZoom <= zoom;
+}
+
+export function shouldShowSymbolLabel(node: SymbolMapNode, zoom: number, selected: boolean, related: boolean): boolean {
+  if (selected || related) {
+    return true;
+  }
+  const activity = node.fanIn + node.fanOut + node.crossModuleFanIn * 2 + node.crossModuleFanOut * 2;
+  if (node.surface === "public") {
+    return zoom >= 0.72 || activity >= 4;
+  }
+  if (node.surface === "exported") {
+    return (zoom >= 2.35 && activity >= 3) || zoom >= 3.45;
+  }
+  return (zoom >= 4.2 && activity >= 3) || zoom >= 5.2;
 }
 
 function fitFrame(frame: SymbolMapFrame, size: { width: number; height: number }): MapView {

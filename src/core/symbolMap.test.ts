@@ -128,8 +128,10 @@ describe("symbol map model", () => {
         from: "symbol:packages/app/src/index.ts:start",
         to: "symbol:packages/app/src/router.ts:createRouter",
         scope: "symbol",
+        visibleAtZoom: expect.any(Number),
       }),
     ]);
+    expect(frame.edges[0]?.visibleAtZoom).toBeGreaterThanOrEqual(2);
   });
 
   it("marks cross-module target symbols as public surface nodes visible at low zoom", () => {
@@ -168,9 +170,48 @@ describe("symbol map model", () => {
     expect(request).toMatchObject({ kind: "symbol", surface: "public" });
     expect(request!.visibleAtZoom).toBeLessThan(1);
     expect(parse?.surface).toBe("internal");
+    expect(parse!.visibleAtZoom).toBeGreaterThanOrEqual(3);
     expect(crossModule).toMatchObject({
       crossModule: true,
       toModuleId: "module:packages/core",
     });
+    expect(crossModule!.visibleAtZoom).toBeLessThanOrEqual(0.6);
+  });
+
+  it("delays low-fan exported symbols until deeper zoom", () => {
+    const frame = buildSymbolMapFrame(
+      snapshot(
+        [
+          { path: "packages/core/src/api.ts", loc: 90, exported: ["used", "unused"] },
+          { path: "packages/core/src/index.ts", loc: 80, exported: ["start"] },
+        ],
+        [
+          [
+            "packages/core/src/index.ts",
+            "packages/core/src/api.ts",
+            "./api",
+            [
+              {
+                imported: "used",
+                local: "used",
+                kind: "named",
+                fromSymbolId: "symbol:packages/core/src/index.ts:start",
+                fromSymbolName: "start",
+                toSymbolId: "symbol:packages/core/src/api.ts:used",
+                toSymbolName: "used",
+              },
+            ],
+          ],
+        ],
+      ),
+      { focusModuleId: "module:packages/core" },
+    );
+
+    const used = frame.nodes.find((node) => node.id === "symbol:packages/core/src/api.ts:used");
+    const unused = frame.nodes.find((node) => node.id === "symbol:packages/core/src/api.ts:unused");
+
+    expect(used?.surface).toBe("exported");
+    expect(used!.visibleAtZoom).toBeLessThan(unused!.visibleAtZoom);
+    expect(unused!.visibleAtZoom).toBeGreaterThanOrEqual(2.5);
   });
 });

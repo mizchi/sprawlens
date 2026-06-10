@@ -411,6 +411,7 @@ function symbolNode(
   stats: SymbolStats = { fanIn: 0, fanOut: 0, crossModuleFanIn: 0, crossModuleFanOut: 0 },
 ): SymbolMapNode {
   const surface: SymbolSurface = stats.crossModuleFanIn > 0 ? "public" : symbol.exported ? "exported" : "internal";
+  const activity = stats.fanIn + stats.fanOut + stats.crossModuleFanIn * 2 + stats.crossModuleFanOut * 2;
   return {
     id: symbol.id,
     kind: "symbol",
@@ -431,8 +432,27 @@ function symbolNode(
     x: leaf.x,
     y: leaf.y,
     r: clamp(leaf.r, surface === "public" ? 5 : 3.2, surface === "public" ? 18 : 13),
-    visibleAtZoom: surface === "public" ? 0.48 : surface === "exported" ? 0.82 : 1.9,
+    visibleAtZoom: symbolVisibleAtZoom(surface, activity),
   };
+}
+
+function symbolVisibleAtZoom(surface: SymbolSurface, activity: number): number {
+  if (surface === "public") {
+    return 0.48;
+  }
+  if (surface === "exported") {
+    if (activity >= 6) {
+      return 1.25;
+    }
+    if (activity >= 1) {
+      return 1.85;
+    }
+    return 2.7;
+  }
+  if (activity >= 3) {
+    return 3;
+  }
+  return 4.2;
 }
 
 function buildSymbolEdges(
@@ -477,9 +497,12 @@ function buildSymbolEdges(
         importCount: 0,
         crossModule,
         status: "stable" as SymbolMapStatus,
-        visibleAtZoom: crossModule ? 0.55 : 1.2,
+        visibleAtZoom: crossModule ? 0.55 : 3,
       };
       current.importCount += 1;
+      if (!crossModule) {
+        current.visibleAtZoom = current.importCount >= 3 ? 2.35 : 3;
+      }
       if (addedEdges.has(edge.id)) {
         current.status = "added";
       }
