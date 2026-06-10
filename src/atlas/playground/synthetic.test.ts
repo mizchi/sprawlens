@@ -45,4 +45,20 @@ describe("createSyntheticGraph", () => {
       expect(index.get(edge.source)!).toBeGreaterThan(index.get(edge.target)!);
     }
   });
+
+  it("spreads several modules across each dependency level", () => {
+    const graph = createSyntheticGraph({ count: 150, seed: 7 });
+    const moduleIds = new Set(graph.nodes.map((n) => n.id.split("/")[0]!));
+    expect(moduleIds.size).toBeGreaterThanOrEqual(6);
+    // distinct module-level cross edges exist (a module DAG, not a chain)
+    const crossPairs = new Set(
+      graph.edges
+        .map((e) => [e.source.split("/")[0], e.target.split("/")[0]] as const)
+        .filter(([a, b]) => a !== b)
+        .map(([a, b]) => `${a}->${b}`),
+    );
+    // level-0 modules have no deps, so expect roughly one outgoing
+    // dependency for the rest — far more than a chain would produce
+    expect(crossPairs.size).toBeGreaterThanOrEqual(moduleIds.size / 2);
+  });
 });

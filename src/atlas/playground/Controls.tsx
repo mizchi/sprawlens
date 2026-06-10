@@ -1,8 +1,11 @@
 export type ClipKind = "rect" | "circle" | "hexadecagon";
 export type DataSource = "synthetic" | "sprawlens";
+export type LayoutKind = "rings" | "flat";
 
 export type PlaygroundParams = {
   source: DataSource;
+  layout: LayoutKind;
+  invertRings: boolean;
   count: number;
   seed: number;
   clipKind: ClipKind;
@@ -69,6 +72,30 @@ export function Controls(props: Props) {
   };
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
+      <label style={row}>
+        <span style={{ width: "110px" }}>layout</span>
+        <select
+          value={params.layout}
+          onInput={(e) =>
+            set("layout", (e.target as HTMLSelectElement).value as LayoutKind)
+          }
+        >
+          <option value="rings">rings (modules)</option>
+          <option value="flat">flat (files)</option>
+        </select>
+      </label>
+      {params.layout === "rings" ? (
+        <label style={row}>
+          <span style={{ width: "110px" }}>invert rings</span>
+          <input
+            type="checkbox"
+            checked={params.invertRings}
+            onInput={(e) =>
+              set("invertRings", (e.target as HTMLInputElement).checked)
+            }
+          />
+        </label>
+      ) : null}
       <label style={row}>
         <span style={{ width: "110px" }}>data</span>
         <select

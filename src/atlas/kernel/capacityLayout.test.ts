@@ -72,6 +72,18 @@ describe("createCapacityLayout", () => {
   });
 });
 
+describe("option merging", () => {
+  it("ignores explicitly-undefined options instead of clobbering defaults", () => {
+    const state = createCapacityLayout(syntheticNodes(10, 1), rectClip, {
+      seed: 1,
+      adaptationRate: undefined,
+      lloydRate: undefined,
+    });
+    const { state: converged } = runUntil(state, 0.02, 300);
+    expect(converged.maxRelativeError).toBeLessThan(0.02);
+  });
+});
+
 describe("capacityStep convergence", () => {
   for (const n of [10, 50, 200]) {
     for (const seed of [1, 2, 3]) {

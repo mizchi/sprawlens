@@ -68,6 +68,20 @@ const DEFAULT_OPTIONS: Required<CapacityOptions> = {
   circleSegments: 64,
 };
 
+/** Like {...defaults, ...overrides} but explicit undefined keeps the default. */
+function mergeOptions(
+  options: CapacityOptions | undefined,
+): Required<CapacityOptions> {
+  const merged = { ...DEFAULT_OPTIONS };
+  if (options) {
+    for (const key of Object.keys(options) as (keyof CapacityOptions)[]) {
+      const value = options[key];
+      if (value !== undefined) (merged as Record<string, unknown>)[key] = value;
+    }
+  }
+  return merged;
+}
+
 /** Nudge exactly/near coincident sites apart so power bisectors are defined. */
 function separateCoincident(sites: SiteState[], scale: number, rng: Rng): void {
   const eps = scale * 1e-9;
@@ -152,7 +166,7 @@ export function createCapacityLayout(
   clip: ClipRegion,
   options?: CapacityOptions,
 ): CapacityLayoutState {
-  const opts = { ...DEFAULT_OPTIONS, ...options };
+  const opts = mergeOptions(options);
   const rng = createRng(opts.seed);
   const clipRing = clipToRing(clip, opts.circleSegments);
   const clipArea = signedArea(clipRing);

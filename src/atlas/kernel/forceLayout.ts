@@ -45,7 +45,13 @@ export function createForceLayout(
   clip: ClipRegion,
   options?: ForceOptions,
 ): ForceLayoutState {
-  const opts = { ...DEFAULT_OPTIONS, ...options };
+  const opts = { ...DEFAULT_OPTIONS };
+  if (options) {
+    for (const key of Object.keys(options) as (keyof ForceOptions)[]) {
+      const value = options[key];
+      if (value !== undefined) (opts as Record<string, unknown>)[key] = value;
+    }
+  }
   const rng = createRng(opts.seed);
   const positions = new Map<string, Vec2>();
   for (const node of nodes) {

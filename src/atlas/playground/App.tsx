@@ -6,16 +6,23 @@ import {
   createCapacityLayout,
   isConverged,
   type CapacityLayoutState,
+  type CellResult,
   type ClipRegion,
 } from "../kernel/capacityLayout.js";
 import { createGraphLayout } from "../kernel/pipeline.js";
+import { centroid, type Ring } from "../kernel/polygon.js";
 import { createRng, type Rng } from "../kernel/rng.js";
-import type { Ring } from "../kernel/polygon.js";
-import { centroid } from "../kernel/polygon.js";
 import { CellMapSvg } from "./CellMapSvg.tsx";
 import { Controls, type ClipKind, type PlaygroundParams } from "./Controls.tsx";
 import { snapshotSymbols, snapshotToAtlasGraph } from "./fixtureAdapter.ts";
 import { sprawlensSnapshot } from "./fixtures/sprawlens.ts";
+import {
+  applyRingsChanges,
+  createRingsState,
+  stepRingsState,
+  type RingsState,
+} from "./ringsController.ts";
+import { RingsMapSvg } from "./RingsMapSvg.tsx";
 import { createSyntheticGraph, synthesizeSymbols } from "./synthetic.ts";
 
 const WIDTH = 960;
@@ -56,7 +63,6 @@ function Sparkline(props: { values: number[] }) {
   return (
     <svg viewBox={`0 0 ${w} ${h}`} style={{ width: `${w}px`, height: `${h}px` }}>
       <rect width={w} height={h} fill="#f1f5f9" />
-      {/* 2% tolerance line */}
       <line
         x1={0}
         x2={w}
@@ -73,6 +79,8 @@ function Sparkline(props: { values: number[] }) {
 export function App() {
   const [params, setParams] = useState<PlaygroundParams>({
     source: "synthetic",
+    layout: "rings",
+    invertRings: false,
     count: 120,
     seed: 1,
     clipKind: "circle",
@@ -86,9 +94,8 @@ export function App() {
   const [, setFrame] = useState(0);
 
   const graphRef = useRef<AtlasGraph>(null as unknown as AtlasGraph);
-  const layoutRef = useRef<CapacityLayoutState>(
-    null as unknown as CapacityLayoutState,
-  );
+  const layoutRef = useRef<CapacityLayoutState | null>(null);
+  const ringsRef = useRef<RingsState | null>(null);
   const historyRef = useRef<number[]>([]);
   const fpsRef = useRef({ last: 0, ema: 0 });
   const paramsRef = useRef(params);
@@ -99,15 +106,27 @@ export function App() {
   /** Real per-file symbols when a fixture is loaded; null = synthesize. */
   const symbolsRef = useRef<Map<string, AtlasNode[]> | null>(null);
 
+  const ringsOptions = (p: PlaygroundParams) => ({
+    width: WIDTH,
+    height: HEIGHT,
+    seed: p.seed,
+    invert: p.invertRings,
+    adaptationRate: p.adaptationRate,
+    lloydRate: p.lloydRate,
+  });
+
   /** Per-frame sync: each file cell hosts a nested symbol layout clipped to it. */
-  const syncInnerLayouts = (outer: CapacityLayoutState, outerMoved: boolean) => {
+  const syncInnerLayouts = (outerCells: CellResult[], outerMoved: boolean) => {
     const inner = innerLayoutsRef.current;
     const alive = new Set<string>();
-    for (const cell of outer.cells) {
+    const locOf = new Map(
+      graphRef.current.nodes.map((n) => [n.id, n.metrics.loc]),
+    );
+    for (const cell of outerCells) {
       if (cell.polygon.length < 3) continue;
+      const loc = locOf.get(cell.id);
+      if (loc === undefined) continue;
       alive.add(cell.id);
-      const node = graphRef.current.nodes.find((n) => n.id === cell.id);
-      if (!node) continue;
       const clip: ClipRegion = {
         kind: "polygon",
         ring: insetRing(cell.polygon, 0.94),
@@ -116,7 +135,7 @@ export function App() {
       if (!layout) {
         const symbols =
           symbolsRef.current?.get(cell.id) ??
-          synthesizeSymbols(cell.id, node.metrics.loc, 1);
+          synthesizeSymbols(cell.id, loc, 1);
         layout = createCapacityLayout(
           symbols.map((s) => ({ id: s.id, weight: s.metrics.loc })),
           clip,
@@ -146,26 +165,47 @@ export function App() {
     }
     graphRef.current = graph;
     nextNodeId.current = p.count;
-    layoutRef.current = createGraphLayout(graph, clipOf(p.clipKind), {
-      seed: p.seed,
-      adaptationRate: p.adaptationRate,
-      lloydRate: p.lloydRate,
-      circleSegments: segmentsOf(p.clipKind),
-    });
+    if (p.layout === "rings") {
+      ringsRef.current = createRingsState(graph, ringsOptions(p));
+      layoutRef.current = null;
+    } else {
+      layoutRef.current = createGraphLayout(graph, clipOf(p.clipKind), {
+        seed: p.seed,
+        adaptationRate: p.adaptationRate,
+        lloydRate: p.lloydRate,
+        circleSegments: segmentsOf(p.clipKind),
+      });
+      ringsRef.current = null;
+    }
     historyRef.current = [];
     innerLayoutsRef.current = new Map();
   };
 
-  if (layoutRef.current === null) rebuild(params);
+  if (layoutRef.current === null && ringsRef.current === null) rebuild(params);
 
-  // structural params trigger a rebuild; solver params only update options
-  const structuralKey = `${params.source}|${params.count}|${params.seed}|${params.clipKind}`;
+  // structural params trigger a rebuild; invert re-rings warm; solver params
+  // only update options on the existing layout
+  const structuralKey = `${params.source}|${params.layout}|${params.count}|${params.seed}|${params.clipKind}`;
   const structuralRef = useRef(structuralKey);
+  const invertRef = useRef(params.invertRings);
   useEffect(() => {
     if (structuralRef.current !== structuralKey) {
       structuralRef.current = structuralKey;
+      invertRef.current = paramsRef.current.invertRings;
       rebuild(paramsRef.current);
-    } else {
+      return;
+    }
+    if (invertRef.current !== params.invertRings) {
+      invertRef.current = params.invertRings;
+      if (ringsRef.current) {
+        ringsRef.current = applyRingsChanges(
+          ringsRef.current,
+          graphRef.current,
+          ringsOptions(paramsRef.current),
+        );
+      }
+    }
+    if (layoutRef.current) {
       layoutRef.current = {
         ...layoutRef.current,
         options: {
@@ -175,10 +215,27 @@ export function App() {
         },
       };
     }
-  }, [structuralKey, params.adaptationRate, params.lloydRate]);
+  }, [
+    structuralKey,
+    params.invertRings,
+    params.adaptationRate,
+    params.lloydRate,
+  ]);
 
   useEffect(() => {
     let raf = 0;
+    let timer = 0;
+    let disposed = false;
+    // rAF stops entirely in hidden tabs; fall back to a timer so layouts
+    // keep converging while the user works elsewhere
+    const schedule = () => {
+      if (disposed) return;
+      if (document.visibilityState === "hidden") {
+        timer = window.setTimeout(() => tick(performance.now()), 33);
+      } else {
+        raf = requestAnimationFrame(tick);
+      }
+    };
     const tick = (now: number) => {
       const fps = fpsRef.current;
       if (fps.last > 0) {
@@ -186,21 +243,42 @@ export function App() {
         fps.ema = fps.ema === 0 ? instant : fps.ema * 0.9 + instant * 0.1;
       }
       fps.last = now;
-      let state = layoutRef.current;
-      const outerActive = !isConverged(state, CONVERGENCE_TOLERANCE / 4);
-      if (outerActive) {
-        for (let i = 0; i < paramsRef.current.stepsPerFrame; i++) {
-          state = capacityStep(state);
+
+      // hidden tabs throttle the fallback timer to ~1 tick/s; batch more
+      // solver steps per tick there so convergence keeps a similar pace
+      const stepBatch =
+        paramsRef.current.stepsPerFrame *
+        (document.visibilityState === "hidden" ? 30 : 1);
+      let outerActive = false;
+      let outerCells: CellResult[] = [];
+      let maxError = 0;
+      if (ringsRef.current) {
+        const result = stepRingsState(ringsRef.current, stepBatch);
+        ringsRef.current = result.state;
+        outerActive = result.active;
+        for (const layout of result.state.moduleLayouts.values()) {
+          outerCells.push(...layout.cells);
+          maxError = Math.max(maxError, layout.maxRelativeError);
         }
-        layoutRef.current = state;
-        historyRef.current = [
-          ...historyRef.current.slice(-179),
-          state.maxRelativeError,
-        ];
+      } else if (layoutRef.current) {
+        let state = layoutRef.current;
+        outerActive = !isConverged(state, CONVERGENCE_TOLERANCE / 4);
+        if (outerActive) {
+          for (let i = 0; i < stepBatch; i++) {
+            state = capacityStep(state);
+          }
+          layoutRef.current = state;
+        }
+        outerCells = state.cells;
+        maxError = state.maxRelativeError;
       }
+      if (outerActive) {
+        historyRef.current = [...historyRef.current.slice(-179), maxError];
+      }
+
       let innerActive = false;
       if (paramsRef.current.showNested) {
-        syncInnerLayouts(state, outerActive);
+        syncInnerLayouts(outerCells, outerActive);
         for (const layout of innerLayoutsRef.current.values()) {
           if (!isConverged(layout, CONVERGENCE_TOLERANCE)) {
             innerActive = true;
@@ -211,11 +289,27 @@ export function App() {
       // re-render only while a solver is actually advancing; a converged
       // layout would otherwise burn CPU at full frame rate
       if (outerActive || innerActive) setFrame((f) => f + 1);
-      raf = requestAnimationFrame(tick);
+      schedule();
     };
-    raf = requestAnimationFrame(tick);
-    return () => cancelAnimationFrame(raf);
+    schedule();
+    return () => {
+      disposed = true;
+      cancelAnimationFrame(raf);
+      clearTimeout(timer);
+    };
   }, []);
+
+  const afterGraphMutation = (changedFileId?: string) => {
+    if (ringsRef.current) {
+      ringsRef.current = applyRingsChanges(
+        ringsRef.current,
+        graphRef.current,
+        ringsOptions(paramsRef.current),
+      );
+    }
+    if (changedFileId) innerLayoutsRef.current.delete(changedFileId);
+    setFrame((f) => f + 1);
+  };
 
   const mutateWeight = () => {
     const graph = graphRef.current;
@@ -231,19 +325,29 @@ export function App() {
       ...graph,
       nodes: graph.nodes.map((n) => (n.id === node.id ? updated : n)),
     };
-    layoutRef.current = applyGraphChanges(layoutRef.current, {
-      upsert: [{ id: updated.id, weight: updated.metrics.loc }],
-    });
-    // drop the nested layout so symbols regenerate from the new LOC
-    innerLayoutsRef.current.delete(updated.id);
+    if (layoutRef.current) {
+      layoutRef.current = applyGraphChanges(layoutRef.current, {
+        upsert: [{ id: updated.id, weight: updated.metrics.loc }],
+      });
+    }
+    afterGraphMutation(updated.id);
   };
 
   const addNode = () => {
     const rng = mutationRng.current;
+    const moduleIds = [
+      ...new Set(
+        graphRef.current.nodes.map((n) => n.id.split("/").slice(0, -1).join("/")),
+      ),
+    ].filter((m) => m.length > 0);
+    const moduleId =
+      moduleIds.length > 0
+        ? moduleIds[Math.floor(rng() * moduleIds.length)]!
+        : "added";
     const node: AtlasNode = {
-      id: `added-${nextNodeId.current++}`,
+      id: `${moduleId}/added-${nextNodeId.current++}.ts`,
       kind: "file",
-      label: "added.ts",
+      label: `added-${nextNodeId.current}.ts`,
       metrics: { loc: Math.round(20 + 980 * rng() ** 3) },
     };
     const graph = graphRef.current;
@@ -253,9 +357,12 @@ export function App() {
       edges.push({ source: node.id, target: target.id });
     }
     graphRef.current = { nodes: [...graph.nodes, node], edges };
-    layoutRef.current = applyGraphChanges(layoutRef.current, {
-      upsert: [{ id: node.id, weight: node.metrics.loc }],
-    });
+    if (layoutRef.current) {
+      layoutRef.current = applyGraphChanges(layoutRef.current, {
+        upsert: [{ id: node.id, weight: node.metrics.loc }],
+      });
+    }
+    afterGraphMutation();
   };
 
   const removeNode = () => {
@@ -269,17 +376,34 @@ export function App() {
         (e) => e.source !== node.id && e.target !== node.id,
       ),
     };
-    layoutRef.current = applyGraphChanges(layoutRef.current, {
-      remove: [node.id],
-    });
+    if (layoutRef.current) {
+      layoutRef.current = applyGraphChanges(layoutRef.current, {
+        remove: [node.id],
+      });
+    }
+    afterGraphMutation(node.id);
     if (selectedId === node.id) setSelectedId(null);
   };
 
-  const state = layoutRef.current;
+  const allCells: CellResult[] = ringsRef.current
+    ? [...ringsRef.current.moduleLayouts.values()].flatMap((l) => l.cells)
+    : (layoutRef.current?.cells ?? []);
   const selected = useMemo(
-    () => state.cells.find((c) => c.id === selectedId) ?? null,
-    [state, selectedId],
+    () => allCells.find((c) => c.id === selectedId) ?? null,
+    [allCells, selectedId],
   );
+  const maxError = ringsRef.current
+    ? Math.max(
+        0,
+        ...[...ringsRef.current.moduleLayouts.values()].map(
+          (l) => l.maxRelativeError,
+        ),
+      )
+    : (layoutRef.current?.maxRelativeError ?? 0);
+  const labels = new Map(graphRef.current.nodes.map((n) => [n.id, n.label]));
+  const innerCells = params.showNested
+    ? [...innerLayoutsRef.current.values()].flatMap((l) => l.cells)
+    : [];
 
   return (
     <div
@@ -302,23 +426,31 @@ export function App() {
           border: "1px solid #cbd5e1",
         }}
       >
-        <CellMapSvg
-          state={state}
-          edges={graphRef.current.edges}
-          showEdges={params.showEdges}
-          labels={
-            new Map(graphRef.current.nodes.map((n) => [n.id, n.label]))
-          }
-          innerCells={
-            params.showNested
-              ? [...innerLayoutsRef.current.values()].flatMap((l) => l.cells)
-              : []
-          }
-          width={WIDTH}
-          height={HEIGHT}
-          selectedId={selectedId}
-          onSelect={setSelectedId}
-        />
+        {ringsRef.current ? (
+          <RingsMapSvg
+            rings={ringsRef.current}
+            innerCells={innerCells}
+            fileEdges={graphRef.current.edges}
+            showEdges={params.showEdges}
+            labels={labels}
+            width={WIDTH}
+            height={HEIGHT}
+            selectedId={selectedId}
+            onSelect={setSelectedId}
+          />
+        ) : layoutRef.current ? (
+          <CellMapSvg
+            state={layoutRef.current}
+            edges={graphRef.current.edges}
+            showEdges={params.showEdges}
+            innerCells={innerCells}
+            labels={labels}
+            width={WIDTH}
+            height={HEIGHT}
+            selectedId={selectedId}
+            onSelect={setSelectedId}
+          />
+        ) : null}
       </div>
       <div
         style={{
@@ -348,13 +480,17 @@ export function App() {
             border: "1px solid #cbd5e1",
           }}
         >
-          <div>iteration: {state.iteration}</div>
           <div>
-            max relative error: {(state.maxRelativeError * 100).toFixed(2)}%
-            {isConverged(state, CONVERGENCE_TOLERANCE) ? " (converged)" : ""}
+            max relative error: {(maxError * 100).toFixed(2)}%
+            {maxError < CONVERGENCE_TOLERANCE ? " (converged)" : ""}
           </div>
           <div>fps: {fpsRef.current.ema.toFixed(0)}</div>
-          <div>cells: {state.cells.length}</div>
+          <div>
+            cells: {allCells.length}
+            {ringsRef.current
+              ? ` / modules: ${ringsRef.current.circles.size}`
+              : ""}
+          </div>
           <Sparkline values={historyRef.current} />
         </div>
         {selected ? (

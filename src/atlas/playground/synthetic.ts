@@ -54,31 +54,57 @@ export function synthesizeSymbols(
 export function createSyntheticGraph(options: SyntheticOptions): AtlasGraph {
   const { count, seed, edgeDensity = 0.15 } = options;
   const rng = createRng(seed);
-  const layerCount = Math.max(2, Math.round(Math.sqrt(count)));
+  // module DAG first: several modules per level so the ring layout gets
+  // populated rings instead of one module per rank
+  const moduleCount = Math.max(3, Math.round(Math.sqrt(count)));
+  const levelCount = Math.max(2, Math.round(Math.sqrt(moduleCount)));
+  const levelOfModule = (m: number) =>
+    Math.floor((m / moduleCount) * levelCount);
+  const moduleDeps: number[][] = [];
+  for (let m = 0; m < moduleCount; m++) {
+    const lower: number[] = [];
+    for (let other = 0; other < m; other++) {
+      if (levelOfModule(other) < levelOfModule(m)) lower.push(other);
+    }
+    const deps = new Set<number>();
+    const want = Math.min(lower.length, 1 + Math.floor(rng() * 3));
+    while (deps.size < want) {
+      deps.add(lower[Math.floor(rng() * lower.length)]!);
+    }
+    moduleDeps.push([...deps]);
+  }
+
+  // contiguous index spans per module keep the file DAG ordered by index
+  const moduleOf = (index: number) =>
+    Math.min(moduleCount - 1, Math.floor((index / count) * moduleCount));
+  const idOf = (index: number) => `mod${moduleOf(index)}/f${index}.ts`;
   const nodes: AtlasNode[] = Array.from({ length: count }, (_, i) => ({
-    id: `n${i}`,
+    id: idOf(i),
     kind: "file",
-    label: `n${i}.ts`,
+    label: `f${i}.ts`,
     metrics: { loc: Math.round(20 + 980 * rng() ** 3) },
   }));
-  const layerOf = (index: number) =>
-    Math.floor((index / count) * layerCount);
+
   const edges: AtlasGraph["edges"] = [];
   for (let i = 0; i < count; i++) {
-    const layer = layerOf(i);
-    if (layer === 0) continue;
+    const m = moduleOf(i);
+    const deps = new Set(moduleDeps[m]);
     let linked = false;
+    const candidates: number[] = [];
     for (let j = 0; j < i; j++) {
-      if (layerOf(j) >= layer) continue;
-      if (rng() < edgeDensity) {
-        edges.push({ source: `n${i}`, target: `n${j}` });
+      const mj = moduleOf(j);
+      if (mj !== m && !deps.has(mj)) continue;
+      candidates.push(j);
+      const probability = mj === m ? edgeDensity * 0.6 : edgeDensity;
+      if (rng() < probability) {
+        edges.push({ source: idOf(i), target: idOf(j) });
         linked = true;
       }
     }
-    if (!linked) {
-      // keep the DAG connected: link to a random earlier node
-      const j = Math.floor(rng() * i);
-      edges.push({ source: `n${i}`, target: `n${j}` });
+    if (!linked && candidates.length > 0) {
+      // keep the DAG connected within the module dependency structure
+      const j = candidates[Math.floor(rng() * candidates.length)]!;
+      edges.push({ source: idOf(i), target: idOf(j) });
     }
   }
   return { nodes, edges };
