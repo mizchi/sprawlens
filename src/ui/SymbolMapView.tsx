@@ -61,7 +61,7 @@ export function SymbolMapView(props: SymbolMapViewProps) {
       return;
     }
     setView(fitFrame(frame, size));
-    setSelectedNodeId(focusModuleId ?? frame.nodes.find((node) => node.kind === "module")?.id ?? "");
+    setSelectedNodeId((current) => syncedSelectedNodeId(frame, current, focusModuleId));
   }, [focusModuleId, frame?.commitHash, size.height, size.width]);
 
   useEffect(() => {
@@ -539,6 +539,24 @@ function SymbolHoverCard(props: { node?: SymbolMapNode }) {
 
 export function stableInspectorNode(selectedNode?: SymbolMapNode, _hoveredNode?: SymbolMapNode): SymbolMapNode | undefined {
   return selectedNode;
+}
+
+export function syncedSelectedNodeId(frame: SymbolMapFrame, currentSelectedNodeId: string, focusModuleId?: string): string {
+  const current = frame.nodes.find((node) => node.id === currentSelectedNodeId);
+  if (current && selectionBelongsToFocusModule(current, focusModuleId)) {
+    return current.id;
+  }
+  if (focusModuleId && frame.nodes.some((node) => node.id === focusModuleId)) {
+    return focusModuleId;
+  }
+  return frame.nodes.find((node) => node.kind === "module")?.id ?? currentSelectedNodeId;
+}
+
+function selectionBelongsToFocusModule(node: SymbolMapNode, focusModuleId?: string): boolean {
+  if (!focusModuleId) {
+    return true;
+  }
+  return node.id === focusModuleId || node.moduleId === focusModuleId;
 }
 
 function NeighborList(props: { title: string; edges: SymbolMapEdge[]; side: "from" | "to"; nodeById: Map<string, SymbolMapNode> }) {

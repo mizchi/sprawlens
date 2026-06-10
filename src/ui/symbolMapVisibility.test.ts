@@ -3,6 +3,7 @@ import {
   relatedNodeIds,
   selectedEdgeDirection,
   selectedDependencyEdgeIds,
+  syncedSelectedNodeId,
   shouldShowSymbolLabel,
   stableInspectorNode,
   symbolDependencyEdgesForMap,
@@ -33,6 +34,28 @@ function symbol(overrides: Partial<SymbolMapNode> = {}): SymbolMapNode {
     y: 0,
     r: 8,
     visibleAtZoom: 1,
+    ...overrides,
+  };
+}
+
+function moduleNode(overrides: Partial<SymbolMapNode> = {}): SymbolMapNode {
+  return {
+    id: "module:pkg",
+    kind: "module",
+    path: "pkg",
+    label: "pkg",
+    loc: 100,
+    exported: false,
+    surface: "internal",
+    fanIn: 0,
+    fanOut: 0,
+    crossModuleFanIn: 0,
+    crossModuleFanOut: 0,
+    status: "stable",
+    x: 0,
+    y: 0,
+    r: 20,
+    visibleAtZoom: 0,
     ...overrides,
   };
 }
@@ -114,6 +137,14 @@ describe("symbol map visibility", () => {
     const selected = symbol({ id: "symbol:selected", label: "selected" });
     const hovered = symbol({ id: "symbol:hovered", label: "hovered" });
     expect(stableInspectorNode(selected, hovered)).toBe(selected);
+  });
+
+  it("keeps a selected symbol when module focus updates to the same module", () => {
+    const selected = symbol({ id: "symbol:file.ts:Page", moduleId: "module:pkg", label: "Page" });
+    const map = frame([moduleNode({ id: "module:pkg" }), moduleNode({ id: "module:other", label: "other" }), selected], []);
+
+    expect(syncedSelectedNodeId(map, selected.id, "module:pkg")).toBe(selected.id);
+    expect(syncedSelectedNodeId(map, selected.id, "module:other")).toBe("module:other");
   });
 
   it("focuses only direct dependency edges for a selected symbol", () => {

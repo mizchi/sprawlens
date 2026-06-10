@@ -1970,6 +1970,11 @@ tbody tr:hover,
   fill: #17202a;
 }
 
+.symbol-map-node.symbol .symbol-map-label {
+  pointer-events: auto;
+  cursor: pointer;
+}
+
 .symbol-map-minimap {
   position: absolute;
   top: 10px;
