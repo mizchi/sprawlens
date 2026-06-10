@@ -7,13 +7,15 @@
     "codesprawl": "./dist/cli/index.js"
   },
   "scripts": {
-    "build": "pnpm run build:cli && pnpm run build:ui",
+    "build": "pnpm run build:cli && pnpm run build:ui && pnpm run build:atlas",
     "build:cli": "tsc -p tsconfig.build.json",
     "build:ui": "vite build",
+    "build:atlas": "vite build -c vite.atlas.config.ts",
     "dev": "vite --host 127.0.0.1",
+    "dev:atlas": "vite -c vite.atlas.config.ts --host 127.0.0.1",
     "preview": "vite preview --host 127.0.0.1",
     "test": "vitest run",
-    "typecheck": "tsc -p tsconfig.json --noEmit"
+    "typecheck": "tsc -p tsconfig.json --noEmit && tsc -p tsconfig.atlas.json --noEmit"
   },
   "dependencies": {
     "@deck.gl/core": "^9.3.3",
@@ -25,6 +27,7 @@
     "fast-glob": "^3.3.3",
     "keycharm": "^0.4.0",
     "lucide-react": "^0.468.0",
+    "preact": "^10.29.2",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
     "three": "^0.184.0",
@@ -35,6 +38,7 @@
     "vis-util": "^6.0.0"
   },
   "devDependencies": {
+    "@preact/preset-vite": "^2.10.5",
     "@types/d3-hierarchy": "^3.1.7",
     "@types/node": "^22.10.2",
     "@types/react": "^19.0.1",

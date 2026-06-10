@@ -1,0 +1,11 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "jsx": "react-jsx",
+    "jsxImportSource": "preact",
+    "noEmit": true,
+    "allowImportingTsExtensions": true
+  },
+  "include": ["src/atlas"],
+  "exclude": []
+}

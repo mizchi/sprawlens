@@ -1,0 +1,166 @@
+import { describe, expect, it } from "vitest";
+import { circleToPolygon, signedArea, type Ring } from "./polygon.js";
+import { computePowerDiagram, type PowerSite } from "./powerDiagram.js";
+import { createRng } from "./rng.js";
+import type { Vec2 } from "./vec.js";
+
+const unitSquare: Ring = [
+  { x: 0, y: 0 },
+  { x: 1, y: 0 },
+  { x: 1, y: 1 },
+  { x: 0, y: 1 },
+];
+
+function powerDistance(p: Vec2, site: PowerSite): number {
+  const dx = p.x - site.x;
+  const dy = p.y - site.y;
+  return dx * dx + dy * dy - site.weight;
+}
+
+/** Point-in-convex-polygon test for CCW rings. */
+function insideConvex(p: Vec2, ring: Ring, eps = 1e-9): boolean {
+  for (let i = 0; i < ring.length; i++) {
+    const a = ring[i]!;
+    const b = ring[(i + 1) % ring.length]!;
+    const cross = (b.x - a.x) * (p.y - a.y) - (b.y - a.y) * (p.x - a.x);
+    if (cross < -eps) return false;
+  }
+  return ring.length >= 3;
+}
+
+function randomSites(count: number, seed: number): PowerSite[] {
+  const rng = createRng(seed);
+  return Array.from({ length: count }, (_, i) => ({
+    id: `s${i}`,
+    x: 0.05 + rng() * 0.9,
+    y: 0.05 + rng() * 0.9,
+    weight: rng() * 0.01,
+  }));
+}
+
+describe("computePowerDiagram", () => {
+  it("splits two equal-weight sites along the perpendicular bisector", () => {
+    const cells = computePowerDiagram(
+      [
+        { id: "a", x: 0.25, y: 0.5, weight: 0 },
+        { id: "b", x: 0.75, y: 0.5, weight: 0 },
+      ],
+      unitSquare,
+    );
+    const a = cells.find((c) => c.id === "a")!;
+    const b = cells.find((c) => c.id === "b")!;
+    expect(a.area).toBeCloseTo(0.5, 9);
+    expect(b.area).toBeCloseTo(0.5, 9);
+    for (const p of a.polygon) expect(p.x).toBeLessThanOrEqual(0.5 + 1e-9);
+    expect(a.edges.some((e) => e.neighborId === "b")).toBe(true);
+    expect(b.edges.some((e) => e.neighborId === "a")).toBe(true);
+  });
+
+  it("gives a larger cell to a heavier site at symmetric positions", () => {
+    const cells = computePowerDiagram(
+      [
+        { id: "a", x: 0.25, y: 0.5, weight: 0.05 },
+        { id: "b", x: 0.75, y: 0.5, weight: 0 },
+      ],
+      unitSquare,
+    );
+    const a = cells.find((c) => c.id === "a")!;
+    const b = cells.find((c) => c.id === "b")!;
+    expect(a.area).toBeGreaterThan(0.5);
+    expect(a.area + b.area).toBeCloseTo(1, 9);
+  });
+
+  it("covers the clip region exactly (rect)", () => {
+    const cells = computePowerDiagram(randomSites(20, 11), unitSquare);
+    const total = cells.reduce((sum, c) => sum + c.area, 0);
+    expect(total).toBeCloseTo(1, 6);
+  });
+
+  it("covers the clip region exactly (circle)", () => {
+    const clip = circleToPolygon({ cx: 0.5, cy: 0.5, r: 0.5 }, 64);
+    const clipArea = signedArea(clip);
+    const cells = computePowerDiagram(randomSites(20, 13), clip);
+    const total = cells.reduce((sum, c) => sum + c.area, 0);
+    expect(total).toBeCloseTo(clipArea, 6);
+  });
+
+  it("assigns sample points to the cell of minimal power distance", () => {
+    const sites = randomSites(15, 17);
+    const cells = computePowerDiagram(sites, unitSquare);
+    const rng = createRng(99);
+    let checked = 0;
+    for (let i = 0; i < 200; i++) {
+      const p = { x: rng(), y: rng() };
+      const dists = sites
+        .map((s) => ({ id: s.id, d: powerDistance(p, s) }))
+        .sort((a, b) => a.d - b.d);
+      // skip near-ties to avoid boundary ambiguity
+      if (dists[1]!.d - dists[0]!.d < 1e-6) continue;
+      const winner = cells.find((c) => c.id === dists[0]!.id)!;
+      expect(insideConvex(p, winner.polygon, 1e-7)).toBe(true);
+      checked++;
+    }
+    expect(checked).toBeGreaterThan(150);
+  });
+
+  it("returns an empty cell for a dominated site without crashing", () => {
+    const cells = computePowerDiagram(
+      [
+        { id: "big", x: 0.5, y: 0.5, weight: 10 },
+        { id: "small", x: 0.6, y: 0.5, weight: 0 },
+      ],
+      unitSquare,
+    );
+    const small = cells.find((c) => c.id === "small")!;
+    expect(small.polygon).toEqual([]);
+    expect(small.area).toBe(0);
+    const big = cells.find((c) => c.id === "big")!;
+    expect(big.area).toBeCloseTo(1, 9);
+  });
+
+  it("resolves coincident sites by weight, then by input order", () => {
+    const byWeight = computePowerDiagram(
+      [
+        { id: "a", x: 0.5, y: 0.5, weight: 0 },
+        { id: "b", x: 0.5, y: 0.5, weight: 0.1 },
+      ],
+      unitSquare,
+    );
+    expect(byWeight.find((c) => c.id === "a")!.area).toBe(0);
+    expect(byWeight.find((c) => c.id === "b")!.area).toBeCloseTo(1, 9);
+
+    const tie = computePowerDiagram(
+      [
+        { id: "a", x: 0.5, y: 0.5, weight: 0 },
+        { id: "b", x: 0.5, y: 0.5, weight: 0 },
+      ],
+      unitSquare,
+    );
+    const nonEmpty = tie.filter((c) => c.area > 0);
+    expect(nonEmpty).toHaveLength(1);
+    expect(nonEmpty[0]!.id).toBe("a");
+  });
+
+  it("produces symmetric neighbor references", () => {
+    const cells = computePowerDiagram(randomSites(25, 23), unitSquare);
+    const byId = new Map(cells.map((c) => [c.id, c]));
+    for (const cell of cells) {
+      for (const edge of cell.edges) {
+        if (edge.neighborId === null) continue;
+        const neighbor = byId.get(edge.neighborId)!;
+        expect(
+          neighbor.edges.some((e) => e.neighborId === cell.id),
+        ).toBe(true);
+      }
+    }
+  });
+
+  it("handles a single site by returning the whole clip region", () => {
+    const cells = computePowerDiagram(
+      [{ id: "only", x: 0.3, y: 0.3, weight: 0 }],
+      unitSquare,
+    );
+    expect(cells[0]!.area).toBeCloseTo(1, 9);
+    expect(cells[0]!.edges.every((e) => e.neighborId === null)).toBe(true);
+  });
+});
