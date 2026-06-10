@@ -158,8 +158,13 @@ export function RingsMapSvg(props: Props) {
 
   const zoom = width / committedView.w;
   const sourceVisible = !hiddenLayers.has("source");
-  const showInner = sourceVisible && zoom > 0.8;
+  // monorepo-scale maps melt the renderer if every symbol cell and every
+  // exported dot is in the DOM from low zoom: raise the inner-detail
+  // threshold into culling territory and drop the early public-API dots
+  const largeGraph = innerCells.length > 2000;
+  const showInner = sourceVisible && zoom > (largeGraph ? 1.6 : 0.8);
   const symbolMode = sourceVisible && zoom >= SYMBOL_ZOOM;
+  const exportedEarly = !largeGraph;
   // viewport culling: when zoomed in, most cells sit outside the view —
   // skip their DOM entirely (slack = own size so partially-visible survive)
   const cullActive = zoom > 1.5;
@@ -466,10 +471,11 @@ export function RingsMapSvg(props: Props) {
           {innerCells.map((cell) => {
             if (cell.polygon.length < 3) return null;
             const exported = exportedIds.has(cell.id);
-            // public API dots surface before private symbols do
+            // public API dots surface before private symbols do (small maps)
             const visible =
               cell.id === selectedId ||
-              ((symbolMode || exported) && cellVisible(cell));
+              ((symbolMode || (exported && exportedEarly)) &&
+                cellVisible(cell));
             if (!visible) return null;
             return (
               <circle
