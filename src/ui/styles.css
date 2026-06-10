@@ -1935,7 +1935,15 @@ tbody tr:hover,
   stroke: #111827;
 }
 
-.symbol-map-edge.cross-module.active {
+.symbol-map-edge.active.outgoing {
+  stroke: #0f766e;
+}
+
+.symbol-map-edge.active.incoming {
+  stroke: #b45309;
+}
+
+.symbol-map-edge.cross-module.active.neutral {
   stroke: #dc6b19;
 }
 

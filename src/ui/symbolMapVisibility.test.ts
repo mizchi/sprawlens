@@ -1,11 +1,13 @@
 import { describe, expect, it } from "vitest";
 import {
   relatedNodeIds,
+  selectedEdgeDirection,
   selectedDependencyEdgeIds,
   shouldShowSymbolLabel,
   stableInspectorNode,
   symbolDependencyEdgesForMap,
   symbolDependencyRelatedNodeIds,
+  visibleSymbolEdgesForSelection,
 } from "./SymbolMapView.js";
 import type { SymbolMapEdge, SymbolMapFrame, SymbolMapNode } from "../core/symbolMap.js";
 import type { SymbolDependencyResult } from "../core/symbolDependencies.js";
@@ -126,6 +128,26 @@ describe("symbol map visibility", () => {
 
     expect([...selectedDependencyEdgeIds(map, selected.id)].sort()).toEqual([`edge:${incoming.id}->${selected.id}`, `edge:${selected.id}->${outgoing.id}`].sort());
     expect(relatedNodeIds(map, selected.id)).toEqual(new Set([selected.id, incoming.id, outgoing.id]));
+  });
+
+  it("keeps selected dependency edges visible regardless of zoom", () => {
+    const selected = symbol({ id: "symbol:selected", label: "selected" });
+    const incoming = symbol({ id: "symbol:incoming", label: "incoming" });
+    const outgoing = symbol({ id: "symbol:outgoing", label: "outgoing" });
+    const far = symbol({ id: "symbol:far", label: "far" });
+    const hiddenIncoming = edge(incoming.id, selected.id, { visibleAtZoom: 3 });
+    const hiddenOutgoing = edge(selected.id, outgoing.id, { visibleAtZoom: 4 });
+    const hiddenUnrelated = edge(outgoing.id, far.id, { visibleAtZoom: 2 });
+    const map = frame([selected, incoming, outgoing, far], [hiddenIncoming, hiddenOutgoing, hiddenUnrelated]);
+    const focusIds = selectedDependencyEdgeIds(map, selected.id);
+
+    expect(visibleSymbolEdgesForSelection(map.edges, new Set(map.nodes.map((node) => node.id)), focusIds, 0.4)).toEqual({
+      background: [],
+      focus: [hiddenIncoming, hiddenOutgoing],
+    });
+    expect(selectedEdgeDirection(hiddenIncoming, selected.id)).toBe("incoming");
+    expect(selectedEdgeDirection(hiddenOutgoing, selected.id)).toBe("outgoing");
+    expect(selectedEdgeDirection(hiddenUnrelated, selected.id)).toBe("neutral");
   });
 
   it("turns on-demand symbol dependencies into focused map edges", () => {

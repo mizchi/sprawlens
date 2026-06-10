@@ -28,6 +28,8 @@ type DragState = {
   view: MapView;
 };
 
+type SelectedEdgeDirection = "incoming" | "outgoing" | "neutral";
+
 const MIN_ZOOM = 0.18;
 const MAX_ZOOM = 8;
 
@@ -128,10 +130,10 @@ export function SymbolMapView(props: SymbolMapViewProps) {
   const relatedIds = new Set([...importRelatedIds, ...callRelatedIds]);
   const visibleNodes = frame.nodes.filter((node) => shouldShowNode(node, view.zoom, node.id === selectedNodeId, relatedIds.has(node.id)));
   const visibleNodeIds = new Set(visibleNodes.map((node) => node.id));
-  const visibleEdges = frame.edges.filter((edge) => visibleNodeIds.has(edge.from) && visibleNodeIds.has(edge.to) && edge.visibleAtZoom <= view.zoom);
   const focusEdgeIds = selectedDependencyEdgeIds(frame, selectedNodeId);
-  const visibleFocusEdges = visibleEdges.filter((edge) => focusEdgeIds.has(edge.id));
-  const visibleBackgroundEdges = visibleEdges.filter((edge) => !focusEdgeIds.has(edge.id));
+  const visibleEdges = visibleSymbolEdgesForSelection(frame.edges, visibleNodeIds, focusEdgeIds, view.zoom);
+  const visibleFocusEdges = visibleEdges.focus;
+  const visibleBackgroundEdges = visibleEdges.background;
   const nodeById = new Map(frame.nodes.map((node) => [node.id, node]));
   const visibleCallEdges = symbolDependencyEdgesForMap(symbolDependencies, nodeById).filter((edge) => visibleNodeIds.has(edge.from) && visibleNodeIds.has(edge.to));
   const visibleModuleNodes = visibleNodes.filter((node) => node.kind === "module");
@@ -240,6 +242,12 @@ export function SymbolMapView(props: SymbolMapViewProps) {
             <marker id="symbol-map-arrow" markerWidth="5" markerHeight="5" refX="4.5" refY="2.5" orient="auto" markerUnits="strokeWidth">
               <path d="M0,0 L0,5 L4.5,2.5 z" fill="#64748b" />
             </marker>
+            <marker id="symbol-map-arrow-outgoing" markerWidth="5" markerHeight="5" refX="4.5" refY="2.5" orient="auto" markerUnits="strokeWidth">
+              <path d="M0,0 L0,5 L4.5,2.5 z" fill="#0f766e" />
+            </marker>
+            <marker id="symbol-map-arrow-incoming" markerWidth="5" markerHeight="5" refX="4.5" refY="2.5" orient="auto" markerUnits="strokeWidth">
+              <path d="M0,0 L0,5 L4.5,2.5 z" fill="#b45309" />
+            </marker>
           </defs>
           <g className="symbol-map-modules">
             {visibleModuleNodes.map((node) => (
@@ -253,15 +261,15 @@ export function SymbolMapView(props: SymbolMapViewProps) {
           </g>
           <g className="symbol-map-edges">
             {visibleBackgroundEdges.map((edge) => (
-              <SymbolEdge key={edge.id} edge={edge} nodeById={nodeById} zoom={view.zoom} active={false} />
+              <SymbolEdge key={edge.id} edge={edge} nodeById={nodeById} zoom={view.zoom} active={false} direction="neutral" />
             ))}
           </g>
           <g className="symbol-map-focus-edges">
             {visibleFocusEdges.map((edge) => (
-              <SymbolEdge key={edge.id} edge={edge} nodeById={nodeById} zoom={view.zoom} active />
+              <SymbolEdge key={edge.id} edge={edge} nodeById={nodeById} zoom={view.zoom} active direction={selectedEdgeDirection(edge, selectedNodeId)} />
             ))}
             {visibleCallEdges.map((edge) => (
-              <SymbolEdge key={edge.id} edge={edge} nodeById={nodeById} zoom={view.zoom} active />
+              <SymbolEdge key={edge.id} edge={edge} nodeById={nodeById} zoom={view.zoom} active direction={selectedEdgeDirection(edge, selectedNodeId)} />
             ))}
           </g>
           <g className="symbol-map-symbols">
@@ -412,6 +420,7 @@ function SymbolEdge(props: {
   nodeById: Map<string, SymbolMapNode>;
   zoom: number;
   active: boolean;
+  direction: SelectedEdgeDirection;
 }) {
   const from = props.nodeById.get(props.edge.from);
   const to = props.nodeById.get(props.edge.to);
@@ -425,9 +434,9 @@ function SymbolEdge(props: {
       y1={line.y1}
       x2={line.x2}
       y2={line.y2}
-      className={`symbol-map-edge ${props.edge.crossModule ? "cross-module" : "internal"} ${props.edge.status}${props.active ? " active" : ""}`}
+      className={`symbol-map-edge ${props.edge.crossModule ? "cross-module" : "internal"} ${props.edge.status} ${props.direction}${props.active ? " active" : ""}`}
       strokeWidth={Math.min(props.active ? 4.8 : 3.6, 0.8 + Math.sqrt(props.edge.importCount) * (props.active ? 0.62 : 0.35))}
-      markerEnd={props.active || props.edge.crossModule ? "url(#symbol-map-arrow)" : undefined}
+      markerEnd={props.active || props.edge.crossModule ? `url(#${markerIdForEdge(props.direction)})` : undefined}
     />
   );
 }
@@ -615,6 +624,34 @@ export function selectedDependencyEdgeIds(frame: SymbolMapFrame, selectedNodeId:
   return new Set(frame.edges.filter((edge) => edge.from === selectedNodeId || edge.to === selectedNodeId).map((edge) => edge.id));
 }
 
+export function visibleSymbolEdgesForSelection(edges: SymbolMapEdge[], visibleNodeIds: Set<string>, focusEdgeIds: Set<string>, zoom: number): { background: SymbolMapEdge[]; focus: SymbolMapEdge[] } {
+  const background: SymbolMapEdge[] = [];
+  const focus: SymbolMapEdge[] = [];
+  for (const edge of edges) {
+    if (!visibleNodeIds.has(edge.from) || !visibleNodeIds.has(edge.to)) {
+      continue;
+    }
+    if (focusEdgeIds.has(edge.id)) {
+      focus.push(edge);
+      continue;
+    }
+    if (edge.visibleAtZoom <= zoom) {
+      background.push(edge);
+    }
+  }
+  return { background, focus };
+}
+
+export function selectedEdgeDirection(edge: SymbolMapEdge, selectedNodeId: string): SelectedEdgeDirection {
+  if (edge.from === selectedNodeId) {
+    return "outgoing";
+  }
+  if (edge.to === selectedNodeId) {
+    return "incoming";
+  }
+  return "neutral";
+}
+
 export function symbolDependencyRelatedNodeIds(dependencies: SymbolDependencyResult | null | undefined, selectedNodeId: string): Set<string> {
   const ids = new Set<string>();
   if (!dependencies || dependencies.symbolId !== selectedNodeId) {
@@ -629,6 +666,16 @@ export function symbolDependencyRelatedNodeIds(dependencies: SymbolDependencyRes
     }
   }
   return ids;
+}
+
+function markerIdForEdge(direction: SelectedEdgeDirection): string {
+  if (direction === "outgoing") {
+    return "symbol-map-arrow-outgoing";
+  }
+  if (direction === "incoming") {
+    return "symbol-map-arrow-incoming";
+  }
+  return "symbol-map-arrow";
 }
 
 export function symbolDependencyEdgesForMap(dependencies: SymbolDependencyResult | null | undefined, nodeById: Map<string, SymbolMapNode>): SymbolMapEdge[] {
