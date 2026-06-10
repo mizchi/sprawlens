@@ -4,8 +4,8 @@ import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } fr
 import type { CSSProperties, PointerEvent } from "react";
 import { moduleIdForFilePath } from "../core/moduleMap.js";
 import type { CodeEdge, FileNode, GraphDiff, Hotspot, ImportsEdge, Snapshot } from "../core/types.js";
-import { DependencyGraphView } from "./DependencyGraphView.js";
 import { ModuleCityMap } from "./ModuleCityMap.js";
+import { SymbolMapView } from "./SymbolMapView.js";
 
 type SnapshotSummary = Pick<Snapshot, "commit" | "metrics">;
 type DiffSummary = Pick<GraphDiff, "fromCommit" | "toCommit" | "metricDelta" | "hotspots">;
@@ -28,7 +28,7 @@ const METRICS: Array<{ key: MetricKey; label: string; color: string }> = [
 
 const VIEW_TABS: Array<{ mode: ViewMode; label: string }> = [
   { mode: "overview", label: "Overview" },
-  { mode: "network", label: "Dependency Graph" },
+  { mode: "network", label: "Symbol Map" },
   { mode: "diff", label: "Diff View" },
   { mode: "realtime", label: "Realtime" },
 ];
@@ -282,7 +282,7 @@ export function App() {
 
       {viewMode === "network" ? (
         <section className="graph-screen-section">
-          <DependencyGraphView
+          <SymbolMapView
             snapshot={toSnapshot}
             diff={selectedDiff}
             selectedFile={selectedFile}

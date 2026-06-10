@@ -1736,6 +1736,355 @@ tbody tr:hover,
   }
 }
 
+.symbol-map-screen {
+  min-width: 0;
+  height: 100%;
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr) auto;
+  gap: 0;
+  background: #ffffff;
+}
+
+.symbol-map-head {
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 8px 10px;
+  border-bottom: 1px solid #d7dee5;
+  background: #ffffff;
+}
+
+.symbol-map-head h2 {
+  margin: 0;
+  color: #17202a;
+  font-size: 16px;
+  line-height: 1.15;
+}
+
+.symbol-map-head span,
+.symbol-map-legend {
+  color: #5b6673;
+  font-size: 12px;
+}
+
+.symbol-map-legend {
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.legend-box {
+  width: 12px;
+  height: 9px;
+  display: inline-block;
+  border: 1px solid #7891aa;
+  background: rgb(147 197 253 / 38%);
+}
+
+.legend-dot.symbol-public {
+  background: #dc6b19;
+}
+
+.legend-dot.symbol-exported {
+  background: #2563eb;
+}
+
+.legend-dot.symbol-internal {
+  background: #8fa0b0;
+}
+
+.legend-line.cross-module {
+  border-top-color: #dc6b19;
+}
+
+.symbol-map-wrap {
+  position: relative;
+  min-width: 0;
+  min-height: 0;
+  overflow: hidden;
+  cursor: grab;
+  touch-action: none;
+  user-select: none;
+  background:
+    linear-gradient(#e9eef3 1px, transparent 1px),
+    linear-gradient(90deg, #e9eef3 1px, transparent 1px),
+    #f8fafc;
+  background-size: 96px 96px;
+}
+
+.symbol-map-wrap.dragging {
+  cursor: grabbing;
+}
+
+.symbol-map {
+  width: 100%;
+  height: 100%;
+  display: block;
+}
+
+.symbol-map-node {
+  cursor: pointer;
+}
+
+.symbol-map-node.module circle {
+  fill: rgb(226 232 240 / 24%);
+  stroke: rgb(100 116 139 / 48%);
+  stroke-width: 1.2;
+  vector-effect: non-scaling-stroke;
+}
+
+.symbol-map-node.module.selected circle {
+  stroke: #111827;
+  stroke-width: 2;
+}
+
+.symbol-map-node.file rect {
+  fill: rgb(147 197 253 / 30%);
+  stroke: rgb(76 96 119 / 42%);
+  stroke-width: 1.3;
+  vector-effect: non-scaling-stroke;
+}
+
+.symbol-map-node.file.test rect {
+  fill: rgb(116 183 176 / 30%);
+}
+
+.symbol-map-node.file.tooling rect {
+  fill: rgb(207 155 95 / 34%);
+}
+
+.symbol-map-node.file.asset rect {
+  fill: rgb(189 146 212 / 30%);
+}
+
+.symbol-map-node.file.selected rect,
+.symbol-map-node.file.related rect {
+  stroke: #2563eb;
+  stroke-width: 2.6;
+}
+
+.symbol-map-node.symbol circle {
+  stroke: #ffffff;
+  stroke-width: 2;
+  vector-effect: non-scaling-stroke;
+}
+
+.symbol-map-node.symbol.public circle {
+  fill: #dc6b19;
+  stroke: #111827;
+  stroke-width: 2.4;
+}
+
+.symbol-map-node.symbol.exported circle {
+  fill: #2563eb;
+}
+
+.symbol-map-node.symbol.internal circle {
+  fill: #8fa0b0;
+}
+
+.symbol-map-node.symbol.selected circle,
+.symbol-map-node.symbol.related circle {
+  stroke: #111827;
+  stroke-width: 3;
+}
+
+.symbol-map-edge {
+  stroke: #8fa0b0;
+  stroke-linecap: round;
+  opacity: 0.2;
+  pointer-events: none;
+  vector-effect: non-scaling-stroke;
+}
+
+.symbol-map-edge.cross-module {
+  stroke: #dc6b19;
+  opacity: 0.5;
+}
+
+.symbol-map-edge.added {
+  stroke: #0f766e;
+  opacity: 0.78;
+}
+
+.symbol-map-edge.active {
+  opacity: 0.9;
+}
+
+.symbol-map-label {
+  fill: #17202a;
+  paint-order: stroke;
+  stroke: rgb(248 250 252 / 88%);
+  stroke-width: 4px;
+  stroke-linejoin: round;
+  pointer-events: none;
+  font-weight: 800;
+}
+
+.symbol-map-label.module-label {
+  text-anchor: middle;
+}
+
+.symbol-map-label.file-label {
+  fill: #334155;
+  font-weight: 700;
+}
+
+.symbol-map-label.symbol-label {
+  fill: #17202a;
+}
+
+.symbol-map-minimap {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  z-index: 4;
+  width: min(172px, calc(100% - 20px));
+  padding: 6px;
+  border: 1px solid #bdc7d1;
+  background: rgb(255 255 255 / 90%);
+  color: #17202a;
+  box-shadow: 0 10px 24px rgb(23 32 42 / 12%);
+  pointer-events: none;
+}
+
+.symbol-map-minimap svg {
+  width: 100%;
+  height: 108px;
+  display: block;
+  background: #f8fafc;
+}
+
+.symbol-map-minimap circle {
+  fill: rgb(148 163 184 / 20%);
+  stroke: #94a3b8;
+  stroke-width: 3;
+  vector-effect: non-scaling-stroke;
+}
+
+.symbol-map-minimap circle.public {
+  fill: #dc6b19;
+  stroke: #ffffff;
+}
+
+.symbol-map-minimap strong {
+  display: block;
+  margin-top: 5px;
+  font-size: 12px;
+  text-align: right;
+}
+
+.symbol-map-toolbar {
+  position: absolute;
+  left: 10px;
+  bottom: 10px;
+  max-width: calc(100% - 20px);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 8px;
+  border: 1px solid #d7dee5;
+  background: rgb(255 255 255 / 90%);
+  color: #4b5563;
+  font-size: 12px;
+}
+
+.symbol-map-toolbar button {
+  padding: 4px 8px;
+  border: 1px solid #bdc7d1;
+  border-radius: 0;
+  background: #ffffff;
+  color: #17202a;
+  cursor: pointer;
+}
+
+.symbol-map-inspector {
+  min-width: 0;
+  max-height: 172px;
+  display: grid;
+  grid-template-columns: minmax(180px, 1fr) auto minmax(220px, 1.2fr) minmax(220px, 1.2fr);
+  gap: 8px;
+  overflow: auto;
+  padding: 8px 10px;
+  border-top: 1px solid #d7dee5;
+  background: #ffffff;
+}
+
+.symbol-map-inspector > div {
+  min-width: 0;
+}
+
+.symbol-map-inspector strong,
+.symbol-map-inspector span {
+  display: block;
+}
+
+.symbol-map-inspector strong {
+  color: #17202a;
+  font-size: 13px;
+}
+
+.symbol-map-inspector span {
+  color: #5b6673;
+  font-size: 12px;
+  overflow-wrap: anywhere;
+}
+
+.symbol-map-inspector dl {
+  display: grid;
+  grid-template-columns: repeat(2, auto);
+  gap: 4px 10px;
+  margin: 0;
+}
+
+.symbol-map-inspector dt {
+  color: #6b7280;
+  font-size: 10px;
+  text-transform: uppercase;
+}
+
+.symbol-map-inspector dd {
+  margin: 0;
+  color: #17202a;
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.symbol-map-inspector h3 {
+  margin: 0 0 4px;
+  color: #354150;
+  font-size: 12px;
+}
+
+.symbol-map-inspector ul {
+  max-height: 76px;
+  margin: 0;
+  padding: 0;
+  overflow: auto;
+  list-style: none;
+}
+
+.symbol-map-inspector li {
+  min-width: 0;
+  display: flex;
+  gap: 6px;
+  padding: 3px 0;
+  border-bottom: 1px solid #eef2f5;
+  color: #293241;
+  font-size: 11px;
+}
+
+.symbol-map-inspector li span {
+  min-width: 0;
+  flex: 1 1 auto;
+  overflow-wrap: anywhere;
+}
+
 .vis3d-canvas canvas {
   max-width: 100%;
 }
