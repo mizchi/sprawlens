@@ -186,11 +186,15 @@ export function RingsMapSvg(props: Props) {
   // descending screen-area order until the symbol budget is spent, so the
   // biggest cells in view always show detail and dense overviews stay flat.
   const SYMBOL_BUDGET = 1500;
+  // symbols below this on-screen size are unreadable and unclickable —
+  // they are skipped entirely and don't consume the budget
+  const MIN_SYMBOL_PX = 12;
   const allowedFiles = (() => {
     const allowed = new Set<string>();
     if (!showInner) return allowed;
     const symbolCountByFile = new Map<string, number>();
     for (const cell of innerCells) {
+      if (Math.sqrt(cell.actualArea) * zoom < MIN_SYMBOL_PX) continue;
       const file = parentFileOf(cell.id);
       symbolCountByFile.set(file, (symbolCountByFile.get(file) ?? 0) + 1);
     }
@@ -210,7 +214,10 @@ export function RingsMapSvg(props: Props) {
     return allowed;
   })();
   const innerVisible = (cell: CellResult) =>
-    allowedFiles.has(parentFileOf(cell.id)) && cellVisible(cell);
+    cell.id === selectedId ||
+    (Math.sqrt(cell.actualArea) * zoom >= MIN_SYMBOL_PX &&
+      allowedFiles.has(parentFileOf(cell.id)) &&
+      cellVisible(cell));
   const selectedIsSymbol =
     selectedId !== null && symbolSiteById.has(selectedId);
   // reference edges touching the selection stay visible at any zoom,
