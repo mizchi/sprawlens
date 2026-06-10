@@ -1,5 +1,5 @@
-import { hierarchy, pack } from "d3-hierarchy";
-import type { HierarchyCircularNode } from "d3-hierarchy";
+import { hierarchy, treemap } from "d3-hierarchy";
+import type { HierarchyRectangularNode } from "d3-hierarchy";
 import {
   buildModuleMapFrame,
   moduleIdForFilePath,
@@ -84,29 +84,25 @@ export type BuildSymbolMapOptions = {
 
 const MAP_WIDTH = 1600;
 const MAP_HEIGHT = 1060;
-const MODULE_PADDING = 30;
+const MAP_PADDING = 24;
+const MODULE_COLUMN_GAP = 34;
+const MODULE_PADDING = 18;
+const MODULE_HEADER = 34;
 const FILE_PADDING = 5;
-const SYMBOL_PADDING = 2.5;
+const SYMBOL_PADDING = 8;
 
-type ModulePackDatum = {
+type ModuleRectDatum = {
   type: "root" | "module";
   module?: ModuleParcel;
   value: number;
-  children?: ModulePackDatum[];
+  children?: ModuleRectDatum[];
 };
 
-type FilePackDatum = {
+type FileRectDatum = {
   type: "root" | "file";
   file?: ModuleFile;
   value: number;
-  children?: FilePackDatum[];
-};
-
-type SymbolPackDatum = {
-  type: "root" | "symbol";
-  symbol?: ModuleSymbol;
-  value: number;
-  children?: SymbolPackDatum[];
+  children?: FileRectDatum[];
 };
 
 type SymbolStats = {
@@ -114,6 +110,26 @@ type SymbolStats = {
   fanOut: number;
   crossModuleFanIn: number;
   crossModuleFanOut: number;
+};
+
+type RectLayout<T> = {
+  item: T;
+  x0: number;
+  y0: number;
+  x1: number;
+  y1: number;
+  x: number;
+  y: number;
+  w: number;
+  h: number;
+  r: number;
+};
+
+type SymbolLayout = {
+  symbol: ModuleSymbol;
+  x: number;
+  y: number;
+  r: number;
 };
 
 export function buildSymbolMapFrame(snapshot: Snapshot, options: BuildSymbolMapOptions = {}): SymbolMapFrame {
@@ -129,7 +145,7 @@ export function buildSymbolMapFrame(snapshot: Snapshot, options: BuildSymbolMapO
   const selectedSymbols = selectSymbolsByFile(selectedFiles, symbolStats, options.maxSymbols ?? 1600);
   const fileById = new Map(moduleFrame.modules.flatMap((module) => module.files.map((file) => [file.id, file] as const)));
   const symbolById = new Map(moduleFrame.modules.flatMap((module) => module.files.flatMap((file) => file.symbols.map((symbol) => [symbol.id, { symbol, file, module }] as const))));
-  const moduleLeafById = layoutModules(moduleFrame.modules);
+  const moduleLeafById = layoutModules(moduleFrame.modules, moduleFrame.dependencies);
   const nodes: SymbolMapNode[] = [];
   const symbolNodeIds = new Set<string>();
 
@@ -150,20 +166,14 @@ export function buildSymbolMapFrame(snapshot: Snapshot, options: BuildSymbolMapO
     }
     const fileLeaves = layoutFiles(leaf, files);
     for (const fileLeaf of fileLeaves) {
-      const file = fileLeaf.data.file;
-      if (!file) {
-        continue;
-      }
+      const file = fileLeaf.item;
       const fileNode = fileBoxNode(file, module.id, fileLeaf);
       nodes.push(fileNode);
 
       const symbols = selectedSymbols.get(file.id) ?? [];
       const symbolLeaves = layoutSymbols(fileNode, symbols, symbolStats);
       for (const symbolLeaf of symbolLeaves) {
-        const symbol = symbolLeaf.data.symbol;
-        if (!symbol) {
-          continue;
-        }
+        const symbol = symbolLeaf.symbol;
         nodes.push(symbolNode(symbol, file, module.id, fileNode, symbolLeaf, symbolStats.get(symbol.id)));
         symbolNodeIds.add(symbol.id);
       }
@@ -302,57 +312,155 @@ function selectSymbolsByFile(files: ModuleFile[], stats: Map<string, SymbolStats
   return byFile;
 }
 
-function layoutModules(modules: ModuleParcel[]): Map<string, HierarchyCircularNode<ModulePackDatum>> {
-  const root = hierarchy<ModulePackDatum>({
-    type: "root",
-    value: 0,
-    children: modules.map((module) => ({ type: "module", module, value: Math.max(1, module.loc) })),
-  }).sum((node) => node.value);
-  const layout = pack<ModulePackDatum>().size([MAP_WIDTH, MAP_HEIGHT]).padding(MODULE_PADDING);
-  const packed = layout(root);
-  return new Map(packed.leaves().flatMap((leaf) => (leaf.data.module ? [[leaf.data.module.id, leaf] as const] : [])));
+function layoutModules(modules: ModuleParcel[], dependencies: ModuleMapFrame["dependencies"]): Map<string, RectLayout<ModuleParcel>> {
+  const ranks = moduleDependencyRanks(modules, dependencies);
+  const rankedModules = groupBy(modules, (module) => String(ranks.get(module.id) ?? 0));
+  const rankKeys = [...rankedModules.keys()].map(Number).sort((a, b) => a - b);
+  const availableWidth = Math.max(1, MAP_WIDTH - MAP_PADDING * 2 - Math.max(0, rankKeys.length - 1) * MODULE_COLUMN_GAP);
+  const availableHeight = Math.max(1, MAP_HEIGHT - MAP_PADDING * 2);
+  const rankWeights = rankKeys.map((rank) => Math.max(1, (rankedModules.get(String(rank)) ?? []).reduce((sum, module) => sum + module.loc, 0)));
+  const totalWeight = Math.max(1, rankWeights.reduce((sum, weight) => sum + weight, 0));
+  const minColumnWidth = Math.min(180, availableWidth / Math.max(1, rankKeys.length * 2.2));
+  const flexibleWidth = Math.max(0, availableWidth - minColumnWidth * rankKeys.length);
+  let x = MAP_PADDING;
+  const layouts = new Map<string, RectLayout<ModuleParcel>>();
+
+  rankKeys.forEach((rank, index) => {
+    const modulesInRank = rankedModules.get(String(rank)) ?? [];
+    const columnWidth = minColumnWidth + flexibleWidth * ((rankWeights[index] ?? 1) / totalWeight);
+    const root = hierarchy<ModuleRectDatum>({
+      type: "root",
+      value: 0,
+      children: modulesInRank.map((module) => ({ type: "module", module, value: Math.max(1, module.loc) })),
+    })
+      .sum((node) => node.value)
+      .sort((a, b) => (b.value ?? 0) - (a.value ?? 0));
+    const laidOut = treemap<ModuleRectDatum>()
+      .size([columnWidth, availableHeight])
+      .paddingOuter(2)
+      .paddingInner(10)
+      .round(true)(root);
+    for (const leaf of laidOut.leaves()) {
+      if (!leaf.data.module) {
+        continue;
+      }
+      layouts.set(leaf.data.module.id, rectLayout(leaf.data.module, leaf, x, MAP_PADDING));
+    }
+    x += columnWidth + MODULE_COLUMN_GAP;
+  });
+
+  return layouts;
 }
 
-function layoutFiles(moduleLeaf: HierarchyCircularNode<ModulePackDatum>, files: ModuleFile[]): Array<HierarchyCircularNode<FilePackDatum>> {
-  const diameter = Math.max(1, moduleLeaf.r * 1.74);
-  const root = hierarchy<FilePackDatum>({
+function moduleDependencyRanks(modules: ModuleParcel[], dependencies: ModuleMapFrame["dependencies"]): Map<string, number> {
+  const moduleIds = new Set(modules.map((module) => module.id));
+  const outgoing = new Map<string, string[]>();
+  for (const dependency of dependencies) {
+    if (!moduleIds.has(dependency.from) || !moduleIds.has(dependency.to) || dependency.from === dependency.to) {
+      continue;
+    }
+    const current = outgoing.get(dependency.from) ?? [];
+    current.push(dependency.to);
+    outgoing.set(dependency.from, current);
+  }
+  const memo = new Map<string, number>();
+  const visiting = new Set<string>();
+  const rankOf = (moduleId: string): number => {
+    const cached = memo.get(moduleId);
+    if (cached !== undefined) {
+      return cached;
+    }
+    if (visiting.has(moduleId)) {
+      return 0;
+    }
+    visiting.add(moduleId);
+    let rank = 0;
+    for (const targetId of outgoing.get(moduleId) ?? []) {
+      rank = Math.max(rank, rankOf(targetId) + 1);
+    }
+    visiting.delete(moduleId);
+    memo.set(moduleId, rank);
+    return rank;
+  };
+  for (const module of modules) {
+    rankOf(module.id);
+  }
+  return memo;
+}
+
+function rectLayout<T>(item: T, leaf: { x0: number; y0: number; x1: number; y1: number }, offsetX: number, offsetY: number): RectLayout<T> {
+  const x0 = offsetX + leaf.x0;
+  const y0 = offsetY + leaf.y0;
+  const x1 = offsetX + leaf.x1;
+  const y1 = offsetY + leaf.y1;
+  const w = Math.max(1, x1 - x0);
+  const h = Math.max(1, y1 - y0);
+  return {
+    item,
+    x0,
+    y0,
+    x1,
+    y1,
+    x: x0 + w / 2,
+    y: y0 + h / 2,
+    w,
+    h,
+    r: Math.hypot(w, h) / 2,
+  };
+}
+
+function layoutFiles(moduleLeaf: RectLayout<ModuleParcel>, files: ModuleFile[]): Array<RectLayout<ModuleFile>> {
+  const width = Math.max(1, moduleLeaf.w - MODULE_PADDING * 2);
+  const height = Math.max(1, moduleLeaf.h - MODULE_PADDING * 2 - MODULE_HEADER);
+  const root = hierarchy<FileRectDatum>({
     type: "root",
     value: 0,
     children: files.map((file) => ({ type: "file", file, value: Math.max(1, file.loc) })),
-  }).sum((node) => node.value);
-  const packed = pack<FilePackDatum>().size([diameter, diameter]).padding(FILE_PADDING)(root);
-  return packed.leaves().map((leaf) => {
-    leaf.x = moduleLeaf.x - diameter / 2 + leaf.x;
-    leaf.y = moduleLeaf.y - diameter / 2 + leaf.y;
-    return leaf;
-  });
+  })
+    .sum((node) => node.value)
+    .sort((a, b) => (b.value ?? 0) - (a.value ?? 0));
+  const laidOut = treemap<FileRectDatum>()
+    .size([width, height])
+    .paddingInner(FILE_PADDING)
+    .round(true)(root);
+  const offsetX = moduleLeaf.x0 + MODULE_PADDING;
+  const offsetY = moduleLeaf.y0 + MODULE_PADDING + MODULE_HEADER;
+  return laidOut.leaves().flatMap((leaf) => (leaf.data.file ? [rectLayout(leaf.data.file, leaf, offsetX, offsetY)] : []));
 }
 
-function layoutSymbols(fileNode: SymbolMapNode, symbols: ModuleSymbol[], stats: Map<string, SymbolStats>): Array<HierarchyCircularNode<SymbolPackDatum>> {
+function layoutSymbols(fileNode: SymbolMapNode, symbols: ModuleSymbol[], stats: Map<string, SymbolStats>): SymbolLayout[] {
   if (!fileNode.w || !fileNode.h || symbols.length === 0) {
     return [];
   }
-  const root = hierarchy<SymbolPackDatum>({
-    type: "root",
-    value: 0,
-    children: symbols.map((symbol) => {
-      const stat = stats.get(symbol.id);
-      return {
-        type: "symbol",
-        symbol,
-        value: Math.max(1, symbol.loc + (stat?.fanIn ?? 0) * 3 + (stat?.fanOut ?? 0) * 2 + (symbol.exported ? 8 : 0)),
-      };
-    }),
-  }).sum((node) => node.value);
-  const packed = pack<SymbolPackDatum>().size([fileNode.w * 0.86, fileNode.h * 0.86]).padding(SYMBOL_PADDING)(root);
-  return packed.leaves().map((leaf) => {
-    leaf.x = fileNode.x - (fileNode.w ?? 0) * 0.43 + leaf.x;
-    leaf.y = fileNode.y - (fileNode.h ?? 0) * 0.43 + leaf.y;
-    return leaf;
+  const width = Math.max(1, fileNode.w - SYMBOL_PADDING * 2);
+  const height = Math.max(1, fileNode.h - SYMBOL_PADDING * 2);
+  const left = fileNode.x - fileNode.w / 2 + SYMBOL_PADDING;
+  const top = fileNode.y - fileNode.h / 2 + SYMBOL_PADDING;
+  const sorted = [...symbols].sort((a, b) => symbolLayoutScore(b, stats) - symbolLayoutScore(a, stats) || a.name.localeCompare(b.name));
+  const columns = Math.max(1, Math.ceil(Math.sqrt(sorted.length * (width / Math.max(1, height)))));
+  const rows = Math.max(1, Math.ceil(sorted.length / columns));
+  const cellWidth = width / columns;
+  const cellHeight = height / rows;
+  return sorted.map((symbol, index) => {
+    const stat = stats.get(symbol.id);
+    const col = index % columns;
+    const row = Math.floor(index / columns);
+    const baseRadius = 3.6 + Math.sqrt(symbol.loc + (stat?.fanIn ?? 0) * 3 + (stat?.fanOut ?? 0) * 2 + (symbol.exported ? 10 : 0)) * 0.74;
+    return {
+      symbol,
+      x: left + cellWidth * (col + 0.5),
+      y: top + cellHeight * (row + 0.5),
+      r: clamp(baseRadius, symbol.exported ? 5 : 3.2, Math.max(3.2, Math.min(cellWidth, cellHeight) * 0.34)),
+    };
   });
 }
 
-function moduleNode(module: ModuleParcel, leaf: HierarchyCircularNode<ModulePackDatum>): SymbolMapNode {
+function symbolLayoutScore(symbol: ModuleSymbol, stats: Map<string, SymbolStats>): number {
+  const stat = stats.get(symbol.id);
+  return (symbol.exported ? 1000 : 0) + (stat?.crossModuleFanIn ?? 0) * 500 + (stat?.fanIn ?? 0) * 80 + (stat?.fanOut ?? 0) * 52 + symbol.loc;
+}
+
+function moduleNode(module: ModuleParcel, leaf: RectLayout<ModuleParcel>): SymbolMapNode {
   return {
     id: module.id,
     kind: "module",
@@ -370,12 +478,13 @@ function moduleNode(module: ModuleParcel, leaf: HierarchyCircularNode<ModulePack
     x: leaf.x,
     y: leaf.y,
     r: leaf.r,
+    w: leaf.w,
+    h: leaf.h,
     visibleAtZoom: 0,
   };
 }
 
-function fileBoxNode(file: ModuleFile, moduleId: string, leaf: HierarchyCircularNode<FilePackDatum>): SymbolMapNode {
-  const side = Math.max(10, leaf.r * 1.34);
+function fileBoxNode(file: ModuleFile, moduleId: string, leaf: RectLayout<ModuleFile>): SymbolMapNode {
   return {
     id: file.id,
     kind: "file",
@@ -395,9 +504,9 @@ function fileBoxNode(file: ModuleFile, moduleId: string, leaf: HierarchyCircular
     status: file.status,
     x: leaf.x,
     y: leaf.y,
-    r: Math.SQRT1_2 * side,
-    w: side,
-    h: side,
+    r: leaf.r,
+    w: leaf.w,
+    h: leaf.h,
     visibleAtZoom: 1.05,
   };
 }
@@ -407,7 +516,7 @@ function symbolNode(
   file: ModuleFile,
   moduleId: string,
   fileNode: SymbolMapNode,
-  leaf: HierarchyCircularNode<SymbolPackDatum>,
+  leaf: SymbolLayout,
   stats: SymbolStats = { fanIn: 0, fanOut: 0, crossModuleFanIn: 0, crossModuleFanOut: 0 },
 ): SymbolMapNode {
   const surface: SymbolSurface = stats.crossModuleFanIn > 0 ? "public" : symbol.exported ? "exported" : "internal";

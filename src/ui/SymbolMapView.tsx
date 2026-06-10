@@ -318,7 +318,13 @@ export function SymbolMapView(props: SymbolMapViewProps) {
         <aside className="symbol-map-minimap" aria-label="Symbol map minimap">
           <svg viewBox={`${frame.bounds.minX} ${frame.bounds.minY} ${frame.bounds.maxX - frame.bounds.minX} ${frame.bounds.maxY - frame.bounds.minY}`}>
             {frame.nodes.filter((node) => node.kind === "module").map((node) => (
-              <circle key={node.id} cx={node.x} cy={node.y} r={node.r} />
+              <rect
+                key={node.id}
+                x={node.x - (node.w ?? node.r * 2) / 2}
+                y={node.y - (node.h ?? node.r * 2) / 2}
+                width={node.w ?? node.r * 2}
+                height={node.h ?? node.r * 2}
+              />
             ))}
             {frame.nodes.filter((node) => node.kind === "symbol" && node.surface === "public").map((node) => (
               <circle key={node.id} className="public" cx={node.x} cy={node.y} r={Math.max(10, node.r * 2)} />
@@ -354,16 +360,18 @@ function ModuleNode(props: {
   onClick: (event: MouseEvent<SVGGElement>, node: SymbolMapNode) => void;
   onDoubleClick: (event: MouseEvent<SVGGElement>, node: SymbolMapNode) => void;
 }) {
-  const showLabel = props.zoom <= 1.3 || props.selected;
+  const w = props.node.w ?? props.node.r * 2;
+  const h = props.node.h ?? props.node.r * 2;
+  const showLabel = props.selected || props.zoom <= 1.1 || (w * props.zoom >= 128 && h * props.zoom >= 58);
   return (
     <g
       className={`symbol-map-node module ${props.node.status}${props.selected ? " selected" : ""}`}
       onClick={(event) => props.onClick(event, props.node)}
       onDoubleClick={(event) => props.onDoubleClick(event, props.node)}
     >
-      <circle cx={props.node.x} cy={props.node.y} r={props.node.r} />
+      <rect x={props.node.x - w / 2} y={props.node.y - h / 2} width={w} height={h} />
       {showLabel ? (
-        <text x={props.node.x} y={props.node.y - props.node.r + 18 / props.zoom} className="symbol-map-label module-label" style={{ fontSize: 15 / props.zoom }}>
+        <text x={props.node.x - w / 2 + 8 / props.zoom} y={props.node.y - h / 2 + 18 / props.zoom} className="symbol-map-label module-label" style={{ fontSize: 15 / props.zoom }}>
           {props.node.label}
         </text>
       ) : null}

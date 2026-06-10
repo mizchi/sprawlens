@@ -72,6 +72,52 @@ function snapshot(
 }
 
 describe("symbol map model", () => {
+  it("lays modules as rectangular dependency columns while preserving file containment", () => {
+    const frame = buildSymbolMapFrame(
+      snapshot(
+        [
+          { path: "packages/app/src/index.ts", loc: 120, exported: ["start"], internal: ["render"] },
+          { path: "packages/core/src/api.ts", loc: 360, exported: ["request"], internal: ["parse"] },
+        ],
+        [
+          [
+            "packages/app/src/index.ts",
+            "packages/core/src/api.ts",
+            "../core/api",
+            [
+              {
+                imported: "request",
+                local: "request",
+                kind: "named",
+                fromSymbolId: "symbol:packages/app/src/index.ts:start",
+                fromSymbolName: "start",
+                toSymbolId: "symbol:packages/core/src/api.ts:request",
+                toSymbolName: "request",
+              },
+            ],
+          ],
+        ],
+      ),
+      { focusModuleId: "module:packages/core" },
+    );
+
+    const app = frame.nodes.find((node) => node.id === "module:packages/app");
+    const core = frame.nodes.find((node) => node.id === "module:packages/core");
+    const coreFile = frame.nodes.find((node) => node.id === "file:packages/core/src/api.ts");
+    const request = frame.nodes.find((node) => node.id === "symbol:packages/core/src/api.ts:request");
+
+    expect(core).toMatchObject({ kind: "module", w: expect.any(Number), h: expect.any(Number) });
+    expect(app).toMatchObject({ kind: "module", w: expect.any(Number), h: expect.any(Number) });
+    expect(core!.x).toBeLessThan(app!.x);
+    expect((core!.w ?? 0) * (core!.h ?? 0)).toBeGreaterThan((app!.w ?? 0) * (app!.h ?? 0));
+    expect(coreFile).toMatchObject({ kind: "file", parentId: core!.id, w: expect.any(Number), h: expect.any(Number) });
+    expect(request).toMatchObject({ kind: "symbol", parentId: coreFile!.id });
+    expect(request!.x).toBeGreaterThanOrEqual(coreFile!.x - (coreFile!.w ?? 0) / 2);
+    expect(request!.x).toBeLessThanOrEqual(coreFile!.x + (coreFile!.w ?? 0) / 2);
+    expect(request!.y).toBeGreaterThanOrEqual(coreFile!.y - (coreFile!.h ?? 0) / 2);
+    expect(request!.y).toBeLessThanOrEqual(coreFile!.y + (coreFile!.h ?? 0) / 2);
+  });
+
   it("sizes file boxes by LOC while symbols remain graph nodes", () => {
     const frame = buildSymbolMapFrame(
       snapshot(

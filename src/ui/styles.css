@@ -1831,14 +1831,14 @@ tbody tr:hover,
   cursor: pointer;
 }
 
-.symbol-map-node.module circle {
-  fill: rgb(226 232 240 / 24%);
-  stroke: rgb(100 116 139 / 48%);
+.symbol-map-node.module rect {
+  fill: rgb(226 232 240 / 20%);
+  stroke: rgb(15 23 42 / 62%);
   stroke-width: 1.2;
   vector-effect: non-scaling-stroke;
 }
 
-.symbol-map-node.module.selected circle {
+.symbol-map-node.module.selected rect {
   stroke: #111827;
   stroke-width: 2;
 }
@@ -1958,7 +1958,7 @@ tbody tr:hover,
 }
 
 .symbol-map-label.module-label {
-  text-anchor: middle;
+  text-anchor: start;
 }
 
 .symbol-map-label.file-label {
@@ -1996,10 +1996,17 @@ tbody tr:hover,
   background: #f8fafc;
 }
 
-.symbol-map-minimap circle {
+.symbol-map-minimap rect {
   fill: rgb(148 163 184 / 20%);
   stroke: #94a3b8;
-  stroke-width: 3;
+  stroke-width: 2;
+  vector-effect: non-scaling-stroke;
+}
+
+.symbol-map-minimap circle {
+  fill: rgb(37 99 235 / 46%);
+  stroke: #ffffff;
+  stroke-width: 2;
   vector-effect: non-scaling-stroke;
 }
 
