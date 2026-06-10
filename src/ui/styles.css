@@ -1894,6 +1894,17 @@ tbody tr:hover,
   stroke-width: 3;
 }
 
+.symbol-map.symbol-focus .symbol-map-node.module:not(.selected),
+.symbol-map.symbol-focus .symbol-map-node.file:not(.selected):not(.related),
+.symbol-map.symbol-focus .symbol-map-node.symbol:not(.selected):not(.related) {
+  opacity: 0.24;
+}
+
+.symbol-map.symbol-focus .symbol-map-node.symbol:not(.selected):not(.related) .symbol-map-label,
+.symbol-map.symbol-focus .symbol-map-node.file:not(.selected):not(.related) .symbol-map-label {
+  display: none;
+}
+
 .symbol-map-edge {
   stroke: #8fa0b0;
   stroke-linecap: round;
@@ -1916,11 +1927,23 @@ tbody tr:hover,
   opacity: 0.9;
 }
 
+.symbol-map.symbol-focus .symbol-map-edge:not(.active) {
+  opacity: 0.035;
+}
+
+.symbol-map-edge.active {
+  stroke: #111827;
+}
+
+.symbol-map-edge.cross-module.active {
+  stroke: #dc6b19;
+}
+
 .symbol-map-label {
   fill: #17202a;
   paint-order: stroke;
-  stroke: rgb(248 250 252 / 88%);
-  stroke-width: 4px;
+  stroke: rgb(248 250 252 / 72%);
+  stroke-width: 2px;
   stroke-linejoin: round;
   pointer-events: none;
   font-weight: 800;

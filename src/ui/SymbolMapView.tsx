@@ -92,7 +92,17 @@ export function SymbolMapView(props: SymbolMapViewProps) {
   const visibleNodes = frame.nodes.filter((node) => shouldShowNode(node, view.zoom, node.id === selectedNodeId, relatedIds.has(node.id)));
   const visibleNodeIds = new Set(visibleNodes.map((node) => node.id));
   const visibleEdges = frame.edges.filter((edge) => visibleNodeIds.has(edge.from) && visibleNodeIds.has(edge.to) && edge.visibleAtZoom <= view.zoom);
+  const focusEdgeIds = selectedDependencyEdgeIds(frame, selectedNodeId);
+  const visibleFocusEdges = visibleEdges.filter((edge) => focusEdgeIds.has(edge.id));
+  const visibleBackgroundEdges = visibleEdges.filter((edge) => !focusEdgeIds.has(edge.id));
+  const visibleModuleNodes = visibleNodes.filter((node) => node.kind === "module");
+  const visibleFileNodes = visibleNodes.filter((node) => node.kind === "file");
+  const visibleSymbolNodes = visibleNodes.filter((node) => node.kind === "symbol");
+  const focusedNodeIds = new Set([selectedNodeId, ...relatedIds]);
+  const visibleBackgroundSymbols = visibleSymbolNodes.filter((node) => !focusedNodeIds.has(node.id));
+  const visibleFocusSymbols = visibleSymbolNodes.filter((node) => focusedNodeIds.has(node.id));
   const nodeById = new Map(frame.nodes.map((node) => [node.id, node]));
+  const isSymbolFocus = selectedNode?.kind === "symbol";
 
   const onPointerDown = (event: PointerEvent<HTMLDivElement>) => {
     if (event.button !== 0) {
@@ -187,29 +197,48 @@ export function SymbolMapView(props: SymbolMapViewProps) {
         onPointerUp={onPointerUp}
         onPointerCancel={onPointerUp}
       >
-        <svg className="symbol-map" viewBox={viewBoxFor(view, size)} role="img" aria-label="Symbol dependency map">
+        <svg className={isSymbolFocus ? "symbol-map symbol-focus" : "symbol-map"} viewBox={viewBoxFor(view, size)} role="img" aria-label="Symbol dependency map">
           <defs>
             <marker id="symbol-map-arrow" markerWidth="5" markerHeight="5" refX="4.5" refY="2.5" orient="auto" markerUnits="strokeWidth">
               <path d="M0,0 L0,5 L4.5,2.5 z" fill="#64748b" />
             </marker>
           </defs>
           <g className="symbol-map-modules">
-            {visibleNodes.filter((node) => node.kind === "module").map((node) => (
+            {visibleModuleNodes.map((node) => (
               <ModuleNode key={node.id} node={node} zoom={view.zoom} selected={node.id === selectedNodeId} onClick={selectNode} onDoubleClick={zoomToNode} />
             ))}
           </g>
           <g className="symbol-map-files">
-            {visibleNodes.filter((node) => node.kind === "file").map((node) => (
+            {visibleFileNodes.map((node) => (
               <FileNode key={node.id} node={node} zoom={view.zoom} selected={node.id === selectedNodeId} related={relatedIds.has(node.id)} onClick={selectNode} onDoubleClick={zoomToNode} />
             ))}
           </g>
           <g className="symbol-map-edges">
-            {visibleEdges.map((edge) => (
-              <SymbolEdge key={edge.id} edge={edge} nodeById={nodeById} zoom={view.zoom} selectedNodeId={selectedNodeId} relatedIds={relatedIds} />
+            {visibleBackgroundEdges.map((edge) => (
+              <SymbolEdge key={edge.id} edge={edge} nodeById={nodeById} zoom={view.zoom} active={false} />
+            ))}
+          </g>
+          <g className="symbol-map-focus-edges">
+            {visibleFocusEdges.map((edge) => (
+              <SymbolEdge key={edge.id} edge={edge} nodeById={nodeById} zoom={view.zoom} active />
             ))}
           </g>
           <g className="symbol-map-symbols">
-            {visibleNodes.filter((node) => node.kind === "symbol").map((node) => (
+            {visibleBackgroundSymbols.map((node) => (
+              <SymbolNode
+                key={node.id}
+                node={node}
+                zoom={view.zoom}
+                selected={node.id === selectedNodeId}
+                related={relatedIds.has(node.id)}
+                onClick={selectNode}
+                onDoubleClick={zoomToNode}
+                onHover={setHoveredNodeId}
+              />
+            ))}
+          </g>
+          <g className="symbol-map-focus-symbols">
+            {visibleFocusSymbols.map((node) => (
               <SymbolNode
                 key={node.id}
                 node={node}
@@ -333,15 +362,13 @@ function SymbolEdge(props: {
   edge: SymbolMapEdge;
   nodeById: Map<string, SymbolMapNode>;
   zoom: number;
-  selectedNodeId: string;
-  relatedIds: Set<string>;
+  active: boolean;
 }) {
   const from = props.nodeById.get(props.edge.from);
   const to = props.nodeById.get(props.edge.to);
   if (!from || !to) {
     return null;
   }
-  const active = props.selectedNodeId === props.edge.from || props.selectedNodeId === props.edge.to || props.relatedIds.has(props.edge.from) || props.relatedIds.has(props.edge.to);
   const line = shortenLine(from, to, props.zoom);
   return (
     <line
@@ -349,9 +376,9 @@ function SymbolEdge(props: {
       y1={line.y1}
       x2={line.x2}
       y2={line.y2}
-      className={`symbol-map-edge ${props.edge.crossModule ? "cross-module" : "internal"} ${props.edge.status}${active ? " active" : ""}`}
-      strokeWidth={Math.min(3.6, 0.8 + Math.sqrt(props.edge.importCount) * 0.35)}
-      markerEnd={active || props.edge.crossModule ? "url(#symbol-map-arrow)" : undefined}
+      className={`symbol-map-edge ${props.edge.crossModule ? "cross-module" : "internal"} ${props.edge.status}${props.active ? " active" : ""}`}
+      strokeWidth={Math.min(props.active ? 4.8 : 3.6, 0.8 + Math.sqrt(props.edge.importCount) * (props.active ? 0.62 : 0.35))}
+      markerEnd={props.active || props.edge.crossModule ? "url(#symbol-map-arrow)" : undefined}
     />
   );
 }
@@ -453,7 +480,7 @@ function NeighborList(props: { title: string; edges: SymbolMapEdge[]; side: "fro
   );
 }
 
-function relatedNodeIds(frame: SymbolMapFrame, selectedNodeId: string): Set<string> {
+export function relatedNodeIds(frame: SymbolMapFrame, selectedNodeId: string): Set<string> {
   const ids = new Set(selectedNodeId ? [selectedNodeId] : []);
   const selected = frame.nodes.find((node) => node.id === selectedNodeId);
   if (selected?.kind === "file") {
@@ -472,6 +499,14 @@ function relatedNodeIds(frame: SymbolMapFrame, selectedNodeId: string): Set<stri
     }
   }
   return ids;
+}
+
+export function selectedDependencyEdgeIds(frame: SymbolMapFrame, selectedNodeId: string): Set<string> {
+  const selected = frame.nodes.find((node) => node.id === selectedNodeId);
+  if (!selected || selected.kind !== "symbol") {
+    return new Set();
+  }
+  return new Set(frame.edges.filter((edge) => edge.from === selectedNodeId || edge.to === selectedNodeId).map((edge) => edge.id));
 }
 
 function shouldShowNode(node: SymbolMapNode, zoom: number, selected: boolean, related: boolean): boolean {
