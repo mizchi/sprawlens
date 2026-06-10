@@ -41,7 +41,12 @@ import {
 import type { AtlasEdge } from "../contracts/graph.js";
 import { defaultLayerOf, matchTestTargets } from "../contracts/layers.js";
 import { fetchCallHierarchy, refsToEdges } from "./callHierarchyClient.ts";
-import { diffGraphs, type HistoryEntry } from "./history.ts";
+import {
+  buildHistoryIndex,
+  diffGraphs,
+  type HistoryEntry,
+  type HistoryIndex,
+} from "./history.ts";
 
 const WIDTH = 960;
 const HEIGHT = 640;
@@ -191,6 +196,7 @@ export function App() {
   const playwrightSnapRef = useRef<SnapshotLike | null>(null);
   /** Git-log history fixture and the commit currently on display. */
   const commitsRef = useRef<HistoryEntry[] | null>(null);
+  const historyIndexRef = useRef<HistoryIndex | null>(null);
   const commitIndexRef = useRef(-1);
   const changedFilesRef = useRef(new Map<string, "added" | "modified">());
   const lastDiffRef = useRef({ added: 0, modified: 0, removed: 0 });
@@ -317,6 +323,23 @@ export function App() {
     innerCursorRef.current = 0;
   };
 
+  /** Highlight what the displayed commit itself changed (vs its parent). */
+  const applyCommitDiff = (index: number) => {
+    const diff = historyIndexRef.current?.diffs[index];
+    if (!diff) {
+      changedFilesRef.current = new Map();
+      lastDiffRef.current = { added: 0, modified: 0, removed: 0 };
+      return;
+    }
+    changedFilesRef.current = diff.changed;
+    lastDiffRef.current = {
+      added: [...diff.changed.values()].filter((k) => k === "added").length,
+      modified: [...diff.changed.values()].filter((k) => k === "modified")
+        .length,
+      removed: diff.removed.length,
+    };
+  };
+
   const rebuild = (p: PlaygroundParams) => {
     let graph: AtlasGraph;
     if (p.source === "sprawlens") {
@@ -333,6 +356,7 @@ export function App() {
           .then((r) => r.json())
           .then((json: HistoryEntry[]) => {
             commitsRef.current = json;
+            historyIndexRef.current = buildHistoryIndex(json);
             if (paramsRef.current.source === "sprawlens-history") {
               rebuild(paramsRef.current);
               setFrame((f) => f + 1);
@@ -350,8 +374,7 @@ export function App() {
         graph = snapshotToAtlasGraph(snapshot);
         symbolsRef.current = snapshotSymbols(snapshot);
         symbolEdgesRef.current = snapshotSymbolEdges(snapshot);
-        changedFilesRef.current = new Map();
-        lastDiffRef.current = { added: 0, modified: 0, removed: 0 };
+        applyCommitDiff(index);
       }
     } else if (p.source === "playwright") {
       const snapshot = playwrightSnapRef.current;
@@ -580,8 +603,8 @@ export function App() {
   };
 
   /**
-   * Display another commit of the loaded history: the file-level diff drives
-   * the highlight, and the warm-started layout re-flow IS the animation.
+   * Display another commit of the loaded history: the commit's own diff
+   * drives the highlight, and the warm-started re-flow IS the animation.
    */
   const goToCommit = (index: number) => {
     const history = commitsRef.current;
@@ -589,18 +612,13 @@ export function App() {
     if (index === commitIndexRef.current) return;
     const snapshot = history[index]!.snapshot;
     const nextGraph = snapshotToAtlasGraph(snapshot);
-    const diff = diffGraphs(graphRef.current, nextGraph);
-    changedFilesRef.current = diff.changed;
-    lastDiffRef.current = {
-      added: [...diff.changed.values()].filter((k) => k === "added").length,
-      modified: [...diff.changed.values()].filter((k) => k === "modified")
-        .length,
-      removed: diff.removed.length,
-    };
-    // changed files get new symbol ids (line numbers move); reset their nests
-    for (const [id] of diff.changed) innerLayoutsRef.current.delete(id);
-    for (const id of diff.removed) innerLayoutsRef.current.delete(id);
+    // invalidation must compare displayed vs next (symbol ids carry line
+    // numbers); the highlight uses the commit-vs-parent diff instead
+    const scrub = diffGraphs(graphRef.current, nextGraph);
+    for (const [id] of scrub.changed) innerLayoutsRef.current.delete(id);
+    for (const id of scrub.removed) innerLayoutsRef.current.delete(id);
     innerDirtyRef.current = true;
+    applyCommitDiff(index);
     graphRef.current = nextGraph;
     symbolsRef.current = snapshotSymbols(snapshot);
     symbolEdgesRef.current = snapshotSymbolEdges(snapshot);
@@ -1185,6 +1203,54 @@ export function App() {
               >
                 covers: {labelOf(testTargets.get(selectedTest.id)!)}
               </button>
+            ) : null}
+            {params.source === "sprawlens-history" &&
+            selectedId &&
+            historyIndexRef.current?.nodeHistory.has(selectedId) ? (
+              <div style={{ marginTop: "6px" }}>
+                <div style={{ fontWeight: "600" }}>
+                  変更履歴 (
+                  {historyIndexRef.current.nodeHistory.get(selectedId)!.length}
+                  )
+                </div>
+                {[...historyIndexRef.current.nodeHistory.get(selectedId)!]
+                  .reverse()
+                  .map((change) => {
+                    const commit = commitsRef.current?.[change.index];
+                    if (!commit) return null;
+                    const marker =
+                      change.kind === "added"
+                        ? ["＋", "#059669"]
+                        : change.kind === "modified"
+                          ? ["～", "#d97706"]
+                          : ["－", "#dc2626"];
+                    const current = change.index === commitIndexRef.current;
+                    return (
+                      <button
+                        key={`${change.index}-${change.kind}`}
+                        onClick={() => goToCommit(change.index)}
+                        style={{
+                          display: "block",
+                          width: "100%",
+                          textAlign: "left",
+                          padding: "2px 4px",
+                          fontSize: "11px",
+                          cursor: "pointer",
+                          background: current ? "#e0e7ff" : "none",
+                          border: "none",
+                          color: "#0f172a",
+                          fontWeight: current ? "600" : "400",
+                        }}
+                      >
+                        <span style={{ color: marker[1] }}>{marker[0]}</span>{" "}
+                        <span style={{ color: "#64748b" }}>
+                          {commit.shortHash}
+                        </span>{" "}
+                        {commit.message.split("\n")[0]}
+                      </button>
+                    );
+                  })}
+              </div>
             ) : null}
             {selectedRefs.incoming.length > 0 ? (
               <div style={{ marginTop: "6px" }}>
