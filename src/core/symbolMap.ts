@@ -1,4 +1,4 @@
-import { hierarchy, treemap, treemapDice } from "d3-hierarchy";
+import { hierarchy, treemap } from "d3-hierarchy";
 import type { HierarchyRectangularNode } from "d3-hierarchy";
 import {
   buildModuleMapFrame,
@@ -85,7 +85,6 @@ export type BuildSymbolMapOptions = {
 const MAP_WIDTH = 1200;
 const MAP_HEIGHT = 1800;
 const MAP_PADDING = 24;
-const MODULE_BAND_GAP = 34;
 const MODULE_PADDING = 18;
 const MODULE_HEADER = 34;
 const FILE_PADDING = 5;
@@ -110,6 +109,22 @@ type SymbolStats = {
   fanOut: number;
   crossModuleFanIn: number;
   crossModuleFanOut: number;
+};
+
+type ModuleLayoutNode = {
+  module: ModuleParcel;
+  degree: number;
+  x: number;
+  y: number;
+  w: number;
+  h: number;
+};
+
+type ModuleAttraction = {
+  from: string;
+  to: string;
+  weight: number;
+  desired: number;
 };
 
 type RectLayout<T> = {
@@ -313,119 +328,249 @@ function selectSymbolsByFile(files: ModuleFile[], stats: Map<string, SymbolStats
 }
 
 function layoutModules(modules: ModuleParcel[], dependencies: ModuleMapFrame["dependencies"]): Map<string, RectLayout<ModuleParcel>> {
-  const ranks = moduleDependencyRanks(modules, dependencies);
-  const rankedModules = groupBy(modules, (module) => String(ranks.get(module.id) ?? 0));
-  const rankKeys = [...rankedModules.keys()].map(Number).sort((a, b) => a - b);
-  const availableWidth = Math.max(1, MAP_WIDTH - MAP_PADDING * 2);
-  const availableHeight = Math.max(1, MAP_HEIGHT - MAP_PADDING * 2 - Math.max(0, rankKeys.length - 1) * MODULE_BAND_GAP);
-  const rankWeights = rankKeys.map((rank) => Math.max(1, (rankedModules.get(String(rank)) ?? []).reduce((sum, module) => sum + module.loc, 0)));
-  const totalWeight = Math.max(1, rankWeights.reduce((sum, weight) => sum + weight, 0));
-  const minBandHeight = Math.min(230, availableHeight / Math.max(1, rankKeys.length * 2.25));
-  const flexibleHeight = Math.max(0, availableHeight - minBandHeight * rankKeys.length);
-  let y = MAP_PADDING;
-  const layouts = new Map<string, RectLayout<ModuleParcel>>();
-  const moduleOrder = new Map<string, number>();
-
-  rankKeys.forEach((rank, index) => {
-    const modulesInRank = orderModulesInRank(rankedModules.get(String(rank)) ?? [], dependencies, moduleOrder);
-    const bandHeight = minBandHeight + flexibleHeight * ((rankWeights[index] ?? 1) / totalWeight);
-    const root = hierarchy<ModuleRectDatum>({
-      type: "root",
-      value: 0,
-      children: modulesInRank.map((module) => ({ type: "module", module, value: Math.max(1, module.loc) })),
-    })
-      .sum((node) => node.value)
-      .sort((a, b) => moduleSortIndex(modulesInRank, a.data.module) - moduleSortIndex(modulesInRank, b.data.module));
-    const laidOut = treemap<ModuleRectDatum>()
-      .tile(treemapDice)
-      .size([availableWidth, bandHeight])
-      .paddingOuter(2)
-      .paddingInner(10)
-      .round(true)(root);
-    for (const leaf of laidOut.leaves()) {
-      if (!leaf.data.module) {
-        continue;
-      }
-      layouts.set(leaf.data.module.id, rectLayout(leaf.data.module, leaf, MAP_PADDING, y));
-      moduleOrder.set(leaf.data.module.id, moduleOrder.size);
-    }
-    y += bandHeight + MODULE_BAND_GAP;
-  });
-
-  return layouts;
-}
-
-function moduleSortIndex(modules: ModuleParcel[], module: ModuleParcel | undefined): number {
-  if (!module) {
-    return modules.length;
-  }
-  const index = modules.findIndex((item) => item.id === module.id);
-  return index === -1 ? modules.length : index;
-}
-
-function orderModulesInRank(modules: ModuleParcel[], dependencies: ModuleMapFrame["dependencies"], previousOrder: Map<string, number>): ModuleParcel[] {
-  return [...modules].sort((a, b) => {
-    const aCenter = dependencyBarycenter(a.id, dependencies, previousOrder);
-    const bCenter = dependencyBarycenter(b.id, dependencies, previousOrder);
-    if (aCenter !== bCenter) {
-      return aCenter - bCenter;
-    }
-    return b.loc - a.loc || a.path.localeCompare(b.path);
-  });
-}
-
-function dependencyBarycenter(moduleId: string, dependencies: ModuleMapFrame["dependencies"], previousOrder: Map<string, number>): number {
-  let weighted = 0;
-  let total = 0;
-  for (const dependency of dependencies) {
-    if (dependency.from !== moduleId) {
-      continue;
-    }
-    const targetOrder = previousOrder.get(dependency.to);
-    if (targetOrder === undefined) {
-      continue;
-    }
-    const weight = Math.max(1, dependency.importCount);
-    weighted += targetOrder * weight;
-    total += weight;
-  }
-  return total > 0 ? weighted / total : Number.POSITIVE_INFINITY;
-}
-
-function moduleDependencyRanks(modules: ModuleParcel[], dependencies: ModuleMapFrame["dependencies"]): Map<string, number> {
   const moduleIds = new Set(modules.map((module) => module.id));
-  const outgoing = new Map<string, string[]>();
+  const degree = moduleDegree(modules, dependencies);
+  const totalLoc = Math.max(1, modules.reduce((sum, module) => sum + Math.max(1, module.loc), 0));
+  const targetArea = MAP_WIDTH * MAP_HEIGHT * 0.24;
+  const centerX = MAP_WIDTH / 2;
+  const centerY = MAP_HEIGHT / 2;
+  const sortedModules = [...modules].sort((a, b) => b.loc - a.loc || a.path.localeCompare(b.path));
+  const nodes = sortedModules.map((module, index): ModuleLayoutNode => {
+    const side = clamp(Math.sqrt((Math.max(1, module.loc) / totalLoc) * targetArea), 30, 360);
+    const hasDependency = (degree.get(module.id) ?? 0) > 0;
+    const angle = index * 2.399963229728653;
+    const radius = hasDependency ? 260 + Math.sqrt(index) * 54 : 14 + index * 4;
+    return {
+      module,
+      degree: degree.get(module.id) ?? 0,
+      x: centerX + Math.cos(angle) * radius,
+      y: centerY + Math.sin(angle) * radius,
+      w: side,
+      h: side,
+    };
+  });
+  const nodeById = new Map(nodes.map((node) => [node.module.id, node]));
+  seedDependencyClusters(nodes, nodeById, dependencies, moduleIds);
+  const attractions = moduleAttractions(dependencies, moduleIds, nodeById);
+
+  for (let iteration = 0; iteration < 260; iteration++) {
+    const alpha = 1 - iteration / 260;
+    applyCenterForces(nodes, centerX, centerY, alpha);
+    applyAttractions(nodes, nodeById, attractions, alpha);
+    applyCollisions(nodes, alpha);
+    keepNodesInBounds(nodes);
+  }
+  for (let iteration = 0; iteration < 120; iteration++) {
+    applyCollisions(nodes, 1);
+    keepNodesInBounds(nodes);
+  }
+
+  return new Map(
+    nodes.map((node) => [
+      node.module.id,
+      {
+        item: node.module,
+        x0: node.x - node.w / 2,
+        y0: node.y - node.h / 2,
+        x1: node.x + node.w / 2,
+        y1: node.y + node.h / 2,
+        x: node.x,
+        y: node.y,
+        w: node.w,
+        h: node.h,
+        r: Math.hypot(node.w, node.h) / 2,
+      },
+    ]),
+  );
+}
+
+function moduleDegree(modules: ModuleParcel[], dependencies: ModuleMapFrame["dependencies"]): Map<string, number> {
+  const moduleIds = new Set(modules.map((module) => module.id));
+  const degree = new Map(modules.map((module) => [module.id, 0]));
   for (const dependency of dependencies) {
     if (!moduleIds.has(dependency.from) || !moduleIds.has(dependency.to) || dependency.from === dependency.to) {
       continue;
     }
-    const current = outgoing.get(dependency.from) ?? [];
-    current.push(dependency.to);
-    outgoing.set(dependency.from, current);
+    degree.set(dependency.from, (degree.get(dependency.from) ?? 0) + dependency.importCount);
+    degree.set(dependency.to, (degree.get(dependency.to) ?? 0) + dependency.importCount);
   }
-  const memo = new Map<string, number>();
-  const visiting = new Set<string>();
-  const rankOf = (moduleId: string): number => {
-    const cached = memo.get(moduleId);
-    if (cached !== undefined) {
-      return cached;
+  return degree;
+}
+
+function seedDependencyClusters(
+  nodes: ModuleLayoutNode[],
+  nodeById: Map<string, ModuleLayoutNode>,
+  dependencies: ModuleMapFrame["dependencies"],
+  moduleIds: Set<string>,
+): void {
+  const centerX = MAP_WIDTH / 2;
+  const centerY = MAP_HEIGHT / 2;
+  const bestTargetBySource = new Map<string, { target: string; weight: number }>();
+  for (const dependency of dependencies) {
+    if (!moduleIds.has(dependency.from) || !moduleIds.has(dependency.to) || dependency.from === dependency.to) {
+      continue;
     }
-    if (visiting.has(moduleId)) {
-      return 0;
+    const current = bestTargetBySource.get(dependency.from);
+    if (!current || dependency.importCount > current.weight) {
+      bestTargetBySource.set(dependency.from, { target: dependency.to, weight: dependency.importCount });
     }
-    visiting.add(moduleId);
-    let rank = 0;
-    for (const targetId of outgoing.get(moduleId) ?? []) {
-      rank = Math.max(rank, rankOf(targetId) + 1);
-    }
-    visiting.delete(moduleId);
-    memo.set(moduleId, rank);
-    return rank;
-  };
-  for (const module of modules) {
-    rankOf(module.id);
   }
-  return memo;
+
+  const sourcesByTarget = new Map<string, string[]>();
+  for (const [source, target] of bestTargetBySource) {
+    const current = sourcesByTarget.get(target.target) ?? [];
+    current.push(source);
+    sourcesByTarget.set(target.target, current);
+  }
+
+  const targetIds = [...sourcesByTarget.keys()].sort((a, b) => (nodeById.get(b)?.degree ?? 0) - (nodeById.get(a)?.degree ?? 0) || a.localeCompare(b));
+  for (const [index, targetId] of targetIds.entries()) {
+    const target = nodeById.get(targetId);
+    if (!target) {
+      continue;
+    }
+    const angle = index * 2.399963229728653;
+    const radius = 160 + Math.sqrt(index) * 70;
+    target.x = centerX + Math.cos(angle) * radius;
+    target.y = centerY + Math.sin(angle) * radius;
+  }
+
+  for (const [targetId, sourceIds] of sourcesByTarget) {
+    const target = nodeById.get(targetId);
+    if (!target) {
+      continue;
+    }
+    const sortedSources = sourceIds.sort((a, b) => (nodeById.get(b)?.degree ?? 0) - (nodeById.get(a)?.degree ?? 0) || a.localeCompare(b));
+    for (const [index, sourceId] of sortedSources.entries()) {
+      const source = nodeById.get(sourceId);
+      if (!source) {
+        continue;
+      }
+      const angle = -Math.PI / 2 + (index - (sortedSources.length - 1) / 2) * 0.9;
+      const radius = Math.max(target.w, target.h) / 2 + Math.max(source.w, source.h) / 2 + 72;
+      source.x = target.x + Math.cos(angle) * radius;
+      source.y = target.y + Math.sin(angle) * radius;
+    }
+  }
+
+  for (const node of nodes) {
+    if (node.degree === 0) {
+      node.x = centerX;
+      node.y = centerY;
+    }
+  }
+  keepNodesInBounds(nodes);
+}
+
+function moduleAttractions(dependencies: ModuleMapFrame["dependencies"], moduleIds: Set<string>, nodeById: Map<string, ModuleLayoutNode>): ModuleAttraction[] {
+  const attractions: ModuleAttraction[] = [];
+  const targetsBySource = new Map<string, Array<{ target: string; weight: number }>>();
+  for (const dependency of dependencies) {
+    if (!moduleIds.has(dependency.from) || !moduleIds.has(dependency.to) || dependency.from === dependency.to) {
+      continue;
+    }
+    const from = nodeById.get(dependency.from);
+    const to = nodeById.get(dependency.to);
+    if (!from || !to) {
+      continue;
+    }
+    const weight = Math.max(1, Math.log2(dependency.importCount + 1));
+    attractions.push({
+      from: dependency.from,
+      to: dependency.to,
+      weight,
+      desired: (Math.max(from.w, from.h) + Math.max(to.w, to.h)) / 2 + 54,
+    });
+    const current = targetsBySource.get(dependency.to) ?? [];
+    current.push({ target: dependency.from, weight });
+    targetsBySource.set(dependency.to, current);
+  }
+  for (const sources of targetsBySource.values()) {
+    for (let i = 0; i < sources.length; i++) {
+      for (let j = i + 1; j < sources.length; j++) {
+        const a = sources[i];
+        const b = sources[j];
+        if (!a || !b) {
+          continue;
+        }
+        const from = nodeById.get(a.target);
+        const to = nodeById.get(b.target);
+        if (!from || !to) {
+          continue;
+        }
+        attractions.push({
+          from: a.target,
+          to: b.target,
+          weight: Math.min(a.weight, b.weight) * 1.2,
+          desired: (Math.max(from.w, from.h) + Math.max(to.w, to.h)) / 2 + 42,
+        });
+      }
+    }
+  }
+  return attractions;
+}
+
+function applyCenterForces(nodes: ModuleLayoutNode[], centerX: number, centerY: number, alpha: number): void {
+  for (const node of nodes) {
+    const strength = node.degree === 0 ? 0.055 : 0.004;
+    node.x += (centerX - node.x) * strength * alpha;
+    node.y += (centerY - node.y) * strength * alpha;
+  }
+}
+
+function applyAttractions(nodes: ModuleLayoutNode[], nodeById: Map<string, ModuleLayoutNode>, attractions: ModuleAttraction[], alpha: number): void {
+  void nodes;
+  for (const attraction of attractions) {
+    const from = nodeById.get(attraction.from);
+    const to = nodeById.get(attraction.to);
+    if (!from || !to) {
+      continue;
+    }
+    const dx = to.x - from.x || 0.01;
+    const dy = to.y - from.y || 0.01;
+    const distance = Math.max(1, Math.hypot(dx, dy));
+    const force = (distance - attraction.desired) * 0.014 * attraction.weight * alpha;
+    const ux = dx / distance;
+    const uy = dy / distance;
+    from.x += ux * force;
+    from.y += uy * force;
+    to.x -= ux * force;
+    to.y -= uy * force;
+  }
+}
+
+function applyCollisions(nodes: ModuleLayoutNode[], alpha: number): void {
+  for (let i = 0; i < nodes.length; i++) {
+    for (let j = i + 1; j < nodes.length; j++) {
+      const a = nodes[i];
+      const b = nodes[j];
+      if (!a || !b) {
+        continue;
+      }
+      const overlapX = (a.w + b.w) / 2 + 18 - Math.abs(a.x - b.x);
+      const overlapY = (a.h + b.h) / 2 + 18 - Math.abs(a.y - b.y);
+      if (overlapX <= 0 || overlapY <= 0) {
+        continue;
+      }
+      const pushX = overlapX < overlapY;
+      const sign = pushX ? Math.sign(a.x - b.x) || 1 : Math.sign(a.y - b.y) || 1;
+      const push = (pushX ? overlapX : overlapY) * 0.54 * alpha;
+      if (pushX) {
+        a.x += sign * push;
+        b.x -= sign * push;
+      } else {
+        a.y += sign * push;
+        b.y -= sign * push;
+      }
+    }
+  }
+}
+
+function keepNodesInBounds(nodes: ModuleLayoutNode[]): void {
+  for (const node of nodes) {
+    node.x = clamp(node.x, MAP_PADDING + node.w / 2, MAP_WIDTH - MAP_PADDING - node.w / 2);
+    node.y = clamp(node.y, MAP_PADDING + node.h / 2, MAP_HEIGHT - MAP_PADDING - node.h / 2);
+  }
 }
 
 function rectLayout<T>(item: T, leaf: { x0: number; y0: number; x1: number; y1: number }, offsetX: number, offsetY: number): RectLayout<T> {

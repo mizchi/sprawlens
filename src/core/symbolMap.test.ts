@@ -72,12 +72,13 @@ function snapshot(
 }
 
 describe("symbol map model", () => {
-  it("lays modules as rectangular dependency columns while preserving file containment", () => {
+  it("places modules as weighted network rectangles while preserving file containment", () => {
     const frame = buildSymbolMapFrame(
       snapshot(
         [
           { path: "packages/app/src/index.ts", loc: 120, exported: ["start"], internal: ["render"] },
           { path: "packages/core/src/api.ts", loc: 360, exported: ["request"], internal: ["parse"] },
+          { path: "packages/standalone/src/main.ts", loc: 140, exported: ["run"] },
         ],
         [
           [
@@ -108,8 +109,10 @@ describe("symbol map model", () => {
 
     expect(core).toMatchObject({ kind: "module", w: expect.any(Number), h: expect.any(Number) });
     expect(app).toMatchObject({ kind: "module", w: expect.any(Number), h: expect.any(Number) });
-    expect(core!.y).toBeLessThan(app!.y);
+    expect(distance(app!, core!)).toBeLessThan((app!.w ?? 0) / 2 + (core!.w ?? 0) / 2 + 150);
     expect((core!.w ?? 0) * (core!.h ?? 0)).toBeGreaterThan((app!.w ?? 0) * (app!.h ?? 0));
+    expect(aspectRatio(app!)).toBeLessThan(2.2);
+    expect(aspectRatio(core!)).toBeLessThan(2.2);
     expect(coreFile).toMatchObject({ kind: "file", parentId: core!.id, w: expect.any(Number), h: expect.any(Number) });
     expect(request).toMatchObject({ kind: "symbol", parentId: coreFile!.id });
     expect(request!.x).toBeGreaterThanOrEqual(coreFile!.x - (coreFile!.w ?? 0) / 2);
@@ -118,13 +121,14 @@ describe("symbol map model", () => {
     expect(request!.y).toBeLessThanOrEqual(coreFile!.y + (coreFile!.h ?? 0) / 2);
   });
 
-  it("keeps modules with nearby dependency targets close within a vertical rank", () => {
+  it("keeps modules with shared dependency targets close and isolated modules near the center", () => {
     const frame = buildSymbolMapFrame(
       snapshot(
         [
           { path: "packages/app-a/src/index.ts", loc: 120, exported: ["startA"] },
           { path: "packages/app-b/src/index.ts", loc: 120, exported: ["startB"] },
           { path: "packages/app-c/src/index.ts", loc: 120, exported: ["startC"] },
+          { path: "packages/standalone/src/main.ts", loc: 120, exported: ["run"] },
           { path: "packages/core-a/src/api.ts", loc: 120, exported: ["apiA"] },
           { path: "packages/core-b/src/api.ts", loc: 120, exported: ["apiB"] },
         ],
@@ -184,11 +188,14 @@ describe("symbol map model", () => {
     const appA = frame.nodes.find((node) => node.id === "module:packages/app-a");
     const appB = frame.nodes.find((node) => node.id === "module:packages/app-b");
     const appC = frame.nodes.find((node) => node.id === "module:packages/app-c");
-    const coreA = frame.nodes.find((node) => node.id === "module:packages/core-a");
+    const standalone = frame.nodes.find((node) => node.id === "module:packages/standalone");
+    const center = {
+      x: (frame.bounds.minX + frame.bounds.maxX) / 2,
+      y: (frame.bounds.minY + frame.bounds.maxY) / 2,
+    };
 
-    expect(coreA!.y).toBeLessThan(appA!.y);
-    expect(Math.abs(appA!.y - appB!.y)).toBeLessThan(80);
-    expect(Math.abs(appA!.x - appB!.x)).toBeLessThan(Math.abs(appA!.x - appC!.x));
+    expect(distance(appA!, appB!)).toBeLessThan(distance(appA!, appC!));
+    expect(distanceToPoint(standalone!, center)).toBeLessThan(distanceToPoint(appA!, center));
   });
 
   it("sizes file boxes by LOC while symbols remain graph nodes", () => {
@@ -334,3 +341,17 @@ describe("symbol map model", () => {
     expect(unused!.visibleAtZoom).toBeGreaterThanOrEqual(2.5);
   });
 });
+
+function distance(a: { x: number; y: number }, b: { x: number; y: number }): number {
+  return Math.hypot(a.x - b.x, a.y - b.y);
+}
+
+function distanceToPoint(a: { x: number; y: number }, b: { x: number; y: number }): number {
+  return Math.hypot(a.x - b.x, a.y - b.y);
+}
+
+function aspectRatio(node: { w?: number; h?: number }): number {
+  const w = Math.max(1, node.w ?? 1);
+  const h = Math.max(1, node.h ?? 1);
+  return Math.max(w / h, h / w);
+}

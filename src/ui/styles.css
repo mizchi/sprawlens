@@ -1894,6 +1894,29 @@ tbody tr:hover,
   stroke-width: 3;
 }
 
+.symbol-map-module-route {
+  stroke: #64748b;
+  stroke-linecap: round;
+  opacity: 0.22;
+  pointer-events: none;
+  vector-effect: non-scaling-stroke;
+}
+
+.symbol-map-module-route.outgoing {
+  stroke: #0f766e;
+  opacity: 0.46;
+}
+
+.symbol-map-module-route.incoming {
+  stroke: #b45309;
+  opacity: 0.46;
+}
+
+.symbol-map-module-route.added {
+  stroke: #0f766e;
+  opacity: 0.58;
+}
+
 .symbol-map.symbol-focus .symbol-map-node.module:not(.selected),
 .symbol-map.symbol-focus .symbol-map-node.file:not(.selected):not(.related),
 .symbol-map.symbol-focus .symbol-map-node.symbol:not(.selected):not(.related) {

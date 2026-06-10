@@ -30,6 +30,14 @@ type DragState = {
 
 type SelectedEdgeDirection = "incoming" | "outgoing" | "neutral";
 
+type ModuleRouteEdge = {
+  id: string;
+  fromModuleId: string;
+  toModuleId: string;
+  importCount: number;
+  status: SymbolMapEdge["status"];
+};
+
 const MIN_ZOOM = 0.18;
 const MAX_ZOOM = 8;
 const EDGE_VIEWPORT_PRUNE_ZOOM = 1.35;
@@ -141,6 +149,7 @@ export function SymbolMapView(props: SymbolMapViewProps) {
   const visibleNodeIds = new Set(visibleNodes.map((node) => node.id));
   const focusEdgeIds = selectedDependencyEdgeIds(frame, selectedNodeId);
   const nodeById = new Map(frame.nodes.map((node) => [node.id, node]));
+  const routeFocusModuleId = selectedNode?.kind === "module" ? selectedNode.id : selectedNode?.kind === "file" ? (selectedNode.moduleId ?? "") : "";
   const visibleEdges = visibleSymbolEdgesForSelection(frame.edges, visibleNodeIds, focusEdgeIds, view.zoom, {
     nodeById,
     selectedNodeId,
@@ -157,6 +166,7 @@ export function SymbolMapView(props: SymbolMapViewProps) {
   const visibleBackgroundSymbols = visibleSymbolNodes.filter((node) => !focusedNodeIds.has(node.id));
   const visibleFocusSymbols = visibleSymbolNodes.filter((node) => focusedNodeIds.has(node.id));
   const isSymbolFocus = selectedNode?.kind === "symbol";
+  const visibleModuleRoutes = isSymbolFocus ? [] : moduleRouteEdgesForMap(frame.edges, routeFocusModuleId, routeFocusModuleId ? 48 : 80);
 
   const onPointerDown = (event: PointerEvent<HTMLDivElement>) => {
     if (event.button !== 0) {
@@ -264,6 +274,11 @@ export function SymbolMapView(props: SymbolMapViewProps) {
             </marker>
           </defs>
           <g className="symbol-map-modules">
+            <g className="symbol-map-module-routes">
+              {visibleModuleRoutes.map((route) => (
+                <ModuleRouteLine key={route.id} route={route} nodeById={nodeById} selectedModuleId={routeFocusModuleId} />
+              ))}
+            </g>
             {visibleModuleNodes.map((node) => (
               <ModuleNode key={node.id} node={node} zoom={view.zoom} selected={node.id === selectedNodeId} onClick={selectNode} onDoubleClick={zoomToNode} />
             ))}
@@ -362,7 +377,7 @@ function ModuleNode(props: {
 }) {
   const w = props.node.w ?? props.node.r * 2;
   const h = props.node.h ?? props.node.r * 2;
-  const showLabel = props.selected || props.zoom <= 1.1 || (w * props.zoom >= 128 && h * props.zoom >= 58);
+  const showLabel = props.selected || (props.zoom >= 0.72 && w * props.zoom >= 128 && h * props.zoom >= 58);
   return (
     <g
       className={`symbol-map-node module ${props.node.status}${props.selected ? " selected" : ""}`}
@@ -377,6 +392,26 @@ function ModuleNode(props: {
       ) : null}
       <title>{`${props.node.path}\n${formatNumber(props.node.loc)} LOC`}</title>
     </g>
+  );
+}
+
+function ModuleRouteLine(props: { route: ModuleRouteEdge; nodeById: Map<string, SymbolMapNode>; selectedModuleId: string }) {
+  const from = props.nodeById.get(props.route.fromModuleId);
+  const to = props.nodeById.get(props.route.toModuleId);
+  if (!from || !to) {
+    return null;
+  }
+  const direction = props.route.fromModuleId === props.selectedModuleId ? "outgoing" : props.route.toModuleId === props.selectedModuleId ? "incoming" : "neutral";
+  return (
+    <line
+      x1={from.x}
+      y1={from.y}
+      x2={to.x}
+      y2={to.y}
+      className={`symbol-map-module-route ${props.route.status} ${direction}`}
+      strokeWidth={Math.min(7, 1.1 + Math.sqrt(props.route.importCount) * 0.72)}
+      markerEnd="url(#symbol-map-arrow)"
+    />
   );
 }
 
@@ -701,6 +736,51 @@ export function visibleSymbolEdgesForSelection(
   return { background: backgroundCandidates.slice(0, context.maxBackgroundEdges ?? backgroundEdgeBudget(zoom, selectedNode)).map((candidate) => candidate.edge), focus };
 }
 
+export function moduleRouteEdgesForMap(edges: SymbolMapEdge[], selectedModuleId = "", maxRoutes = 80): ModuleRouteEdge[] {
+  const routes = new Map<string, ModuleRouteEdge>();
+  for (const edge of edges) {
+    if (!edge.fromModuleId || !edge.toModuleId || edge.fromModuleId === edge.toModuleId) {
+      continue;
+    }
+    const id = `module-route:${edge.fromModuleId}->${edge.toModuleId}`;
+    const current = routes.get(id) ?? {
+      id,
+      fromModuleId: edge.fromModuleId,
+      toModuleId: edge.toModuleId,
+      importCount: 0,
+      status: "stable" as SymbolMapEdge["status"],
+    };
+    current.importCount += edge.importCount;
+    current.status = mergeRouteStatus(current.status, edge.status);
+    routes.set(id, current);
+  }
+  return [...routes.values()]
+    .filter((route) => !selectedModuleId || route.fromModuleId === selectedModuleId || route.toModuleId === selectedModuleId)
+    .sort(
+      (a, b) =>
+        Number(routeTouches(b, selectedModuleId)) - Number(routeTouches(a, selectedModuleId)) ||
+        b.importCount - a.importCount ||
+        a.fromModuleId.localeCompare(b.fromModuleId) ||
+        a.toModuleId.localeCompare(b.toModuleId),
+    )
+    .slice(0, maxRoutes);
+}
+
+function routeTouches(route: ModuleRouteEdge, moduleId: string): boolean {
+  return Boolean(moduleId && (route.fromModuleId === moduleId || route.toModuleId === moduleId));
+}
+
+function mergeRouteStatus(current: SymbolMapEdge["status"], next: SymbolMapEdge["status"]): SymbolMapEdge["status"] {
+  const priority: Record<SymbolMapEdge["status"], number> = {
+    stable: 0,
+    changed: 1,
+    hotspot: 2,
+    added: 3,
+    removed: 4,
+  };
+  return priority[next] > priority[current] ? next : current;
+}
+
 function edgeMatchesSelectedScope(edge: SymbolMapEdge, selectedNode: SymbolMapNode | undefined, nodeById: Map<string, SymbolMapNode> | undefined): boolean {
   if (!selectedNode) {
     return true;
@@ -860,7 +940,7 @@ export function shouldShowSymbolLabel(node: SymbolMapNode, zoom: number, selecte
   }
   const activity = node.fanIn + node.fanOut + node.crossModuleFanIn * 2 + node.crossModuleFanOut * 2;
   if (node.surface === "public") {
-    return zoom >= 0.72 || activity >= 4;
+    return zoom >= 0.78;
   }
   if (node.surface === "exported") {
     return (zoom >= 2.35 && activity >= 3) || zoom >= 3.45;

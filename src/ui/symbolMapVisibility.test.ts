@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  moduleRouteEdgesForMap,
   relatedNodeIds,
   selectedEdgeDirection,
   selectedDependencyEdgeIds,
@@ -119,6 +120,22 @@ function dependencies(selectedId: string, incomingId: string, outgoingId: string
 }
 
 describe("symbol map visibility", () => {
+  it("aggregates symbol routes into weighted module routes", () => {
+    const symbolEdges = [
+      edge("symbol:a", "symbol:b", { fromModuleId: "module:app", toModuleId: "module:core", importCount: 2 }),
+      edge("symbol:c", "symbol:d", { fromModuleId: "module:app", toModuleId: "module:core", importCount: 3, status: "added" }),
+      edge("symbol:e", "symbol:f", { fromModuleId: "module:test", toModuleId: "module:core", importCount: 1 }),
+      edge("symbol:g", "symbol:h", { fromModuleId: "module:app", toModuleId: "module:app", importCount: 9 }),
+    ];
+    const routes = moduleRouteEdgesForMap(symbolEdges, "", 10);
+
+    expect(routes).toEqual([
+      expect.objectContaining({ id: "module-route:module:app->module:core", fromModuleId: "module:app", toModuleId: "module:core", importCount: 5, status: "added" }),
+      expect.objectContaining({ id: "module-route:module:test->module:core", importCount: 1, status: "stable" }),
+    ]);
+    expect(moduleRouteEdgesForMap(symbolEdges, "module:test", 10).map((route) => route.id)).toEqual(["module-route:module:test->module:core"]);
+  });
+
   it("shows public labels early", () => {
     expect(shouldShowSymbolLabel(symbol({ surface: "public", crossModuleFanIn: 1 }), 0.8, false, false)).toBe(true);
   });
