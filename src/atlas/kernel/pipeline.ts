@@ -52,18 +52,72 @@ export function embedSeedHints(
     graph.edges,
     { iterations: embedIterationsFor(n) },
   );
-  // embedding space is centered with RMS radius 1; place that radius at
-  // ~30% of the clip extent and clamp outliers inside
+  return mapToClip(positions, clip);
+}
+
+/**
+ * Multilevel seeding (the FM³ idea with communities as the coarse graph):
+ * embed the aggregated community graph first, init every member at its
+ * community's position, then refine with the full embedding. Clusters end
+ * up spatially contiguous, which the boundary rendering depends on.
+ */
+export function clusteredSeedHints(
+  graph: AtlasGraph,
+  clip: ClipRegion,
+  communityOf: ReadonlyMap<string, number>,
+): Map<string, Vec2> | null {
+  const n = graph.nodes.length;
+  if (n === 0 || n > EMBED_NODE_CAP) return null;
+  // aggregated community graph, edge weight = inter-community link count
+  const communityIds = [...new Set(communityOf.values())].sort(
+    (a, b) => a - b,
+  );
+  const linkWeights = new Map<string, number>();
+  for (const edge of graph.edges) {
+    const a = communityOf.get(edge.source);
+    const b = communityOf.get(edge.target);
+    if (a === undefined || b === undefined || a === b) continue;
+    const key = a < b ? `${a} ${b}` : `${b} ${a}`;
+    linkWeights.set(key, (linkWeights.get(key) ?? 0) + 1);
+  }
+  const communityPos = embedGraph(
+    communityIds.map(String),
+    [...linkWeights.entries()].map(([key, weight]) => {
+      const [a, b] = key.split(" ");
+      return { source: a!, target: b!, weight };
+    }),
+    { iterations: 200 },
+  );
+  const hints = new Map<string, Vec2>();
+  for (const node of graph.nodes) {
+    const c = communityOf.get(node.id);
+    const pos = c === undefined ? undefined : communityPos.get(String(c));
+    if (pos) hints.set(node.id, pos);
+  }
+  const positions = embedGraph(
+    graph.nodes.map((node) => node.id),
+    graph.edges,
+    { iterations: embedIterationsFor(n), hints },
+  );
+  return mapToClip(positions, clip);
+}
+
+/** Embedding space is centered with RMS radius 1; place that radius at
+ * ~30% of the clip extent and clamp outliers inside. */
+function mapToClip(
+  positions: ReadonlyMap<string, Vec2>,
+  clip: ClipRegion,
+): Map<string, Vec2> {
   const center = clipCenter(clip);
   const scale = clipScale(clip) * 0.3;
-  const hints = new Map<string, Vec2>();
+  const mapped = new Map<string, Vec2>();
   for (const [id, p] of positions) {
-    hints.set(
+    mapped.set(
       id,
       clampInto(clip, { x: center.x + p.x * scale, y: center.y + p.y * scale }),
     );
   }
-  return hints;
+  return mapped;
 }
 
 /**

@@ -9,7 +9,12 @@ import {
   type CellResult,
   type ClipRegion,
 } from "../kernel/capacityLayout.js";
-import { createGraphLayout, embedSeedHints } from "../kernel/pipeline.js";
+import { louvain } from "../kernel/louvain.js";
+import {
+  clusteredSeedHints,
+  createGraphLayout,
+  embedSeedHints,
+} from "../kernel/pipeline.js";
 import { centroid, containsPoint, type Ring } from "../kernel/polygon.js";
 import { createRng, type Rng } from "../kernel/rng.js";
 import { CellMapSvg } from "./CellMapSvg.tsx";
@@ -200,6 +205,8 @@ export function App() {
 
   const graphRef = useRef<AtlasGraph>(null as unknown as AtlasGraph);
   const layoutRef = useRef<CapacityLayoutState | null>(null);
+  /** Louvain assignments (finest → coarsest) for the cluster layout. */
+  const communityLevelsRef = useRef<Map<string, number>[] | null>(null);
   const ringsRef = useRef<RingsState | null>(null);
   const historyRef = useRef<number[]>([]);
   const fpsRef = useRef({ last: 0, ema: 0 });
@@ -491,14 +498,28 @@ export function App() {
     if (p.layout === "rings") {
       ringsRef.current = createRingsState(visible, ringsOptions(p));
       layoutRef.current = null;
+      communityLevelsRef.current = null;
     } else {
       const clip = clipOf(p.clipKind);
+      let hints = null;
+      if (p.layout === "louvain") {
+        // multi-level cluster layout: Louvain communities drive both the
+        // seeding (community graph first) and the enclosure rendering
+        const result = louvain(
+          visible.nodes.map((n) => n.id),
+          visible.edges,
+        );
+        communityLevelsRef.current = result.levels;
+        hints = clusteredSeedHints(visible, clip, result.communityOf);
+      } else {
+        communityLevelsRef.current = null;
+      }
       layoutRef.current = createGraphLayout(visible, clip, {
         seed: p.seed,
         adaptationRate: p.adaptationRate,
         lloydRate: p.lloydRate,
         circleSegments: segmentsOf(p.clipKind),
-        hints: embedSeedHints(visible, clip) ?? undefined,
+        hints: hints ?? embedSeedHints(visible, clip) ?? undefined,
       });
       ringsRef.current = null;
     }
@@ -1412,6 +1433,8 @@ export function App() {
             showEdges={params.showEdges}
             innerCells={innerCells}
             labels={labels}
+            communityLevels={communityLevelsRef.current ?? undefined}
+            changedFiles={changedFilesRef.current}
             width={WIDTH}
             height={HEIGHT}
             selectedId={activeId}

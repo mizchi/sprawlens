@@ -11,6 +11,11 @@ type Props = {
   innerCells: CellResult[];
   /** Display label per cell id; falls back to the id. */
   labels?: Map<string, string>;
+  /** Cluster assignments, finest → coarsest: tints cells by their final
+   * community and draws nested enclosure boundaries between clusters. */
+  communityLevels?: Map<string, number>[];
+  /** Working-tree diff: changed cells override the community tint. */
+  changedFiles?: Map<string, "added" | "modified">;
   width: number;
   height: number;
   selectedId: string | null;
@@ -25,6 +30,14 @@ function cellFill(targetArea: number, actualArea: number): string {
   return `hsl(${hue} ${30 + t * 60}% ${88 - t * 30}%)`;
 }
 
+/** Pale, distinct fill per community (golden-angle hue walk). */
+function communityFill(community: number): string {
+  return `hsl(${(community * 137.508) % 360} 45% 88%)`;
+}
+
+const MODIFIED_FILL = "hsl(8 85% 78%)";
+const ADDED_FILL = "hsl(150 55% 80%)";
+
 export function CellMapSvg(props: Props) {
   const {
     state,
@@ -32,12 +45,23 @@ export function CellMapSvg(props: Props) {
     showEdges,
     innerCells,
     labels,
+    communityLevels,
+    changedFiles,
     width,
     height,
     selectedId,
     onSelect,
   } = props;
   const siteById = new Map(state.cells.map((c) => [c.id, c.site]));
+  const finalLevel = communityLevels?.[communityLevels.length - 1];
+  const fillOf = (cell: CellResult) => {
+    const changed = changedFiles?.get(cell.id);
+    if (changed === "added") return ADDED_FILL;
+    if (changed === "modified") return MODIFIED_FILL;
+    const community = finalLevel?.get(cell.id);
+    if (community !== undefined) return communityFill(community);
+    return cellFill(cell.targetArea, cell.actualArea);
+  };
   return (
     <svg
       viewBox={`0 0 ${width} ${height}`}
@@ -50,7 +74,7 @@ export function CellMapSvg(props: Props) {
             <polygon
               key={cell.id}
               points={cell.polygon.map((p) => `${p.x},${p.y}`).join(" ")}
-              fill={cellFill(cell.targetArea, cell.actualArea)}
+              fill={fillOf(cell)}
               stroke={cell.id === selectedId ? "#1d4ed8" : "#475569"}
               stroke-width={cell.id === selectedId ? 2.5 : 0.75}
               onClick={(event) => {
@@ -61,6 +85,38 @@ export function CellMapSvg(props: Props) {
           ) : null,
         )}
       </g>
+      {/* nested cluster enclosures: a cell edge whose neighbor sits in a
+          different community at level k is a boundary of that level —
+          coarser levels draw thicker (the multi-level hierarchy) */}
+      {communityLevels?.map((level, levelIndex) => (
+        <g
+          key={`level-${levelIndex}`}
+          stroke="#0f172a"
+          stroke-width={1 + levelIndex * 1.2}
+          stroke-opacity={0.5 + (0.4 * levelIndex) / communityLevels.length}
+          stroke-linecap="round"
+          fill="none"
+        >
+          {state.cells.flatMap((cell) =>
+            cell.edges
+              .filter(
+                (edge) =>
+                  edge.neighborId !== null &&
+                  cell.id < edge.neighborId &&
+                  level.get(cell.id) !== level.get(edge.neighborId),
+              )
+              .map((edge, i) => (
+                <line
+                  key={`${cell.id}-${i}`}
+                  x1={edge.a.x}
+                  y1={edge.a.y}
+                  x2={edge.b.x}
+                  y2={edge.b.y}
+                />
+              )),
+          )}
+        </g>
+      ))}
       <g fill="none" stroke="#64748b" stroke-width={0.45} stroke-opacity={0.8}>
         {innerCells.map((cell) =>
           cell.polygon.length >= 3 ? (
