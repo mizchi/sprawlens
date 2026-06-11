@@ -122,6 +122,26 @@ describe("splitApiBoundary", () => {
   });
 });
 
+describe("splitApiBoundary with raw edges", () => {
+  it("marks targets of ambiguous cross-module references as boundary", () => {
+    const api = buildApiGraph(
+      fileGraph,
+      (id) => symbolsOf.get(id) ?? [],
+      symbolEdges,
+    );
+    // src/core/a.ts has two exports, so this file-source reference was
+    // dropped from the projection — but it still proves `only` is used
+    // from another module
+    const raw = [
+      { source: "src/ui/v.tsx", target: "symbol:src/core/b.ts:function:only:1" },
+    ];
+    const split = splitApiBoundary(api, apiModuleIdOf, raw);
+    expect(
+      split.boundaryByModule.get("src/core")!.map((n) => n.label).sort(),
+    ).toEqual(["foo", "only"]);
+  });
+});
+
 describe("apiModuleIdOf", () => {
   it("groups symbols by their parent file's module", () => {
     expect(apiModuleIdOf("symbol:src/core/a.ts:function:foo:1")).toBe(

@@ -277,7 +277,11 @@ export function App() {
       // the network's labels come from the projected symbols
       for (const node of api.nodes) labelsRef.current.set(node.id, node.label);
       displayGraphRef.current = api;
-      const split = splitApiBoundary(api, apiModuleIdOf);
+      const split = splitApiBoundary(
+        api,
+        apiModuleIdOf,
+        symbolEdgesRef.current,
+      );
       apiBoundaryRef.current = split.boundaryByModule;
       const partners = new Map<string, Set<string>>();
       for (const edge of api.edges) {

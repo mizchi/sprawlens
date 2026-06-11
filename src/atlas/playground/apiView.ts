@@ -35,13 +35,26 @@ export type ApiBoundarySplit = {
  * Symbols referenced from outside their module are the module's real
  * interface: they leave the cell layout and sit on the circle's rim as
  * adapter ports, with their inward references showing the delegation.
+ *
+ * `rawEdges` (the unprojected symbol references, sources may be file ids)
+ * widen the classification: a cross-module reference marks its target as
+ * boundary even when the using symbol was too ambiguous to project.
  */
 export function splitApiBoundary(
   api: AtlasGraph,
   moduleIdOf: (id: string) => string,
+  rawEdges: readonly AtlasEdge[] = [],
 ): ApiBoundarySplit {
+  const nodeIds = new Set(api.nodes.map((n) => n.id));
   const boundaryIds = new Set<string>();
   for (const edge of api.edges) {
+    if (moduleIdOf(edge.source) !== moduleIdOf(edge.target)) {
+      boundaryIds.add(edge.target);
+    }
+  }
+  for (const edge of rawEdges) {
+    if (!nodeIds.has(edge.target)) continue;
+    // moduleIdOf handles both symbol ids and plain file ids
     if (moduleIdOf(edge.source) !== moduleIdOf(edge.target)) {
       boundaryIds.add(edge.target);
     }
