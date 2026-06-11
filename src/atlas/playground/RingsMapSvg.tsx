@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "preact/hooks";
 import type { AtlasEdge } from "../contracts/graph.js";
 import type { CellResult } from "../kernel/capacityLayout.js";
+import { edgeKey } from "../kernel/scc.js";
 import type { Vec2 } from "../kernel/vec.js";
 import type { RingsState } from "./ringsController.ts";
 
@@ -54,6 +55,10 @@ type Props = {
   portNodes: { id: string; label: string; x: number; y: number }[];
   /** Module granularity hides the file subdivision entirely. */
   showFiles?: boolean;
+  /** Feedback edges (cycle breakers) drawn as red flows, always on. */
+  redEdges?: AtlasEdge[];
+  /** Module-edge keys (`edgeKey`) that go against the flow. */
+  redModuleKeys?: Set<string>;
   width: number;
   height: number;
   selectedId: string | null;
@@ -112,6 +117,8 @@ export function RingsMapSvg(props: Props) {
     onViewSettle,
   } = props;
   const showFiles = props.showFiles ?? true;
+  const redEdges = props.redEdges ?? [];
+  const redModuleKeys = props.redModuleKeys ?? new Set<string>();
   // Interactive zoom/pan writes the viewBox straight to the DOM (cheap),
   // while the LOD-affecting re-render (label sizing, culling, mode switches)
   // is committed at most every COMMIT_MS. Re-rendering ~1.4k SVG nodes per
@@ -429,6 +436,7 @@ export function RingsMapSvg(props: Props) {
             const a = rings.circles.get(edge.source);
             const b = rings.circles.get(edge.target);
             if (!a || !b) return null;
+            const red = redModuleKeys.has(edgeKey(edge.source, edge.target));
             return (
               <line
                 key={`${edge.source}->${edge.target}`}
@@ -436,8 +444,11 @@ export function RingsMapSvg(props: Props) {
                 y1={a.cy}
                 x2={b.cx}
                 y2={b.cy}
-                stroke-width={1 + Math.log2(1 + (edge.weight ?? 1))}
-                stroke-opacity={0.35}
+                stroke={red ? "#dc2626" : undefined}
+                stroke-width={
+                  (red ? 1.6 : 1) + Math.log2(1 + (edge.weight ?? 1))
+                }
+                stroke-opacity={red ? 0.8 : 0.35}
               />
             );
           })}
@@ -557,6 +568,31 @@ export function RingsMapSvg(props: Props) {
                 x2={b.x}
                 y2={b.y}
                 stroke-width={0.6}
+              />
+            );
+          })}
+        </g>
+      ) : null}
+      {/* feedback edges go against the dependency flow — the cycles to
+          break. Always on: red is the warning layer, not edge detail. */}
+      {sourceVisible && !focus && redEdges.length > 0 ? (
+        <g stroke="#dc2626" stroke-opacity={0.75} fill="none">
+          {redEdges.map((edge) => {
+            const a = resolveSite(edge.source);
+            const b = resolveSite(edge.target);
+            if (!a || !b) return null;
+            return (
+              <line
+                key={`red-${edge.source}-${edge.target}`}
+                x1={a.x}
+                y1={a.y}
+                x2={b.x}
+                y2={b.y}
+                stroke-width={
+                  edge.source === selectedId || edge.target === selectedId
+                    ? 2
+                    : 1.2
+                }
               />
             );
           })}

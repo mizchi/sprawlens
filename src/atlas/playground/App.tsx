@@ -28,6 +28,7 @@ import {
   type RingsState,
 } from "./ringsController.ts";
 import { reachSubgraph } from "../kernel/reach.js";
+import { cyclicComponents, edgeKey, feedbackEdges } from "../kernel/scc.js";
 import {
   RingsMapSvg,
   type FocusRequest,
@@ -979,6 +980,66 @@ export function App() {
     (id.startsWith("symbol:")
       ? (id.split(":")[1] ?? id)
       : id.split("#")[0]!);
+
+  // --- dependency-flow analysis: cycles and the edges that sustain them ---
+  // leafGraph identity changes only on rebuild, so the memo holds between
+  // animation frames
+  const leafGraph =
+    params.granularity === "symbol"
+      ? displayGraphRef.current
+      : graphRef.current;
+  const flowInfo = useMemo(() => {
+    const ids = leafGraph.nodes.map((n) => n.id);
+    const feedback = feedbackEdges(ids, leafGraph.edges);
+    return {
+      cycles: cyclicComponents(ids, leafGraph.edges),
+      redEdges: leafGraph.edges.filter((e) =>
+        feedback.has(edgeKey(e.source, e.target)),
+      ),
+    };
+  }, [leafGraph]);
+  const moduleEdgesNow = ringsRef.current?.moduleEdges ?? null;
+  const redModuleKeys = useMemo(() => {
+    if (!moduleEdgesNow) return new Set<string>();
+    const ids = [
+      ...new Set(moduleEdgesNow.flatMap((e) => [e.source, e.target])),
+    ];
+    return feedbackEdges(ids, moduleEdgesNow);
+  }, [moduleEdgesNow]);
+  /** What to fix first: biggest cycles, then their cut points, then bloat. */
+  const refactorActions = (() => {
+    const actions: { key: string; label: string; targetId: string }[] = [];
+    for (const cycle of flowInfo.cycles.slice(0, 3)) {
+      const names = cycle.slice(0, 3).map(labelOf).join(" ⇄ ");
+      actions.push({
+        key: `cycle:${cycle[0]}`,
+        label: `循環 ×${cycle.length}: ${names}${cycle.length > 3 ? " …" : ""}`,
+        targetId: cycle[0]!,
+      });
+    }
+    for (const edge of flowInfo.redEdges.slice(0, 4)) {
+      actions.push({
+        key: `cut:${edge.source}:${edge.target}`,
+        label: `逆流を切る: ${labelOf(edge.source)} → ${labelOf(edge.target)}`,
+        targetId: edge.source,
+      });
+    }
+    // bloat only makes sense while areas are raw LOC
+    if (params.granularity !== "symbol" && params.weight === "loc") {
+      const biggest = [...leafGraph.nodes]
+        .sort((a, b) => b.metrics.loc - a.metrics.loc)
+        .slice(0, 3)
+        .filter((n) => n.metrics.loc >= 400);
+      for (const node of biggest) {
+        actions.push({
+          key: `split:${node.id}`,
+          label: `分割候補: ${labelOf(node.id)} (${node.metrics.loc} loc)`,
+          targetId: node.id,
+        });
+      }
+    }
+    return actions;
+  })();
   /**
    * Hierarchy breadcrumb: the selected node's path, or — without a
    * selection — whatever the viewport center (crosshair) points at.
@@ -1219,6 +1280,8 @@ export function App() {
             }
             showEdges={params.showEdges || params.granularity === "symbol"}
             showFiles={params.granularity !== "module"}
+            redEdges={flowInfo.redEdges}
+            redModuleKeys={redModuleKeys}
             labels={labels}
             exportedIds={exportedIds}
             focus={focusView}
@@ -1473,6 +1536,34 @@ export function App() {
             onRemoveNode={removeNode}
           />
         </Section>
+        {refactorActions.length > 0 ? (
+          <Section title="リファクタ候補">
+            <div
+              style={{ display: "flex", flexDirection: "column", gap: "2px" }}
+            >
+              {refactorActions.map((action) => (
+                <button
+                  key={action.key}
+                  onClick={() => jumpTo(action.targetId)}
+                  style={{
+                    padding: "3px 4px",
+                    fontSize: "11px",
+                    cursor: "pointer",
+                    background: "none",
+                    border: "none",
+                    color: action.key.startsWith("split:")
+                      ? "#92400e"
+                      : "#b91c1c",
+                    textAlign: "left",
+                    wordBreak: "break-all",
+                  }}
+                >
+                  {action.label}
+                </button>
+              ))}
+            </div>
+          </Section>
+        ) : null}
         {selected || selectedIsModule || selectedTest || selectedPort ? (
           <Section title="選択ノード">
             <div style={{ fontWeight: "600", wordBreak: "break-all" }}>
