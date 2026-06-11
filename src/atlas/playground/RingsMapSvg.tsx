@@ -36,6 +36,11 @@ const CYCLE_FILL = "hsl(0 70% 86%)";
 /** Diff layer: changed files read from fill, not outline. */
 const MODIFIED_FILL = "hsl(8 85% 78%)";
 const ADDED_FILL = "hsl(150 55% 80%)";
+/** Direction tints: a selection's reference targets fill in the edge's
+ * color, so "what I depend on" vs "what depends on me" reads from the
+ * background without tracing lines. */
+const DOWNSTREAM_FILL = "hsl(21 90% 86%)";
+const UPSTREAM_FILL = "hsl(193 70% 86%)";
 
 type Props = {
   rings: RingsState;
@@ -488,16 +493,36 @@ export function RingsMapSvg(props: Props) {
       </g>
     );
   };
-  const selectedOutgoing =
-    selectedId === null && multiSelected.size === 0
-      ? []
-      : symbolEdges.filter((e) => isSelected(e.source));
-  const selectedIncoming =
-    selectedId === null && multiSelected.size === 0
-      ? []
-      : symbolEdges.filter(
-          (e) => isSelected(e.target) && !isSelected(e.source),
-        );
+  // an endpoint belongs to the selection directly or via its parent file
+  // (raw symbol references carry symbol ids; a selected file owns them)
+  const touchesSelection = (id: string) =>
+    isSelected(id) || isSelected(parentFileOf(id));
+  const noSelection = selectedId === null && multiSelected.size === 0;
+  const selectedOutgoing = noSelection
+    ? []
+    : symbolEdges.filter(
+        (e) => touchesSelection(e.source) && !touchesSelection(e.target),
+      );
+  const selectedIncoming = noSelection
+    ? []
+    : symbolEdges.filter(
+        (e) => touchesSelection(e.target) && !touchesSelection(e.source),
+      );
+  // nodes one reference away from the selection, keyed by direction —
+  // their backgrounds take the matching edge color
+  const dependencyIds = new Set<string>();
+  for (const edge of selectedOutgoing) {
+    if (isSelected(edge.target)) continue;
+    dependencyIds.add(edge.target);
+    // symbol endpoints tint their parent file's cell as well
+    dependencyIds.add(parentFileOf(edge.target));
+  }
+  const dependentIds = new Set<string>();
+  for (const edge of selectedIncoming) {
+    if (isSelected(edge.source)) continue;
+    dependentIds.add(edge.source);
+    dependentIds.add(parentFileOf(edge.source));
+  }
 
   const moduleOpacity = (id: string) =>
     focus && !focus.moduleIds.has(id) ? DIM : 1;
@@ -616,7 +641,15 @@ export function RingsMapSvg(props: Props) {
             cx={circle.cx}
             cy={circle.cy}
             r={circle.r}
-            fill={cyclicModuleIds.has(id) ? "hsl(0 65% 92%)" : "#eef2f7"}
+            fill={
+              dependencyIds.has(id)
+                ? DOWNSTREAM_FILL
+                : dependentIds.has(id)
+                  ? UPSTREAM_FILL
+                  : cyclicModuleIds.has(id)
+                    ? "hsl(0 65% 92%)"
+                    : "#eef2f7"
+            }
             stroke={isSelected(id) ? "#1d4ed8" : "#334155"}
             stroke-width={isSelected(id) ? 2.4 : 1.2}
             opacity={moduleOpacity(id)}
@@ -634,15 +667,19 @@ export function RingsMapSvg(props: Props) {
               key={cell.id}
               points={cell.polygon.map((p) => `${p.x},${p.y}`).join(" ")}
               fill={
-                changedFiles.get(cell.id) === "added"
-                  ? ADDED_FILL
-                  : changedFiles.get(cell.id) === "modified"
-                    ? MODIFIED_FILL
-                    : cyclicIds.has(cell.id)
-                      ? CYCLE_FILL
-                      : testFileIds.has(cell.id)
-                        ? TEST_FILL
-                        : cellFill(cell.targetArea, cell.actualArea)
+                dependencyIds.has(cell.id)
+                  ? DOWNSTREAM_FILL
+                  : dependentIds.has(cell.id)
+                    ? UPSTREAM_FILL
+                    : changedFiles.get(cell.id) === "added"
+                      ? ADDED_FILL
+                      : changedFiles.get(cell.id) === "modified"
+                        ? MODIFIED_FILL
+                        : cyclicIds.has(cell.id)
+                          ? CYCLE_FILL
+                          : testFileIds.has(cell.id)
+                            ? TEST_FILL
+                            : cellFill(cell.targetArea, cell.actualArea)
               }
               stroke={isSelected(cell.id) ? "#1d4ed8" : "#475569"}
               stroke-width={isSelected(cell.id) ? 2 : 0.8}
@@ -667,7 +704,13 @@ export function RingsMapSvg(props: Props) {
               <polygon
                 key={cell.id}
                 points={cell.polygon.map((p) => `${p.x},${p.y}`).join(" ")}
-                fill="transparent"
+                fill={
+                  dependencyIds.has(cell.id)
+                    ? DOWNSTREAM_FILL
+                    : dependentIds.has(cell.id)
+                      ? UPSTREAM_FILL
+                      : "transparent"
+                }
                 stroke={isSelected(cell.id) ? "#1d4ed8" : undefined}
                 stroke-width={isSelected(cell.id) ? 1.6 : undefined}
                 opacity={symbolOpacity(cell.id)}
