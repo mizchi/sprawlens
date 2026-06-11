@@ -1399,6 +1399,7 @@ export function App() {
             }
             showEdges={params.showEdges || params.granularity === "symbol"}
             showFiles={params.granularity !== "module"}
+            compactModuleLabels={params.granularity === "symbol"}
             cyclicIds={cyclicIds}
             cyclicModuleIds={cyclicModuleIds}
             labels={labels}

@@ -59,6 +59,10 @@ type Props = {
   portNodes: { id: string; label: string; x: number; y: number }[];
   /** Module granularity hides the file subdivision entirely. */
   showFiles?: boolean;
+  /** Symbol network: module labels show only the leaf directory until the
+   * circle dominates the view, then expand to the full path, one segment
+   * per line. */
+  compactModuleLabels?: boolean;
   /** Nodes inside dependency cycles: their cells get a red-tinted fill. */
   cyclicIds?: Set<string>;
   /** Modules inside module-level cycles: red-tinted circles. */
@@ -121,6 +125,7 @@ export function RingsMapSvg(props: Props) {
     onViewSettle,
   } = props;
   const showFiles = props.showFiles ?? true;
+  const compactModuleLabels = props.compactModuleLabels ?? false;
   const cyclicIds = props.cyclicIds ?? new Set<string>();
   const cyclicModuleIds = props.cyclicModuleIds ?? new Set<string>();
   // Interactive zoom/pan writes the viewBox straight to the DOM (cheap),
@@ -694,6 +699,41 @@ export function RingsMapSvg(props: Props) {
           // modules are the macro anchors: always labeled, 10–18px on screen
           const fontSize = screenFont(circle.r * 0.18, 10, 18, true);
           if (fontSize === null) return null;
+          const segments = id.split("/");
+          const expanded =
+            compactModuleLabels &&
+            segments.length > 1 &&
+            circle.r * zoom >= Math.min(width, height) * 0.3;
+          if (expanded) {
+            // zoomed in: full path, one segment per line
+            const lineHeight = fontSize * 1.1;
+            return (
+              <text
+                key={id}
+                x={circle.cx}
+                y={
+                  circle.cy -
+                  circle.r -
+                  fontSize * 0.4 -
+                  (segments.length - 1) * lineHeight
+                }
+                font-size={fontSize}
+                font-weight="600"
+                fill="#0f172a"
+                opacity={moduleOpacity(id)}
+              >
+                {segments.map((segment, i) => (
+                  <tspan
+                    key={segment}
+                    x={circle.cx}
+                    dy={i === 0 ? 0 : lineHeight}
+                  >
+                    {i < segments.length - 1 ? `${segment}/` : segment}
+                  </tspan>
+                ))}
+              </text>
+            );
+          }
           return (
             <text
               key={id}
@@ -704,7 +744,9 @@ export function RingsMapSvg(props: Props) {
               fill="#0f172a"
               opacity={moduleOpacity(id)}
             >
-              {id}
+              {compactModuleLabels
+                ? segments[segments.length - 1]
+                : id}
             </text>
           );
         })}
