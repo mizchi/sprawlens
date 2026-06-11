@@ -3,6 +3,7 @@ import {
   centroid,
   circleToPolygon,
   clipHalfPlane,
+  convexHull,
   signedArea,
 } from "./polygon.js";
 
@@ -90,5 +91,33 @@ describe("circleToPolygon", () => {
     const c = centroid(ring);
     expect(c.x).toBeCloseTo(1, 6);
     expect(c.y).toBeCloseTo(1, 6);
+  });
+});
+
+describe("convexHull", () => {
+  it("recovers the corners of a square despite interior points", () => {
+    const hull = convexHull([
+      { x: 0, y: 0 },
+      { x: 2, y: 0 },
+      { x: 2, y: 2 },
+      { x: 0, y: 2 },
+      { x: 1, y: 1 },
+      { x: 0.5, y: 1.5 },
+    ]);
+    expect(hull).toHaveLength(4);
+    expect(Math.abs(signedArea(hull))).toBeCloseTo(4, 9);
+  });
+
+  it("collapses collinear points to the segment extremes", () => {
+    const hull = convexHull([
+      { x: 0, y: 0 },
+      { x: 1, y: 1 },
+      { x: 2, y: 2 },
+    ]);
+    expect(hull.length).toBeLessThan(3);
+  });
+
+  it("passes tiny inputs through", () => {
+    expect(convexHull([{ x: 3, y: 4 }])).toEqual([{ x: 3, y: 4 }]);
   });
 });

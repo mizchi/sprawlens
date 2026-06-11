@@ -14,8 +14,14 @@ import {
   clusteredSeedHints,
   createGraphLayout,
   embedSeedHints,
+  forceIterationsFor,
 } from "../kernel/pipeline.js";
-import { centroid, containsPoint, type Ring } from "../kernel/polygon.js";
+import {
+  centroid,
+  containsPoint,
+  convexHull,
+  type Ring,
+} from "../kernel/polygon.js";
 import { createRng, type Rng } from "../kernel/rng.js";
 import { CellMapSvg } from "./CellMapSvg.tsx";
 import { Controls, type ClipKind, type PlaygroundParams } from "./Controls.tsx";
@@ -500,7 +506,7 @@ export function App() {
       layoutRef.current = null;
       communityLevelsRef.current = null;
     } else {
-      const clip = clipOf(p.clipKind);
+      let clip = clipOf(p.clipKind);
       let hints = null;
       if (p.layout === "louvain") {
         // multi-level cluster layout: Louvain communities drive both the
@@ -510,16 +516,47 @@ export function App() {
           visible.edges,
         );
         communityLevelsRef.current = result.levels;
-        hints = clusteredSeedHints(visible, clip, result.communityOf);
+        const viewport = {
+          kind: "rect" as const,
+          x: 0,
+          y: 0,
+          width: WIDTH,
+          height: HEIGHT,
+        };
+        hints = clusteredSeedHints(visible, viewport, result.communityOf);
+        // no circle confinement: the map outline follows wherever the
+        // embedding spread the clusters (expanded hull of the seeds)
+        if (hints && hints.size >= 3) {
+          const hull = convexHull([...hints.values()]);
+          if (hull.length >= 3) {
+            const c = centroid(hull);
+            const ring = hull.map((point) => ({
+              x: Math.min(
+                Math.max(c.x + (point.x - c.x) * 1.35, 4),
+                WIDTH - 4,
+              ),
+              y: Math.min(
+                Math.max(c.y + (point.y - c.y) * 1.35, 4),
+                HEIGHT - 4,
+              ),
+            }));
+            clip = { kind: "polygon", ring };
+          }
+        }
       } else {
         communityLevelsRef.current = null;
       }
+      const seedHints = hints ?? embedSeedHints(visible, clip);
       layoutRef.current = createGraphLayout(visible, clip, {
         seed: p.seed,
         adaptationRate: p.adaptationRate,
         lloydRate: p.lloydRate,
         circleSegments: segmentsOf(p.clipKind),
-        hints: hints ?? embedSeedHints(visible, clip) ?? undefined,
+        hints: seedHints ?? undefined,
+        // unbudgeted force froze the page on monorepo-scale graphs
+        forceIterations: seedHints
+          ? 16
+          : forceIterationsFor(visible.nodes.length),
       });
       ringsRef.current = null;
     }
@@ -742,9 +779,13 @@ export function App() {
     } else if (layoutRef.current) {
       const visible = effectiveGraph(paramsRef.current);
       const clip = clipOf(paramsRef.current.clipKind);
+      const seedHints = embedSeedHints(visible, clip);
       layoutRef.current = createGraphLayout(visible, clip, {
         seed: paramsRef.current.seed,
-        hints: embedSeedHints(visible, clip) ?? undefined,
+        hints: seedHints ?? undefined,
+        forceIterations: seedHints
+          ? 16
+          : forceIterationsFor(visible.nodes.length),
       });
     }
     setFrame((f) => f + 1);

@@ -6,7 +6,11 @@ import {
   isConverged,
   type CapacityLayoutState,
 } from "../kernel/capacityLayout.js";
-import { createGraphLayout, embedSeedHints } from "../kernel/pipeline.js";
+import {
+  createGraphLayout,
+  embedSeedHints,
+  forceIterationsFor,
+} from "../kernel/pipeline.js";
 import { ringLayout, type PlacedCircle } from "../kernel/ringLayout.js";
 import { topoRank } from "../kernel/topoRank.js";
 
@@ -31,17 +35,6 @@ export type RingsState = {
 
 const CONVERGENCE = 0.005;
 const CLIP_INSET = 0.94;
-
-/**
- * Force seeding is O(n^2) per iteration and runs synchronously for every
- * module; fixed 80 iterations froze the page for seconds on modules with
- * hundreds of nodes. Budget the pair-work instead — seeding quality only
- * matters loosely, the capacity solver owns the final geometry.
- */
-function forceIterationsFor(nodeCount: number): number {
-  if (nodeCount === 0) return 0;
-  return Math.max(4, Math.min(80, Math.floor(2_000_000 / (nodeCount * nodeCount))));
-}
 
 /** When the embedding provides the structure, force only declumps. */
 const DECLUMP_ITERATIONS = 16;

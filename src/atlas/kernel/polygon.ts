@@ -95,3 +95,39 @@ export function circleToPolygon(circle: Circle, segments: number): Ring {
   }
   return ring;
 }
+
+/**
+ * Convex hull (Andrew monotone chain), CCW in screen coordinates.
+ * Returns fewer than 3 points unchanged; collinear inputs collapse to
+ * their extremes — callers needing an area must check the result.
+ */
+export function convexHull(points: readonly Vec2[]): Ring {
+  if (points.length < 3) return points.map((p) => ({ ...p }));
+  const sorted = [...points].sort((a, b) => a.x - b.x || a.y - b.y);
+  const cross = (o: Vec2, a: Vec2, b: Vec2) =>
+    (a.x - o.x) * (b.y - o.y) - (a.y - o.y) * (b.x - o.x);
+  const lower: Vec2[] = [];
+  for (const p of sorted) {
+    while (
+      lower.length >= 2 &&
+      cross(lower[lower.length - 2]!, lower[lower.length - 1]!, p) <= 0
+    ) {
+      lower.pop();
+    }
+    lower.push(p);
+  }
+  const upper: Vec2[] = [];
+  for (let i = sorted.length - 1; i >= 0; i--) {
+    const p = sorted[i]!;
+    while (
+      upper.length >= 2 &&
+      cross(upper[upper.length - 2]!, upper[upper.length - 1]!, p) <= 0
+    ) {
+      upper.pop();
+    }
+    upper.push(p);
+  }
+  lower.pop();
+  upper.pop();
+  return [...lower, ...upper].map((p) => ({ ...p }));
+}

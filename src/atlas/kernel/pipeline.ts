@@ -33,6 +33,19 @@ export function embedIterationsFor(nodeCount: number): number {
   );
 }
 
+/**
+ * Force seeding is O(n²) per iteration too — without a budget a few
+ * thousand nodes freeze the page for seconds. Seeding quality only
+ * matters loosely, the capacity solver owns the final geometry.
+ */
+export function forceIterationsFor(nodeCount: number): number {
+  if (nodeCount === 0) return 0;
+  return Math.max(
+    4,
+    Math.min(80, Math.floor(2_000_000 / (nodeCount * nodeCount))),
+  );
+}
+
 /** Above this the O(n²) embedding setup itself gets too slow; use force. */
 const EMBED_NODE_CAP = 800;
 
@@ -61,13 +74,15 @@ export function embedSeedHints(
  * community's position, then refine with the full embedding. Clusters end
  * up spatially contiguous, which the boundary rendering depends on.
  */
+const GOLDEN_ANGLE = 2.399963229728653;
+
 export function clusteredSeedHints(
   graph: AtlasGraph,
   clip: ClipRegion,
   communityOf: ReadonlyMap<string, number>,
 ): Map<string, Vec2> | null {
   const n = graph.nodes.length;
-  if (n === 0 || n > EMBED_NODE_CAP) return null;
+  if (n === 0) return null;
   // aggregated community graph, edge weight = inter-community link count
   const communityIds = [...new Set(communityOf.values())].sort(
     (a, b) => a - b,
@@ -88,17 +103,51 @@ export function clusteredSeedHints(
     }),
     { iterations: 200 },
   );
-  const hints = new Map<string, Vec2>();
+  const centroidOf = (id: string): Vec2 | undefined => {
+    const c = communityOf.get(id);
+    return c === undefined ? undefined : communityPos.get(String(c));
+  };
+
+  if (n <= EMBED_NODE_CAP) {
+    // small enough: centroid-initialized full embedding refines locally
+    const hints = new Map<string, Vec2>();
+    for (const node of graph.nodes) {
+      const pos = centroidOf(node.id);
+      if (pos) hints.set(node.id, pos);
+    }
+    const positions = embedGraph(
+      graph.nodes.map((node) => node.id),
+      graph.edges,
+      { iterations: embedIterationsFor(n), hints },
+    );
+    return mapToClip(positions, clip);
+  }
+
+  // too big for the O(n²) embedding: sunflower-pack each community's
+  // members around its centroid instead — clusters stay contiguous at
+  // any node count, and the capacity solver resolves the local detail
+  const memberCount = new Map<number, number>();
+  for (const c of communityOf.values()) {
+    memberCount.set(c, (memberCount.get(c) ?? 0) + 1);
+  }
+  const placed = new Map<number, number>();
+  const positions = new Map<string, Vec2>();
   for (const node of graph.nodes) {
     const c = communityOf.get(node.id);
-    const pos = c === undefined ? undefined : communityPos.get(String(c));
-    if (pos) hints.set(node.id, pos);
+    const centroid = centroidOf(node.id);
+    if (c === undefined || !centroid) continue;
+    const k = placed.get(c) ?? 0;
+    placed.set(c, k + 1);
+    const count = memberCount.get(c)!;
+    // community disc radius ∝ sqrt(member share) in the RMS-1 frame
+    const radius = Math.sqrt(count / n) * 0.8;
+    const r = radius * Math.sqrt((k + 0.5) / count);
+    const theta = k * GOLDEN_ANGLE;
+    positions.set(node.id, {
+      x: centroid.x + Math.cos(theta) * r,
+      y: centroid.y + Math.sin(theta) * r,
+    });
   }
-  const positions = embedGraph(
-    graph.nodes.map((node) => node.id),
-    graph.edges,
-    { iterations: embedIterationsFor(n), hints },
-  );
   return mapToClip(positions, clip);
 }
 

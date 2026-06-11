@@ -188,4 +188,39 @@ describe("embedSeedHints", () => {
     };
     expect(embedSeedHints(big, rectClip)).toBeNull();
   });
+
+  it("clusteredSeedHints stays contiguous above the embedding cap", () => {
+    // 1200 nodes, two communities bridged by one edge — too big for the
+    // full embedding, so members sunflower-pack around their centroid
+    const nodes = Array.from({ length: 1200 }, (_, i) => ({
+      id: `n${i}`,
+      kind: "file" as const,
+      label: `n${i}`,
+      metrics: { loc: 1 },
+    }));
+    const edges = [{ source: "n0", target: "n600" }];
+    const communityOf = new Map(
+      nodes.map((n, i): [string, number] => [n.id, i < 600 ? 0 : 1]),
+    );
+    const hints = clusteredSeedHints({ nodes, edges }, rectClip, communityOf)!;
+    expect(hints.size).toBe(1200);
+    const centroid = (from: number, to: number) => {
+      let x = 0;
+      let y = 0;
+      for (let i = from; i < to; i++) {
+        x += hints.get(`n${i}`)!.x;
+        y += hints.get(`n${i}`)!.y;
+      }
+      return { x: x / (to - from), y: y / (to - from) };
+    };
+    const ca = centroid(0, 600);
+    const cb = centroid(600, 1200);
+    const gap = Math.hypot(ca.x - cb.x, ca.y - cb.y);
+    let spreadA = 0;
+    for (let i = 0; i < 600; i++) {
+      const p = hints.get(`n${i}`)!;
+      spreadA += Math.hypot(p.x - ca.x, p.y - ca.y);
+    }
+    expect(spreadA / 600).toBeLessThan(gap);
+  });
 });
