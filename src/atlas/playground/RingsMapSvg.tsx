@@ -57,6 +57,8 @@ type Props = {
   selectedId: string | null;
   onSelect: (id: string | null) => void;
   focusRequest: FocusRequest | null;
+  /** Fired when a view settles (LOD commit); world center + zoom. */
+  onViewSettle?: (center: Vec2, zoom: number) => void;
 };
 
 function cellFill(targetArea: number, actualArea: number): string {
@@ -99,6 +101,7 @@ export function RingsMapSvg(props: Props) {
     selectedId,
     onSelect,
     focusRequest,
+    onViewSettle,
   } = props;
   // Interactive zoom/pan writes the viewBox straight to the DOM (cheap),
   // while the LOD-affecting re-render (label sizing, culling, mode switches)
@@ -117,6 +120,11 @@ export function RingsMapSvg(props: Props) {
   const svgRef = useRef<SVGSVGElement>(null);
   const COMMIT_MS = 120;
 
+  const commitView = () => {
+    const v = { ...viewRef.current };
+    setCommittedView(v);
+    onViewSettle?.({ x: v.x + v.w / 2, y: v.y + v.h / 2 }, width / v.w);
+  };
   const applyView = () => {
     const v = viewRef.current;
     svgRef.current?.setAttribute("viewBox", `${v.x} ${v.y} ${v.w} ${v.h}`);
@@ -126,7 +134,7 @@ export function RingsMapSvg(props: Props) {
     clearTimeout(commitTimer.current);
     commitTimer.current = window.setTimeout(() => {
       commitTimer.current = 0;
-      setCommittedView({ ...viewRef.current });
+      commitView();
     }, COMMIT_MS);
   };
   useEffect(() => () => clearTimeout(commitTimer.current), []);
@@ -157,7 +165,7 @@ export function RingsMapSvg(props: Props) {
       };
       const v = viewRef.current;
       svgRef.current?.setAttribute("viewBox", `${v.x} ${v.y} ${v.w} ${v.h}`);
-      setCommittedView({ ...v });
+      commitView();
       return;
     }
     const start = performance.now();
@@ -176,7 +184,7 @@ export function RingsMapSvg(props: Props) {
         flightRef.current = requestAnimationFrame(step);
       } else {
         flightRef.current = 0;
-        setCommittedView({ ...viewRef.current });
+        commitView();
       }
     };
     flightRef.current = requestAnimationFrame(step);
@@ -321,6 +329,9 @@ export function RingsMapSvg(props: Props) {
    * reach `min` screen px to be shown, and is capped at `max` screen px so
    * deep zoom never produces wall-sized text. Returns world units.
    */
+  // beyond symbol zoom, fixed screen-px caps make labels look tiny inside
+  // huge cells; let the cap grow gently (sqrt, at most 2.5x)
+  const labelGrowth = Math.min(2.5, Math.max(1, Math.sqrt(zoom / SYMBOL_ZOOM)));
   const screenFont = (
     worldBase: number,
     min: number,
@@ -332,7 +343,7 @@ export function RingsMapSvg(props: Props) {
     // natural size beyond hideAbove means the viewport sits inside the cell;
     // its label is just noise there
     if ((screen < min || screen > hideAbove) && !force) return null;
-    return Math.min(Math.max(screen, min), max) / zoom;
+    return Math.min(Math.max(screen, min), max * labelGrowth) / zoom;
   };
   /** Screen-constant radius in world units. */
   const screenRadius = (px: number) => px / zoom;

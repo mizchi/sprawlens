@@ -71,6 +71,19 @@ export function clipHalfPlane(
   return out.length < 3 ? [] : out;
 }
 
+/** Point-in-polygon for convex CCW rings. */
+export function containsPoint(ring: Ring, p: Vec2): boolean {
+  if (ring.length < 3) return false;
+  for (let i = 0; i < ring.length; i++) {
+    const a = ring[i]!;
+    const b = ring[(i + 1) % ring.length]!;
+    if ((b.x - a.x) * (p.y - a.y) - (b.y - a.y) * (p.x - a.x) < 0) {
+      return false;
+    }
+  }
+  return true;
+}
+
 export function circleToPolygon(circle: Circle, segments: number): Ring {
   const ring: Ring = [];
   for (let i = 0; i < segments; i++) {

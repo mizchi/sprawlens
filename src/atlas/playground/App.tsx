@@ -10,7 +10,7 @@ import {
   type ClipRegion,
 } from "../kernel/capacityLayout.js";
 import { createGraphLayout } from "../kernel/pipeline.js";
-import { centroid, type Ring } from "../kernel/polygon.js";
+import { centroid, containsPoint, type Ring } from "../kernel/polygon.js";
 import { createRng, type Rng } from "../kernel/rng.js";
 import { CellMapSvg } from "./CellMapSvg.tsx";
 import { Controls, type ClipKind, type PlaygroundParams } from "./Controls.tsx";
@@ -40,6 +40,7 @@ import {
 } from "./synthetic.ts";
 import type { AtlasEdge } from "../contracts/graph.js";
 import { defaultLayerOf, matchTestTargets } from "../contracts/layers.js";
+import { defaultModuleIdOf } from "../contracts/modules.js";
 import { apiModuleIdOf, buildApiGraph, splitApiBoundary } from "./apiView.ts";
 import { fetchCallHierarchy, refsToEdges } from "./callHierarchyClient.ts";
 import {
@@ -161,6 +162,11 @@ export function App() {
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [focusId, setFocusId] = useState<string | null>(null);
   const [focusRequest, setFocusRequest] = useState<FocusRequest | null>(null);
+  const [viewInfo, setViewInfo] = useState({
+    x: WIDTH / 2,
+    y: HEIGHT / 2,
+    zoom: 1,
+  });
   const [, setFrame] = useState(0);
   // DevTools-style panel docking: auto follows the window aspect ratio
   const [panelPos, setPanelPos] = useState<PanelPosition>("auto");
@@ -942,6 +948,73 @@ export function App() {
     return out;
   })();
 
+  const labels = labelsRef.current;
+  const labelOf = (id: string) =>
+    labels.get(id) ?? id.slice(id.indexOf("#") + 1).split("/").pop() ?? id;
+  const parentFileOf = (id: string) =>
+    symbolMetaRef.current.get(id)?.fileId ??
+    (id.startsWith("symbol:")
+      ? (id.split(":")[1] ?? id)
+      : id.split("#")[0]!);
+  /**
+   * Hierarchy breadcrumb: the selected node's path, or — without a
+   * selection — whatever the viewport center (crosshair) points at.
+   */
+  const breadcrumb = (() => {
+    const rings = ringsRef.current;
+    if (!rings) return [];
+    const parts: { id: string; label: string }[] = [];
+    const isSymbolId = (id: string) =>
+      id.startsWith("symbol:") || id.includes("#");
+    const moduleOfId = (id: string) =>
+      params.view === "api" ? apiModuleIdOf(id) : defaultModuleIdOf(id);
+    if (selectedId) {
+      if (rings.circles.has(selectedId)) {
+        parts.push({ id: selectedId, label: selectedId });
+      } else if (isSymbolId(selectedId)) {
+        const fileId = parentFileOf(selectedId);
+        parts.push({ id: moduleOfId(fileId), label: moduleOfId(fileId) });
+        if (params.view !== "api") {
+          parts.push({ id: fileId, label: labelOf(fileId) });
+        }
+        parts.push({ id: selectedId, label: labelOf(selectedId) });
+      } else {
+        parts.push({ id: moduleOfId(selectedId), label: moduleOfId(selectedId) });
+        parts.push({ id: selectedId, label: labelOf(selectedId) });
+      }
+      return parts;
+    }
+    // crosshair hit-test at the settled view center
+    const p = { x: viewInfo.x, y: viewInfo.y };
+    let moduleId: string | null = null;
+    for (const [id, circle] of rings.circles) {
+      if (Math.hypot(p.x - circle.cx, p.y - circle.cy) <= circle.r) {
+        moduleId = id;
+        break;
+      }
+    }
+    if (!moduleId) return [];
+    parts.push({ id: moduleId, label: moduleId });
+    const layout = rings.moduleLayouts.get(moduleId);
+    const cell = layout?.cells.find(
+      (c) => c.polygon.length >= 3 && containsPoint(c.polygon, p),
+    );
+    if (cell) {
+      parts.push({ id: cell.id, label: labelOf(cell.id) });
+      if (viewInfo.zoom >= 2.2 && params.view !== "api") {
+        const symbol = innerLayoutsRef.current
+          .get(cell.id)
+          ?.cells.find(
+            (c) => c.polygon.length >= 3 && containsPoint(c.polygon, p),
+          );
+        if (symbol && !symbol.id.endsWith("#rest")) {
+          parts.push({ id: symbol.id, label: labelOf(symbol.id) });
+        }
+      }
+    }
+    return parts;
+  })();
+
   const allCells: CellResult[] = ringsRef.current
     ? [...ringsRef.current.moduleLayouts.values()].flatMap((l) => l.cells)
     : (layoutRef.current?.cells ?? []);
@@ -1033,15 +1106,7 @@ export function App() {
         ),
       )
     : (layoutRef.current?.maxRelativeError ?? 0);
-  const labels = labelsRef.current;
   const innerCells = params.showNested ? allInnerCells : [];
-  const labelOf = (id: string) =>
-    labels.get(id) ?? id.slice(id.indexOf("#") + 1).split("/").pop() ?? id;
-  const parentFileOf = (id: string) =>
-    symbolMetaRef.current.get(id)?.fileId ??
-    (id.startsWith("symbol:")
-      ? (id.split(":")[1] ?? id)
-      : id.split("#")[0]!);
   /** Parent file name for disambiguating symbol references in lists. */
   const fileOf = (id: string) => {
     if (id.includes("#")) return id.split("#")[0]!.split("/").pop()!;
@@ -1101,6 +1166,9 @@ export function App() {
             selectedId={selectedId}
             onSelect={setSelectedId}
             focusRequest={focusRequest}
+            onViewSettle={(center, zoom) =>
+              setViewInfo({ x: center.x, y: center.y, zoom })
+            }
           />
         ) : layoutRef.current ? (
           <CellMapSvg
@@ -1114,6 +1182,68 @@ export function App() {
             selectedId={selectedId}
             onSelect={setSelectedId}
           />
+        ) : null}
+        {/* hierarchy breadcrumb: selection path, or the crosshair target */}
+        {breadcrumb.length > 0 ? (
+          <div
+            style={{
+              position: "absolute",
+              top: "8px",
+              left: "8px",
+              display: "flex",
+              alignItems: "center",
+              gap: "4px",
+              padding: "4px 8px",
+              background: "rgba(248, 250, 252, 0.92)",
+              border: "1px solid #cbd5e1",
+              borderRadius: "6px",
+              fontSize: "12px",
+              maxWidth: "70%",
+              overflow: "hidden",
+            }}
+          >
+            {breadcrumb.map((part, i) => (
+              <>
+                {i > 0 ? <span style={{ color: "#94a3b8" }}>→</span> : null}
+                <button
+                  key={part.id}
+                  onClick={() => setSelectedId(part.id)}
+                  style={{
+                    background: "none",
+                    border: "none",
+                    padding: "0",
+                    cursor: "pointer",
+                    color: i === breadcrumb.length - 1 ? "#0f172a" : "#475569",
+                    fontWeight: i === breadcrumb.length - 1 ? "600" : "400",
+                    fontSize: "12px",
+                    whiteSpace: "nowrap",
+                  }}
+                >
+                  {part.label}
+                </button>
+              </>
+            ))}
+          </div>
+        ) : null}
+        {/* crosshair marking what the breadcrumb describes (no selection) */}
+        {!selectedId && ringsRef.current ? (
+          <svg
+            width="18"
+            height="18"
+            style={{
+              position: "absolute",
+              left: "50%",
+              top: "50%",
+              transform: "translate(-50%, -50%)",
+              pointerEvents: "none",
+              opacity: 0.7,
+            }}
+          >
+            <line x1="9" y1="0" x2="9" y2="6" stroke="#0f172a" />
+            <line x1="9" y1="12" x2="9" y2="18" stroke="#0f172a" />
+            <line x1="0" y1="9" x2="6" y2="9" stroke="#0f172a" />
+            <line x1="12" y1="9" x2="18" y2="9" stroke="#0f172a" />
+          </svg>
         ) : null}
         {/* debug stats float over the map, folded by default */}
         <Section
