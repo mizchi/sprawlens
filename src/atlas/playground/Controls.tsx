@@ -26,6 +26,8 @@ export type PlaygroundParams = {
   focusGranularity: Granularity;
   /** What a click resolves to; zoom focus uses focusGranularity instead. */
   selectMode: SelectMode;
+  /** Drop an explicit selection once its element scrolls off-screen. */
+  deselectOffscreen: boolean;
   invertRings: boolean;
   count: number;
   seed: number;
@@ -179,6 +181,16 @@ export function Controls(props: Props) {
           <option value="file">file</option>
           <option value="symbol">symbol</option>
         </select>
+      </label>
+      <label style={row}>
+        <span style={{ width: "110px" }}>auto deselect</span>
+        <input
+          type="checkbox"
+          checked={params.deselectOffscreen}
+          onInput={(e) =>
+            set("deselectOffscreen", (e.target as HTMLInputElement).checked)
+          }
+        />
       </label>
       <label style={row}>
         <span style={{ width: "110px" }}>zoom focus</span>

@@ -160,6 +160,7 @@ export function App() {
     hidePrivate: false,
     focusGranularity: "file",
     selectMode: "auto",
+    deselectOffscreen: true,
     invertRings: false,
     count: 120,
     seed: 1,
@@ -1162,6 +1163,64 @@ export function App() {
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
   }, []);
+
+  // Optional: an explicit selection drops once its element leaves the
+  // viewport. Reacts to view settles only — never to the selection itself,
+  // or a fresh jumpTo to an off-screen target would self-cancel against
+  // the stale pre-flight view.
+  const selectedIdRef = useRef(selectedId);
+  selectedIdRef.current = selectedId;
+  useEffect(() => {
+    const selectedId = selectedIdRef.current;
+    if (!selectedId || !paramsRef.current.deselectOffscreen) return;
+    const halfW = WIDTH / viewInfo.zoom / 2;
+    const halfH = HEIGHT / viewInfo.zoom / 2;
+    const view = {
+      x0: viewInfo.x - halfW,
+      x1: viewInfo.x + halfW,
+      y0: viewInfo.y - halfH,
+      y1: viewInfo.y + halfH,
+    };
+    const bounds = (() => {
+      const circle = ringsRef.current?.circles.get(selectedId);
+      if (circle) {
+        return {
+          x0: circle.cx - circle.r,
+          x1: circle.cx + circle.r,
+          y0: circle.cy - circle.r,
+          y1: circle.cy + circle.r,
+        };
+      }
+      const port = portNodesRef.current.find((p) => p.id === selectedId);
+      if (port) return { x0: port.x, x1: port.x, y0: port.y, y1: port.y };
+      const cell =
+        (ringsRef.current
+          ? [...ringsRef.current.moduleLayouts.values()]
+              .flatMap((l) => l.cells)
+              .find((c) => c.id === selectedId)
+          : layoutRef.current?.cells.find((c) => c.id === selectedId)) ??
+        innerCellsRef.current.find((c) => c.id === selectedId);
+      if (!cell || cell.polygon.length < 3) return null;
+      let x0 = Infinity;
+      let x1 = -Infinity;
+      let y0 = Infinity;
+      let y1 = -Infinity;
+      for (const p of cell.polygon) {
+        x0 = Math.min(x0, p.x);
+        x1 = Math.max(x1, p.x);
+        y0 = Math.min(y0, p.y);
+        y1 = Math.max(y1, p.y);
+      }
+      return { x0, x1, y0, y1 };
+    })();
+    if (!bounds) return;
+    const offscreen =
+      bounds.x1 < view.x0 ||
+      bounds.x0 > view.x1 ||
+      bounds.y1 < view.y0 ||
+      bounds.y0 > view.y1;
+    if (offscreen) setSelectedId(null);
+  }, [viewInfo]);
 
   const allCells: CellResult[] = ringsRef.current
     ? [...ringsRef.current.moduleLayouts.values()].flatMap((l) => l.cells)
