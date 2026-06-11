@@ -946,7 +946,51 @@ export function App() {
       upstreamEdges: reach.upstreamEdges,
     };
   };
-  const focusView = focusId ? computeFocus(focusId) : null;
+  // with a multi-selection, the extraction runs from every selected node
+  // and the views merge (union of reachable sets, deduped edges)
+  const mergeFocusViews = (views: FocusView[]): FocusView | null => {
+    if (views.length === 0) return null;
+    if (views.length === 1) return views[0]!;
+    const merged: FocusView = {
+      level: views[views.length - 1]!.level,
+      moduleIds: new Set(),
+      fileIds: new Set(),
+      symbolIds: new Set(),
+      downstreamEdges: [],
+      upstreamEdges: [],
+    };
+    const seenDown = new Set<string>();
+    const seenUp = new Set<string>();
+    for (const view of views) {
+      for (const id of view.moduleIds) merged.moduleIds.add(id);
+      for (const id of view.fileIds) merged.fileIds.add(id);
+      for (const id of view.symbolIds) merged.symbolIds.add(id);
+      for (const edge of view.downstreamEdges) {
+        const key = `${edge.source} ${edge.target}`;
+        if (!seenDown.has(key)) {
+          seenDown.add(key);
+          merged.downstreamEdges.push(edge);
+        }
+      }
+      for (const edge of view.upstreamEdges) {
+        const key = `${edge.source} ${edge.target}`;
+        if (!seenUp.has(key)) {
+          seenUp.add(key);
+          merged.upstreamEdges.push(edge);
+        }
+      }
+    }
+    return merged;
+  };
+  const focusRoots =
+    focusId === null ? [] : selectedIds.length > 0 ? selectedIds : [focusId];
+  const focusView = focusId
+    ? mergeFocusViews(
+        focusRoots
+          .map(computeFocus)
+          .filter((v): v is FocusView => v !== null),
+      )
+    : null;
   const exportedIds = exportedIdsRef.current;
 
   /** API view: adapter ports placed on the rim, facing their consumers. */
@@ -1556,7 +1600,11 @@ export function App() {
                 style={{ display: "flex", alignItems: "center", gap: "6px" }}
               >
                 <span style={{ color: "#0369a1" }}>
-                  focus: {labelOf(focusId!)} ({focusView.level})
+                  focus: {labelOf(focusId!)}
+                  {focusRoots.length > 1
+                    ? ` +${focusRoots.length - 1}`
+                    : ""}{" "}
+                  ({focusView.level})
                 </span>
                 <button
                   onClick={() => setFocusId(null)}
