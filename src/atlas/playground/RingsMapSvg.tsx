@@ -1,7 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "preact/hooks";
 import type { AtlasEdge } from "../contracts/graph.js";
 import type { CellResult } from "../kernel/capacityLayout.js";
-import { edgeKey } from "../kernel/scc.js";
 import type { Vec2 } from "../kernel/vec.js";
 import type { RingsState } from "./ringsController.ts";
 
@@ -32,6 +31,8 @@ const UPSTREAM_COLOR = "#0891b2";
 const TEST_FILL = "hsl(210 10% 81%)";
 /** Public API marker: the site dot, not the cell area, carries the signal. */
 const EXPORTED_DOT = "#059669";
+/** Cells of nodes caught in a dependency cycle: the tangles to break. */
+const CYCLE_FILL = "hsl(0 70% 86%)";
 
 type Props = {
   rings: RingsState;
@@ -55,10 +56,10 @@ type Props = {
   portNodes: { id: string; label: string; x: number; y: number }[];
   /** Module granularity hides the file subdivision entirely. */
   showFiles?: boolean;
-  /** Feedback edges (cycle breakers) drawn as red flows, always on. */
-  redEdges?: AtlasEdge[];
-  /** Module-edge keys (`edgeKey`) that go against the flow. */
-  redModuleKeys?: Set<string>;
+  /** Nodes inside dependency cycles: their cells get a red-tinted fill. */
+  cyclicIds?: Set<string>;
+  /** Modules inside module-level cycles: red-tinted circles. */
+  cyclicModuleIds?: Set<string>;
   width: number;
   height: number;
   selectedId: string | null;
@@ -117,8 +118,8 @@ export function RingsMapSvg(props: Props) {
     onViewSettle,
   } = props;
   const showFiles = props.showFiles ?? true;
-  const redEdges = props.redEdges ?? [];
-  const redModuleKeys = props.redModuleKeys ?? new Set<string>();
+  const cyclicIds = props.cyclicIds ?? new Set<string>();
+  const cyclicModuleIds = props.cyclicModuleIds ?? new Set<string>();
   // Interactive zoom/pan writes the viewBox straight to the DOM (cheap),
   // while the LOD-affecting re-render (label sizing, culling, mode switches)
   // is committed at most every COMMIT_MS. Re-rendering ~1.4k SVG nodes per
@@ -436,7 +437,6 @@ export function RingsMapSvg(props: Props) {
             const a = rings.circles.get(edge.source);
             const b = rings.circles.get(edge.target);
             if (!a || !b) return null;
-            const red = redModuleKeys.has(edgeKey(edge.source, edge.target));
             return (
               <line
                 key={`${edge.source}->${edge.target}`}
@@ -444,11 +444,8 @@ export function RingsMapSvg(props: Props) {
                 y1={a.cy}
                 x2={b.cx}
                 y2={b.cy}
-                stroke={red ? "#dc2626" : undefined}
-                stroke-width={
-                  (red ? 1.6 : 1) + Math.log2(1 + (edge.weight ?? 1))
-                }
-                stroke-opacity={red ? 0.8 : 0.35}
+                stroke-width={1 + Math.log2(1 + (edge.weight ?? 1))}
+                stroke-opacity={0.35}
               />
             );
           })}
@@ -461,7 +458,7 @@ export function RingsMapSvg(props: Props) {
             cx={circle.cx}
             cy={circle.cy}
             r={circle.r}
-            fill="#eef2f7"
+            fill={cyclicModuleIds.has(id) ? "hsl(0 65% 92%)" : "#eef2f7"}
             stroke={id === selectedId ? "#1d4ed8" : "#334155"}
             stroke-width={id === selectedId ? 2.4 : 1.2}
             opacity={moduleOpacity(id)}
@@ -479,9 +476,11 @@ export function RingsMapSvg(props: Props) {
               key={cell.id}
               points={cell.polygon.map((p) => `${p.x},${p.y}`).join(" ")}
               fill={
-                testFileIds.has(cell.id)
-                  ? TEST_FILL
-                  : cellFill(cell.targetArea, cell.actualArea)
+                cyclicIds.has(cell.id)
+                  ? CYCLE_FILL
+                  : testFileIds.has(cell.id)
+                    ? TEST_FILL
+                    : cellFill(cell.targetArea, cell.actualArea)
               }
               stroke={
                 cell.id === selectedId
@@ -568,31 +567,6 @@ export function RingsMapSvg(props: Props) {
                 x2={b.x}
                 y2={b.y}
                 stroke-width={0.6}
-              />
-            );
-          })}
-        </g>
-      ) : null}
-      {/* feedback edges go against the dependency flow — the cycles to
-          break. Always on: red is the warning layer, not edge detail. */}
-      {sourceVisible && !focus && redEdges.length > 0 ? (
-        <g stroke="#dc2626" stroke-opacity={0.75} fill="none">
-          {redEdges.map((edge) => {
-            const a = resolveSite(edge.source);
-            const b = resolveSite(edge.target);
-            if (!a || !b) return null;
-            return (
-              <line
-                key={`red-${edge.source}-${edge.target}`}
-                x1={a.x}
-                y1={a.y}
-                x2={b.x}
-                y2={b.y}
-                stroke-width={
-                  edge.source === selectedId || edge.target === selectedId
-                    ? 2
-                    : 1.2
-                }
               />
             );
           })}

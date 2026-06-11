@@ -999,20 +999,22 @@ export function App() {
   const flowInfo = useMemo(() => {
     const ids = leafGraph.nodes.map((n) => n.id);
     const feedback = feedbackEdges(ids, leafGraph.edges);
+    const cycles = cyclicComponents(ids, leafGraph.edges);
     return {
-      cycles: cyclicComponents(ids, leafGraph.edges),
+      cycles,
+      cyclicIds: new Set(cycles.flat()),
       redEdges: leafGraph.edges.filter((e) =>
         feedback.has(edgeKey(e.source, e.target)),
       ),
     };
   }, [leafGraph]);
   const moduleEdgesNow = ringsRef.current?.moduleEdges ?? null;
-  const redModuleKeys = useMemo(() => {
+  const cyclicModuleIds = useMemo(() => {
     if (!moduleEdgesNow) return new Set<string>();
     const ids = [
       ...new Set(moduleEdgesNow.flatMap((e) => [e.source, e.target])),
     ];
-    return feedbackEdges(ids, moduleEdgesNow);
+    return new Set(cyclicComponents(ids, moduleEdgesNow).flat());
   }, [moduleEdgesNow]);
   /** What to fix first: biggest cycles, then their cut points, then bloat. */
   const refactorActions = (() => {
@@ -1229,6 +1231,11 @@ export function App() {
   // like a history diff, and the camera optionally follows each newly
   // changed file to its neighborhood. Static builds (no dev server) fail
   // the connection a few times and give up quietly.
+  /** Recent working-tree changes, newest first — revisitable from the
+   * panel after the camera has moved on. */
+  const recentChangesRef = useRef<
+    { id: string; kind: "added" | "modified"; at: number }[]
+  >([]);
   useEffect(() => {
     if (params.source !== "sprawlens") return;
     let firstPush = true;
@@ -1256,9 +1263,14 @@ export function App() {
         changedFilesRef.current = next;
         setFrame((f) => f + 1);
       }
-      // follow saves as they happen, but not the backlog at page load
-      if (!firstPush && fresh.length > 0 && paramsRef.current.followChanges) {
-        jumpTo(fresh[0]!, 6);
+      if (!firstPush && fresh.length > 0) {
+        const now = Date.now();
+        recentChangesRef.current = [
+          ...fresh.map((id) => ({ id, kind: next.get(id)!, at: now })),
+          ...recentChangesRef.current.filter((e) => !fresh.includes(e.id)),
+        ].slice(0, 20);
+        // follow saves as they happen, but not the backlog at page load
+        if (paramsRef.current.followChanges) jumpTo(fresh[0]!, 6);
       }
       firstPush = false;
     };
@@ -1407,8 +1419,8 @@ export function App() {
             }
             showEdges={params.showEdges || params.granularity === "symbol"}
             showFiles={params.granularity !== "module"}
-            redEdges={flowInfo.redEdges}
-            redModuleKeys={redModuleKeys}
+            cyclicIds={flowInfo.cyclicIds}
+            cyclicModuleIds={cyclicModuleIds}
             labels={labels}
             exportedIds={exportedIds}
             focus={focusView}
@@ -1663,6 +1675,33 @@ export function App() {
             onRemoveNode={removeNode}
           />
         </Section>
+        {recentChangesRef.current.length > 0 ? (
+          <Section title="変更履歴">
+            <div
+              style={{ display: "flex", flexDirection: "column", gap: "2px" }}
+            >
+              {recentChangesRef.current.map((entry) => (
+                <button
+                  key={entry.id}
+                  onClick={() => jumpTo(entry.id, 6)}
+                  style={{
+                    padding: "3px 4px",
+                    fontSize: "11px",
+                    cursor: "pointer",
+                    background: "none",
+                    border: "none",
+                    color: entry.kind === "added" ? "#047857" : "#b45309",
+                    textAlign: "left",
+                    wordBreak: "break-all",
+                  }}
+                >
+                  {new Date(entry.at).toLocaleTimeString()}{" "}
+                  {labelOf(entry.id)}
+                </button>
+              ))}
+            </div>
+          </Section>
+        ) : null}
         {refactorActions.length > 0 ? (
           <Section title="リファクタ候補">
             <div
