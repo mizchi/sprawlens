@@ -56,7 +56,12 @@ const WIDTH = 960;
 const HEIGHT = 640;
 const CONVERGENCE_TOLERANCE = 0.02;
 /** Zoom past this implicitly focuses the crosshair target (no selection). */
-const AUTOFOCUS_ZOOM = 1.6;
+/**
+ * Zoom focus engages only when the crosshair target fills this share of
+ * the viewport — containing the center point alone is not enough, or a
+ * sliver of a small neighboring file would steal the focus.
+ */
+const AUTOFOCUS_AREA_FRACTION = 0.12;
 
 function clipOf(kind: ClipKind): ClipRegion {
   return kind === "rect"
@@ -1102,16 +1107,33 @@ export function App() {
   })();
 
   /**
-   * Zoom focus: without an explicit selection, zooming past the threshold
-   * implicitly selects the crosshair target, clamped to focusGranularity
-   * (LOC file maps stop at files; the API network goes to symbols).
-   * Explicit clicks always override; Esc clears back to implicit.
+   * Zoom focus: without an explicit selection, the crosshair target becomes
+   * the implicit selection once it both contains the view center (the
+   * breadcrumb hit-test) and fills enough of the screen. Candidates run
+   * from focusGranularity upward: a file too small to dominate falls back
+   * to its module, and so on. Explicit clicks always override; Esc clears
+   * back to implicit.
    */
   const implicitId = (() => {
-    if (selectedId || viewInfo.zoom < AUTOFOCUS_ZOOM) return null;
-    if (breadcrumb.length === 0) return null;
+    if (selectedId || breadcrumb.length === 0) return null;
+    const rings = ringsRef.current;
+    if (!rings) return null;
+    const viewportArea = (WIDTH * HEIGHT) / (viewInfo.zoom * viewInfo.zoom);
+    const worldAreaOf = (id: string): number => {
+      const circle = rings.circles.get(id);
+      if (circle) return Math.PI * circle.r ** 2;
+      const moduleLayout = rings.moduleLayouts.get(breadcrumb[0]!.id);
+      const cell = moduleLayout?.cells.find((c) => c.id === id);
+      if (cell) return cell.actualArea;
+      const inner = innerLayoutsRef.current.get(parentFileOf(id));
+      return inner?.cells.find((c) => c.id === id)?.actualArea ?? 0;
+    };
     const depth = { module: 1, file: 2, symbol: 3 }[params.focusGranularity];
-    return breadcrumb[Math.min(depth, breadcrumb.length) - 1]!.id;
+    for (let i = Math.min(depth, breadcrumb.length) - 1; i >= 0; i--) {
+      const id = breadcrumb[i]!.id;
+      if (worldAreaOf(id) >= viewportArea * AUTOFOCUS_AREA_FRACTION) return id;
+    }
+    return null;
   })();
   const activeId = selectedId ?? implicitId;
 
