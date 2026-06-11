@@ -110,6 +110,11 @@ const SYMBOL_ZOOM = 2.2;
  */
 const SYMBOL_DOMINANT_FRACTION = 0.35;
 const DIM = 0.1;
+/** Cells smaller than this on screen render as nothing — the module
+ * circle's fill carries the texture; zooming in reveals them. */
+const MIN_CELL_PX = 2.5;
+/** Edges shorter than this on screen are sub-pixel noise. */
+const MIN_EDGE_PX = 6;
 
 export function RingsMapSvg(props: Props) {
   const {
@@ -358,10 +363,27 @@ export function RingsMapSvg(props: Props) {
       allowedFiles.has(parentFileOf(cell.id)) &&
       cellVisible(cell));
 
+  // polygon point strings survive across re-renders as long as the cell
+  // objects do (zoom/pan commits re-render unchanged geometry)
+  const pointsCache = useRef(new WeakMap<CellResult, string>()).current;
+  const pointsOf = (cell: CellResult): string => {
+    let points = pointsCache.get(cell);
+    if (!points) {
+      points = cell.polygon.map((p) => `${p.x},${p.y}`).join(" ");
+      pointsCache.set(cell, points);
+    }
+    return points;
+  };
+  // highlighted cells stay visible at any size (signal > texture)
+  const mustRender = (id: string) =>
+    isSelected(id) || changedFiles.has(id) || cyclicIds.has(id);
   // filter once; the render lists below share these instead of re-testing
   // visibility per layer (3x the cells each render adds up at 4k+ symbols)
   const visibleFileCells = fileCells.filter(
-    (c) => c.polygon.length >= 3 && cellVisible(c),
+    (c) =>
+      c.polygon.length >= 3 &&
+      cellVisible(c) &&
+      (Math.sqrt(c.actualArea) * zoom >= MIN_CELL_PX || mustRender(c.id)),
   );
   const visibleInnerCells = innerCells.filter(
     (c) => c.polygon.length >= 3 && innerVisible(c),
@@ -674,7 +696,7 @@ export function RingsMapSvg(props: Props) {
           true ? (
             <polygon
               key={cell.id}
-              points={cell.polygon.map((p) => `${p.x},${p.y}`).join(" ")}
+              points={pointsOf(cell)}
               fill={
                 dependencyIds.has(cell.id)
                   ? DOWNSTREAM_FILL
@@ -712,7 +734,7 @@ export function RingsMapSvg(props: Props) {
             true ? (
               <polygon
                 key={cell.id}
-                points={cell.polygon.map((p) => `${p.x},${p.y}`).join(" ")}
+                points={pointsOf(cell)}
                 fill={
                   dependencyIds.has(cell.id)
                     ? DOWNSTREAM_FILL
@@ -738,6 +760,9 @@ export function RingsMapSvg(props: Props) {
             const a = fileSiteById.get(edge.source);
             const b = fileSiteById.get(edge.target);
             if (!a || !b) return null;
+            if (Math.hypot(b.x - a.x, b.y - a.y) * zoom < MIN_EDGE_PX) {
+              return null;
+            }
             return (
               <line
                 key={`${edge.source}-${edge.target}`}

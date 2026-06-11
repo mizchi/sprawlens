@@ -214,6 +214,8 @@ export function App() {
   const ringsRef = useRef<RingsState | null>(null);
   const historyRef = useRef<number[]>([]);
   const fpsRef = useRef({ last: 0, ema: 0 });
+  /** Frames since the last repaint commit while a big map converges. */
+  const repaintSkipRef = useRef(0);
   const paramsRef = useRef(params);
   paramsRef.current = params;
   const mutationRng = useRef<Rng>(createRng(0xc0ffee));
@@ -677,8 +679,22 @@ export function App() {
         );
       }
       // re-render only while a solver is actually advancing; a converged
-      // layout would otherwise burn CPU at full frame rate
-      if (outerActive || innerActive) setFrame((f) => f + 1);
+      // layout would otherwise burn CPU at full frame rate. On big maps a
+      // full SVG re-render costs as much as the solver budget, so while
+      // converging the repaint commits at ~20fps — the solver keeps every
+      // frame, the melt animation just interpolates visually coarser.
+      if (outerActive || innerActive) {
+        repaintSkipRef.current++;
+        const big = outerCells.length > 600;
+        if (!big || repaintSkipRef.current >= 3 || !outerActive) {
+          repaintSkipRef.current = 0;
+          setFrame((f) => f + 1);
+        }
+      } else if (repaintSkipRef.current > 0) {
+        // flush the final state once everything settles
+        repaintSkipRef.current = 0;
+        setFrame((f) => f + 1);
+      }
       schedule();
     };
     schedule();
