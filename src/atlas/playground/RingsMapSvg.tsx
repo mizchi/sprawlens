@@ -355,6 +355,132 @@ export function RingsMapSvg(props: Props) {
     selectedId !== null && symbolSiteById.has(selectedId);
   // reference edges touching the selection stay visible at any zoom,
   // colored by direction (outgoing = dependencies, incoming = dependents)
+  /**
+   * Off-screen reference previews: when an edge leaves the viewport, the
+   * far node's name docks at the point where the line crosses the screen
+   * edge — you can read (and click) what's at the other end without
+   * panning. One preview per far node.
+   */
+  type ExitPreview = {
+    id: string;
+    x: number;
+    y: number;
+    side: "left" | "right" | "top" | "bottom";
+  };
+  const exitPreviews = (edges: AtlasEdge[]): ExitPreview[] => {
+    const v = committedView;
+    const x0 = v.x;
+    const x1 = v.x + v.w;
+    const y0 = v.y;
+    const y1 = v.y + v.h;
+    const inside = (p: Vec2) =>
+      p.x >= x0 && p.x <= x1 && p.y >= y0 && p.y <= y1;
+    const seen = new Set<string>();
+    const previews: ExitPreview[] = [];
+    for (const edge of edges) {
+      const a = resolveSite(edge.source);
+      const b = resolveSite(edge.target);
+      if (!a || !b) continue;
+      const aIn = inside(a);
+      if (aIn === inside(b)) continue;
+      const near = aIn ? a : b;
+      const far = aIn ? b : a;
+      const farId = aIn ? edge.target : edge.source;
+      if (seen.has(farId)) continue;
+      seen.add(farId);
+      const dx = far.x - near.x;
+      const dy = far.y - near.y;
+      let t = 1;
+      let side: ExitPreview["side"] = "right";
+      if (dx > 0 && far.x > x1) {
+        const tt = (x1 - near.x) / dx;
+        if (tt < t) {
+          t = tt;
+          side = "right";
+        }
+      }
+      if (dx < 0 && far.x < x0) {
+        const tt = (x0 - near.x) / dx;
+        if (tt < t) {
+          t = tt;
+          side = "left";
+        }
+      }
+      if (dy > 0 && far.y > y1) {
+        const tt = (y1 - near.y) / dy;
+        if (tt < t) {
+          t = tt;
+          side = "bottom";
+        }
+      }
+      if (dy < 0 && far.y < y0) {
+        const tt = (y0 - near.y) / dy;
+        if (tt < t) {
+          t = tt;
+          side = "top";
+        }
+      }
+      previews.push({
+        id: farId,
+        x: near.x + dx * t,
+        y: near.y + dy * t,
+        side,
+      });
+    }
+    return previews;
+  };
+  const renderExitPreviews = (
+    edges: AtlasEdge[],
+    color: string,
+    keyPrefix: string,
+  ) => {
+    const previews = exitPreviews(edges);
+    if (previews.length === 0) return null;
+    const fontSize = 10.5 / zoom;
+    return (
+      <g key={keyPrefix} style={{ userSelect: "none" }}>
+        {previews.map((preview) => (
+          <text
+            key={preview.id}
+            x={
+              preview.side === "left"
+                ? preview.x + fontSize * 0.5
+                : preview.side === "right"
+                  ? preview.x - fontSize * 0.5
+                  : preview.x
+            }
+            y={
+              preview.side === "top"
+                ? preview.y + fontSize * 1.3
+                : preview.side === "bottom"
+                  ? preview.y - fontSize * 0.5
+                  : preview.y + fontSize * 0.35
+            }
+            font-size={fontSize}
+            font-weight="600"
+            text-anchor={
+              preview.side === "left"
+                ? "start"
+                : preview.side === "right"
+                  ? "end"
+                  : "middle"
+            }
+            fill={color}
+            stroke="#f8fafc"
+            stroke-width={3 / zoom}
+            paint-order="stroke"
+            style={{ cursor: "pointer" }}
+            onClick={(event) => {
+              event.stopPropagation();
+              onSelect(preview.id);
+            }}
+          >
+            {labels.get(preview.id) ?? fallbackLabel(preview.id)}
+          </text>
+        ))}
+      </g>
+    );
+  };
   const selectedOutgoing =
     selectedId === null
       ? []
@@ -650,6 +776,33 @@ export function RingsMapSvg(props: Props) {
           </g>
         ) : null,
       )}
+      {/* names of reference targets that left the screen, docked where
+          their edge crosses the viewport border */}
+      {focus
+        ? [
+            renderExitPreviews(
+              focus.downstreamEdges,
+              DOWNSTREAM_COLOR,
+              "exit-focus-down",
+            ),
+            renderExitPreviews(
+              focus.upstreamEdges,
+              UPSTREAM_COLOR,
+              "exit-focus-up",
+            ),
+          ]
+        : [
+            renderExitPreviews(
+              selectedOutgoing,
+              DOWNSTREAM_COLOR,
+              "exit-sel-down",
+            ),
+            renderExitPreviews(
+              selectedIncoming,
+              UPSTREAM_COLOR,
+              "exit-sel-up",
+            ),
+          ]}
       {/* symbol sites are conceptual edge waypoints only — no dots */}
       {/* adapter ports on the module rim (API view) */}
       {portNodes.length > 0 ? (
