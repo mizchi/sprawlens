@@ -1,9 +1,2015 @@
-// Generated from .codesprawl snapshot of this repository (commit 2320971).
+// Generated from .codesprawl snapshot of this repository (commit 253d836).
 // Regenerate: npx tsx src/cli/index.ts collect . --commits 1, then re-run the strip script.
 import type { SnapshotLike } from "../fixtureAdapter.js";
 
 export const sprawlensSnapshot: SnapshotLike = {
  "nodes": [
+  {
+   "id": "repo",
+   "type": "repo"
+  },
+  {
+   "id": "dir:e2e",
+   "type": "dir",
+   "path": "e2e"
+  },
+  {
+   "id": "dir:src",
+   "type": "dir",
+   "path": "src"
+  },
+  {
+   "id": "dir:src/atlas",
+   "type": "dir",
+   "path": "src/atlas"
+  },
+  {
+   "id": "dir:src/atlas/contracts",
+   "type": "dir",
+   "path": "src/atlas/contracts"
+  },
+  {
+   "id": "dir:src/atlas/kernel",
+   "type": "dir",
+   "path": "src/atlas/kernel"
+  },
+  {
+   "id": "dir:src/atlas/playground",
+   "type": "dir",
+   "path": "src/atlas/playground"
+  },
+  {
+   "id": "dir:src/atlas/server",
+   "type": "dir",
+   "path": "src/atlas/server"
+  },
+  {
+   "id": "dir:src/cli",
+   "type": "dir",
+   "path": "src/cli"
+  },
+  {
+   "id": "dir:src/core",
+   "type": "dir",
+   "path": "src/core"
+  },
+  {
+   "id": "dir:src/ui",
+   "type": "dir",
+   "path": "src/ui"
+  },
+  {
+   "id": "file:e2e/atlas-zoom.spec.ts",
+   "type": "file",
+   "path": "e2e/atlas-zoom.spec.ts",
+   "loc": 97,
+   "symbols": [
+    {
+     "id": "symbol:e2e/atlas-zoom.spec.ts:function:zoomGesture:13",
+     "name": "zoomGesture",
+     "kind": "function",
+     "loc": 8,
+     "exported": false
+    },
+    {
+     "id": "symbol:e2e/atlas-zoom.spec.ts:function:polygonCount:22",
+     "name": "polygonCount",
+     "kind": "function",
+     "loc": 2,
+     "exported": false
+    }
+   ]
+  },
+  {
+   "id": "file:playwright.atlas.config.ts",
+   "type": "file",
+   "path": "playwright.atlas.config.ts",
+   "loc": 28
+  },
+  {
+   "id": "file:src/atlas/contracts/graph.test.ts",
+   "type": "file",
+   "path": "src/atlas/contracts/graph.test.ts",
+   "loc": 17
+  },
+  {
+   "id": "file:src/atlas/contracts/graph.ts",
+   "type": "file",
+   "path": "src/atlas/contracts/graph.ts",
+   "loc": 38,
+   "symbols": [
+    {
+     "id": "symbol:src/atlas/contracts/graph.ts:type:AtlasNodeKind:5",
+     "name": "AtlasNodeKind",
+     "kind": "type",
+     "loc": 1,
+     "exported": true
+    },
+    {
+     "id": "symbol:src/atlas/contracts/graph.ts:type:AtlasNodeMetrics:7",
+     "name": "AtlasNodeMetrics",
+     "kind": "type",
+     "loc": 3,
+     "exported": true
+    },
+    {
+     "id": "symbol:src/atlas/contracts/graph.ts:type:AtlasNode:11",
+     "name": "AtlasNode",
+     "kind": "type",
+     "loc": 8,
+     "exported": true
+    },
+    {
+     "id": "symbol:src/atlas/contracts/graph.ts:type:AtlasEdge:20",
+     "name": "AtlasEdge",
+     "kind": "type",
+     "loc": 5,
+     "exported": true
+    },
+    {
+     "id": "symbol:src/atlas/contracts/graph.ts:type:AtlasGraph:26",
+     "name": "AtlasGraph",
+     "kind": "type",
+     "loc": 4,
+     "exported": true
+    },
+    {
+     "id": "symbol:src/atlas/contracts/graph.ts:type:WeightScorer:35",
+     "name": "WeightScorer",
+     "kind": "type",
+     "loc": 1,
+     "exported": true
+    },
+    {
+     "id": "symbol:src/atlas/contracts/graph.ts:function:locScorer:37",
+     "name": "locScorer",
+     "kind": "function",
+     "loc": 2,
+     "exported": true
+    }
+   ]
+  },
+  {
+   "id": "file:src/atlas/contracts/layers.test.ts",
+   "type": "file",
+   "path": "src/atlas/contracts/layers.test.ts",
+   "loc": 77,
+   "symbols": [
+    {
+     "id": "symbol:src/atlas/contracts/layers.test.ts:function:fileNode:5",
+     "name": "fileNode",
+     "kind": "function",
+     "loc": 3,
+     "exported": false
+    }
+   ]
+  },
+  {
+   "id": "file:src/atlas/contracts/layers.ts",
+   "type": "file",
+   "path": "src/atlas/contracts/layers.ts",
+   "loc": 85,
+   "symbols": [
+    {
+     "id": "symbol:src/atlas/contracts/layers.ts:type:LayerOf:7",
+     "name": "LayerOf",
+     "kind": "type",
+     "loc": 1,
+     "exported": true
+    },
+    {
+     "id": "symbol:src/atlas/contracts/layers.ts:function:defaultLayerOf:11",
+     "name": "defaultLayerOf",
+     "kind": "function",
+     "loc": 2,
+     "exported": true
+    },
+    {
+     "id": "symbol:src/atlas/contracts/layers.ts:type:LayerSplit:14",
+     "name": "LayerSplit",
+     "kind": "type",
+     "loc": 6,
+     "exported": true
+    },
+    {
+     "id": "symbol:src/atlas/contracts/layers.ts:function:splitByLayer:21",
+     "name": "splitByLayer",
+     "kind": "function",
+     "loc": 21,
+     "exported": true
+    },
+    {
+     "id": "symbol:src/atlas/contracts/layers.ts:function:matchTestTargets:48",
+     "name": "matchTestTargets",
+     "kind": "function",
+     "loc": 38,
+     "exported": true
+    }
+   ]
+  },
+  {
+   "id": "file:src/atlas/contracts/modules.test.ts",
+   "type": "file",
+   "path": "src/atlas/contracts/modules.test.ts",
+   "loc": 82,
+   "symbols": [
+    {
+     "id": "symbol:src/atlas/contracts/modules.test.ts:function:fileNode:5",
+     "name": "fileNode",
+     "kind": "function",
+     "loc": 3,
+     "exported": false
+    }
+   ]
+  },
+  {
+   "id": "file:src/atlas/contracts/modules.ts",
+   "type": "file",
+   "path": "src/atlas/contracts/modules.ts",
+   "loc": 80,
+   "symbols": [
+    {
+     "id": "symbol:src/atlas/contracts/modules.ts:type:ModuleIdOf:9",
+     "name": "ModuleIdOf",
+     "kind": "type",
+     "loc": 1,
+     "exported": true
+    },
+    {
+     "id": "symbol:src/atlas/contracts/modules.ts:function:defaultModuleIdOf:14",
+     "name": "defaultModuleIdOf",
+     "kind": "function",
+     "loc": 8,
+     "exported": true
+    },
+    {
+     "id": "symbol:src/atlas/contracts/modules.ts:type:ModuleGraph:23",
+     "name": "ModuleGraph",
+     "kind": "type",
+     "loc": 8,
+     "exported": true
+    },
+    {
+     "id": "symbol:src/atlas/contracts/modules.ts:function:deriveModules:32",
+     "name": "deriveModules",
+     "kind": "function",
+     "loc": 49,
+     "exported": true
+    }
+   ]
+  },
+  {
+   "id": "file:src/atlas/kernel/capacityLayout.test.ts",
+   "type": "file",
+   "path": "src/atlas/kernel/capacityLayout.test.ts",
+   "loc": 261,
+   "symbols": [
+    {
+     "id": "symbol:src/atlas/kernel/capacityLayout.test.ts:function:syntheticNodes:16",
+     "name": "syntheticNodes",
+     "kind": "function",
+     "loc": 7,
+     "exported": false
+    },
+    {
+     "id": "symbol:src/atlas/kernel/capacityLayout.test.ts:function:runUntil:24",
+     "name": "runUntil",
+     "kind": "function",
+     "loc": 24,
+     "exported": false
+    }
+   ]
+  },
+  {
+   "id": "file:src/atlas/kernel/capacityLayout.ts",
+   "type": "file",
+   "path": "src/atlas/kernel/capacityLayout.ts",
+   "loc": 385,
+   "symbols": [
+    {
+     "id": "symbol:src/atlas/kernel/capacityLayout.ts:type:CellInputNode:19",
+     "name": "CellInputNode",
+     "kind": "type",
+     "loc": 6,
+     "exported": true
+    },
+    {
+     "id": "symbol:src/atlas/kernel/capacityLayout.ts:type:CapacityOptions:26",
+     "name": "CapacityOptions",
+     "kind": "type",
+     "loc": 11,
+     "exported": true
+    },
+    {
+     "id": "symbol:src/atlas/kernel/capacityLayout.ts:type:CellResult:38",
+     "name": "CellResult",
+     "kind": "type",
+     "loc": 8,
+     "exported": true
+    },
+    {
+     "id": "symbol:src/atlas/kernel/capacityLayout.ts:type:SiteState:47",
+     "name": "SiteState",
+     "kind": "type",
+     "loc": 4,
+     "exported": false
+    },
+    {
+     "id": "symbol:src/atlas/kernel/capacityLayout.ts:type:CapacityLayoutState:52",
+     "name": "CapacityLayoutState",
+     "kind": "type",
+     "loc": 10,
+     "exported": true
+    },
+    {
+     "id": "symbol:src/atlas/kernel/capacityLayout.ts:function:mergeOptions:72",
+     "name": "mergeOptions",
+     "kind": "function",
+     "loc": 12,
+     "exported": false
+    },
+    {
+     "id": "symbol:src/atlas/kernel/capacityLayout.ts:function:separateCoincident:86",
+     "name": "separateCoincident",
+     "kind": "function",
+     "loc": 18,
+     "exported": false
+    },
+    {
+     "id": "symbol:src/atlas/kernel/capacityLayout.ts:function:flooredWeights:105",
+     "name": "flooredWeights",
+     "kind": "function",
+     "loc": 5,
+     "exported": false
+    },
+    {
+     "id": "symbol:src/atlas/kernel/capacityLayout.ts:function:computeCells:111",
+     "name": "computeCells",
+     "kind": "function",
+     "loc": 21,
+     "exported": false
+    },
+    {
+     "id": "symbol:src/atlas/kernel/capacityLayout.ts:function:buildState:133",
+     "name": "buildState",
+     "kind": "function",
+     "loc": 19,
+     "exported": false
+    },
+    {
+     "id": "symbol:src/atlas/kernel/capacityLayout.ts:function:assignTargets:153",
+     "name": "assignTargets",
+     "kind": "function",
+     "loc": 10,
+     "exported": false
+    },
+    {
+     "id": "symbol:src/atlas/kernel/capacityLayout.ts:function:createCapacityLayout:164",
+     "name": "createCapacityLayout",
+     "kind": "function",
+     "loc": 31,
+     "exported": true
+    },
+    {
+     "id": "symbol:src/atlas/kernel/capacityLayout.ts:function:adaptWeights:196",
+     "name": "adaptWeights",
+     "kind": "function",
+     "loc": 66,
+     "exported": false
+    },
+    {
+     "id": "symbol:src/atlas/kernel/capacityLayout.ts:function:capacityStep:263",
+     "name": "capacityStep",
+     "kind": "function",
+     "loc": 47,
+     "exported": true
+    },
+    {
+     "id": "symbol:src/atlas/kernel/capacityLayout.ts:function:isConverged:311",
+     "name": "isConverged",
+     "kind": "function",
+     "loc": 6,
+     "exported": true
+    },
+    {
+     "id": "symbol:src/atlas/kernel/capacityLayout.ts:type:GraphChanges:318",
+     "name": "GraphChanges",
+     "kind": "type",
+     "loc": 5,
+     "exported": true
+    },
+    {
+     "id": "symbol:src/atlas/kernel/capacityLayout.ts:function:applyGraphChanges:329",
+     "name": "applyGraphChanges",
+     "kind": "function",
+     "loc": 57,
+     "exported": true
+    }
+   ]
+  },
+  {
+   "id": "file:src/atlas/kernel/clip.test.ts",
+   "type": "file",
+   "path": "src/atlas/kernel/clip.test.ts",
+   "loc": 52,
+   "symbols": [
+    {
+     "id": "symbol:src/atlas/kernel/clip.test.ts:function:insideTriangle:20",
+     "name": "insideTriangle",
+     "kind": "function",
+     "loc": 5,
+     "exported": false
+    }
+   ]
+  },
+  {
+   "id": "file:src/atlas/kernel/clip.ts",
+   "type": "file",
+   "path": "src/atlas/kernel/clip.ts",
+   "loc": 141,
+   "symbols": [
+    {
+     "id": "symbol:src/atlas/kernel/clip.ts:type:ClipRegion:5",
+     "name": "ClipRegion",
+     "kind": "type",
+     "loc": 5,
+     "exported": true
+    },
+    {
+     "id": "symbol:src/atlas/kernel/clip.ts:function:clipToRing:11",
+     "name": "clipToRing",
+     "kind": "function",
+     "loc": 12,
+     "exported": true
+    },
+    {
+     "id": "symbol:src/atlas/kernel/clip.ts:function:insideConvex:24",
+     "name": "insideConvex",
+     "kind": "function",
+     "loc": 9,
+     "exported": false
+    },
+    {
+     "id": "symbol:src/atlas/kernel/clip.ts:function:randomPointIn:34",
+     "name": "randomPointIn",
+     "kind": "function",
+     "loc": 43,
+     "exported": true
+    },
+    {
+     "id": "symbol:src/atlas/kernel/clip.ts:function:clampInto:78",
+     "name": "clampInto",
+     "kind": "function",
+     "loc": 38,
+     "exported": true
+    },
+    {
+     "id": "symbol:src/atlas/kernel/clip.ts:function:clipScale:117",
+     "name": "clipScale",
+     "kind": "function",
+     "loc": 17,
+     "exported": true
+    },
+    {
+     "id": "symbol:src/atlas/kernel/clip.ts:function:clipCenter:135",
+     "name": "clipCenter",
+     "kind": "function",
+     "loc": 7,
+     "exported": true
+    }
+   ]
+  },
+  {
+   "id": "file:src/atlas/kernel/embed.test.ts",
+   "type": "file",
+   "path": "src/atlas/kernel/embed.test.ts",
+   "loc": 207,
+   "symbols": [
+    {
+     "id": "symbol:src/atlas/kernel/embed.test.ts:function:clique:5",
+     "name": "clique",
+     "kind": "function",
+     "loc": 13,
+     "exported": false
+    },
+    {
+     "id": "symbol:src/atlas/kernel/embed.test.ts:function:dist:19",
+     "name": "dist",
+     "kind": "function",
+     "loc": 3,
+     "exported": false
+    },
+    {
+     "id": "symbol:src/atlas/kernel/embed.test.ts:function:meanPairDist:23",
+     "name": "meanPairDist",
+     "kind": "function",
+     "loc": 12,
+     "exported": false
+    },
+    {
+     "id": "symbol:src/atlas/kernel/embed.test.ts:function:twoClusters:37",
+     "name": "twoClusters",
+     "kind": "function",
+     "loc": 10,
+     "exported": false
+    }
+   ]
+  },
+  {
+   "id": "file:src/atlas/kernel/embed.ts",
+   "type": "file",
+   "path": "src/atlas/kernel/embed.ts",
+   "loc": 415,
+   "symbols": [
+    {
+     "id": "symbol:src/atlas/kernel/embed.ts:type:EmbedEdge:15",
+     "name": "EmbedEdge",
+     "kind": "type",
+     "loc": 1,
+     "exported": true
+    },
+    {
+     "id": "symbol:src/atlas/kernel/embed.ts:type:EmbedOptions:17",
+     "name": "EmbedOptions",
+     "kind": "type",
+     "loc": 11,
+     "exported": true
+    },
+    {
+     "id": "symbol:src/atlas/kernel/embed.ts:function:embedGraph:31",
+     "name": "embedGraph",
+     "kind": "function",
+     "loc": 139,
+     "exported": true
+    },
+    {
+     "id": "symbol:src/atlas/kernel/embed.ts:function:procrustesAlign:177",
+     "name": "procrustesAlign",
+     "kind": "function",
+     "loc": 63,
+     "exported": true
+    },
+    {
+     "id": "symbol:src/atlas/kernel/embed.ts:function:bfsAllPairs:242",
+     "name": "bfsAllPairs",
+     "kind": "function",
+     "loc": 27,
+     "exported": false
+    },
+    {
+     "id": "symbol:src/atlas/kernel/embed.ts:function:affinities:271",
+     "name": "affinities",
+     "kind": "function",
+     "loc": 55,
+     "exported": false
+    },
+    {
+     "id": "symbol:src/atlas/kernel/embed.ts:function:classicalMds:332",
+     "name": "classicalMds",
+     "kind": "function",
+     "loc": 65,
+     "exported": false
+    },
+    {
+     "id": "symbol:src/atlas/kernel/embed.ts:function:neighborMean:398",
+     "name": "neighborMean",
+     "kind": "function",
+     "loc": 18,
+     "exported": false
+    }
+   ]
+  },
+  {
+   "id": "file:src/atlas/kernel/forceLayout.test.ts",
+   "type": "file",
+   "path": "src/atlas/kernel/forceLayout.test.ts",
+   "loc": 109,
+   "symbols": [
+    {
+     "id": "symbol:src/atlas/kernel/forceLayout.test.ts:function:clusteredGraph:13",
+     "name": "clusteredGraph",
+     "kind": "function",
+     "loc": 23,
+     "exported": false
+    },
+    {
+     "id": "symbol:src/atlas/kernel/forceLayout.test.ts:function:run:37",
+     "name": "run",
+     "kind": "function",
+     "loc": 5,
+     "exported": false
+    }
+   ]
+  },
+  {
+   "id": "file:src/atlas/kernel/forceLayout.ts",
+   "type": "file",
+   "path": "src/atlas/kernel/forceLayout.ts",
+   "loc": 167,
+   "symbols": [
+    {
+     "id": "symbol:src/atlas/kernel/forceLayout.ts:type:ForceInputNode:12",
+     "name": "ForceInputNode",
+     "kind": "type",
+     "loc": 1,
+     "exported": true
+    },
+    {
+     "id": "symbol:src/atlas/kernel/forceLayout.ts:type:ForceInputEdge:13",
+     "name": "ForceInputEdge",
+     "kind": "type",
+     "loc": 1,
+     "exported": true
+    },
+    {
+     "id": "symbol:src/atlas/kernel/forceLayout.ts:type:ForceOptions:15",
+     "name": "ForceOptions",
+     "kind": "type",
+     "loc": 9,
+     "exported": true
+    },
+    {
+     "id": "symbol:src/atlas/kernel/forceLayout.ts:type:ForceLayoutState:25",
+     "name": "ForceLayoutState",
+     "kind": "type",
+     "loc": 9,
+     "exported": true
+    },
+    {
+     "id": "symbol:src/atlas/kernel/forceLayout.ts:function:createForceLayout:42",
+     "name": "createForceLayout",
+     "kind": "function",
+     "loc": 40,
+     "exported": true
+    },
+    {
+     "id": "symbol:src/atlas/kernel/forceLayout.ts:function:forceStep:83",
+     "name": "forceStep",
+     "kind": "function",
+     "loc": 85,
+     "exported": true
+    }
+   ]
+  },
+  {
+   "id": "file:src/atlas/kernel/geojson.test.ts",
+   "type": "file",
+   "path": "src/atlas/kernel/geojson.test.ts",
+   "loc": 45
+  },
+  {
+   "id": "file:src/atlas/kernel/geojson.ts",
+   "type": "file",
+   "path": "src/atlas/kernel/geojson.ts",
+   "loc": 49,
+   "symbols": [
+    {
+     "id": "symbol:src/atlas/kernel/geojson.ts:type:CellFeatureProperties:8",
+     "name": "CellFeatureProperties",
+     "kind": "type",
+     "loc": 8,
+     "exported": true
+    },
+    {
+     "id": "symbol:src/atlas/kernel/geojson.ts:type:CellFeature:17",
+     "name": "CellFeature",
+     "kind": "type",
+     "loc": 5,
+     "exported": true
+    },
+    {
+     "id": "symbol:src/atlas/kernel/geojson.ts:type:CellFeatureCollection:23",
+     "name": "CellFeatureCollection",
+     "kind": "type",
+     "loc": 4,
+     "exported": true
+    },
+    {
+     "id": "symbol:src/atlas/kernel/geojson.ts:function:cellsToFeatureCollection:28",
+     "name": "cellsToFeatureCollection",
+     "kind": "function",
+     "loc": 22,
+     "exported": true
+    }
+   ]
+  },
+  {
+   "id": "file:src/atlas/kernel/pagerank.test.ts",
+   "type": "file",
+   "path": "src/atlas/kernel/pagerank.test.ts",
+   "loc": 57
+  },
+  {
+   "id": "file:src/atlas/kernel/pagerank.ts",
+   "type": "file",
+   "path": "src/atlas/kernel/pagerank.ts",
+   "loc": 56,
+   "symbols": [
+    {
+     "id": "symbol:src/atlas/kernel/pagerank.ts:type:RankableEdge:1",
+     "name": "RankableEdge",
+     "kind": "type",
+     "loc": 1,
+     "exported": true
+    },
+    {
+     "id": "symbol:src/atlas/kernel/pagerank.ts:type:PageRankOptions:3",
+     "name": "PageRankOptions",
+     "kind": "type",
+     "loc": 5,
+     "exported": true
+    },
+    {
+     "id": "symbol:src/atlas/kernel/pagerank.ts:function:pageRank:15",
+     "name": "pageRank",
+     "kind": "function",
+     "loc": 42,
+     "exported": true
+    }
+   ]
+  },
+  {
+   "id": "file:src/atlas/kernel/pipeline.test.ts",
+   "type": "file",
+   "path": "src/atlas/kernel/pipeline.test.ts",
+   "loc": 154,
+   "symbols": [
+    {
+     "id": "symbol:src/atlas/kernel/pipeline.test.ts:function:sampleGraph:8",
+     "name": "sampleGraph",
+     "kind": "function",
+     "loc": 16,
+     "exported": false
+    }
+   ]
+  },
+  {
+   "id": "file:src/atlas/kernel/pipeline.ts",
+   "type": "file",
+   "path": "src/atlas/kernel/pipeline.ts",
+   "loc": 104,
+   "symbols": [
+    {
+     "id": "symbol:src/atlas/kernel/pipeline.ts:type:GraphLayoutOptions:12",
+     "name": "GraphLayoutOptions",
+     "kind": "type",
+     "loc": 11,
+     "exported": true
+    },
+    {
+     "id": "symbol:src/atlas/kernel/pipeline.ts:function:embedIterationsFor:28",
+     "name": "embedIterationsFor",
+     "kind": "function",
+     "loc": 7,
+     "exported": true
+    },
+    {
+     "id": "symbol:src/atlas/kernel/pipeline.ts:function:embedSeedHints:44",
+     "name": "embedSeedHints",
+     "kind": "function",
+     "loc": 24,
+     "exported": true
+    },
+    {
+     "id": "symbol:src/atlas/kernel/pipeline.ts:function:createGraphLayout:73",
+     "name": "createGraphLayout",
+     "kind": "function",
+     "loc": 32,
+     "exported": true
+    }
+   ]
+  },
+  {
+   "id": "file:src/atlas/kernel/polygon.test.ts",
+   "type": "file",
+   "path": "src/atlas/kernel/polygon.test.ts",
+   "loc": 94
+  },
+  {
+   "id": "file:src/atlas/kernel/polygon.ts",
+   "type": "file",
+   "path": "src/atlas/kernel/polygon.ts",
+   "loc": 97,
+   "symbols": [
+    {
+     "id": "symbol:src/atlas/kernel/polygon.ts:type:Ring:4",
+     "name": "Ring",
+     "kind": "type",
+     "loc": 1,
+     "exported": true
+    },
+    {
+     "id": "symbol:src/atlas/kernel/polygon.ts:type:Circle:6",
+     "name": "Circle",
+     "kind": "type",
+     "loc": 1,
+     "exported": true
+    },
+    {
+     "id": "symbol:src/atlas/kernel/polygon.ts:function:signedArea:8",
+     "name": "signedArea",
+     "kind": "function",
+     "loc": 10,
+     "exported": true
+    },
+    {
+     "id": "symbol:src/atlas/kernel/polygon.ts:function:centroid:19",
+     "name": "centroid",
+     "kind": "function",
+     "loc": 23,
+     "exported": true
+    },
+    {
+     "id": "symbol:src/atlas/kernel/polygon.ts:function:clipHalfPlane:47",
+     "name": "clipHalfPlane",
+     "kind": "function",
+     "loc": 26,
+     "exported": true
+    },
+    {
+     "id": "symbol:src/atlas/kernel/polygon.ts:function:containsPoint:75",
+     "name": "containsPoint",
+     "kind": "function",
+     "loc": 11,
+     "exported": true
+    },
+    {
+     "id": "symbol:src/atlas/kernel/polygon.ts:function:circleToPolygon:87",
+     "name": "circleToPolygon",
+     "kind": "function",
+     "loc": 11,
+     "exported": true
+    }
+   ]
+  },
+  {
+   "id": "file:src/atlas/kernel/powerDiagram.test.ts",
+   "type": "file",
+   "path": "src/atlas/kernel/powerDiagram.test.ts",
+   "loc": 166,
+   "symbols": [
+    {
+     "id": "symbol:src/atlas/kernel/powerDiagram.test.ts:function:powerDistance:14",
+     "name": "powerDistance",
+     "kind": "function",
+     "loc": 5,
+     "exported": false
+    },
+    {
+     "id": "symbol:src/atlas/kernel/powerDiagram.test.ts:function:insideConvex:21",
+     "name": "insideConvex",
+     "kind": "function",
+     "loc": 9,
+     "exported": false
+    },
+    {
+     "id": "symbol:src/atlas/kernel/powerDiagram.test.ts:function:randomSites:31",
+     "name": "randomSites",
+     "kind": "function",
+     "loc": 9,
+     "exported": false
+    }
+   ]
+  },
+  {
+   "id": "file:src/atlas/kernel/powerDiagram.ts",
+   "type": "file",
+   "path": "src/atlas/kernel/powerDiagram.ts",
+   "loc": 123,
+   "symbols": [
+    {
+     "id": "symbol:src/atlas/kernel/powerDiagram.ts:type:PowerSite:5",
+     "name": "PowerSite",
+     "kind": "type",
+     "loc": 7,
+     "exported": true
+    },
+    {
+     "id": "symbol:src/atlas/kernel/powerDiagram.ts:type:CellEdge:13",
+     "name": "CellEdge",
+     "kind": "type",
+     "loc": 6,
+     "exported": true
+    },
+    {
+     "id": "symbol:src/atlas/kernel/powerDiagram.ts:type:PowerCell:20",
+     "name": "PowerCell",
+     "kind": "type",
+     "loc": 6,
+     "exported": true
+    },
+    {
+     "id": "symbol:src/atlas/kernel/powerDiagram.ts:type:LabeledVertex:30",
+     "name": "LabeledVertex",
+     "kind": "type",
+     "loc": 1,
+     "exported": false
+    },
+    {
+     "id": "symbol:src/atlas/kernel/powerDiagram.ts:function:clipLabeled:37",
+     "name": "clipLabeled",
+     "kind": "function",
+     "loc": 37,
+     "exported": false
+    },
+    {
+     "id": "symbol:src/atlas/kernel/powerDiagram.ts:function:computePowerDiagram:75",
+     "name": "computePowerDiagram",
+     "kind": "function",
+     "loc": 49,
+     "exported": true
+    }
+   ]
+  },
+  {
+   "id": "file:src/atlas/kernel/reach.test.ts",
+   "type": "file",
+   "path": "src/atlas/kernel/reach.test.ts",
+   "loc": 59
+  },
+  {
+   "id": "file:src/atlas/kernel/reach.ts",
+   "type": "file",
+   "path": "src/atlas/kernel/reach.ts",
+   "loc": 64,
+   "symbols": [
+    {
+     "id": "symbol:src/atlas/kernel/reach.ts:type:ReachEdge:1",
+     "name": "ReachEdge",
+     "kind": "type",
+     "loc": 1,
+     "exported": true
+    },
+    {
+     "id": "symbol:src/atlas/kernel/reach.ts:type:ReachResult:3",
+     "name": "ReachResult",
+     "kind": "type",
+     "loc": 9,
+     "exported": true
+    },
+    {
+     "id": "symbol:src/atlas/kernel/reach.ts:function:reachSubgraph:19",
+     "name": "reachSubgraph",
+     "kind": "function",
+     "loc": 46,
+     "exported": true
+    }
+   ]
+  },
+  {
+   "id": "file:src/atlas/kernel/ringLayout.test.ts",
+   "type": "file",
+   "path": "src/atlas/kernel/ringLayout.test.ts",
+   "loc": 106,
+   "symbols": [
+    {
+     "id": "symbol:src/atlas/kernel/ringLayout.test.ts:function:modulesFixture:5",
+     "name": "modulesFixture",
+     "kind": "function",
+     "loc": 9,
+     "exported": false
+    }
+   ]
+  },
+  {
+   "id": "file:src/atlas/kernel/ringLayout.ts",
+   "type": "file",
+   "path": "src/atlas/kernel/ringLayout.ts",
+   "loc": 169,
+   "symbols": [
+    {
+     "id": "symbol:src/atlas/kernel/ringLayout.ts:type:RingModule:1",
+     "name": "RingModule",
+     "kind": "type",
+     "loc": 7,
+     "exported": true
+    },
+    {
+     "id": "symbol:src/atlas/kernel/ringLayout.ts:type:RingEdge:9",
+     "name": "RingEdge",
+     "kind": "type",
+     "loc": 1,
+     "exported": true
+    },
+    {
+     "id": "symbol:src/atlas/kernel/ringLayout.ts:type:RingOptions:11",
+     "name": "RingOptions",
+     "kind": "type",
+     "loc": 6,
+     "exported": true
+    },
+    {
+     "id": "symbol:src/atlas/kernel/ringLayout.ts:type:PlacedCircle:18",
+     "name": "PlacedCircle",
+     "kind": "type",
+     "loc": 1,
+     "exported": true
+    },
+    {
+     "id": "symbol:src/atlas/kernel/ringLayout.ts:type:RingLayoutResult:20",
+     "name": "RingLayoutResult",
+     "kind": "type",
+     "loc": 5,
+     "exported": true
+    },
+    {
+     "id": "symbol:src/atlas/kernel/ringLayout.ts:function:ringLayout:31",
+     "name": "ringLayout",
+     "kind": "function",
+     "loc": 139,
+     "exported": true
+    }
+   ]
+  },
+  {
+   "id": "file:src/atlas/kernel/rng.test.ts",
+   "type": "file",
+   "path": "src/atlas/kernel/rng.test.ts",
+   "loc": 27
+  },
+  {
+   "id": "file:src/atlas/kernel/rng.ts",
+   "type": "file",
+   "path": "src/atlas/kernel/rng.ts",
+   "loc": 13,
+   "symbols": [
+    {
+     "id": "symbol:src/atlas/kernel/rng.ts:type:Rng:1",
+     "name": "Rng",
+     "kind": "type",
+     "loc": 1,
+     "exported": true
+    },
+    {
+     "id": "symbol:src/atlas/kernel/rng.ts:function:createRng:4",
+     "name": "createRng",
+     "kind": "function",
+     "loc": 10,
+     "exported": true
+    }
+   ]
+  },
+  {
+   "id": "file:src/atlas/kernel/scc.test.ts",
+   "type": "file",
+   "path": "src/atlas/kernel/scc.test.ts",
+   "loc": 175
+  },
+  {
+   "id": "file:src/atlas/kernel/scc.ts",
+   "type": "file",
+   "path": "src/atlas/kernel/scc.ts",
+   "loc": 171,
+   "symbols": [
+    {
+     "id": "symbol:src/atlas/kernel/scc.ts:type:SccEdge:7",
+     "name": "SccEdge",
+     "kind": "type",
+     "loc": 1,
+     "exported": true
+    },
+    {
+     "id": "symbol:src/atlas/kernel/scc.ts:type:SccResult:9",
+     "name": "SccResult",
+     "kind": "type",
+     "loc": 5,
+     "exported": true
+    },
+    {
+     "id": "symbol:src/atlas/kernel/scc.ts:function:edgeKey:15",
+     "name": "edgeKey",
+     "kind": "function",
+     "loc": 3,
+     "exported": true
+    },
+    {
+     "id": "symbol:src/atlas/kernel/scc.ts:function:stronglyConnectedComponents:19",
+     "name": "stronglyConnectedComponents",
+     "kind": "function",
+     "loc": 70,
+     "exported": true
+    },
+    {
+     "id": "symbol:src/atlas/kernel/scc.ts:function:cyclicComponents:94",
+     "name": "cyclicComponents",
+     "kind": "function",
+     "loc": 16,
+     "exported": true
+    },
+    {
+     "id": "symbol:src/atlas/kernel/scc.ts:function:feedbackEdges:117",
+     "name": "feedbackEdges",
+     "kind": "function",
+     "loc": 41,
+     "exported": true
+    },
+    {
+     "id": "symbol:src/atlas/kernel/scc.ts:function:buildAdjacency:159",
+     "name": "buildAdjacency",
+     "kind": "function",
+     "loc": 13,
+     "exported": false
+    }
+   ]
+  },
+  {
+   "id": "file:src/atlas/kernel/topoRank.test.ts",
+   "type": "file",
+   "path": "src/atlas/kernel/topoRank.test.ts",
+   "loc": 73
+  },
+  {
+   "id": "file:src/atlas/kernel/topoRank.ts",
+   "type": "file",
+   "path": "src/atlas/kernel/topoRank.ts",
+   "loc": 47,
+   "symbols": [
+    {
+     "id": "symbol:src/atlas/kernel/topoRank.ts:type:RankEdge:3",
+     "name": "RankEdge",
+     "kind": "type",
+     "loc": 1,
+     "exported": true
+    },
+    {
+     "id": "symbol:src/atlas/kernel/topoRank.ts:function:topoRank:11",
+     "name": "topoRank",
+     "kind": "function",
+     "loc": 37,
+     "exported": true
+    }
+   ]
+  },
+  {
+   "id": "file:src/atlas/kernel/vec.test.ts",
+   "type": "file",
+   "path": "src/atlas/kernel/vec.test.ts",
+   "loc": 19
+  },
+  {
+   "id": "file:src/atlas/kernel/vec.ts",
+   "type": "file",
+   "path": "src/atlas/kernel/vec.ts",
+   "loc": 25,
+   "symbols": [
+    {
+     "id": "symbol:src/atlas/kernel/vec.ts:type:Vec2:1",
+     "name": "Vec2",
+     "kind": "type",
+     "loc": 1,
+     "exported": true
+    },
+    {
+     "id": "symbol:src/atlas/kernel/vec.ts:function:add:3",
+     "name": "add",
+     "kind": "function",
+     "loc": 3,
+     "exported": true
+    },
+    {
+     "id": "symbol:src/atlas/kernel/vec.ts:function:sub:7",
+     "name": "sub",
+     "kind": "function",
+     "loc": 3,
+     "exported": true
+    },
+    {
+     "id": "symbol:src/atlas/kernel/vec.ts:function:scale:11",
+     "name": "scale",
+     "kind": "function",
+     "loc": 3,
+     "exported": true
+    },
+    {
+     "id": "symbol:src/atlas/kernel/vec.ts:function:dot:15",
+     "name": "dot",
+     "kind": "function",
+     "loc": 3,
+     "exported": true
+    },
+    {
+     "id": "symbol:src/atlas/kernel/vec.ts:function:lengthOf:19",
+     "name": "lengthOf",
+     "kind": "function",
+     "loc": 3,
+     "exported": true
+    },
+    {
+     "id": "symbol:src/atlas/kernel/vec.ts:function:distance:23",
+     "name": "distance",
+     "kind": "function",
+     "loc": 3,
+     "exported": true
+    }
+   ]
+  },
+  {
+   "id": "file:src/atlas/playground/App.tsx",
+   "type": "file",
+   "path": "src/atlas/playground/App.tsx",
+   "loc": 1819,
+   "symbols": [
+    {
+     "id": "symbol:src/atlas/playground/App.tsx:function:clipOf:66",
+     "name": "clipOf",
+     "kind": "function",
+     "loc": 5,
+     "exported": false
+    },
+    {
+     "id": "symbol:src/atlas/playground/App.tsx:function:segmentsOf:73",
+     "name": "segmentsOf",
+     "kind": "function",
+     "loc": 3,
+     "exported": false
+    },
+    {
+     "id": "symbol:src/atlas/playground/App.tsx:function:insetRing:78",
+     "name": "insetRing",
+     "kind": "function",
+     "loc": 7,
+     "exported": false
+    },
+    {
+     "id": "symbol:src/atlas/playground/App.tsx:function:Sparkline:86",
+     "name": "Sparkline",
+     "kind": "function",
+     "loc": 26,
+     "exported": false
+    },
+    {
+     "id": "symbol:src/atlas/playground/App.tsx:function:Section:114",
+     "name": "Section",
+     "kind": "function",
+     "loc": 37,
+     "exported": false
+    },
+    {
+     "id": "symbol:src/atlas/playground/App.tsx:type:PanelPosition:152",
+     "name": "PanelPosition",
+     "kind": "type",
+     "loc": 1,
+     "exported": false
+    },
+    {
+     "id": "symbol:src/atlas/playground/App.tsx:function:App:154",
+     "name": "App",
+     "kind": "function",
+     "loc": 1666,
+     "exported": true
+    }
+   ]
+  },
+  {
+   "id": "file:src/atlas/playground/CellMapSvg.tsx",
+   "type": "file",
+   "path": "src/atlas/playground/CellMapSvg.tsx",
+   "loc": 135,
+   "symbols": [
+    {
+     "id": "symbol:src/atlas/playground/CellMapSvg.tsx:type:Props:7",
+     "name": "Props",
+     "kind": "type",
+     "loc": 12,
+     "exported": false
+    },
+    {
+     "id": "symbol:src/atlas/playground/CellMapSvg.tsx:function:cellFill:21",
+     "name": "cellFill",
+     "kind": "function",
+     "loc": 6,
+     "exported": false
+    },
+    {
+     "id": "symbol:src/atlas/playground/CellMapSvg.tsx:function:CellMapSvg:28",
+     "name": "CellMapSvg",
+     "kind": "function",
+     "loc": 108,
+     "exported": true
+    }
+   ]
+  },
+  {
+   "id": "file:src/atlas/playground/Controls.tsx",
+   "type": "file",
+   "path": "src/atlas/playground/Controls.tsx",
+   "loc": 364,
+   "symbols": [
+    {
+     "id": "symbol:src/atlas/playground/Controls.tsx:type:ClipKind:11",
+     "name": "ClipKind",
+     "kind": "type",
+     "loc": 1,
+     "exported": true
+    },
+    {
+     "id": "symbol:src/atlas/playground/Controls.tsx:type:DataSource:12",
+     "name": "DataSource",
+     "kind": "type",
+     "loc": 5,
+     "exported": true
+    },
+    {
+     "id": "symbol:src/atlas/playground/Controls.tsx:type:LayoutKind:17",
+     "name": "LayoutKind",
+     "kind": "type",
+     "loc": 1,
+     "exported": true
+    },
+    {
+     "id": "symbol:src/atlas/playground/Controls.tsx:type:PlaygroundParams:19",
+     "name": "PlaygroundParams",
+     "kind": "type",
+     "loc": 24,
+     "exported": true
+    },
+    {
+     "id": "symbol:src/atlas/playground/Controls.tsx:type:Props:44",
+     "name": "Props",
+     "kind": "type",
+     "loc": 9,
+     "exported": false
+    },
+    {
+     "id": "symbol:src/atlas/playground/Controls.tsx:function:NumberField:61",
+     "name": "NumberField",
+     "kind": "function",
+     "loc": 26,
+     "exported": false
+    },
+    {
+     "id": "symbol:src/atlas/playground/Controls.tsx:function:Controls:88",
+     "name": "Controls",
+     "kind": "function",
+     "loc": 277,
+     "exported": true
+    }
+   ]
+  },
+  {
+   "id": "file:src/atlas/playground/RingsMapSvg.tsx",
+   "type": "file",
+   "path": "src/atlas/playground/RingsMapSvg.tsx",
+   "loc": 811,
+   "symbols": [
+    {
+     "id": "symbol:src/atlas/playground/RingsMapSvg.tsx:type:FocusRequest:9",
+     "name": "FocusRequest",
+     "kind": "type",
+     "loc": 6,
+     "exported": true
+    },
+    {
+     "id": "symbol:src/atlas/playground/RingsMapSvg.tsx:type:FocusView:17",
+     "name": "FocusView",
+     "kind": "type",
+     "loc": 10,
+     "exported": true
+    },
+    {
+     "id": "symbol:src/atlas/playground/RingsMapSvg.tsx:type:Props:36",
+     "name": "Props",
+     "kind": "type",
+     "loc": 34,
+     "exported": false
+    },
+    {
+     "id": "symbol:src/atlas/playground/RingsMapSvg.tsx:function:cellFill:71",
+     "name": "cellFill",
+     "kind": "function",
+     "loc": 6,
+     "exported": false
+    },
+    {
+     "id": "symbol:src/atlas/playground/RingsMapSvg.tsx:function:fallbackLabel:79",
+     "name": "fallbackLabel",
+     "kind": "function",
+     "loc": 5,
+     "exported": false
+    },
+    {
+     "id": "symbol:src/atlas/playground/RingsMapSvg.tsx:type:ViewBox:85",
+     "name": "ViewBox",
+     "kind": "type",
+     "loc": 1,
+     "exported": false
+    },
+    {
+     "id": "symbol:src/atlas/playground/RingsMapSvg.tsx:function:RingsMapSvg:97",
+     "name": "RingsMapSvg",
+     "kind": "function",
+     "loc": 715,
+     "exported": true
+    }
+   ]
+  },
+  {
+   "id": "file:src/atlas/playground/apiView.test.ts",
+   "type": "file",
+   "path": "src/atlas/playground/apiView.test.ts",
+   "loc": 185,
+   "symbols": [
+    {
+     "id": "symbol:src/atlas/playground/apiView.test.ts:function:sym:27",
+     "name": "sym",
+     "kind": "function",
+     "loc": 3,
+     "exported": false
+    }
+   ]
+  },
+  {
+   "id": "file:src/atlas/playground/apiView.ts",
+   "type": "file",
+   "path": "src/atlas/playground/apiView.ts",
+   "loc": 147,
+   "symbols": [
+    {
+     "id": "symbol:src/atlas/playground/apiView.ts:function:parentFileOf:14",
+     "name": "parentFileOf",
+     "kind": "function",
+     "loc": 7,
+     "exported": false
+    },
+    {
+     "id": "symbol:src/atlas/playground/apiView.ts:function:apiModuleIdOf:23",
+     "name": "apiModuleIdOf",
+     "kind": "function",
+     "loc": 3,
+     "exported": true
+    },
+    {
+     "id": "symbol:src/atlas/playground/apiView.ts:type:ApiBoundarySplit:27",
+     "name": "ApiBoundarySplit",
+     "kind": "type",
+     "loc": 6,
+     "exported": true
+    },
+    {
+     "id": "symbol:src/atlas/playground/apiView.ts:function:splitApiBoundary:43",
+     "name": "splitApiBoundary",
+     "kind": "function",
+     "loc": 41,
+     "exported": true
+    },
+    {
+     "id": "symbol:src/atlas/playground/apiView.ts:type:ApiGraphOptions:85",
+     "name": "ApiGraphOptions",
+     "kind": "type",
+     "loc": 6,
+     "exported": true
+    },
+    {
+     "id": "symbol:src/atlas/playground/apiView.ts:function:buildApiGraph:92",
+     "name": "buildApiGraph",
+     "kind": "function",
+     "loc": 56,
+     "exported": true
+    }
+   ]
+  },
+  {
+   "id": "file:src/atlas/playground/callHierarchyClient.test.ts",
+   "type": "file",
+   "path": "src/atlas/playground/callHierarchyClient.test.ts",
+   "loc": 75
+  },
+  {
+   "id": "file:src/atlas/playground/callHierarchyClient.ts",
+   "type": "file",
+   "path": "src/atlas/playground/callHierarchyClient.ts",
+   "loc": 72,
+   "symbols": [
+    {
+     "id": "symbol:src/atlas/playground/callHierarchyClient.ts:type:SymbolRef:4",
+     "name": "SymbolRef",
+     "kind": "type",
+     "loc": 1,
+     "exported": true
+    },
+    {
+     "id": "symbol:src/atlas/playground/callHierarchyClient.ts:type:CallHierarchyResponse:6",
+     "name": "CallHierarchyResponse",
+     "kind": "type",
+     "loc": 4,
+     "exported": true
+    },
+    {
+     "id": "symbol:src/atlas/playground/callHierarchyClient.ts:function:startLineOf:12",
+     "name": "startLineOf",
+     "kind": "function",
+     "loc": 4,
+     "exported": false
+    },
+    {
+     "id": "symbol:src/atlas/playground/callHierarchyClient.ts:function:resolveRef:21",
+     "name": "resolveRef",
+     "kind": "function",
+     "loc": 19,
+     "exported": true
+    },
+    {
+     "id": "symbol:src/atlas/playground/callHierarchyClient.ts:function:refsToEdges:42",
+     "name": "refsToEdges",
+     "kind": "function",
+     "loc": 17,
+     "exported": true
+    },
+    {
+     "id": "symbol:src/atlas/playground/callHierarchyClient.ts:function:fetchCallHierarchy:60",
+     "name": "fetchCallHierarchy",
+     "kind": "function",
+     "loc": 13,
+     "exported": true
+    }
+   ]
+  },
+  {
+   "id": "file:src/atlas/playground/fixtureAdapter.test.ts",
+   "type": "file",
+   "path": "src/atlas/playground/fixtureAdapter.test.ts",
+   "loc": 133
+  },
+  {
+   "id": "file:src/atlas/playground/fixtureAdapter.ts",
+   "type": "file",
+   "path": "src/atlas/playground/fixtureAdapter.ts",
+   "loc": 130,
+   "symbols": [
+    {
+     "id": "symbol:src/atlas/playground/fixtureAdapter.ts:type:SnapshotSymbolLike:8",
+     "name": "SnapshotSymbolLike",
+     "kind": "type",
+     "loc": 7,
+     "exported": true
+    },
+    {
+     "id": "symbol:src/atlas/playground/fixtureAdapter.ts:type:SnapshotNodeLike:16",
+     "name": "SnapshotNodeLike",
+     "kind": "type",
+     "loc": 7,
+     "exported": true
+    },
+    {
+     "id": "symbol:src/atlas/playground/fixtureAdapter.ts:type:SnapshotEdgeLike:24",
+     "name": "SnapshotEdgeLike",
+     "kind": "type",
+     "loc": 8,
+     "exported": true
+    },
+    {
+     "id": "symbol:src/atlas/playground/fixtureAdapter.ts:type:SnapshotLike:33",
+     "name": "SnapshotLike",
+     "kind": "type",
+     "loc": 4,
+     "exported": true
+    },
+    {
+     "id": "symbol:src/atlas/playground/fixtureAdapter.ts:function:baseName:38",
+     "name": "baseName",
+     "kind": "function",
+     "loc": 4,
+     "exported": false
+    },
+    {
+     "id": "symbol:src/atlas/playground/fixtureAdapter.ts:function:snapshotToAtlasGraph:43",
+     "name": "snapshotToAtlasGraph",
+     "kind": "function",
+     "loc": 27,
+     "exported": true
+    },
+    {
+     "id": "symbol:src/atlas/playground/fixtureAdapter.ts:function:snapshotSymbolEdges:76",
+     "name": "snapshotSymbolEdges",
+     "kind": "function",
+     "loc": 20,
+     "exported": true
+    },
+    {
+     "id": "symbol:src/atlas/playground/fixtureAdapter.ts:function:snapshotSymbols:102",
+     "name": "snapshotSymbols",
+     "kind": "function",
+     "loc": 29,
+     "exported": true
+    }
+   ]
+  },
+  {
+   "id": "file:src/atlas/playground/history.test.ts",
+   "type": "file",
+   "path": "src/atlas/playground/history.test.ts",
+   "loc": 88,
+   "symbols": [
+    {
+     "id": "symbol:src/atlas/playground/history.test.ts:function:graphOf:5",
+     "name": "graphOf",
+     "kind": "function",
+     "loc": 11,
+     "exported": false
+    }
+   ]
+  },
+  {
+   "id": "file:src/atlas/playground/history.ts",
+   "type": "file",
+   "path": "src/atlas/playground/history.ts",
+   "loc": 88,
+   "symbols": [
+    {
+     "id": "symbol:src/atlas/playground/history.ts:type:HistoryEntry:5",
+     "name": "HistoryEntry",
+     "kind": "type",
+     "loc": 7,
+     "exported": true
+    },
+    {
+     "id": "symbol:src/atlas/playground/history.ts:type:GraphDiff:13",
+     "name": "GraphDiff",
+     "kind": "type",
+     "loc": 5,
+     "exported": true
+    },
+    {
+     "id": "symbol:src/atlas/playground/history.ts:type:NodeChange:19",
+     "name": "NodeChange",
+     "kind": "type",
+     "loc": 4,
+     "exported": true
+    },
+    {
+     "id": "symbol:src/atlas/playground/history.ts:type:HistoryIndex:24",
+     "name": "HistoryIndex",
+     "kind": "type",
+     "loc": 6,
+     "exported": true
+    },
+    {
+     "id": "symbol:src/atlas/playground/history.ts:function:buildHistoryIndex:32",
+     "name": "buildHistoryIndex",
+     "kind": "function",
+     "loc": 21,
+     "exported": true
+    },
+    {
+     "id": "symbol:src/atlas/playground/history.ts:function:snapshotToGraph:55",
+     "name": "snapshotToGraph",
+     "kind": "function",
+     "loc": 13,
+     "exported": false
+    },
+    {
+     "id": "symbol:src/atlas/playground/history.ts:function:diffGraphs:70",
+     "name": "diffGraphs",
+     "kind": "function",
+     "loc": 19,
+     "exported": true
+    }
+   ]
+  },
+  {
+   "id": "file:src/atlas/playground/main.tsx",
+   "type": "file",
+   "path": "src/atlas/playground/main.tsx",
+   "loc": 7
+  },
+  {
+   "id": "file:src/atlas/playground/ringsController.test.ts",
+   "type": "file",
+   "path": "src/atlas/playground/ringsController.test.ts",
+   "loc": 133
+  },
+  {
+   "id": "file:src/atlas/playground/ringsController.ts",
+   "type": "file",
+   "path": "src/atlas/playground/ringsController.ts",
+   "loc": 218,
+   "symbols": [
+    {
+     "id": "symbol:src/atlas/playground/ringsController.ts:type:RingsOptions:13",
+     "name": "RingsOptions",
+     "kind": "type",
+     "loc": 10,
+     "exported": true
+    },
+    {
+     "id": "symbol:src/atlas/playground/ringsController.ts:type:RingsState:24",
+     "name": "RingsState",
+     "kind": "type",
+     "loc": 7,
+     "exported": true
+    },
+    {
+     "id": "symbol:src/atlas/playground/ringsController.ts:function:forceIterationsFor:41",
+     "name": "forceIterationsFor",
+     "kind": "function",
+     "loc": 4,
+     "exported": false
+    },
+    {
+     "id": "symbol:src/atlas/playground/ringsController.ts:function:createModuleLayout:54",
+     "name": "createModuleLayout",
+     "kind": "function",
+     "loc": 18,
+     "exported": false
+    },
+    {
+     "id": "symbol:src/atlas/playground/ringsController.ts:function:placeCircles:73",
+     "name": "placeCircles",
+     "kind": "function",
+     "loc": 45,
+     "exported": false
+    },
+    {
+     "id": "symbol:src/atlas/playground/ringsController.ts:function:createRingsState:119",
+     "name": "createRingsState",
+     "kind": "function",
+     "loc": 25,
+     "exported": true
+    },
+    {
+     "id": "symbol:src/atlas/playground/ringsController.ts:function:stepRingsState:146",
+     "name": "stepRingsState",
+     "kind": "function",
+     "loc": 19,
+     "exported": true
+    },
+    {
+     "id": "symbol:src/atlas/playground/ringsController.ts:function:applyRingsChanges:171",
+     "name": "applyRingsChanges",
+     "kind": "function",
+     "loc": 48,
+     "exported": true
+    }
+   ]
+  },
+  {
+   "id": "file:src/atlas/playground/synthetic.test.ts",
+   "type": "file",
+   "path": "src/atlas/playground/synthetic.test.ts",
+   "loc": 109
+  },
+  {
+   "id": "file:src/atlas/playground/synthetic.ts",
+   "type": "file",
+   "path": "src/atlas/playground/synthetic.ts",
+   "loc": 172,
+   "symbols": [
+    {
+     "id": "symbol:src/atlas/playground/synthetic.ts:type:SyntheticOptions:4",
+     "name": "SyntheticOptions",
+     "kind": "type",
+     "loc": 6,
+     "exported": true
+    },
+    {
+     "id": "symbol:src/atlas/playground/synthetic.ts:function:hashString:16",
+     "name": "hashString",
+     "kind": "function",
+     "loc": 8,
+     "exported": false
+    },
+    {
+     "id": "symbol:src/atlas/playground/synthetic.ts:function:synthesizeSymbols:29",
+     "name": "synthesizeSymbols",
+     "kind": "function",
+     "loc": 26,
+     "exported": true
+    },
+    {
+     "id": "symbol:src/atlas/playground/synthetic.ts:function:synthesizeSymbolEdges:61",
+     "name": "synthesizeSymbolEdges",
+     "kind": "function",
+     "loc": 37,
+     "exported": true
+    },
+    {
+     "id": "symbol:src/atlas/playground/synthetic.ts:function:createSyntheticGraph:99",
+     "name": "createSyntheticGraph",
+     "kind": "function",
+     "loc": 74,
+     "exported": true
+    }
+   ]
+  },
+  {
+   "id": "file:src/atlas/playground/viewConfig.test.ts",
+   "type": "file",
+   "path": "src/atlas/playground/viewConfig.test.ts",
+   "loc": 101
+  },
+  {
+   "id": "file:src/atlas/playground/viewConfig.ts",
+   "type": "file",
+   "path": "src/atlas/playground/viewConfig.ts",
+   "loc": 132,
+   "symbols": [
+    {
+     "id": "symbol:src/atlas/playground/viewConfig.ts:type:Granularity:12",
+     "name": "Granularity",
+     "kind": "type",
+     "loc": 1,
+     "exported": true
+    },
+    {
+     "id": "symbol:src/atlas/playground/viewConfig.ts:type:WeightKind:14",
+     "name": "WeightKind",
+     "kind": "type",
+     "loc": 1,
+     "exported": true
+    },
+    {
+     "id": "symbol:src/atlas/playground/viewConfig.ts:type:SelectMode:16",
+     "name": "SelectMode",
+     "kind": "type",
+     "loc": 1,
+     "exported": true
+    },
+    {
+     "id": "symbol:src/atlas/playground/viewConfig.ts:type:ViewConfig:18",
+     "name": "ViewConfig",
+     "kind": "type",
+     "loc": 16,
+     "exported": true
+    },
+    {
+     "id": "symbol:src/atlas/playground/viewConfig.ts:type:ViewPreset:35",
+     "name": "ViewPreset",
+     "kind": "type",
+     "loc": 5,
+     "exported": true
+    },
+    {
+     "id": "symbol:src/atlas/playground/viewConfig.ts:variable:VIEW_PRESETS:41",
+     "name": "VIEW_PRESETS",
+     "kind": "variable",
+     "loc": 32,
+     "exported": true
+    },
+    {
+     "id": "symbol:src/atlas/playground/viewConfig.ts:function:presetOf:74",
+     "name": "presetOf",
+     "kind": "function",
+     "loc": 10,
+     "exported": true
+    },
+    {
+     "id": "symbol:src/atlas/playground/viewConfig.ts:function:presetConfig:85",
+     "name": "presetConfig",
+     "kind": "function",
+     "loc": 4,
+     "exported": true
+    },
+    {
+     "id": "symbol:src/atlas/playground/viewConfig.ts:function:reweightByPageRank:94",
+     "name": "reweightByPageRank",
+     "kind": "function",
+     "loc": 16,
+     "exported": true
+    },
+    {
+     "id": "symbol:src/atlas/playground/viewConfig.ts:type:SelectionContext:111",
+     "name": "SelectionContext",
+     "kind": "type",
+     "loc": 6,
+     "exported": true
+    },
+    {
+     "id": "symbol:src/atlas/playground/viewConfig.ts:function:resolveSelection:123",
+     "name": "resolveSelection",
+     "kind": "function",
+     "loc": 10,
+     "exported": true
+    }
+   ]
+  },
+  {
+   "id": "file:src/atlas/server/callHierarchy.test.ts",
+   "type": "file",
+   "path": "src/atlas/server/callHierarchy.test.ts",
+   "loc": 59
+  },
+  {
+   "id": "file:src/atlas/server/callHierarchyProvider.ts",
+   "type": "file",
+   "path": "src/atlas/server/callHierarchyProvider.ts",
+   "loc": 95,
+   "symbols": [
+    {
+     "id": "symbol:src/atlas/server/callHierarchyProvider.ts:type:SymbolRef:6",
+     "name": "SymbolRef",
+     "kind": "type",
+     "loc": 1,
+     "exported": true
+    },
+    {
+     "id": "symbol:src/atlas/server/callHierarchyProvider.ts:type:CallHierarchyResult:8",
+     "name": "CallHierarchyResult",
+     "kind": "type",
+     "loc": 4,
+     "exported": true
+    },
+    {
+     "id": "symbol:src/atlas/server/callHierarchyProvider.ts:type:LspRange:13",
+     "name": "LspRange",
+     "kind": "type",
+     "loc": 1,
+     "exported": false
+    },
+    {
+     "id": "symbol:src/atlas/server/callHierarchyProvider.ts:type:DocumentSymbol:14",
+     "name": "DocumentSymbol",
+     "kind": "type",
+     "loc": 5,
+     "exported": false
+    },
+    {
+     "id": "symbol:src/atlas/server/callHierarchyProvider.ts:type:CallHierarchyItem:19",
+     "name": "CallHierarchyItem",
+     "kind": "type",
+     "loc": 5,
+     "exported": false
+    },
+    {
+     "id": "symbol:src/atlas/server/callHierarchyProvider.ts:function:findSymbol:25",
+     "name": "findSymbol",
+     "kind": "function",
+     "loc": 11,
+     "exported": false
+    },
+    {
+     "id": "symbol:src/atlas/server/callHierarchyProvider.ts:function:toRef:37",
+     "name": "toRef",
+     "kind": "function",
+     "loc": 8,
+     "exported": false
+    },
+    {
+     "id": "symbol:src/atlas/server/callHierarchyProvider.ts:function:callHierarchy:51",
+     "name": "callHierarchy",
+     "kind": "function",
+     "loc": 45,
+     "exported": true
+    }
+   ]
+  },
+  {
+   "id": "file:src/atlas/server/index.ts",
+   "type": "file",
+   "path": "src/atlas/server/index.ts",
+   "loc": 100,
+   "symbols": [
+    {
+     "id": "symbol:src/atlas/server/index.ts:function:clientFor:39",
+     "name": "clientFor",
+     "kind": "function",
+     "loc": 10,
+     "exported": false
+    }
+   ]
+  },
+  {
+   "id": "file:src/atlas/server/jsonRpc.test.ts",
+   "type": "file",
+   "path": "src/atlas/server/jsonRpc.test.ts",
+   "loc": 57
+  },
+  {
+   "id": "file:src/atlas/server/jsonRpc.ts",
+   "type": "file",
+   "path": "src/atlas/server/jsonRpc.ts",
+   "loc": 41,
+   "symbols": [
+    {
+     "id": "symbol:src/atlas/server/jsonRpc.ts:function:encodeMessage:6",
+     "name": "encodeMessage",
+     "kind": "function",
+     "loc": 7,
+     "exported": true
+    },
+    {
+     "id": "symbol:src/atlas/server/jsonRpc.ts:class:JsonRpcReader:16",
+     "name": "JsonRpcReader",
+     "kind": "class",
+     "loc": 26,
+     "exported": true
+    }
+   ]
+  },
+  {
+   "id": "file:src/atlas/server/lspClient.ts",
+   "type": "file",
+   "path": "src/atlas/server/lspClient.ts",
+   "loc": 128,
+   "symbols": [
+    {
+     "id": "symbol:src/atlas/server/lspClient.ts:class:LspClient:13",
+     "name": "LspClient",
+     "kind": "class",
+     "loc": 116,
+     "exported": true
+    }
+   ]
+  },
   {
    "id": "file:src/cli/index.ts",
    "type": "file",
@@ -30,8 +2036,7 @@ export const sprawlensSnapshot: SnapshotLike = {
    "id": "file:src/core/ai.test.ts",
    "type": "file",
    "path": "src/core/ai.test.ts",
-   "loc": 26,
-   "symbols": []
+   "loc": 26
   },
   {
    "id": "file:src/core/ai.ts",
@@ -646,8 +2651,7 @@ export const sprawlensSnapshot: SnapshotLike = {
    "id": "file:src/core/metrics.test.ts",
    "type": "file",
    "path": "src/core/metrics.test.ts",
-   "loc": 35,
-   "symbols": []
+   "loc": 35
   },
   {
    "id": "file:src/core/metrics.ts",
@@ -3417,8 +5421,7 @@ export const sprawlensSnapshot: SnapshotLike = {
    "id": "file:src/ui/main.tsx",
    "type": "file",
    "path": "src/ui/main.tsx",
-   "loc": 10,
-   "symbols": []
+   "loc": 10
   },
   {
    "id": "file:src/ui/moduleGraphLayout.test.ts",
@@ -3587,8 +5590,7 @@ export const sprawlensSnapshot: SnapshotLike = {
    "id": "file:src/ui/moduleLayer.test.ts",
    "type": "file",
    "path": "src/ui/moduleLayer.test.ts",
-   "loc": 54,
-   "symbols": []
+   "loc": 54
   },
   {
    "id": "file:src/ui/moduleLayer.ts",
@@ -3889,21 +5891,2006 @@ export const sprawlensSnapshot: SnapshotLike = {
    ]
   },
   {
+   "id": "file:vite.atlas.config.ts",
+   "type": "file",
+   "path": "vite.atlas.config.ts",
+   "loc": 30
+  },
+  {
    "id": "file:vite.config.ts",
    "type": "file",
    "path": "vite.config.ts",
-   "loc": 10,
-   "symbols": []
+   "loc": 10
   },
   {
    "id": "file:vitest.config.ts",
    "type": "file",
    "path": "vitest.config.ts",
-   "loc": 8,
-   "symbols": []
+   "loc": 8
   }
  ],
  "edges": [
+  {
+   "type": "contains",
+   "from": "dir:e2e",
+   "to": "file:e2e/atlas-zoom.spec.ts"
+  },
+  {
+   "type": "contains",
+   "from": "dir:src",
+   "to": "dir:src/atlas"
+  },
+  {
+   "type": "contains",
+   "from": "dir:src",
+   "to": "dir:src/cli"
+  },
+  {
+   "type": "contains",
+   "from": "dir:src",
+   "to": "dir:src/core"
+  },
+  {
+   "type": "contains",
+   "from": "dir:src",
+   "to": "dir:src/ui"
+  },
+  {
+   "type": "contains",
+   "from": "dir:src/atlas",
+   "to": "dir:src/atlas/contracts"
+  },
+  {
+   "type": "contains",
+   "from": "dir:src/atlas",
+   "to": "dir:src/atlas/kernel"
+  },
+  {
+   "type": "contains",
+   "from": "dir:src/atlas",
+   "to": "dir:src/atlas/playground"
+  },
+  {
+   "type": "contains",
+   "from": "dir:src/atlas",
+   "to": "dir:src/atlas/server"
+  },
+  {
+   "type": "contains",
+   "from": "dir:src/atlas/contracts",
+   "to": "file:src/atlas/contracts/graph.test.ts"
+  },
+  {
+   "type": "contains",
+   "from": "dir:src/atlas/contracts",
+   "to": "file:src/atlas/contracts/graph.ts"
+  },
+  {
+   "type": "contains",
+   "from": "dir:src/atlas/contracts",
+   "to": "file:src/atlas/contracts/layers.test.ts"
+  },
+  {
+   "type": "contains",
+   "from": "dir:src/atlas/contracts",
+   "to": "file:src/atlas/contracts/layers.ts"
+  },
+  {
+   "type": "contains",
+   "from": "dir:src/atlas/contracts",
+   "to": "file:src/atlas/contracts/modules.test.ts"
+  },
+  {
+   "type": "contains",
+   "from": "dir:src/atlas/contracts",
+   "to": "file:src/atlas/contracts/modules.ts"
+  },
+  {
+   "type": "contains",
+   "from": "dir:src/atlas/kernel",
+   "to": "file:src/atlas/kernel/capacityLayout.test.ts"
+  },
+  {
+   "type": "contains",
+   "from": "dir:src/atlas/kernel",
+   "to": "file:src/atlas/kernel/capacityLayout.ts"
+  },
+  {
+   "type": "contains",
+   "from": "dir:src/atlas/kernel",
+   "to": "file:src/atlas/kernel/clip.test.ts"
+  },
+  {
+   "type": "contains",
+   "from": "dir:src/atlas/kernel",
+   "to": "file:src/atlas/kernel/clip.ts"
+  },
+  {
+   "type": "contains",
+   "from": "dir:src/atlas/kernel",
+   "to": "file:src/atlas/kernel/embed.test.ts"
+  },
+  {
+   "type": "contains",
+   "from": "dir:src/atlas/kernel",
+   "to": "file:src/atlas/kernel/embed.ts"
+  },
+  {
+   "type": "contains",
+   "from": "dir:src/atlas/kernel",
+   "to": "file:src/atlas/kernel/forceLayout.test.ts"
+  },
+  {
+   "type": "contains",
+   "from": "dir:src/atlas/kernel",
+   "to": "file:src/atlas/kernel/forceLayout.ts"
+  },
+  {
+   "type": "contains",
+   "from": "dir:src/atlas/kernel",
+   "to": "file:src/atlas/kernel/geojson.test.ts"
+  },
+  {
+   "type": "contains",
+   "from": "dir:src/atlas/kernel",
+   "to": "file:src/atlas/kernel/geojson.ts"
+  },
+  {
+   "type": "contains",
+   "from": "dir:src/atlas/kernel",
+   "to": "file:src/atlas/kernel/pagerank.test.ts"
+  },
+  {
+   "type": "contains",
+   "from": "dir:src/atlas/kernel",
+   "to": "file:src/atlas/kernel/pagerank.ts"
+  },
+  {
+   "type": "contains",
+   "from": "dir:src/atlas/kernel",
+   "to": "file:src/atlas/kernel/pipeline.test.ts"
+  },
+  {
+   "type": "contains",
+   "from": "dir:src/atlas/kernel",
+   "to": "file:src/atlas/kernel/pipeline.ts"
+  },
+  {
+   "type": "contains",
+   "from": "dir:src/atlas/kernel",
+   "to": "file:src/atlas/kernel/polygon.test.ts"
+  },
+  {
+   "type": "contains",
+   "from": "dir:src/atlas/kernel",
+   "to": "file:src/atlas/kernel/polygon.ts"
+  },
+  {
+   "type": "contains",
+   "from": "dir:src/atlas/kernel",
+   "to": "file:src/atlas/kernel/powerDiagram.test.ts"
+  },
+  {
+   "type": "contains",
+   "from": "dir:src/atlas/kernel",
+   "to": "file:src/atlas/kernel/powerDiagram.ts"
+  },
+  {
+   "type": "contains",
+   "from": "dir:src/atlas/kernel",
+   "to": "file:src/atlas/kernel/reach.test.ts"
+  },
+  {
+   "type": "contains",
+   "from": "dir:src/atlas/kernel",
+   "to": "file:src/atlas/kernel/reach.ts"
+  },
+  {
+   "type": "contains",
+   "from": "dir:src/atlas/kernel",
+   "to": "file:src/atlas/kernel/ringLayout.test.ts"
+  },
+  {
+   "type": "contains",
+   "from": "dir:src/atlas/kernel",
+   "to": "file:src/atlas/kernel/ringLayout.ts"
+  },
+  {
+   "type": "contains",
+   "from": "dir:src/atlas/kernel",
+   "to": "file:src/atlas/kernel/rng.test.ts"
+  },
+  {
+   "type": "contains",
+   "from": "dir:src/atlas/kernel",
+   "to": "file:src/atlas/kernel/rng.ts"
+  },
+  {
+   "type": "contains",
+   "from": "dir:src/atlas/kernel",
+   "to": "file:src/atlas/kernel/scc.test.ts"
+  },
+  {
+   "type": "contains",
+   "from": "dir:src/atlas/kernel",
+   "to": "file:src/atlas/kernel/scc.ts"
+  },
+  {
+   "type": "contains",
+   "from": "dir:src/atlas/kernel",
+   "to": "file:src/atlas/kernel/topoRank.test.ts"
+  },
+  {
+   "type": "contains",
+   "from": "dir:src/atlas/kernel",
+   "to": "file:src/atlas/kernel/topoRank.ts"
+  },
+  {
+   "type": "contains",
+   "from": "dir:src/atlas/kernel",
+   "to": "file:src/atlas/kernel/vec.test.ts"
+  },
+  {
+   "type": "contains",
+   "from": "dir:src/atlas/kernel",
+   "to": "file:src/atlas/kernel/vec.ts"
+  },
+  {
+   "type": "contains",
+   "from": "dir:src/atlas/playground",
+   "to": "file:src/atlas/playground/apiView.test.ts"
+  },
+  {
+   "type": "contains",
+   "from": "dir:src/atlas/playground",
+   "to": "file:src/atlas/playground/apiView.ts"
+  },
+  {
+   "type": "contains",
+   "from": "dir:src/atlas/playground",
+   "to": "file:src/atlas/playground/App.tsx"
+  },
+  {
+   "type": "contains",
+   "from": "dir:src/atlas/playground",
+   "to": "file:src/atlas/playground/callHierarchyClient.test.ts"
+  },
+  {
+   "type": "contains",
+   "from": "dir:src/atlas/playground",
+   "to": "file:src/atlas/playground/callHierarchyClient.ts"
+  },
+  {
+   "type": "contains",
+   "from": "dir:src/atlas/playground",
+   "to": "file:src/atlas/playground/CellMapSvg.tsx"
+  },
+  {
+   "type": "contains",
+   "from": "dir:src/atlas/playground",
+   "to": "file:src/atlas/playground/Controls.tsx"
+  },
+  {
+   "type": "contains",
+   "from": "dir:src/atlas/playground",
+   "to": "file:src/atlas/playground/fixtureAdapter.test.ts"
+  },
+  {
+   "type": "contains",
+   "from": "dir:src/atlas/playground",
+   "to": "file:src/atlas/playground/fixtureAdapter.ts"
+  },
+  {
+   "type": "contains",
+   "from": "dir:src/atlas/playground",
+   "to": "file:src/atlas/playground/history.test.ts"
+  },
+  {
+   "type": "contains",
+   "from": "dir:src/atlas/playground",
+   "to": "file:src/atlas/playground/history.ts"
+  },
+  {
+   "type": "contains",
+   "from": "dir:src/atlas/playground",
+   "to": "file:src/atlas/playground/main.tsx"
+  },
+  {
+   "type": "contains",
+   "from": "dir:src/atlas/playground",
+   "to": "file:src/atlas/playground/ringsController.test.ts"
+  },
+  {
+   "type": "contains",
+   "from": "dir:src/atlas/playground",
+   "to": "file:src/atlas/playground/ringsController.ts"
+  },
+  {
+   "type": "contains",
+   "from": "dir:src/atlas/playground",
+   "to": "file:src/atlas/playground/RingsMapSvg.tsx"
+  },
+  {
+   "type": "contains",
+   "from": "dir:src/atlas/playground",
+   "to": "file:src/atlas/playground/synthetic.test.ts"
+  },
+  {
+   "type": "contains",
+   "from": "dir:src/atlas/playground",
+   "to": "file:src/atlas/playground/synthetic.ts"
+  },
+  {
+   "type": "contains",
+   "from": "dir:src/atlas/playground",
+   "to": "file:src/atlas/playground/viewConfig.test.ts"
+  },
+  {
+   "type": "contains",
+   "from": "dir:src/atlas/playground",
+   "to": "file:src/atlas/playground/viewConfig.ts"
+  },
+  {
+   "type": "contains",
+   "from": "dir:src/atlas/server",
+   "to": "file:src/atlas/server/callHierarchy.test.ts"
+  },
+  {
+   "type": "contains",
+   "from": "dir:src/atlas/server",
+   "to": "file:src/atlas/server/callHierarchyProvider.ts"
+  },
+  {
+   "type": "contains",
+   "from": "dir:src/atlas/server",
+   "to": "file:src/atlas/server/index.ts"
+  },
+  {
+   "type": "contains",
+   "from": "dir:src/atlas/server",
+   "to": "file:src/atlas/server/jsonRpc.test.ts"
+  },
+  {
+   "type": "contains",
+   "from": "dir:src/atlas/server",
+   "to": "file:src/atlas/server/jsonRpc.ts"
+  },
+  {
+   "type": "contains",
+   "from": "dir:src/atlas/server",
+   "to": "file:src/atlas/server/lspClient.ts"
+  },
+  {
+   "type": "contains",
+   "from": "dir:src/cli",
+   "to": "file:src/cli/index.ts"
+  },
+  {
+   "type": "contains",
+   "from": "dir:src/core",
+   "to": "file:src/core/ai.test.ts"
+  },
+  {
+   "type": "contains",
+   "from": "dir:src/core",
+   "to": "file:src/core/ai.ts"
+  },
+  {
+   "type": "contains",
+   "from": "dir:src/core",
+   "to": "file:src/core/collect.test.ts"
+  },
+  {
+   "type": "contains",
+   "from": "dir:src/core",
+   "to": "file:src/core/collect.ts"
+  },
+  {
+   "type": "contains",
+   "from": "dir:src/core",
+   "to": "file:src/core/dependencyGraph.test.ts"
+  },
+  {
+   "type": "contains",
+   "from": "dir:src/core",
+   "to": "file:src/core/dependencyGraph.ts"
+  },
+  {
+   "type": "contains",
+   "from": "dir:src/core",
+   "to": "file:src/core/diff.test.ts"
+  },
+  {
+   "type": "contains",
+   "from": "dir:src/core",
+   "to": "file:src/core/diff.ts"
+  },
+  {
+   "type": "contains",
+   "from": "dir:src/core",
+   "to": "file:src/core/metrics.test.ts"
+  },
+  {
+   "type": "contains",
+   "from": "dir:src/core",
+   "to": "file:src/core/metrics.ts"
+  },
+  {
+   "type": "contains",
+   "from": "dir:src/core",
+   "to": "file:src/core/moduleMap.test.ts"
+  },
+  {
+   "type": "contains",
+   "from": "dir:src/core",
+   "to": "file:src/core/moduleMap.ts"
+  },
+  {
+   "type": "contains",
+   "from": "dir:src/core",
+   "to": "file:src/core/network.test.ts"
+  },
+  {
+   "type": "contains",
+   "from": "dir:src/core",
+   "to": "file:src/core/network.ts"
+  },
+  {
+   "type": "contains",
+   "from": "dir:src/core",
+   "to": "file:src/core/server.test.ts"
+  },
+  {
+   "type": "contains",
+   "from": "dir:src/core",
+   "to": "file:src/core/server.ts"
+  },
+  {
+   "type": "contains",
+   "from": "dir:src/core",
+   "to": "file:src/core/snapshot.test.ts"
+  },
+  {
+   "type": "contains",
+   "from": "dir:src/core",
+   "to": "file:src/core/snapshot.ts"
+  },
+  {
+   "type": "contains",
+   "from": "dir:src/core",
+   "to": "file:src/core/symbolDependencies.test.ts"
+  },
+  {
+   "type": "contains",
+   "from": "dir:src/core",
+   "to": "file:src/core/symbolDependencies.ts"
+  },
+  {
+   "type": "contains",
+   "from": "dir:src/core",
+   "to": "file:src/core/symbolMap.test.ts"
+  },
+  {
+   "type": "contains",
+   "from": "dir:src/core",
+   "to": "file:src/core/symbolMap.ts"
+  },
+  {
+   "type": "contains",
+   "from": "dir:src/core",
+   "to": "file:src/core/types.ts"
+  },
+  {
+   "type": "contains",
+   "from": "dir:src/ui",
+   "to": "file:src/ui/App.tsx"
+  },
+  {
+   "type": "contains",
+   "from": "dir:src/ui",
+   "to": "file:src/ui/dependencyGraphSelection.test.ts"
+  },
+  {
+   "type": "contains",
+   "from": "dir:src/ui",
+   "to": "file:src/ui/DependencyGraphView.tsx"
+  },
+  {
+   "type": "contains",
+   "from": "dir:src/ui",
+   "to": "file:src/ui/main.tsx"
+  },
+  {
+   "type": "contains",
+   "from": "dir:src/ui",
+   "to": "file:src/ui/ModuleCityMap.tsx"
+  },
+  {
+   "type": "contains",
+   "from": "dir:src/ui",
+   "to": "file:src/ui/moduleGraphLayout.test.ts"
+  },
+  {
+   "type": "contains",
+   "from": "dir:src/ui",
+   "to": "file:src/ui/moduleGraphLayout.ts"
+  },
+  {
+   "type": "contains",
+   "from": "dir:src/ui",
+   "to": "file:src/ui/moduleLayer.test.ts"
+  },
+  {
+   "type": "contains",
+   "from": "dir:src/ui",
+   "to": "file:src/ui/moduleLayer.ts"
+  },
+  {
+   "type": "contains",
+   "from": "dir:src/ui",
+   "to": "file:src/ui/moduleViewport.test.ts"
+  },
+  {
+   "type": "contains",
+   "from": "dir:src/ui",
+   "to": "file:src/ui/moduleViewport.ts"
+  },
+  {
+   "type": "contains",
+   "from": "dir:src/ui",
+   "to": "file:src/ui/NetworkLab.tsx"
+  },
+  {
+   "type": "contains",
+   "from": "dir:src/ui",
+   "to": "file:src/ui/SymbolMapView.tsx"
+  },
+  {
+   "type": "contains",
+   "from": "dir:src/ui",
+   "to": "file:src/ui/symbolMapVisibility.test.ts"
+  },
+  {
+   "type": "contains",
+   "from": "repo",
+   "to": "dir:e2e"
+  },
+  {
+   "type": "contains",
+   "from": "repo",
+   "to": "dir:src"
+  },
+  {
+   "type": "contains",
+   "from": "repo",
+   "to": "file:playwright.atlas.config.ts"
+  },
+  {
+   "type": "contains",
+   "from": "repo",
+   "to": "file:vite.atlas.config.ts"
+  },
+  {
+   "type": "contains",
+   "from": "repo",
+   "to": "file:vite.config.ts"
+  },
+  {
+   "type": "contains",
+   "from": "repo",
+   "to": "file:vitest.config.ts"
+  },
+  {
+   "type": "imports",
+   "from": "file:e2e/atlas-zoom.spec.ts",
+   "to": "unresolved:e2e/atlas-zoom.spec.ts:./vendor/lightbringer.mjs",
+   "resolved": false
+  },
+  {
+   "type": "imports",
+   "from": "file:src/atlas/contracts/graph.test.ts",
+   "to": "file:src/atlas/contracts/graph.ts",
+   "resolved": true,
+   "symbolImports": [
+    {
+     "toSymbolId": "symbol:src/atlas/contracts/graph.ts:function:locScorer:37"
+    }
+   ]
+  },
+  {
+   "type": "imports",
+   "from": "file:src/atlas/contracts/layers.test.ts",
+   "to": "file:src/atlas/contracts/graph.ts",
+   "resolved": true
+  },
+  {
+   "type": "imports",
+   "from": "file:src/atlas/contracts/layers.test.ts",
+   "to": "file:src/atlas/contracts/layers.ts",
+   "resolved": true,
+   "symbolImports": [
+    {
+     "toSymbolId": "symbol:src/atlas/contracts/layers.ts:function:defaultLayerOf:11"
+    },
+    {
+     "toSymbolId": "symbol:src/atlas/contracts/layers.ts:function:matchTestTargets:48"
+    },
+    {
+     "toSymbolId": "symbol:src/atlas/contracts/layers.ts:function:splitByLayer:21"
+    }
+   ]
+  },
+  {
+   "type": "imports",
+   "from": "file:src/atlas/contracts/layers.ts",
+   "to": "file:src/atlas/contracts/graph.ts",
+   "resolved": true
+  },
+  {
+   "type": "imports",
+   "from": "file:src/atlas/contracts/modules.test.ts",
+   "to": "file:src/atlas/contracts/graph.ts",
+   "resolved": true
+  },
+  {
+   "type": "imports",
+   "from": "file:src/atlas/contracts/modules.test.ts",
+   "to": "file:src/atlas/contracts/modules.ts",
+   "resolved": true,
+   "symbolImports": [
+    {
+     "toSymbolId": "symbol:src/atlas/contracts/modules.ts:function:defaultModuleIdOf:14"
+    },
+    {
+     "toSymbolId": "symbol:src/atlas/contracts/modules.ts:function:deriveModules:32"
+    }
+   ]
+  },
+  {
+   "type": "imports",
+   "from": "file:src/atlas/contracts/modules.ts",
+   "to": "file:src/atlas/contracts/graph.ts",
+   "resolved": true
+  },
+  {
+   "type": "imports",
+   "from": "file:src/atlas/kernel/capacityLayout.test.ts",
+   "to": "file:src/atlas/kernel/capacityLayout.ts",
+   "resolved": true,
+   "symbolImports": [
+    {
+     "toSymbolId": "symbol:src/atlas/kernel/capacityLayout.ts:function:applyGraphChanges:329"
+    },
+    {
+     "toSymbolId": "symbol:src/atlas/kernel/capacityLayout.ts:function:capacityStep:263"
+    },
+    {
+     "toSymbolId": "symbol:src/atlas/kernel/capacityLayout.ts:function:createCapacityLayout:164"
+    },
+    {
+     "toSymbolId": "symbol:src/atlas/kernel/capacityLayout.ts:function:isConverged:311"
+    }
+   ]
+  },
+  {
+   "type": "imports",
+   "from": "file:src/atlas/kernel/capacityLayout.test.ts",
+   "to": "file:src/atlas/kernel/rng.ts",
+   "resolved": true,
+   "symbolImports": [
+    {
+     "toSymbolId": "symbol:src/atlas/kernel/rng.ts:function:createRng:4"
+    }
+   ]
+  },
+  {
+   "type": "imports",
+   "from": "file:src/atlas/kernel/capacityLayout.ts",
+   "to": "file:src/atlas/kernel/clip.ts",
+   "resolved": true
+  },
+  {
+   "type": "imports",
+   "from": "file:src/atlas/kernel/capacityLayout.ts",
+   "to": "file:src/atlas/kernel/polygon.ts",
+   "resolved": true,
+   "symbolImports": [
+    {
+     "toSymbolId": "symbol:src/atlas/kernel/polygon.ts:function:centroid:19"
+    },
+    {
+     "toSymbolId": "symbol:src/atlas/kernel/polygon.ts:function:centroid:19"
+    },
+    {
+     "toSymbolId": "symbol:src/atlas/kernel/polygon.ts:function:signedArea:8"
+    },
+    {
+     "toSymbolId": "symbol:src/atlas/kernel/polygon.ts:function:signedArea:8"
+    },
+    {
+     "toSymbolId": "symbol:src/atlas/kernel/polygon.ts:function:signedArea:8"
+    }
+   ]
+  },
+  {
+   "type": "imports",
+   "from": "file:src/atlas/kernel/capacityLayout.ts",
+   "to": "file:src/atlas/kernel/powerDiagram.ts",
+   "resolved": true,
+   "symbolImports": [
+    {
+     "toSymbolId": "symbol:src/atlas/kernel/powerDiagram.ts:function:computePowerDiagram:75"
+    }
+   ]
+  },
+  {
+   "type": "imports",
+   "from": "file:src/atlas/kernel/capacityLayout.ts",
+   "to": "file:src/atlas/kernel/rng.ts",
+   "resolved": true,
+   "symbolImports": [
+    {
+     "toSymbolId": "symbol:src/atlas/kernel/rng.ts:function:createRng:4"
+    },
+    {
+     "toSymbolId": "symbol:src/atlas/kernel/rng.ts:function:createRng:4"
+    },
+    {
+     "toSymbolId": "symbol:src/atlas/kernel/rng.ts:function:createRng:4"
+    }
+   ]
+  },
+  {
+   "type": "imports",
+   "from": "file:src/atlas/kernel/capacityLayout.ts",
+   "to": "file:src/atlas/kernel/vec.ts",
+   "resolved": true
+  },
+  {
+   "type": "imports",
+   "from": "file:src/atlas/kernel/clip.test.ts",
+   "to": "file:src/atlas/kernel/clip.ts",
+   "resolved": true,
+   "symbolImports": [
+    {
+     "toSymbolId": "symbol:src/atlas/kernel/clip.ts:function:clampInto:78"
+    },
+    {
+     "toSymbolId": "symbol:src/atlas/kernel/clip.ts:function:clipCenter:135"
+    },
+    {
+     "toSymbolId": "symbol:src/atlas/kernel/clip.ts:function:clipToRing:11"
+    },
+    {
+     "toSymbolId": "symbol:src/atlas/kernel/clip.ts:function:randomPointIn:34"
+    }
+   ]
+  },
+  {
+   "type": "imports",
+   "from": "file:src/atlas/kernel/clip.test.ts",
+   "to": "file:src/atlas/kernel/rng.ts",
+   "resolved": true,
+   "symbolImports": [
+    {
+     "toSymbolId": "symbol:src/atlas/kernel/rng.ts:function:createRng:4"
+    }
+   ]
+  },
+  {
+   "type": "imports",
+   "from": "file:src/atlas/kernel/clip.ts",
+   "to": "file:src/atlas/kernel/polygon.ts",
+   "resolved": true,
+   "symbolImports": [
+    {
+     "toSymbolId": "symbol:src/atlas/kernel/polygon.ts:function:centroid:19"
+    },
+    {
+     "toSymbolId": "symbol:src/atlas/kernel/polygon.ts:function:centroid:19"
+    },
+    {
+     "toSymbolId": "symbol:src/atlas/kernel/polygon.ts:function:centroid:19"
+    },
+    {
+     "toSymbolId": "symbol:src/atlas/kernel/polygon.ts:function:circleToPolygon:87"
+    }
+   ]
+  },
+  {
+   "type": "imports",
+   "from": "file:src/atlas/kernel/clip.ts",
+   "to": "file:src/atlas/kernel/rng.ts",
+   "resolved": true
+  },
+  {
+   "type": "imports",
+   "from": "file:src/atlas/kernel/clip.ts",
+   "to": "file:src/atlas/kernel/vec.ts",
+   "resolved": true
+  },
+  {
+   "type": "imports",
+   "from": "file:src/atlas/kernel/embed.test.ts",
+   "to": "file:src/atlas/kernel/embed.ts",
+   "resolved": true,
+   "symbolImports": [
+    {
+     "toSymbolId": "symbol:src/atlas/kernel/embed.ts:function:embedGraph:31"
+    },
+    {
+     "toSymbolId": "symbol:src/atlas/kernel/embed.ts:function:procrustesAlign:177"
+    }
+   ]
+  },
+  {
+   "type": "imports",
+   "from": "file:src/atlas/kernel/embed.test.ts",
+   "to": "file:src/atlas/kernel/vec.ts",
+   "resolved": true
+  },
+  {
+   "type": "imports",
+   "from": "file:src/atlas/kernel/embed.ts",
+   "to": "file:src/atlas/kernel/vec.ts",
+   "resolved": true
+  },
+  {
+   "type": "imports",
+   "from": "file:src/atlas/kernel/forceLayout.test.ts",
+   "to": "file:src/atlas/kernel/capacityLayout.ts",
+   "resolved": true
+  },
+  {
+   "type": "imports",
+   "from": "file:src/atlas/kernel/forceLayout.test.ts",
+   "to": "file:src/atlas/kernel/forceLayout.ts",
+   "resolved": true,
+   "symbolImports": [
+    {
+     "toSymbolId": "symbol:src/atlas/kernel/forceLayout.ts:function:createForceLayout:42"
+    },
+    {
+     "toSymbolId": "symbol:src/atlas/kernel/forceLayout.ts:function:forceStep:83"
+    }
+   ]
+  },
+  {
+   "type": "imports",
+   "from": "file:src/atlas/kernel/forceLayout.test.ts",
+   "to": "file:src/atlas/kernel/rng.ts",
+   "resolved": true,
+   "symbolImports": [
+    {
+     "toSymbolId": "symbol:src/atlas/kernel/rng.ts:function:createRng:4"
+    }
+   ]
+  },
+  {
+   "type": "imports",
+   "from": "file:src/atlas/kernel/forceLayout.ts",
+   "to": "file:src/atlas/kernel/clip.ts",
+   "resolved": true,
+   "symbolImports": [
+    {
+     "toSymbolId": "symbol:src/atlas/kernel/clip.ts:function:clampInto:78"
+    },
+    {
+     "toSymbolId": "symbol:src/atlas/kernel/clip.ts:function:clampInto:78"
+    },
+    {
+     "toSymbolId": "symbol:src/atlas/kernel/clip.ts:function:clipCenter:135"
+    },
+    {
+     "toSymbolId": "symbol:src/atlas/kernel/clip.ts:function:clipScale:117"
+    },
+    {
+     "toSymbolId": "symbol:src/atlas/kernel/clip.ts:function:clipScale:117"
+    },
+    {
+     "toSymbolId": "symbol:src/atlas/kernel/clip.ts:function:randomPointIn:34"
+    }
+   ]
+  },
+  {
+   "type": "imports",
+   "from": "file:src/atlas/kernel/forceLayout.ts",
+   "to": "file:src/atlas/kernel/polygon.ts",
+   "resolved": true,
+   "symbolImports": [
+    {
+     "toSymbolId": "symbol:src/atlas/kernel/polygon.ts:function:signedArea:8"
+    }
+   ]
+  },
+  {
+   "type": "imports",
+   "from": "file:src/atlas/kernel/forceLayout.ts",
+   "to": "file:src/atlas/kernel/rng.ts",
+   "resolved": true,
+   "symbolImports": [
+    {
+     "toSymbolId": "symbol:src/atlas/kernel/rng.ts:function:createRng:4"
+    }
+   ]
+  },
+  {
+   "type": "imports",
+   "from": "file:src/atlas/kernel/forceLayout.ts",
+   "to": "file:src/atlas/kernel/vec.ts",
+   "resolved": true
+  },
+  {
+   "type": "imports",
+   "from": "file:src/atlas/kernel/geojson.test.ts",
+   "to": "file:src/atlas/kernel/capacityLayout.ts",
+   "resolved": true
+  },
+  {
+   "type": "imports",
+   "from": "file:src/atlas/kernel/geojson.test.ts",
+   "to": "file:src/atlas/kernel/geojson.ts",
+   "resolved": true,
+   "symbolImports": [
+    {
+     "toSymbolId": "symbol:src/atlas/kernel/geojson.ts:function:cellsToFeatureCollection:28"
+    }
+   ]
+  },
+  {
+   "type": "imports",
+   "from": "file:src/atlas/kernel/geojson.ts",
+   "to": "file:src/atlas/kernel/capacityLayout.ts",
+   "resolved": true
+  },
+  {
+   "type": "imports",
+   "from": "file:src/atlas/kernel/pagerank.test.ts",
+   "to": "file:src/atlas/kernel/pagerank.ts",
+   "resolved": true,
+   "symbolImports": [
+    {
+     "toSymbolId": "symbol:src/atlas/kernel/pagerank.ts:function:pageRank:15"
+    }
+   ]
+  },
+  {
+   "type": "imports",
+   "from": "file:src/atlas/kernel/pipeline.test.ts",
+   "to": "file:src/atlas/contracts/graph.ts",
+   "resolved": true
+  },
+  {
+   "type": "imports",
+   "from": "file:src/atlas/kernel/pipeline.test.ts",
+   "to": "file:src/atlas/kernel/capacityLayout.ts",
+   "resolved": true,
+   "symbolImports": [
+    {
+     "toSymbolId": "symbol:src/atlas/kernel/capacityLayout.ts:function:capacityStep:263"
+    },
+    {
+     "toSymbolId": "symbol:src/atlas/kernel/capacityLayout.ts:function:isConverged:311"
+    }
+   ]
+  },
+  {
+   "type": "imports",
+   "from": "file:src/atlas/kernel/pipeline.test.ts",
+   "to": "file:src/atlas/kernel/pipeline.ts",
+   "resolved": true,
+   "symbolImports": [
+    {
+     "toSymbolId": "symbol:src/atlas/kernel/pipeline.ts:function:createGraphLayout:73"
+    },
+    {
+     "toSymbolId": "symbol:src/atlas/kernel/pipeline.ts:function:embedSeedHints:44"
+    }
+   ]
+  },
+  {
+   "type": "imports",
+   "from": "file:src/atlas/kernel/pipeline.ts",
+   "to": "file:src/atlas/contracts/graph.ts",
+   "resolved": true,
+   "symbolImports": [
+    {
+     "toSymbolId": "symbol:src/atlas/contracts/graph.ts:function:locScorer:37"
+    }
+   ]
+  },
+  {
+   "type": "imports",
+   "from": "file:src/atlas/kernel/pipeline.ts",
+   "to": "file:src/atlas/kernel/capacityLayout.ts",
+   "resolved": true,
+   "symbolImports": [
+    {
+     "toSymbolId": "symbol:src/atlas/kernel/capacityLayout.ts:function:createCapacityLayout:164"
+    }
+   ]
+  },
+  {
+   "type": "imports",
+   "from": "file:src/atlas/kernel/pipeline.ts",
+   "to": "file:src/atlas/kernel/clip.ts",
+   "resolved": true,
+   "symbolImports": [
+    {
+     "toSymbolId": "symbol:src/atlas/kernel/clip.ts:function:clampInto:78"
+    },
+    {
+     "toSymbolId": "symbol:src/atlas/kernel/clip.ts:function:clipCenter:135"
+    },
+    {
+     "toSymbolId": "symbol:src/atlas/kernel/clip.ts:function:clipScale:117"
+    }
+   ]
+  },
+  {
+   "type": "imports",
+   "from": "file:src/atlas/kernel/pipeline.ts",
+   "to": "file:src/atlas/kernel/embed.ts",
+   "resolved": true,
+   "symbolImports": [
+    {
+     "toSymbolId": "symbol:src/atlas/kernel/embed.ts:function:embedGraph:31"
+    }
+   ]
+  },
+  {
+   "type": "imports",
+   "from": "file:src/atlas/kernel/pipeline.ts",
+   "to": "file:src/atlas/kernel/forceLayout.ts",
+   "resolved": true,
+   "symbolImports": [
+    {
+     "toSymbolId": "symbol:src/atlas/kernel/forceLayout.ts:function:createForceLayout:42"
+    },
+    {
+     "toSymbolId": "symbol:src/atlas/kernel/forceLayout.ts:function:forceStep:83"
+    }
+   ]
+  },
+  {
+   "type": "imports",
+   "from": "file:src/atlas/kernel/pipeline.ts",
+   "to": "file:src/atlas/kernel/vec.ts",
+   "resolved": true
+  },
+  {
+   "type": "imports",
+   "from": "file:src/atlas/kernel/polygon.test.ts",
+   "to": "file:src/atlas/kernel/polygon.ts",
+   "resolved": true,
+   "symbolImports": [
+    {
+     "toSymbolId": "symbol:src/atlas/kernel/polygon.ts:function:centroid:19"
+    },
+    {
+     "toSymbolId": "symbol:src/atlas/kernel/polygon.ts:function:circleToPolygon:87"
+    },
+    {
+     "toSymbolId": "symbol:src/atlas/kernel/polygon.ts:function:clipHalfPlane:47"
+    },
+    {
+     "toSymbolId": "symbol:src/atlas/kernel/polygon.ts:function:signedArea:8"
+    }
+   ]
+  },
+  {
+   "type": "imports",
+   "from": "file:src/atlas/kernel/polygon.ts",
+   "to": "file:src/atlas/kernel/vec.ts",
+   "resolved": true
+  },
+  {
+   "type": "imports",
+   "from": "file:src/atlas/kernel/powerDiagram.test.ts",
+   "to": "file:src/atlas/kernel/polygon.ts",
+   "resolved": true,
+   "symbolImports": [
+    {
+     "toSymbolId": "symbol:src/atlas/kernel/polygon.ts:function:circleToPolygon:87"
+    },
+    {
+     "toSymbolId": "symbol:src/atlas/kernel/polygon.ts:function:signedArea:8"
+    }
+   ]
+  },
+  {
+   "type": "imports",
+   "from": "file:src/atlas/kernel/powerDiagram.test.ts",
+   "to": "file:src/atlas/kernel/powerDiagram.ts",
+   "resolved": true,
+   "symbolImports": [
+    {
+     "toSymbolId": "symbol:src/atlas/kernel/powerDiagram.ts:function:computePowerDiagram:75"
+    }
+   ]
+  },
+  {
+   "type": "imports",
+   "from": "file:src/atlas/kernel/powerDiagram.test.ts",
+   "to": "file:src/atlas/kernel/rng.ts",
+   "resolved": true,
+   "symbolImports": [
+    {
+     "toSymbolId": "symbol:src/atlas/kernel/rng.ts:function:createRng:4"
+    }
+   ]
+  },
+  {
+   "type": "imports",
+   "from": "file:src/atlas/kernel/powerDiagram.test.ts",
+   "to": "file:src/atlas/kernel/vec.ts",
+   "resolved": true
+  },
+  {
+   "type": "imports",
+   "from": "file:src/atlas/kernel/powerDiagram.ts",
+   "to": "file:src/atlas/kernel/polygon.ts",
+   "resolved": true,
+   "symbolImports": [
+    {
+     "toSymbolId": "symbol:src/atlas/kernel/polygon.ts:function:signedArea:8"
+    }
+   ]
+  },
+  {
+   "type": "imports",
+   "from": "file:src/atlas/kernel/powerDiagram.ts",
+   "to": "file:src/atlas/kernel/vec.ts",
+   "resolved": true
+  },
+  {
+   "type": "imports",
+   "from": "file:src/atlas/kernel/reach.test.ts",
+   "to": "file:src/atlas/kernel/reach.ts",
+   "resolved": true,
+   "symbolImports": [
+    {
+     "toSymbolId": "symbol:src/atlas/kernel/reach.ts:function:reachSubgraph:19"
+    }
+   ]
+  },
+  {
+   "type": "imports",
+   "from": "file:src/atlas/kernel/ringLayout.test.ts",
+   "to": "file:src/atlas/kernel/ringLayout.ts",
+   "resolved": true,
+   "symbolImports": [
+    {
+     "toSymbolId": "symbol:src/atlas/kernel/ringLayout.ts:function:ringLayout:31"
+    }
+   ]
+  },
+  {
+   "type": "imports",
+   "from": "file:src/atlas/kernel/ringLayout.test.ts",
+   "to": "file:src/atlas/kernel/rng.ts",
+   "resolved": true,
+   "symbolImports": [
+    {
+     "toSymbolId": "symbol:src/atlas/kernel/rng.ts:function:createRng:4"
+    }
+   ]
+  },
+  {
+   "type": "imports",
+   "from": "file:src/atlas/kernel/rng.test.ts",
+   "to": "file:src/atlas/kernel/rng.ts",
+   "resolved": true,
+   "symbolImports": [
+    {
+     "toSymbolId": "symbol:src/atlas/kernel/rng.ts:function:createRng:4"
+    }
+   ]
+  },
+  {
+   "type": "imports",
+   "from": "file:src/atlas/kernel/scc.test.ts",
+   "to": "file:src/atlas/kernel/scc.ts",
+   "resolved": true,
+   "symbolImports": [
+    {
+     "toSymbolId": "symbol:src/atlas/kernel/scc.ts:function:cyclicComponents:94"
+    },
+    {
+     "toSymbolId": "symbol:src/atlas/kernel/scc.ts:function:edgeKey:15"
+    },
+    {
+     "toSymbolId": "symbol:src/atlas/kernel/scc.ts:function:feedbackEdges:117"
+    },
+    {
+     "toSymbolId": "symbol:src/atlas/kernel/scc.ts:function:stronglyConnectedComponents:19"
+    }
+   ]
+  },
+  {
+   "type": "imports",
+   "from": "file:src/atlas/kernel/topoRank.test.ts",
+   "to": "file:src/atlas/kernel/topoRank.ts",
+   "resolved": true,
+   "symbolImports": [
+    {
+     "toSymbolId": "symbol:src/atlas/kernel/topoRank.ts:function:topoRank:11"
+    }
+   ]
+  },
+  {
+   "type": "imports",
+   "from": "file:src/atlas/kernel/topoRank.ts",
+   "to": "file:src/atlas/kernel/scc.ts",
+   "resolved": true,
+   "symbolImports": [
+    {
+     "toSymbolId": "symbol:src/atlas/kernel/scc.ts:function:stronglyConnectedComponents:19"
+    }
+   ]
+  },
+  {
+   "type": "imports",
+   "from": "file:src/atlas/kernel/vec.test.ts",
+   "to": "file:src/atlas/kernel/vec.ts",
+   "resolved": true,
+   "symbolImports": [
+    {
+     "toSymbolId": "symbol:src/atlas/kernel/vec.ts:function:add:3"
+    },
+    {
+     "toSymbolId": "symbol:src/atlas/kernel/vec.ts:function:distance:23"
+    },
+    {
+     "toSymbolId": "symbol:src/atlas/kernel/vec.ts:function:dot:15"
+    },
+    {
+     "toSymbolId": "symbol:src/atlas/kernel/vec.ts:function:lengthOf:19"
+    },
+    {
+     "toSymbolId": "symbol:src/atlas/kernel/vec.ts:function:scale:11"
+    },
+    {
+     "toSymbolId": "symbol:src/atlas/kernel/vec.ts:function:sub:7"
+    }
+   ]
+  },
+  {
+   "type": "imports",
+   "from": "file:src/atlas/playground/apiView.test.ts",
+   "to": "file:src/atlas/contracts/graph.ts",
+   "resolved": true
+  },
+  {
+   "type": "imports",
+   "from": "file:src/atlas/playground/apiView.test.ts",
+   "to": "file:src/atlas/playground/apiView.ts",
+   "resolved": true,
+   "symbolImports": [
+    {
+     "toSymbolId": "symbol:src/atlas/playground/apiView.ts:function:apiModuleIdOf:23"
+    },
+    {
+     "toSymbolId": "symbol:src/atlas/playground/apiView.ts:function:buildApiGraph:92"
+    },
+    {
+     "toSymbolId": "symbol:src/atlas/playground/apiView.ts:function:splitApiBoundary:43"
+    }
+   ]
+  },
+  {
+   "type": "imports",
+   "from": "file:src/atlas/playground/apiView.ts",
+   "to": "file:src/atlas/contracts/graph.ts",
+   "resolved": true
+  },
+  {
+   "type": "imports",
+   "from": "file:src/atlas/playground/apiView.ts",
+   "to": "file:src/atlas/contracts/modules.ts",
+   "resolved": true,
+   "symbolImports": [
+    {
+     "toSymbolId": "symbol:src/atlas/contracts/modules.ts:function:defaultModuleIdOf:14"
+    }
+   ]
+  },
+  {
+   "type": "imports",
+   "from": "file:src/atlas/playground/apiView.ts",
+   "to": "file:src/atlas/kernel/pagerank.ts",
+   "resolved": true,
+   "symbolImports": [
+    {
+     "toSymbolId": "symbol:src/atlas/kernel/pagerank.ts:function:pageRank:15"
+    }
+   ]
+  },
+  {
+   "type": "imports",
+   "from": "file:src/atlas/playground/App.tsx",
+   "to": "file:src/atlas/contracts/graph.ts",
+   "resolved": true
+  },
+  {
+   "type": "imports",
+   "from": "file:src/atlas/playground/App.tsx",
+   "to": "file:src/atlas/contracts/layers.ts",
+   "resolved": true,
+   "symbolImports": [
+    {
+     "toSymbolId": "symbol:src/atlas/contracts/layers.ts:function:defaultLayerOf:11"
+    },
+    {
+     "toSymbolId": "symbol:src/atlas/contracts/layers.ts:function:matchTestTargets:48"
+    }
+   ]
+  },
+  {
+   "type": "imports",
+   "from": "file:src/atlas/playground/App.tsx",
+   "to": "file:src/atlas/contracts/modules.ts",
+   "resolved": true,
+   "symbolImports": [
+    {
+     "toSymbolId": "symbol:src/atlas/contracts/modules.ts:function:defaultModuleIdOf:14"
+    }
+   ]
+  },
+  {
+   "type": "imports",
+   "from": "file:src/atlas/playground/App.tsx",
+   "to": "file:src/atlas/kernel/capacityLayout.ts",
+   "resolved": true,
+   "symbolImports": [
+    {
+     "toSymbolId": "symbol:src/atlas/kernel/capacityLayout.ts:function:applyGraphChanges:329"
+    },
+    {
+     "toSymbolId": "symbol:src/atlas/kernel/capacityLayout.ts:function:capacityStep:263"
+    },
+    {
+     "toSymbolId": "symbol:src/atlas/kernel/capacityLayout.ts:function:createCapacityLayout:164"
+    },
+    {
+     "toSymbolId": "symbol:src/atlas/kernel/capacityLayout.ts:function:isConverged:311"
+    }
+   ]
+  },
+  {
+   "type": "imports",
+   "from": "file:src/atlas/playground/App.tsx",
+   "to": "file:src/atlas/kernel/pipeline.ts",
+   "resolved": true,
+   "symbolImports": [
+    {
+     "toSymbolId": "symbol:src/atlas/kernel/pipeline.ts:function:createGraphLayout:73"
+    },
+    {
+     "toSymbolId": "symbol:src/atlas/kernel/pipeline.ts:function:embedSeedHints:44"
+    }
+   ]
+  },
+  {
+   "type": "imports",
+   "from": "file:src/atlas/playground/App.tsx",
+   "to": "file:src/atlas/kernel/polygon.ts",
+   "resolved": true,
+   "symbolImports": [
+    {
+     "toSymbolId": "symbol:src/atlas/kernel/polygon.ts:function:centroid:19"
+    },
+    {
+     "toSymbolId": "symbol:src/atlas/kernel/polygon.ts:function:containsPoint:75"
+    }
+   ]
+  },
+  {
+   "type": "imports",
+   "from": "file:src/atlas/playground/App.tsx",
+   "to": "file:src/atlas/kernel/reach.ts",
+   "resolved": true,
+   "symbolImports": [
+    {
+     "toSymbolId": "symbol:src/atlas/kernel/reach.ts:function:reachSubgraph:19"
+    }
+   ]
+  },
+  {
+   "type": "imports",
+   "from": "file:src/atlas/playground/App.tsx",
+   "to": "file:src/atlas/kernel/rng.ts",
+   "resolved": true,
+   "symbolImports": [
+    {
+     "toSymbolId": "symbol:src/atlas/kernel/rng.ts:function:createRng:4"
+    }
+   ]
+  },
+  {
+   "type": "imports",
+   "from": "file:src/atlas/playground/App.tsx",
+   "to": "file:src/atlas/kernel/scc.ts",
+   "resolved": true,
+   "symbolImports": [
+    {
+     "toSymbolId": "symbol:src/atlas/kernel/scc.ts:function:cyclicComponents:94"
+    },
+    {
+     "toSymbolId": "symbol:src/atlas/kernel/scc.ts:function:edgeKey:15"
+    },
+    {
+     "toSymbolId": "symbol:src/atlas/kernel/scc.ts:function:feedbackEdges:117"
+    }
+   ]
+  },
+  {
+   "type": "imports",
+   "from": "file:src/atlas/playground/App.tsx",
+   "to": "file:src/atlas/playground/apiView.ts",
+   "resolved": true,
+   "symbolImports": [
+    {
+     "toSymbolId": "symbol:src/atlas/playground/apiView.ts:function:apiModuleIdOf:23"
+    },
+    {
+     "toSymbolId": "symbol:src/atlas/playground/apiView.ts:function:buildApiGraph:92"
+    },
+    {
+     "toSymbolId": "symbol:src/atlas/playground/apiView.ts:function:splitApiBoundary:43"
+    }
+   ]
+  },
+  {
+   "type": "imports",
+   "from": "file:src/atlas/playground/App.tsx",
+   "to": "file:src/atlas/playground/callHierarchyClient.ts",
+   "resolved": true,
+   "symbolImports": [
+    {
+     "toSymbolId": "symbol:src/atlas/playground/callHierarchyClient.ts:function:fetchCallHierarchy:60"
+    },
+    {
+     "toSymbolId": "symbol:src/atlas/playground/callHierarchyClient.ts:function:refsToEdges:42"
+    }
+   ]
+  },
+  {
+   "type": "imports",
+   "from": "file:src/atlas/playground/App.tsx",
+   "to": "file:src/atlas/playground/CellMapSvg.tsx",
+   "resolved": true,
+   "symbolImports": [
+    {
+     "toSymbolId": "symbol:src/atlas/playground/CellMapSvg.tsx:function:CellMapSvg:28"
+    }
+   ]
+  },
+  {
+   "type": "imports",
+   "from": "file:src/atlas/playground/App.tsx",
+   "to": "file:src/atlas/playground/Controls.tsx",
+   "resolved": true,
+   "symbolImports": [
+    {
+     "toSymbolId": "symbol:src/atlas/playground/Controls.tsx:function:Controls:88"
+    }
+   ]
+  },
+  {
+   "type": "imports",
+   "from": "file:src/atlas/playground/App.tsx",
+   "to": "file:src/atlas/playground/fixtureAdapter.ts",
+   "resolved": true,
+   "symbolImports": [
+    {
+     "toSymbolId": "symbol:src/atlas/playground/fixtureAdapter.ts:function:snapshotSymbolEdges:76"
+    },
+    {
+     "toSymbolId": "symbol:src/atlas/playground/fixtureAdapter.ts:function:snapshotSymbols:102"
+    },
+    {
+     "toSymbolId": "symbol:src/atlas/playground/fixtureAdapter.ts:function:snapshotToAtlasGraph:43"
+    }
+   ]
+  },
+  {
+   "type": "imports",
+   "from": "file:src/atlas/playground/App.tsx",
+   "to": "file:src/atlas/playground/history.ts",
+   "resolved": true,
+   "symbolImports": [
+    {
+     "toSymbolId": "symbol:src/atlas/playground/history.ts:function:buildHistoryIndex:32"
+    },
+    {
+     "toSymbolId": "symbol:src/atlas/playground/history.ts:function:diffGraphs:70"
+    }
+   ]
+  },
+  {
+   "type": "imports",
+   "from": "file:src/atlas/playground/App.tsx",
+   "to": "file:src/atlas/playground/ringsController.ts",
+   "resolved": true,
+   "symbolImports": [
+    {
+     "toSymbolId": "symbol:src/atlas/playground/ringsController.ts:function:applyRingsChanges:171"
+    },
+    {
+     "toSymbolId": "symbol:src/atlas/playground/ringsController.ts:function:createRingsState:119"
+    },
+    {
+     "toSymbolId": "symbol:src/atlas/playground/ringsController.ts:function:stepRingsState:146"
+    }
+   ]
+  },
+  {
+   "type": "imports",
+   "from": "file:src/atlas/playground/App.tsx",
+   "to": "file:src/atlas/playground/RingsMapSvg.tsx",
+   "resolved": true,
+   "symbolImports": [
+    {
+     "toSymbolId": "symbol:src/atlas/playground/RingsMapSvg.tsx:function:RingsMapSvg:97"
+    }
+   ]
+  },
+  {
+   "type": "imports",
+   "from": "file:src/atlas/playground/App.tsx",
+   "to": "file:src/atlas/playground/synthetic.ts",
+   "resolved": true,
+   "symbolImports": [
+    {
+     "toSymbolId": "symbol:src/atlas/playground/synthetic.ts:function:createSyntheticGraph:99"
+    },
+    {
+     "toSymbolId": "symbol:src/atlas/playground/synthetic.ts:function:synthesizeSymbolEdges:61"
+    },
+    {
+     "toSymbolId": "symbol:src/atlas/playground/synthetic.ts:function:synthesizeSymbols:29"
+    }
+   ]
+  },
+  {
+   "type": "imports",
+   "from": "file:src/atlas/playground/App.tsx",
+   "to": "file:src/atlas/playground/viewConfig.ts",
+   "resolved": true,
+   "symbolImports": [
+    {
+     "toSymbolId": "symbol:src/atlas/playground/viewConfig.ts:function:resolveSelection:123"
+    },
+    {
+     "toSymbolId": "symbol:src/atlas/playground/viewConfig.ts:function:reweightByPageRank:94"
+    }
+   ]
+  },
+  {
+   "type": "imports",
+   "from": "file:src/atlas/playground/App.tsx",
+   "to": "unresolved:src/atlas/playground/App.tsx:./fixtures/sprawlens.ts",
+   "resolved": false
+  },
+  {
+   "type": "imports",
+   "from": "file:src/atlas/playground/callHierarchyClient.test.ts",
+   "to": "file:src/atlas/contracts/graph.ts",
+   "resolved": true
+  },
+  {
+   "type": "imports",
+   "from": "file:src/atlas/playground/callHierarchyClient.test.ts",
+   "to": "file:src/atlas/playground/callHierarchyClient.ts",
+   "resolved": true,
+   "symbolImports": [
+    {
+     "toSymbolId": "symbol:src/atlas/playground/callHierarchyClient.ts:function:refsToEdges:42"
+    },
+    {
+     "toSymbolId": "symbol:src/atlas/playground/callHierarchyClient.ts:function:resolveRef:21"
+    }
+   ]
+  },
+  {
+   "type": "imports",
+   "from": "file:src/atlas/playground/callHierarchyClient.ts",
+   "to": "file:src/atlas/contracts/graph.ts",
+   "resolved": true
+  },
+  {
+   "type": "imports",
+   "from": "file:src/atlas/playground/CellMapSvg.tsx",
+   "to": "file:src/atlas/contracts/graph.ts",
+   "resolved": true
+  },
+  {
+   "type": "imports",
+   "from": "file:src/atlas/playground/CellMapSvg.tsx",
+   "to": "file:src/atlas/kernel/capacityLayout.ts",
+   "resolved": true
+  },
+  {
+   "type": "imports",
+   "from": "file:src/atlas/playground/Controls.tsx",
+   "to": "file:src/atlas/playground/viewConfig.ts",
+   "resolved": true,
+   "symbolImports": [
+    {
+     "toSymbolId": "symbol:src/atlas/playground/viewConfig.ts:function:presetConfig:85"
+    },
+    {
+     "toSymbolId": "symbol:src/atlas/playground/viewConfig.ts:function:presetOf:74"
+    },
+    {
+     "toSymbolId": "symbol:src/atlas/playground/viewConfig.ts:variable:VIEW_PRESETS:41"
+    }
+   ]
+  },
+  {
+   "type": "imports",
+   "from": "file:src/atlas/playground/fixtureAdapter.test.ts",
+   "to": "file:src/atlas/playground/fixtureAdapter.ts",
+   "resolved": true,
+   "symbolImports": [
+    {
+     "toSymbolId": "symbol:src/atlas/playground/fixtureAdapter.ts:function:snapshotSymbolEdges:76"
+    },
+    {
+     "toSymbolId": "symbol:src/atlas/playground/fixtureAdapter.ts:function:snapshotSymbols:102"
+    },
+    {
+     "toSymbolId": "symbol:src/atlas/playground/fixtureAdapter.ts:function:snapshotToAtlasGraph:43"
+    }
+   ]
+  },
+  {
+   "type": "imports",
+   "from": "file:src/atlas/playground/fixtureAdapter.ts",
+   "to": "file:src/atlas/contracts/graph.ts",
+   "resolved": true
+  },
+  {
+   "type": "imports",
+   "from": "file:src/atlas/playground/history.test.ts",
+   "to": "file:src/atlas/contracts/graph.ts",
+   "resolved": true
+  },
+  {
+   "type": "imports",
+   "from": "file:src/atlas/playground/history.test.ts",
+   "to": "file:src/atlas/playground/history.ts",
+   "resolved": true,
+   "symbolImports": [
+    {
+     "toSymbolId": "symbol:src/atlas/playground/history.ts:function:buildHistoryIndex:32"
+    },
+    {
+     "toSymbolId": "symbol:src/atlas/playground/history.ts:function:diffGraphs:70"
+    }
+   ]
+  },
+  {
+   "type": "imports",
+   "from": "file:src/atlas/playground/history.ts",
+   "to": "file:src/atlas/contracts/graph.ts",
+   "resolved": true
+  },
+  {
+   "type": "imports",
+   "from": "file:src/atlas/playground/history.ts",
+   "to": "file:src/atlas/playground/fixtureAdapter.ts",
+   "resolved": true
+  },
+  {
+   "type": "imports",
+   "from": "file:src/atlas/playground/main.tsx",
+   "to": "file:src/atlas/playground/App.tsx",
+   "resolved": true,
+   "symbolImports": [
+    {
+     "toSymbolId": "symbol:src/atlas/playground/App.tsx:function:App:154"
+    }
+   ]
+  },
+  {
+   "type": "imports",
+   "from": "file:src/atlas/playground/ringsController.test.ts",
+   "to": "file:src/atlas/playground/ringsController.ts",
+   "resolved": true,
+   "symbolImports": [
+    {
+     "toSymbolId": "symbol:src/atlas/playground/ringsController.ts:function:applyRingsChanges:171"
+    },
+    {
+     "toSymbolId": "symbol:src/atlas/playground/ringsController.ts:function:createRingsState:119"
+    },
+    {
+     "toSymbolId": "symbol:src/atlas/playground/ringsController.ts:function:stepRingsState:146"
+    }
+   ]
+  },
+  {
+   "type": "imports",
+   "from": "file:src/atlas/playground/ringsController.test.ts",
+   "to": "file:src/atlas/playground/synthetic.ts",
+   "resolved": true,
+   "symbolImports": [
+    {
+     "toSymbolId": "symbol:src/atlas/playground/synthetic.ts:function:createSyntheticGraph:99"
+    }
+   ]
+  },
+  {
+   "type": "imports",
+   "from": "file:src/atlas/playground/ringsController.ts",
+   "to": "file:src/atlas/contracts/graph.ts",
+   "resolved": true
+  },
+  {
+   "type": "imports",
+   "from": "file:src/atlas/playground/ringsController.ts",
+   "to": "file:src/atlas/contracts/modules.ts",
+   "resolved": true,
+   "symbolImports": [
+    {
+     "toSymbolId": "symbol:src/atlas/contracts/modules.ts:function:deriveModules:32"
+    }
+   ]
+  },
+  {
+   "type": "imports",
+   "from": "file:src/atlas/playground/ringsController.ts",
+   "to": "file:src/atlas/kernel/capacityLayout.ts",
+   "resolved": true,
+   "symbolImports": [
+    {
+     "toSymbolId": "symbol:src/atlas/kernel/capacityLayout.ts:function:applyGraphChanges:329"
+    },
+    {
+     "toSymbolId": "symbol:src/atlas/kernel/capacityLayout.ts:function:capacityStep:263"
+    },
+    {
+     "toSymbolId": "symbol:src/atlas/kernel/capacityLayout.ts:function:isConverged:311"
+    }
+   ]
+  },
+  {
+   "type": "imports",
+   "from": "file:src/atlas/playground/ringsController.ts",
+   "to": "file:src/atlas/kernel/pipeline.ts",
+   "resolved": true,
+   "symbolImports": [
+    {
+     "toSymbolId": "symbol:src/atlas/kernel/pipeline.ts:function:createGraphLayout:73"
+    },
+    {
+     "toSymbolId": "symbol:src/atlas/kernel/pipeline.ts:function:embedSeedHints:44"
+    }
+   ]
+  },
+  {
+   "type": "imports",
+   "from": "file:src/atlas/playground/ringsController.ts",
+   "to": "file:src/atlas/kernel/ringLayout.ts",
+   "resolved": true,
+   "symbolImports": [
+    {
+     "toSymbolId": "symbol:src/atlas/kernel/ringLayout.ts:function:ringLayout:31"
+    }
+   ]
+  },
+  {
+   "type": "imports",
+   "from": "file:src/atlas/playground/ringsController.ts",
+   "to": "file:src/atlas/kernel/topoRank.ts",
+   "resolved": true,
+   "symbolImports": [
+    {
+     "toSymbolId": "symbol:src/atlas/kernel/topoRank.ts:function:topoRank:11"
+    }
+   ]
+  },
+  {
+   "type": "imports",
+   "from": "file:src/atlas/playground/RingsMapSvg.tsx",
+   "to": "file:src/atlas/contracts/graph.ts",
+   "resolved": true
+  },
+  {
+   "type": "imports",
+   "from": "file:src/atlas/playground/RingsMapSvg.tsx",
+   "to": "file:src/atlas/kernel/capacityLayout.ts",
+   "resolved": true
+  },
+  {
+   "type": "imports",
+   "from": "file:src/atlas/playground/RingsMapSvg.tsx",
+   "to": "file:src/atlas/kernel/scc.ts",
+   "resolved": true,
+   "symbolImports": [
+    {
+     "toSymbolId": "symbol:src/atlas/kernel/scc.ts:function:edgeKey:15"
+    }
+   ]
+  },
+  {
+   "type": "imports",
+   "from": "file:src/atlas/playground/RingsMapSvg.tsx",
+   "to": "file:src/atlas/kernel/vec.ts",
+   "resolved": true
+  },
+  {
+   "type": "imports",
+   "from": "file:src/atlas/playground/RingsMapSvg.tsx",
+   "to": "file:src/atlas/playground/ringsController.ts",
+   "resolved": true
+  },
+  {
+   "type": "imports",
+   "from": "file:src/atlas/playground/synthetic.test.ts",
+   "to": "file:src/atlas/playground/synthetic.ts",
+   "resolved": true,
+   "symbolImports": [
+    {
+     "toSymbolId": "symbol:src/atlas/playground/synthetic.ts:function:createSyntheticGraph:99"
+    },
+    {
+     "toSymbolId": "symbol:src/atlas/playground/synthetic.ts:function:synthesizeSymbolEdges:61"
+    },
+    {
+     "toSymbolId": "symbol:src/atlas/playground/synthetic.ts:function:synthesizeSymbols:29"
+    }
+   ]
+  },
+  {
+   "type": "imports",
+   "from": "file:src/atlas/playground/synthetic.ts",
+   "to": "file:src/atlas/contracts/graph.ts",
+   "resolved": true
+  },
+  {
+   "type": "imports",
+   "from": "file:src/atlas/playground/synthetic.ts",
+   "to": "file:src/atlas/kernel/rng.ts",
+   "resolved": true,
+   "symbolImports": [
+    {
+     "toSymbolId": "symbol:src/atlas/kernel/rng.ts:function:createRng:4"
+    },
+    {
+     "toSymbolId": "symbol:src/atlas/kernel/rng.ts:function:createRng:4"
+    },
+    {
+     "toSymbolId": "symbol:src/atlas/kernel/rng.ts:function:createRng:4"
+    }
+   ]
+  },
+  {
+   "type": "imports",
+   "from": "file:src/atlas/playground/viewConfig.test.ts",
+   "to": "file:src/atlas/contracts/graph.ts",
+   "resolved": true
+  },
+  {
+   "type": "imports",
+   "from": "file:src/atlas/playground/viewConfig.test.ts",
+   "to": "file:src/atlas/playground/viewConfig.ts",
+   "resolved": true,
+   "symbolImports": [
+    {
+     "toSymbolId": "symbol:src/atlas/playground/viewConfig.ts:function:presetConfig:85"
+    },
+    {
+     "toSymbolId": "symbol:src/atlas/playground/viewConfig.ts:function:presetOf:74"
+    },
+    {
+     "toSymbolId": "symbol:src/atlas/playground/viewConfig.ts:function:resolveSelection:123"
+    },
+    {
+     "toSymbolId": "symbol:src/atlas/playground/viewConfig.ts:function:reweightByPageRank:94"
+    },
+    {
+     "toSymbolId": "symbol:src/atlas/playground/viewConfig.ts:variable:VIEW_PRESETS:41"
+    }
+   ]
+  },
+  {
+   "type": "imports",
+   "from": "file:src/atlas/playground/viewConfig.ts",
+   "to": "file:src/atlas/contracts/graph.ts",
+   "resolved": true
+  },
+  {
+   "type": "imports",
+   "from": "file:src/atlas/playground/viewConfig.ts",
+   "to": "file:src/atlas/kernel/pagerank.ts",
+   "resolved": true,
+   "symbolImports": [
+    {
+     "toSymbolId": "symbol:src/atlas/kernel/pagerank.ts:function:pageRank:15"
+    }
+   ]
+  },
+  {
+   "type": "imports",
+   "from": "file:src/atlas/server/callHierarchy.test.ts",
+   "to": "file:src/atlas/server/callHierarchyProvider.ts",
+   "resolved": true,
+   "symbolImports": [
+    {
+     "toSymbolId": "symbol:src/atlas/server/callHierarchyProvider.ts:function:callHierarchy:51"
+    }
+   ]
+  },
+  {
+   "type": "imports",
+   "from": "file:src/atlas/server/callHierarchy.test.ts",
+   "to": "file:src/atlas/server/lspClient.ts",
+   "resolved": true,
+   "symbolImports": [
+    {
+     "toSymbolId": "symbol:src/atlas/server/lspClient.ts:class:LspClient:13"
+    }
+   ]
+  },
+  {
+   "type": "imports",
+   "from": "file:src/atlas/server/callHierarchyProvider.ts",
+   "to": "file:src/atlas/server/lspClient.ts",
+   "resolved": true
+  },
+  {
+   "type": "imports",
+   "from": "file:src/atlas/server/index.ts",
+   "to": "file:src/atlas/server/callHierarchyProvider.ts",
+   "resolved": true,
+   "symbolImports": [
+    {
+     "toSymbolId": "symbol:src/atlas/server/callHierarchyProvider.ts:function:callHierarchy:51"
+    }
+   ]
+  },
+  {
+   "type": "imports",
+   "from": "file:src/atlas/server/index.ts",
+   "to": "file:src/atlas/server/lspClient.ts",
+   "resolved": true,
+   "symbolImports": [
+    {
+     "toSymbolId": "symbol:src/atlas/server/lspClient.ts:class:LspClient:13"
+    }
+   ]
+  },
+  {
+   "type": "imports",
+   "from": "file:src/atlas/server/jsonRpc.test.ts",
+   "to": "file:src/atlas/server/jsonRpc.ts",
+   "resolved": true,
+   "symbolImports": [
+    {
+     "toSymbolId": "symbol:src/atlas/server/jsonRpc.ts:function:encodeMessage:6"
+    },
+    {
+     "toSymbolId": "symbol:src/atlas/server/jsonRpc.ts:class:JsonRpcReader:16"
+    }
+   ]
+  },
+  {
+   "type": "imports",
+   "from": "file:src/atlas/server/lspClient.ts",
+   "to": "file:src/atlas/server/jsonRpc.ts",
+   "resolved": true,
+   "symbolImports": [
+    {
+     "toSymbolId": "symbol:src/atlas/server/jsonRpc.ts:function:encodeMessage:6"
+    },
+    {
+     "toSymbolId": "symbol:src/atlas/server/jsonRpc.ts:class:JsonRpcReader:16"
+    }
+   ]
+  },
   {
    "type": "imports",
    "from": "file:src/cli/index.ts",
@@ -3944,8 +7931,7 @@ export const sprawlensSnapshot: SnapshotLike = {
    "type": "imports",
    "from": "file:src/core/ai.ts",
    "to": "file:src/core/types.ts",
-   "resolved": true,
-   "symbolImports": []
+   "resolved": true
   },
   {
    "type": "imports",
@@ -4007,8 +7993,7 @@ export const sprawlensSnapshot: SnapshotLike = {
    "type": "imports",
    "from": "file:src/core/collect.ts",
    "to": "file:src/core/types.ts",
-   "resolved": true,
-   "symbolImports": []
+   "resolved": true
   },
   {
    "type": "imports",
@@ -4025,8 +8010,7 @@ export const sprawlensSnapshot: SnapshotLike = {
    "type": "imports",
    "from": "file:src/core/dependencyGraph.test.ts",
    "to": "file:src/core/types.ts",
-   "resolved": true,
-   "symbolImports": []
+   "resolved": true
   },
   {
    "type": "imports",
@@ -4046,8 +8030,7 @@ export const sprawlensSnapshot: SnapshotLike = {
    "type": "imports",
    "from": "file:src/core/dependencyGraph.ts",
    "to": "file:src/core/types.ts",
-   "resolved": true,
-   "symbolImports": []
+   "resolved": true
   },
   {
    "type": "imports",
@@ -4064,8 +8047,7 @@ export const sprawlensSnapshot: SnapshotLike = {
    "type": "imports",
    "from": "file:src/core/diff.test.ts",
    "to": "file:src/core/types.ts",
-   "resolved": true,
-   "symbolImports": []
+   "resolved": true
   },
   {
    "type": "imports",
@@ -4085,8 +8067,7 @@ export const sprawlensSnapshot: SnapshotLike = {
    "type": "imports",
    "from": "file:src/core/diff.ts",
    "to": "file:src/core/types.ts",
-   "resolved": true,
-   "symbolImports": []
+   "resolved": true
   },
   {
    "type": "imports",
@@ -4103,15 +8084,13 @@ export const sprawlensSnapshot: SnapshotLike = {
    "type": "imports",
    "from": "file:src/core/metrics.test.ts",
    "to": "file:src/core/types.ts",
-   "resolved": true,
-   "symbolImports": []
+   "resolved": true
   },
   {
    "type": "imports",
    "from": "file:src/core/metrics.ts",
    "to": "file:src/core/types.ts",
-   "resolved": true,
-   "symbolImports": []
+   "resolved": true
   },
   {
    "type": "imports",
@@ -4137,8 +8116,7 @@ export const sprawlensSnapshot: SnapshotLike = {
    "type": "imports",
    "from": "file:src/core/moduleMap.test.ts",
    "to": "file:src/core/types.ts",
-   "resolved": true,
-   "symbolImports": []
+   "resolved": true
   },
   {
    "type": "imports",
@@ -4155,8 +8133,7 @@ export const sprawlensSnapshot: SnapshotLike = {
    "type": "imports",
    "from": "file:src/core/moduleMap.ts",
    "to": "file:src/core/types.ts",
-   "resolved": true,
-   "symbolImports": []
+   "resolved": true
   },
   {
    "type": "imports",
@@ -4179,8 +8156,7 @@ export const sprawlensSnapshot: SnapshotLike = {
    "type": "imports",
    "from": "file:src/core/network.test.ts",
    "to": "file:src/core/types.ts",
-   "resolved": true,
-   "symbolImports": []
+   "resolved": true
   },
   {
    "type": "imports",
@@ -4200,8 +8176,7 @@ export const sprawlensSnapshot: SnapshotLike = {
    "type": "imports",
    "from": "file:src/core/network.ts",
    "to": "file:src/core/types.ts",
-   "resolved": true,
-   "symbolImports": []
+   "resolved": true
   },
   {
    "type": "imports",
@@ -4277,8 +8252,7 @@ export const sprawlensSnapshot: SnapshotLike = {
    "type": "imports",
    "from": "file:src/core/snapshot.ts",
    "to": "file:src/core/types.ts",
-   "resolved": true,
-   "symbolImports": []
+   "resolved": true
   },
   {
    "type": "imports",
@@ -4295,8 +8269,7 @@ export const sprawlensSnapshot: SnapshotLike = {
    "type": "imports",
    "from": "file:src/core/symbolDependencies.ts",
    "to": "file:src/core/types.ts",
-   "resolved": true,
-   "symbolImports": []
+   "resolved": true
   },
   {
    "type": "imports",
@@ -4313,8 +8286,7 @@ export const sprawlensSnapshot: SnapshotLike = {
    "type": "imports",
    "from": "file:src/core/symbolMap.test.ts",
    "to": "file:src/core/types.ts",
-   "resolved": true,
-   "symbolImports": []
+   "resolved": true
   },
   {
    "type": "imports",
@@ -4337,8 +8309,7 @@ export const sprawlensSnapshot: SnapshotLike = {
    "type": "imports",
    "from": "file:src/core/symbolMap.ts",
    "to": "file:src/core/types.ts",
-   "resolved": true,
-   "symbolImports": []
+   "resolved": true
   },
   {
    "type": "imports",
@@ -4355,8 +8326,7 @@ export const sprawlensSnapshot: SnapshotLike = {
    "type": "imports",
    "from": "file:src/ui/App.tsx",
    "to": "file:src/core/types.ts",
-   "resolved": true,
-   "symbolImports": []
+   "resolved": true
   },
   {
    "type": "imports",
@@ -4384,8 +8354,7 @@ export const sprawlensSnapshot: SnapshotLike = {
    "type": "imports",
    "from": "file:src/ui/dependencyGraphSelection.test.ts",
    "to": "file:src/core/dependencyGraph.ts",
-   "resolved": true,
-   "symbolImports": []
+   "resolved": true
   },
   {
    "type": "imports",
@@ -4433,8 +8402,7 @@ export const sprawlensSnapshot: SnapshotLike = {
    "type": "imports",
    "from": "file:src/ui/DependencyGraphView.tsx",
    "to": "file:src/core/types.ts",
-   "resolved": true,
-   "symbolImports": []
+   "resolved": true
   },
   {
    "type": "imports",
@@ -4460,6 +8428,12 @@ export const sprawlensSnapshot: SnapshotLike = {
   },
   {
    "type": "imports",
+   "from": "file:src/ui/main.tsx",
+   "to": "unresolved:src/ui/main.tsx:./styles.css",
+   "resolved": false
+  },
+  {
+   "type": "imports",
    "from": "file:src/ui/ModuleCityMap.tsx",
    "to": "file:src/core/moduleMap.ts",
    "resolved": true,
@@ -4476,8 +8450,7 @@ export const sprawlensSnapshot: SnapshotLike = {
    "type": "imports",
    "from": "file:src/ui/ModuleCityMap.tsx",
    "to": "file:src/core/types.ts",
-   "resolved": true,
-   "symbolImports": []
+   "resolved": true
   },
   {
    "type": "imports",
@@ -4641,8 +8614,7 @@ export const sprawlensSnapshot: SnapshotLike = {
    "type": "imports",
    "from": "file:src/ui/NetworkLab.tsx",
    "to": "file:src/core/types.ts",
-   "resolved": true,
-   "symbolImports": []
+   "resolved": true
   },
   {
    "type": "imports",
@@ -4659,8 +8631,7 @@ export const sprawlensSnapshot: SnapshotLike = {
    "type": "imports",
    "from": "file:src/ui/SymbolMapView.tsx",
    "to": "file:src/core/symbolDependencies.ts",
-   "resolved": true,
-   "symbolImports": []
+   "resolved": true
   },
   {
    "type": "imports",
@@ -4677,8 +8648,7 @@ export const sprawlensSnapshot: SnapshotLike = {
    "type": "imports",
    "from": "file:src/ui/SymbolMapView.tsx",
    "to": "file:src/core/types.ts",
-   "resolved": true,
-   "symbolImports": []
+   "resolved": true
   },
   {
    "type": "imports",
@@ -4695,15 +8665,13 @@ export const sprawlensSnapshot: SnapshotLike = {
    "type": "imports",
    "from": "file:src/ui/symbolMapVisibility.test.ts",
    "to": "file:src/core/symbolDependencies.ts",
-   "resolved": true,
-   "symbolImports": []
+   "resolved": true
   },
   {
    "type": "imports",
    "from": "file:src/ui/symbolMapVisibility.test.ts",
    "to": "file:src/core/symbolMap.ts",
-   "resolved": true,
-   "symbolImports": []
+   "resolved": true
   },
   {
    "type": "imports",

@@ -3,11 +3,13 @@ import { existsSync } from "node:fs";
 import { resolve } from "node:path";
 import { callHierarchy } from "./callHierarchyProvider.js";
 import { LspClient } from "./lspClient.js";
+import { workingDiff } from "./workingDiff.js";
 
 /**
  * Atlas symbol-dependency server.
  * Usage: tsx src/atlas/server/index.ts [--port 4710] name=path [name=path...]
- * Exposes POST /api/call-hierarchy {repo, file, symbol}.
+ * Exposes POST /api/call-hierarchy {repo, file, symbol} and
+ * GET /api/working-diff?repo=name (uncommitted changes vs HEAD).
  * One language server per repo, started lazily on first request.
  */
 
@@ -52,6 +54,25 @@ const server = createServer(async (req, res) => {
   res.setHeader("Access-Control-Allow-Headers", "content-type");
   if (req.method === "OPTIONS") {
     res.writeHead(204).end();
+    return;
+  }
+  if (req.method === "GET" && req.url?.startsWith("/api/working-diff")) {
+    const repo =
+      new URL(req.url, "http://localhost").searchParams.get("repo") ?? "";
+    const root = repos.get(repo);
+    if (!root) {
+      res.writeHead(400).end(JSON.stringify({ error: "unknown repo" }));
+      return;
+    }
+    try {
+      const diff = await workingDiff(root);
+      res
+        .writeHead(200, { "content-type": "application/json" })
+        .end(JSON.stringify(diff));
+    } catch (error) {
+      console.error(error);
+      res.writeHead(500).end(JSON.stringify({ error: "git status failed" }));
+    }
     return;
   }
   if (req.method !== "POST" || req.url !== "/api/call-hierarchy") {

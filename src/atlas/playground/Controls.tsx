@@ -28,6 +28,8 @@ export type PlaygroundParams = {
   selectMode: SelectMode;
   /** Drop an explicit selection once its element scrolls off-screen. */
   deselectOffscreen: boolean;
+  /** Fly the camera to files as their working-tree changes appear. */
+  followChanges: boolean;
   invertRings: boolean;
   count: number;
   seed: number;
@@ -189,6 +191,16 @@ export function Controls(props: Props) {
           checked={params.deselectOffscreen}
           onInput={(e) =>
             set("deselectOffscreen", (e.target as HTMLInputElement).checked)
+          }
+        />
+      </label>
+      <label style={row}>
+        <span style={{ width: "110px" }}>follow changes</span>
+        <input
+          type="checkbox"
+          checked={params.followChanges}
+          onInput={(e) =>
+            set("followChanges", (e.target as HTMLInputElement).checked)
           }
         />
       </label>

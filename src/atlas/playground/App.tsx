@@ -153,7 +153,7 @@ type PanelPosition = "auto" | "right" | "bottom";
 
 export function App() {
   const [params, setParams] = useState<PlaygroundParams>({
-    source: "synthetic",
+    source: "sprawlens",
     layout: "rings",
     granularity: "file",
     weight: "loc",
@@ -161,6 +161,7 @@ export function App() {
     focusGranularity: "file",
     selectMode: "auto",
     deselectOffscreen: true,
+    followChanges: true,
     invertRings: false,
     count: 120,
     seed: 1,
@@ -728,7 +729,7 @@ export function App() {
   };
 
   /** Fly the camera to a view rect framing the target's bounding box. */
-  const jumpTo = (id: string) => {
+  const jumpTo = (id: string, padding = 2.5) => {
     setSelectedId(id);
     const innerCell = innerCellsRef.current.find((c) => c.id === id);
     const fileCell = ringsRef.current
@@ -763,8 +764,9 @@ export function App() {
       bbox = { cx: port.x, cy: port.y, w: 60, h: 60 };
     }
     if (bbox) {
-      // frame the bbox with padding: the target ends up ~40% of the view
-      const viewW = Math.max(bbox.w, (bbox.h * WIDTH) / HEIGHT) * 2.5;
+      // frame the bbox with padding: at the default the target ends up
+      // ~40% of the view; larger paddings frame its neighborhood instead
+      const viewW = Math.max(bbox.w, (bbox.h * WIDTH) / HEIGHT) * padding;
       setFocusRequest({
         cx: bbox.cx,
         cy: bbox.cy,
@@ -1221,6 +1223,58 @@ export function App() {
       bounds.y0 > view.y1;
     if (offscreen) setSelectedId(null);
   }, [viewInfo]);
+
+  // Working-tree diff: uncommitted changes highlight like a history diff
+  // (served by dev:atlas-server; silently absent in static builds), and the
+  // camera optionally follows each newly changed file to its neighborhood.
+  useEffect(() => {
+    if (params.source !== "sprawlens") return;
+    let stopped = false;
+    let failures = 0;
+    let firstPoll = true;
+    const seen = new Set<string>();
+    const poll = async () => {
+      try {
+        const res = await fetch("/api/working-diff?repo=sprawlens");
+        if (stopped) return;
+        if (!res.ok) throw new Error(String(res.status));
+        failures = 0;
+        const diff = (await res.json()) as {
+          changed: Record<string, "added" | "modified">;
+          removed: string[];
+        };
+        const known = new Set(graphRef.current.nodes.map((n) => n.id));
+        const next = new Map(
+          Object.entries(diff.changed).filter(([id]) => known.has(id)),
+        );
+        const fresh = [...next.keys()].filter((id) => !seen.has(id));
+        seen.clear();
+        for (const id of next.keys()) seen.add(id);
+        const previous = changedFilesRef.current;
+        const dirty =
+          previous.size !== next.size ||
+          [...next].some(([id, kind]) => previous.get(id) !== kind);
+        if (dirty) {
+          changedFilesRef.current = next;
+          setFrame((f) => f + 1);
+        }
+        // follow saves as they happen, but not the backlog at page load
+        if (!firstPoll && fresh.length > 0 && paramsRef.current.followChanges) {
+          jumpTo(fresh[0]!, 6);
+        }
+        firstPoll = false;
+      } catch {
+        // dev server not running (or static build): give up quietly
+        if (++failures >= 3) clearInterval(timer);
+      }
+    };
+    poll();
+    const timer = setInterval(poll, 3000);
+    return () => {
+      stopped = true;
+      clearInterval(timer);
+    };
+  }, [params.source]);
 
   const allCells: CellResult[] = ringsRef.current
     ? [...ringsRef.current.moduleLayouts.values()].flatMap((l) => l.cells)
