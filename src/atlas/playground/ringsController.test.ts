@@ -53,6 +53,18 @@ describe("createRingsState", () => {
     const ranks = [...state.ranks.values()];
     expect(Math.max(...ranks)).toBeGreaterThan(0);
   });
+
+  it("embedding seeds make file placement seed-independent", () => {
+    const graph = createSyntheticGraph({ count: 60, seed: 5 });
+    const a = createRingsState(graph, { ...opts, seed: 1 });
+    const b = createRingsState(graph, { ...opts, seed: 42 });
+    for (const [moduleId, layout] of a.moduleLayouts) {
+      const other = b.moduleLayouts.get(moduleId)!;
+      expect(layout.cells.map((c) => c.site)).toEqual(
+        other.cells.map((c) => c.site),
+      );
+    }
+  });
 });
 
 describe("stepRingsState", () => {

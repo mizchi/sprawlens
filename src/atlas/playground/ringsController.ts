@@ -6,7 +6,7 @@ import {
   isConverged,
   type CapacityLayoutState,
 } from "../kernel/capacityLayout.js";
-import { createGraphLayout } from "../kernel/pipeline.js";
+import { createGraphLayout, embedSeedHints } from "../kernel/pipeline.js";
 import { ringLayout, type PlacedCircle } from "../kernel/ringLayout.js";
 import { topoRank } from "../kernel/topoRank.js";
 
@@ -41,6 +41,33 @@ const CLIP_INSET = 0.94;
 function forceIterationsFor(nodeCount: number): number {
   if (nodeCount === 0) return 0;
   return Math.max(4, Math.min(80, Math.floor(2_000_000 / (nodeCount * nodeCount))));
+}
+
+/** When the embedding provides the structure, force only declumps. */
+const DECLUMP_ITERATIONS = 16;
+
+/**
+ * Cold per-module layout: deterministic embedding seeds when the module is
+ * small enough, force fallback above the cap. With embedding seeds the
+ * layout no longer depends on the seed parameter at all.
+ */
+function createModuleLayout(
+  files: AtlasGraph["nodes"],
+  edges: AtlasEdge[],
+  clip: { kind: "circle"; cx: number; cy: number; r: number },
+  options: RingsOptions,
+): CapacityLayoutState {
+  const graph = { nodes: files, edges };
+  const hints = embedSeedHints(graph, clip);
+  return createGraphLayout(graph, clip, {
+    seed: options.seed,
+    adaptationRate: options.adaptationRate,
+    lloydRate: options.lloydRate,
+    hints: hints ?? undefined,
+    forceIterations: hints
+      ? Math.min(DECLUMP_ITERATIONS, forceIterationsFor(files.length))
+      : forceIterationsFor(files.length),
+  });
 }
 
 function placeCircles(
@@ -99,18 +126,11 @@ export function createRingsState(
     const files = base.filesByModule.get(moduleId) ?? [];
     moduleLayouts.set(
       moduleId,
-      createGraphLayout(
-        {
-          nodes: files,
-          edges: base.fileEdgesByModule.get(moduleId) ?? [],
-        },
+      createModuleLayout(
+        files,
+        base.fileEdgesByModule.get(moduleId) ?? [],
         { kind: "circle", cx: circle.cx, cy: circle.cy, r: circle.r * CLIP_INSET },
-        {
-          seed: options.seed,
-          adaptationRate: options.adaptationRate,
-          lloydRate: options.lloydRate,
-          forceIterations: forceIterationsFor(files.length),
-        },
+        options,
       ),
     );
   }
@@ -167,15 +187,11 @@ export function applyRingsChanges(
     if (!existing) {
       moduleLayouts.set(
         moduleId,
-        createGraphLayout(
-          { nodes: files, edges: base.fileEdgesByModule.get(moduleId) ?? [] },
+        createModuleLayout(
+          files,
+          base.fileEdgesByModule.get(moduleId) ?? [],
           clip,
-          {
-            seed: options.seed,
-            adaptationRate: options.adaptationRate,
-            lloydRate: options.lloydRate,
-            forceIterations: forceIterationsFor(files.length),
-          },
+          options,
         ),
       );
       continue;

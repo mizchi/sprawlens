@@ -9,7 +9,7 @@ import {
   type CellResult,
   type ClipRegion,
 } from "../kernel/capacityLayout.js";
-import { createGraphLayout } from "../kernel/pipeline.js";
+import { createGraphLayout, embedSeedHints } from "../kernel/pipeline.js";
 import { centroid, containsPoint, type Ring } from "../kernel/polygon.js";
 import { createRng, type Rng } from "../kernel/rng.js";
 import { CellMapSvg } from "./CellMapSvg.tsx";
@@ -483,11 +483,13 @@ export function App() {
       ringsRef.current = createRingsState(visible, ringsOptions(p));
       layoutRef.current = null;
     } else {
-      layoutRef.current = createGraphLayout(visible, clipOf(p.clipKind), {
+      const clip = clipOf(p.clipKind);
+      layoutRef.current = createGraphLayout(visible, clip, {
         seed: p.seed,
         adaptationRate: p.adaptationRate,
         lloydRate: p.lloydRate,
         circleSegments: segmentsOf(p.clipKind),
+        hints: embedSeedHints(visible, clip) ?? undefined,
       });
       ringsRef.current = null;
     }
@@ -708,11 +710,12 @@ export function App() {
         ringsOptions(paramsRef.current),
       );
     } else if (layoutRef.current) {
-      layoutRef.current = createGraphLayout(
-        effectiveGraph(paramsRef.current),
-        clipOf(paramsRef.current.clipKind),
-        { seed: paramsRef.current.seed },
-      );
+      const visible = effectiveGraph(paramsRef.current);
+      const clip = clipOf(paramsRef.current.clipKind);
+      layoutRef.current = createGraphLayout(visible, clip, {
+        seed: paramsRef.current.seed,
+        hints: embedSeedHints(visible, clip) ?? undefined,
+      });
     }
     setFrame((f) => f + 1);
   };
