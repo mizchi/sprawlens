@@ -32,6 +32,17 @@ export type RingsState = {
 const CONVERGENCE = 0.005;
 const CLIP_INSET = 0.94;
 
+/**
+ * Force seeding is O(n^2) per iteration and runs synchronously for every
+ * module; fixed 80 iterations froze the page for seconds on modules with
+ * hundreds of nodes. Budget the pair-work instead — seeding quality only
+ * matters loosely, the capacity solver owns the final geometry.
+ */
+function forceIterationsFor(nodeCount: number): number {
+  if (nodeCount === 0) return 0;
+  return Math.max(4, Math.min(80, Math.floor(2_000_000 / (nodeCount * nodeCount))));
+}
+
 function placeCircles(
   graph: AtlasGraph,
   options: RingsOptions,
@@ -98,7 +109,7 @@ export function createRingsState(
           seed: options.seed,
           adaptationRate: options.adaptationRate,
           lloydRate: options.lloydRate,
-          forceIterations: 80,
+          forceIterations: forceIterationsFor(files.length),
         },
       ),
     );
@@ -163,7 +174,7 @@ export function applyRingsChanges(
             seed: options.seed,
             adaptationRate: options.adaptationRate,
             lloydRate: options.lloydRate,
-            forceIterations: 80,
+            forceIterations: forceIterationsFor(files.length),
           },
         ),
       );
