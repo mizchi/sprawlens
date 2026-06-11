@@ -79,6 +79,12 @@ type ViewBox = { x: number; y: number; w: number; h: number };
 
 /** Zoom level at which individual symbols become interactive nodes. */
 const SYMBOL_ZOOM = 2.2;
+/**
+ * A symbol's name appears only once its cell dominates the screen — this
+ * fraction of the viewport's short side (tune to taste). Linked public
+ * symbols and symbols of the selected file are exempt.
+ */
+const SYMBOL_DOMINANT_FRACTION = 0.35;
 const DIM = 0.1;
 
 export function RingsMapSvg(props: Props) {
@@ -234,6 +240,12 @@ export function RingsMapSvg(props: Props) {
     () => new Map(portNodes.map((p) => [p.id, { x: p.x, y: p.y }])),
     [portNodes],
   );
+  /** Symbols somebody actually references (the linked public surface). */
+  const referencedIds = useMemo(() => {
+    const ids = new Set<string>();
+    for (const edge of symbolEdges) ids.add(edge.target);
+    return ids;
+  }, [symbolEdges]);
   const resolveSite = (id: string): Vec2 | undefined => {
     const site =
       symbolSiteById.get(id) ?? fileSiteById.get(id) ?? portSiteById.get(id);
@@ -711,17 +723,30 @@ export function RingsMapSvg(props: Props) {
               // module-scope filler cells stay unlabeled to reduce noise
               if (cell.id.endsWith("#rest") && cell.id !== selectedId)
                 return null;
-              // public API first: exported symbols label from file-level
-              // zoom with a lower threshold; private ones wait for symbol
-              // mode and a deeper zoom
               const exported = exportedIds.has(cell.id);
-              if (!symbolMode && !exported && cell.id !== selectedId)
+              // symbol names are noise until you commit to the symbol:
+              // show them only when (a) the cell dominates the screen,
+              // (b) its file is selected, (c) it's the selection itself —
+              // except linked public symbols, which always label
+              const linkedPublic = exported && referencedIds.has(cell.id);
+              const fileSelected =
+                selectedId !== null &&
+                parentFileOf(cell.id) === selectedId;
+              const dominant =
+                Math.sqrt(cell.actualArea) * zoom >=
+                Math.min(width, height) * SYMBOL_DOMINANT_FRACTION;
+              if (
+                !linkedPublic &&
+                !fileSelected &&
+                !dominant &&
+                cell.id !== selectedId
+              )
                 return null;
               const fontSize = screenFont(
                 Math.sqrt(cell.actualArea) * 0.3,
                 exported ? 7 : 13,
                 12,
-                cell.id === selectedId,
+                cell.id === selectedId || fileSelected || dominant,
                 200,
               );
               if (fontSize === null) return null;
