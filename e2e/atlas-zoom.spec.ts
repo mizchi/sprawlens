@@ -1,4 +1,8 @@
-import { test, expect } from "lightbringer";
+// vendored lightbringer build (see e2e/vendor/README.md); importing the
+// sibling checkout directly pulled a second @playwright/test instance
+// from its node_modules, which playwright rejects
+// @ts-expect-error vendored module has no type declarations
+import { test, expect } from "./vendor/lightbringer.mjs";
 import type { Page } from "@playwright/test";
 
 // Zoom-in/out scenario on the playwright-sized atlas map, measured per step
