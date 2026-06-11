@@ -459,14 +459,10 @@ export function RingsMapSvg(props: Props) {
                 stroke={cell.id === selectedId ? "#1d4ed8" : undefined}
                 stroke-width={cell.id === selectedId ? 1.6 : undefined}
                 opacity={symbolOpacity(cell.id)}
-                onClick={
-                  symbolMode
-                    ? (event) => {
-                        event.stopPropagation();
-                        onSelect(cell.id);
-                      }
-                    : undefined
-                }
+                onClick={(event) => {
+                  event.stopPropagation();
+                  onSelect(cell.id);
+                }}
               />
             ) : null,
           )}
@@ -577,53 +573,7 @@ export function RingsMapSvg(props: Props) {
           </g>
         ) : null,
       )}
-      <g fill="#1e293b" style={{ display: sourceVisible ? "" : "none" }}>
-        {visibleFileCells.map((cell) =>
-          true ? (
-            <circle
-              key={cell.id}
-              cx={cell.site.x}
-              cy={cell.site.y}
-              r={screenRadius(cell.id === selectedId ? 4 : 2.2)}
-              fill={cell.id === selectedId ? "#1d4ed8" : "#1e293b"}
-              opacity={fileOpacity(cell.id)}
-            />
-          ) : null,
-        )}
-      </g>
-      {showInner || selectedIsSymbol ? (
-        <g fill="#6d28d9">
-          {visibleInnerCells.map((cell) => {
-            const exported = exportedIds.has(cell.id);
-            // public API dots surface before private symbols do
-            const visible =
-              cell.id === selectedId || symbolMode || exported;
-            if (!visible) return null;
-            return (
-              <circle
-                key={cell.id}
-                cx={cell.site.x}
-                cy={cell.site.y}
-                r={screenRadius(
-                  cell.id === selectedId ? 3.2 : exported ? 2.4 : 1.8,
-                )}
-                fill={
-                  cell.id === selectedId
-                    ? "#1d4ed8"
-                    : exported
-                      ? EXPORTED_DOT
-                      : "#6d28d9"
-                }
-                opacity={symbolOpacity(cell.id)}
-                onClick={(event) => {
-                  event.stopPropagation();
-                  onSelect(cell.id);
-                }}
-              />
-            );
-          })}
-        </g>
-      ) : null}
+      {/* symbol sites are conceptual edge waypoints only — no dots */}
       {/* adapter ports on the module rim (API view) */}
       {portNodes.length > 0 ? (
         <g>
@@ -693,17 +643,29 @@ export function RingsMapSvg(props: Props) {
                 9,
                 15,
                 cell.id === selectedId,
-                250,
+                // detailed cells keep their header even when the viewport
+                // sits inside them; the name doubles as a block title
+                allowedFiles.has(cell.id) ? Infinity : 250,
               );
               if (fontSize === null) return null;
+              // once the cell's symbols are rendered, the centered name
+              // would collide with symbol labels: move it to the block top
+              const detailed = allowedFiles.has(cell.id);
+              let y = cell.site.y + fontSize * 0.35;
+              if (detailed) {
+                let minY = Infinity;
+                for (const p of cell.polygon) minY = Math.min(minY, p.y);
+                y = minY + fontSize * 1.2;
+              }
               return (
                 <text
                   key={cell.id}
                   x={cell.site.x}
-                  y={cell.site.y - screenRadius(5)}
+                  y={y}
                   font-size={fontSize}
+                  font-weight={detailed ? "600" : "400"}
                   fill={testFileIds.has(cell.id) ? "#7a8699" : "#334155"}
-                  opacity={fileOpacity(cell.id)}
+                  opacity={fileOpacity(cell.id) * (detailed ? 0.85 : 1)}
                 >
                   {labels.get(cell.id) ?? fallbackLabel(cell.id)}
                 </text>
