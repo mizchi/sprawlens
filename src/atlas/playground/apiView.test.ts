@@ -52,7 +52,7 @@ const symbolEdges: AtlasEdge[] = [
 ];
 
 describe("buildApiGraph", () => {
-  it("keeps only exported symbols, with equal weights", () => {
+  it("keeps only exported symbols", () => {
     const api = buildApiGraph(fileGraph, (id) => symbolsOf.get(id) ?? [], symbolEdges);
     expect(api.nodes.map((n) => n.label).sort()).toEqual([
       "Bar",
@@ -60,8 +60,21 @@ describe("buildApiGraph", () => {
       "foo",
       "only",
     ]);
-    expect(api.nodes.every((n) => n.metrics.loc === 1)).toBe(true);
     expect(api.nodes.every((n) => n.exported === true)).toBe(true);
+  });
+
+  it("weights symbols by PageRank: depended-upon APIs grow", () => {
+    const api = buildApiGraph(fileGraph, (id) => symbolsOf.get(id) ?? [], symbolEdges);
+    const weight = (label: string) =>
+      api.nodes.find((n) => n.label === label)!.metrics.loc;
+    // foo (referenced by View) and Bar (referenced by only) outrank
+    // their referrers; mean weight stays 1
+    expect(weight("foo")).toBeGreaterThan(weight("View"));
+    expect(weight("Bar")).toBeGreaterThan(weight("only"));
+    const mean =
+      api.nodes.reduce((s, n) => s + n.metrics.loc, 0) / api.nodes.length;
+    expect(mean).toBeCloseTo(1, 6);
+    expect(api.nodes.every((n) => n.metrics.loc > 0)).toBe(true);
   });
 
   it("keeps direct public edges and lifts single-export file sources", () => {

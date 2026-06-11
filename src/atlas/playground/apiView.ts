@@ -1,11 +1,13 @@
 import type { AtlasEdge, AtlasGraph, AtlasNode } from "../contracts/graph.js";
 import { defaultModuleIdOf } from "../contracts/modules.js";
+import { pageRank } from "../kernel/pagerank.js";
 
 /**
  * Public-API network projection: file scope is dropped, every exported
- * symbol becomes an equal-weight node and only the dependency network
- * among public symbols remains. The capacity layout then gives each
- * symbol the same area, seeded by graph proximity (force layout).
+ * symbol becomes a node and only the dependency network among public
+ * symbols remains. Cell areas follow PageRank over that network — the
+ * most-depended-upon API surfaces grow — and positions come from graph
+ * proximity (force layout).
  */
 
 /** Parent file of a symbol id (`symbol:<path>:...` or `<path>#sN`). */
@@ -39,8 +41,7 @@ export function buildApiGraph(
         id: symbol.id,
         kind: "symbol",
         label: symbol.label,
-        // equal areas: the network position carries the signal, not size
-        metrics: { loc: 1 },
+        metrics: { loc: 1 }, // replaced by the PageRank weight below
         exported: true,
       });
       nodeIds.add(symbol.id);
@@ -61,6 +62,16 @@ export function buildApiGraph(
     if (seen.has(key)) continue;
     seen.add(key);
     edges.push({ source, target: edge.target });
+  }
+
+  // area = PageRank: rank flows toward the most-depended-upon symbols.
+  // Normalized so the mean weight is 1 (unlinked symbols keep a floor).
+  const ranks = pageRank(
+    nodes.map((n) => n.id),
+    edges,
+  );
+  for (const node of nodes) {
+    node.metrics.loc = (ranks.get(node.id) ?? 0) * nodes.length;
   }
   return { nodes, edges };
 }
