@@ -352,7 +352,7 @@ export function App() {
         graph = { nodes: [], edges: [] };
         symbolsRef.current = null;
         symbolEdgesRef.current = [];
-        fetch("/fixtures/sprawlens-history.json")
+        fetch("fixtures/sprawlens-history.json")
           .then((r) => r.json())
           .then((json: HistoryEntry[]) => {
             commitsRef.current = json;
@@ -383,7 +383,7 @@ export function App() {
         graph = { nodes: [], edges: [] };
         symbolsRef.current = null;
         symbolEdgesRef.current = [];
-        fetch("/fixtures/playwright.json")
+        fetch("fixtures/playwright.json")
           .then((r) => r.json())
           .then((json: SnapshotLike) => {
             playwrightSnapRef.current = json;
