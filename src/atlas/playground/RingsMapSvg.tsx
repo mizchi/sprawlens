@@ -48,6 +48,8 @@ type Props = {
   fileEdges: AtlasEdge[];
   /** Symbol references; endpoints may be symbol ids or file ids. */
   symbolEdges: AtlasEdge[];
+  /** LSP call-hierarchy overlay for the selection — drawn dashed. */
+  lspEdges?: AtlasEdge[];
   showEdges: boolean;
   labels: Map<string, string>;
   exportedIds: Set<string>;
@@ -134,6 +136,7 @@ export function RingsMapSvg(props: Props) {
   const showFiles = props.showFiles ?? true;
   const compactModuleLabels = props.compactModuleLabels ?? false;
   const multiSelected = props.selectedIds ?? new Set<string>();
+  const lspEdges = props.lspEdges ?? [];
   const isSelected = (id: string | null): boolean =>
     id !== null && (id === selectedId || multiSelected.has(id));
   const cyclicIds = props.cyclicIds ?? new Set<string>();
@@ -498,27 +501,33 @@ export function RingsMapSvg(props: Props) {
   const touchesSelection = (id: string) =>
     isSelected(id) || isSelected(parentFileOf(id));
   const noSelection = selectedId === null && multiSelected.size === 0;
-  const selectedOutgoing = noSelection
-    ? []
-    : symbolEdges.filter(
-        (e) => touchesSelection(e.source) && !touchesSelection(e.target),
-      );
-  const selectedIncoming = noSelection
-    ? []
-    : symbolEdges.filter(
-        (e) => touchesSelection(e.target) && !touchesSelection(e.source),
-      );
+  const outgoingOf = (edges: AtlasEdge[]) =>
+    noSelection
+      ? []
+      : edges.filter(
+          (e) => touchesSelection(e.source) && !touchesSelection(e.target),
+        );
+  const incomingOf = (edges: AtlasEdge[]) =>
+    noSelection
+      ? []
+      : edges.filter(
+          (e) => touchesSelection(e.target) && !touchesSelection(e.source),
+        );
+  const selectedOutgoing = outgoingOf(symbolEdges);
+  const selectedIncoming = incomingOf(symbolEdges);
+  const lspOutgoing = outgoingOf(lspEdges);
+  const lspIncoming = incomingOf(lspEdges);
   // nodes one reference away from the selection, keyed by direction —
   // their backgrounds take the matching edge color
   const dependencyIds = new Set<string>();
-  for (const edge of selectedOutgoing) {
+  for (const edge of [...selectedOutgoing, ...lspOutgoing]) {
     if (isSelected(edge.target)) continue;
     dependencyIds.add(edge.target);
     // symbol endpoints tint their parent file's cell as well
     dependencyIds.add(parentFileOf(edge.target));
   }
   const dependentIds = new Set<string>();
-  for (const edge of selectedIncoming) {
+  for (const edge of [...selectedIncoming, ...lspIncoming]) {
     if (isSelected(edge.source)) continue;
     dependentIds.add(edge.source);
     dependentIds.add(parentFileOf(edge.source));
@@ -828,6 +837,38 @@ export function RingsMapSvg(props: Props) {
           </g>
         ) : null,
       )}
+      {(
+        [
+          [lspOutgoing, DOWNSTREAM_COLOR],
+          [lspIncoming, UPSTREAM_COLOR],
+        ] as const
+      ).map(([edges, color]) =>
+        edges.length > 0 ? (
+          <g
+            key={`lsp-${color}`}
+            stroke={color}
+            stroke-opacity={0.85}
+            stroke-dasharray={`${8 / zoom} ${5 / zoom}`}
+            fill="none"
+          >
+            {edges.map((edge) => {
+              const a = resolveSite(edge.source);
+              const b = resolveSite(edge.target);
+              if (!a || !b) return null;
+              return (
+                <line
+                  key={`lsp-${edge.source}-${edge.target}`}
+                  x1={a.x}
+                  y1={a.y}
+                  x2={b.x}
+                  y2={b.y}
+                  stroke-width={1.4}
+                />
+              );
+            })}
+          </g>
+        ) : null,
+      )}
       {/* names of reference targets that left the screen, docked where
           their edge crosses the viewport border */}
       {focus
@@ -845,12 +886,12 @@ export function RingsMapSvg(props: Props) {
           ]
         : [
             renderExitPreviews(
-              selectedOutgoing,
+              [...selectedOutgoing, ...lspOutgoing],
               DOWNSTREAM_COLOR,
               "exit-sel-down",
             ),
             renderExitPreviews(
-              selectedIncoming,
+              [...selectedIncoming, ...lspIncoming],
               UPSTREAM_COLOR,
               "exit-sel-up",
             ),

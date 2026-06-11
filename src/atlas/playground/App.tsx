@@ -66,6 +66,8 @@ const CONVERGENCE_TOLERANCE = 0.02;
  * sliver of a small neighboring file would steal the focus.
  */
 const AUTOFOCUS_AREA_FRACTION = 0.12;
+/** Call-hierarchy roots kept in memory; older unselected ones evict. */
+const LSP_CACHE_MAX = 8;
 
 function clipOf(kind: ClipKind): ClipRegion {
   return kind === "rect"
@@ -235,6 +237,8 @@ export function App() {
   const lastDiffRef = useRef({ added: 0, modified: 0, removed: 0 });
   /** Symbols whose call hierarchy was already fetched from the LSP server. */
   const fetchedHierarchyRef = useRef(new Set<string>());
+  /** LSP call-hierarchy edges per fetched root; bounded, display-only. */
+  const lspEdgesRef = useRef(new Map<string, AtlasEdge[]>());
   const [hierarchyVersion, setHierarchyVersion] = useState(0);
   // Graph-derived lookups, rebuilt only when the graph changes. Recomputing
   // these per render allocated heavily and drove major-GC pauses during
@@ -520,6 +524,7 @@ export function App() {
     innerLayoutsRef.current = new Map();
     symbolMetaRef.current = new Map();
     fetchedHierarchyRef.current = new Set();
+    lspEdgesRef.current = new Map();
     labelsRef.current = new Map();
     exportedIdsRef.current = new Set();
     innerCellsRef.current = [];
@@ -724,6 +729,7 @@ export function App() {
     symbolsRef.current = snapshotSymbols(snapshot);
     symbolEdgesRef.current = snapshotSymbolEdges(snapshot);
     fetchedHierarchyRef.current = new Set();
+    lspEdgesRef.current = new Map();
     refreshGraphLookups();
     commitIndexRef.current = index;
     if (ringsRef.current) {
@@ -1360,23 +1366,33 @@ export function App() {
     selected !== null && !allCells.some((c) => c.id === selected.id);
   const selectedRefs = useMemo(() => {
     if (!activeId) return { incoming: [], outgoing: [] };
-    const edges =
-      paramsRef.current.granularity === "symbol"
+    const edges = [
+      ...(paramsRef.current.granularity === "symbol"
         ? displayGraphRef.current.edges
-        : symbolEdgesRef.current;
+        : symbolEdgesRef.current),
+      // display-only LSP overlay of the active root
+      ...(lspEdgesRef.current.get(activeId) ?? []),
+    ];
     return {
-      incoming: edges
-        .filter((e) => e.target === activeId)
-        .map((e) => e.source),
-      outgoing: edges
-        .filter((e) => e.source === activeId)
-        .map((e) => e.target),
+      incoming: [
+        ...new Set(
+          edges.filter((e) => e.target === activeId).map((e) => e.source),
+        ),
+      ],
+      outgoing: [
+        ...new Set(
+          edges.filter((e) => e.source === activeId).map((e) => e.target),
+        ),
+      ],
     };
   }, [activeId, hierarchyVersion, params.granularity]);
 
   // Phase 3: on-demand call hierarchy from the LSP server. Static
   // symbolImports only know file→symbol; the LSP upgrades the selection to
-  // real symbol→symbol caller/callee edges, merged into the edge set.
+  // real symbol→symbol caller/callee edges. They are a display-only
+  // overlay (dashed): merging them into the structural edge set meant
+  // every fetch re-projected the network and re-flowed the map, and the
+  // set only ever grew — too heavy at monorepo scale.
   useEffect(() => {
     const id = activeId;
     if (!id || !id.startsWith("symbol:")) return;
@@ -1390,24 +1406,17 @@ export function App() {
       .then((response) => {
         const symbolsByFile = symbolsRef.current ?? new Map();
         const fileIds = new Set(graphRef.current.nodes.map((n) => n.id));
-        const edges = refsToEdges(id, response, symbolsByFile, fileIds);
-        const seen = new Set(
-          symbolEdgesRef.current.map((e) => `${e.source}->${e.target}`),
+        lspEdgesRef.current.set(
+          id,
+          refsToEdges(id, response, symbolsByFile, fileIds),
         );
-        const fresh = edges.filter(
-          (e) => !seen.has(`${e.source}->${e.target}`),
-        );
-        if (fresh.length > 0) {
-          symbolEdgesRef.current = [...symbolEdgesRef.current, ...fresh];
-          // the API projection derives from these edges: re-project so the
-          // network, PageRank areas and ports pick the new hierarchy up
-          if (paramsRef.current.granularity === "symbol" && ringsRef.current) {
-            ringsRef.current = applyRingsChanges(
-              ringsRef.current,
-              effectiveGraph(paramsRef.current),
-              ringsOptions(paramsRef.current),
-            );
-          }
+        // bounded cache: evict the oldest roots nobody has selected
+        const selected = new Set(selectedIdsRef.current);
+        for (const key of lspEdgesRef.current.keys()) {
+          if (lspEdgesRef.current.size <= LSP_CACHE_MAX) break;
+          if (selected.has(key) || key === id) continue;
+          lspEdgesRef.current.delete(key);
+          fetchedHierarchyRef.current.delete(key);
         }
         setHierarchyVersion((v) => v + 1);
       })
@@ -1416,6 +1425,27 @@ export function App() {
         fetchedHierarchyRef.current.delete(id);
       });
   }, [activeId]);
+  // the overlay shown right now: hierarchy edges of the active selection,
+  // minus anything the static projection already draws solid
+  const lspOverlayEdges = (() => {
+    const roots = selectedIds.length > 0 ? selectedIds : activeId ? [activeId] : [];
+    const out: AtlasEdge[] = [];
+    const seen = new Set(
+      (params.granularity === "symbol"
+        ? displayGraphRef.current.edges
+        : symbolEdgesRef.current
+      ).map((e) => `${e.source}->${e.target}`),
+    );
+    for (const root of roots) {
+      for (const edge of lspEdgesRef.current.get(root) ?? []) {
+        const key = `${edge.source}->${edge.target}`;
+        if (seen.has(key)) continue;
+        seen.add(key);
+        out.push(edge);
+      }
+    }
+    return out;
+  })();
   const maxError = ringsRef.current
     ? Math.max(
         0,
@@ -1470,6 +1500,7 @@ export function App() {
                 ? displayGraphRef.current.edges
                 : symbolEdgesRef.current
             }
+            lspEdges={lspOverlayEdges}
             showEdges={params.showEdges || params.granularity === "symbol"}
             showFiles={params.granularity !== "module"}
             compactModuleLabels={params.granularity === "symbol"}
