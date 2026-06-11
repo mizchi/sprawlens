@@ -255,12 +255,27 @@ export function RingsMapSvg(props: Props) {
     () => new Map(portNodes.map((p) => [p.id, { x: p.x, y: p.y }])),
     [portNodes],
   );
-  /** Symbols somebody actually references (the linked public surface). */
-  const referencedIds = useMemo(() => {
+  /** Symbols one edge away from the selection (either direction); only
+   * these label on unfocused files — anything else is noise. */
+  const linkedToSelection = useMemo(() => {
     const ids = new Set<string>();
-    for (const edge of symbolEdges) ids.add(edge.target);
+    if (!selectedId) return ids;
+    for (const edge of symbolEdges) {
+      if (
+        edge.source === selectedId ||
+        parentFileOf(edge.source) === selectedId
+      ) {
+        ids.add(edge.target);
+      }
+      if (
+        edge.target === selectedId ||
+        parentFileOf(edge.target) === selectedId
+      ) {
+        ids.add(edge.source);
+      }
+    }
     return ids;
-  }, [symbolEdges]);
+  }, [symbolEdges, selectedId, parentFileOf]);
   const resolveSite = (id: string): Vec2 | undefined => {
     const site =
       symbolSiteById.get(id) ?? fileSiteById.get(id) ?? portSiteById.get(id);
@@ -738,9 +753,9 @@ export function RingsMapSvg(props: Props) {
               const exported = exportedIds.has(cell.id);
               // symbol names are noise until you commit to the symbol:
               // show them only when (a) the cell dominates the screen,
-              // (b) its file is selected, (c) it's the selection itself —
-              // except linked public symbols, which always label
-              const linkedPublic = exported && referencedIds.has(cell.id);
+              // (b) its file is selected, (c) it's the selection itself,
+              // (d) the selection references it directly
+              const linked = linkedToSelection.has(cell.id);
               const fileSelected =
                 selectedId !== null &&
                 parentFileOf(cell.id) === selectedId;
@@ -748,7 +763,7 @@ export function RingsMapSvg(props: Props) {
                 Math.sqrt(cell.actualArea) * zoom >=
                 Math.min(width, height) * SYMBOL_DOMINANT_FRACTION;
               if (
-                !linkedPublic &&
+                !linked &&
                 !fileSelected &&
                 !dominant &&
                 cell.id !== selectedId
@@ -758,7 +773,7 @@ export function RingsMapSvg(props: Props) {
                 Math.sqrt(cell.actualArea) * 0.3,
                 exported ? 7 : 13,
                 12,
-                cell.id === selectedId || fileSelected || dominant,
+                cell.id === selectedId || fileSelected || dominant || linked,
                 200,
               );
               if (fontSize === null) return null;
