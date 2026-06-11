@@ -82,12 +82,17 @@ export function computePowerDiagram(
       y: p.y,
       edgeSource: null,
     }));
+    // farthest cell vertex from the site (squared): a bisector beyond it
+    // cannot cut, so most pairs skip the (allocating) polygon clip — the
+    // all-pairs loop stays, but its body collapses to a few flops
+    let radius2 = maxVertexDistance2(site, cell);
     for (let j = 0; j < sites.length && cell.length > 0; j++) {
       if (j === index) continue;
       const other = sites[j]!;
-      const nx = 2 * (other.x - site.x);
-      const ny = 2 * (other.y - site.y);
-      if (Math.abs(nx) < COINCIDENT_EPS && Math.abs(ny) < COINCIDENT_EPS) {
+      const dx = other.x - site.x;
+      const dy = other.y - site.y;
+      const d2 = dx * dx + dy * dy;
+      if (d2 < COINCIDENT_EPS) {
         // Coincident sites: the heavier weight wins everywhere; ties go to
         // the earlier site in input order.
         const loses =
@@ -96,13 +101,21 @@ export function computePowerDiagram(
         if (loses) cell = [];
         continue;
       }
+      // cut distance along the pair axis is (d2 + Δw) / (2d); compare
+      // squared against radius2 to keep sqrt out of the hot path
+      const num = d2 + site.weight - other.weight;
+      if (num > 0 && num * num > 4 * d2 * radius2) continue;
+      const nx = 2 * dx;
+      const ny = 2 * dy;
       const c =
         other.x * other.x +
         other.y * other.y -
         (site.x * site.x + site.y * site.y) +
         site.weight -
         other.weight;
+      const before = cell.length;
       cell = clipLabeled(cell, nx, ny, c, other.id);
+      if (cell.length !== before) radius2 = maxVertexDistance2(site, cell);
     }
     const polygon: Ring = cell.map((v) => ({ x: v.x, y: v.y }));
     const edges: CellEdge[] = cell.map((v, i) => {
@@ -120,4 +133,15 @@ export function computePowerDiagram(
       edges,
     };
   });
+}
+
+function maxVertexDistance2(site: PowerSite, cell: LabeledVertex[]): number {
+  let max = 0;
+  for (const v of cell) {
+    const dx = v.x - site.x;
+    const dy = v.y - site.y;
+    const d2 = dx * dx + dy * dy;
+    if (d2 > max) max = d2;
+  }
+  return max;
 }
