@@ -1,3 +1,13 @@
+import {
+  presetConfig,
+  presetOf,
+  VIEW_PRESETS,
+  type Granularity,
+  type SelectMode,
+  type ViewConfig,
+  type WeightKind,
+} from "./viewConfig.ts";
+
 export type ClipKind = "rect" | "circle" | "hexadecagon";
 export type DataSource =
   | "synthetic"
@@ -5,13 +15,17 @@ export type DataSource =
   | "sprawlens-history"
   | "playwright";
 export type LayoutKind = "rings" | "flat";
-export type ViewKind = "files" | "api";
 
 export type PlaygroundParams = {
   source: DataSource;
   layout: LayoutKind;
-  /** files = LOC-weighted file map; api = equal-area public-symbol network. */
-  view: ViewKind;
+  /** Orthogonal view axes; presets bundle them (see viewConfig.ts). */
+  granularity: Granularity;
+  weight: WeightKind;
+  hidePrivate: boolean;
+  focusGranularity: Granularity;
+  /** What a click resolves to; zoom focus uses focusGranularity instead. */
+  selectMode: SelectMode;
   invertRings: boolean;
   count: number;
   seed: number;
@@ -75,6 +89,17 @@ export function Controls(props: Props) {
     key: K,
     value: PlaygroundParams[K],
   ) => onChange({ ...params, [key]: value });
+  const viewConfig: ViewConfig = {
+    granularity: params.granularity,
+    weight: params.weight,
+    hidePrivate: params.hidePrivate,
+    focusGranularity: params.focusGranularity,
+  };
+  const activePreset = presetOf(viewConfig);
+  const applyPreset = (id: string) => {
+    const config = presetConfig(id);
+    if (config) onChange({ ...params, ...config });
+  };
   const button: Record<string, string> = {
     padding: "6px 10px",
     fontSize: "12px",
@@ -82,6 +107,95 @@ export function Controls(props: Props) {
   };
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
+      <label style={row}>
+        <span style={{ width: "110px" }}>preset</span>
+        <select
+          value={activePreset}
+          onInput={(e) => applyPreset((e.target as HTMLSelectElement).value)}
+        >
+          {VIEW_PRESETS.map((preset) => (
+            <option key={preset.id} value={preset.id}>
+              {preset.label}
+            </option>
+          ))}
+          {activePreset === "custom" ? (
+            <option value="custom" disabled>
+              custom
+            </option>
+          ) : null}
+        </select>
+      </label>
+      <label style={row}>
+        <span style={{ width: "110px" }}>node unit</span>
+        <select
+          value={params.granularity}
+          onInput={(e) =>
+            set(
+              "granularity",
+              (e.target as HTMLSelectElement).value as Granularity,
+            )
+          }
+        >
+          <option value="module">module</option>
+          <option value="file">file</option>
+          <option value="symbol">symbol (network)</option>
+        </select>
+      </label>
+      <label style={row}>
+        <span style={{ width: "110px" }}>weight</span>
+        <select
+          value={params.weight}
+          onInput={(e) =>
+            set("weight", (e.target as HTMLSelectElement).value as WeightKind)
+          }
+        >
+          <option value="loc">LOC</option>
+          <option value="pagerank">PageRank</option>
+        </select>
+      </label>
+      <label style={row}>
+        <span style={{ width: "110px" }}>hide private</span>
+        <input
+          type="checkbox"
+          checked={params.hidePrivate}
+          onInput={(e) =>
+            set("hidePrivate", (e.target as HTMLInputElement).checked)
+          }
+        />
+      </label>
+      <label style={row}>
+        <span style={{ width: "110px" }}>select mode</span>
+        <select
+          value={params.selectMode}
+          onInput={(e) =>
+            set(
+              "selectMode",
+              (e.target as HTMLSelectElement).value as SelectMode,
+            )
+          }
+        >
+          <option value="auto">auto (LOD)</option>
+          <option value="module">module</option>
+          <option value="file">file</option>
+          <option value="symbol">symbol</option>
+        </select>
+      </label>
+      <label style={row}>
+        <span style={{ width: "110px" }}>zoom focus</span>
+        <select
+          value={params.focusGranularity}
+          onInput={(e) =>
+            set(
+              "focusGranularity",
+              (e.target as HTMLSelectElement).value as Granularity,
+            )
+          }
+        >
+          <option value="module">module</option>
+          <option value="file">file</option>
+          <option value="symbol">symbol</option>
+        </select>
+      </label>
       <label style={row}>
         <span style={{ width: "110px" }}>layout</span>
         <select
@@ -92,18 +206,6 @@ export function Controls(props: Props) {
         >
           <option value="rings">rings (modules)</option>
           <option value="flat">flat (files)</option>
-        </select>
-      </label>
-      <label style={row}>
-        <span style={{ width: "110px" }}>view</span>
-        <select
-          value={params.view}
-          onInput={(e) =>
-            set("view", (e.target as HTMLSelectElement).value as ViewKind)
-          }
-        >
-          <option value="files">files (LOC area)</option>
-          <option value="api">public API network</option>
         </select>
       </label>
       {params.layout === "rings" ? (

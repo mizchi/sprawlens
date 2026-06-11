@@ -82,25 +82,34 @@ export function splitApiBoundary(
   };
 }
 
+export type ApiGraphOptions = {
+  /** Keep non-exported symbols too (the full symbol network). */
+  includePrivate?: boolean;
+  /** Area scoring; defaults to PageRank over the projected network. */
+  weight?: "pagerank" | "loc";
+};
+
 export function buildApiGraph(
   fileGraph: AtlasGraph,
   symbolsOf: (fileId: string) => AtlasNode[],
   symbolEdges: readonly AtlasEdge[],
+  options: ApiGraphOptions = {},
 ): AtlasGraph {
   const nodes: AtlasNode[] = [];
   const nodeIds = new Set<string>();
   /** file id → its single exported symbol, when unambiguous. */
   const soleExportOf = new Map<string, string | null>();
   for (const file of fileGraph.nodes) {
-    const exported = symbolsOf(file.id).filter((s) => s.exported === true);
+    const symbols = symbolsOf(file.id);
+    const exported = symbols.filter((s) => s.exported === true);
     soleExportOf.set(file.id, exported.length === 1 ? exported[0]!.id : null);
-    for (const symbol of exported) {
+    for (const symbol of options.includePrivate ? symbols : exported) {
       nodes.push({
         id: symbol.id,
         kind: "symbol",
         label: symbol.label,
-        metrics: { loc: 1 }, // replaced by the PageRank weight below
-        exported: true,
+        metrics: { loc: Math.max(symbol.metrics.loc, 1) },
+        exported: symbol.exported === true,
       });
       nodeIds.add(symbol.id);
     }
@@ -124,12 +133,15 @@ export function buildApiGraph(
 
   // area = PageRank: rank flows toward the most-depended-upon symbols.
   // Normalized so the mean weight is 1 (unlinked symbols keep a floor).
-  const ranks = pageRank(
-    nodes.map((n) => n.id),
-    edges,
-  );
-  for (const node of nodes) {
-    node.metrics.loc = (ranks.get(node.id) ?? 0) * nodes.length;
+  // weight: "loc" keeps the symbols' own sizes instead.
+  if (options.weight !== "loc") {
+    const ranks = pageRank(
+      nodes.map((n) => n.id),
+      edges,
+    );
+    for (const node of nodes) {
+      node.metrics.loc = (ranks.get(node.id) ?? 0) * nodes.length;
+    }
   }
   return { nodes, edges };
 }

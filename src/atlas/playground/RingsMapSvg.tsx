@@ -52,6 +52,8 @@ type Props = {
   changedFiles: Map<string, "added" | "modified">;
   /** API view: adapter ports sitting on the module rim. */
   portNodes: { id: string; label: string; x: number; y: number }[];
+  /** Module granularity hides the file subdivision entirely. */
+  showFiles?: boolean;
   width: number;
   height: number;
   selectedId: string | null;
@@ -109,6 +111,7 @@ export function RingsMapSvg(props: Props) {
     focusRequest,
     onViewSettle,
   } = props;
+  const showFiles = props.showFiles ?? true;
   // Interactive zoom/pan writes the viewBox straight to the DOM (cheap),
   // while the LOD-affecting re-render (label sizing, culling, mode switches)
   // is committed at most every COMMIT_MS. Re-rendering ~1.4k SVG nodes per
@@ -225,8 +228,9 @@ export function RingsMapSvg(props: Props) {
   // rings keeps its identity once converged, innerCells once settled — these
   // memos stop per-commit Map/array rebuilds (a major GC-pressure source)
   const fileCells = useMemo(
-    () => [...rings.moduleLayouts.values()].flatMap((l) => l.cells),
-    [rings],
+    () =>
+      showFiles ? [...rings.moduleLayouts.values()].flatMap((l) => l.cells) : [],
+    [rings, showFiles],
   );
   const fileSiteById = useMemo(
     () => new Map(fileCells.map((c) => [c.id, c.site])),
@@ -694,9 +698,10 @@ export function RingsMapSvg(props: Props) {
                 allowedFiles.has(cell.id) ? Infinity : 250,
               );
               if (fontSize === null) return null;
-              // once the cell's symbols are rendered, the centered name
-              // would collide with symbol labels: move it to the block top
-              const detailed = allowedFiles.has(cell.id);
+              // the name stays centered until the file is selected
+              // (explicitly or via zoom focus); only then it becomes a
+              // block-top header clearing room for the symbol labels
+              const detailed = cell.id === selectedId;
               let y = cell.site.y + fontSize * 0.35;
               if (detailed) {
                 let minY = Infinity;

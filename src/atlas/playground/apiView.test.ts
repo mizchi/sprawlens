@@ -92,6 +92,39 @@ describe("buildApiGraph", () => {
   });
 });
 
+describe("buildApiGraph options", () => {
+  it("weight: loc keeps each symbol's own LOC as its area", () => {
+    const api = buildApiGraph(
+      fileGraph,
+      (id) => symbolsOf.get(id) ?? [],
+      symbolEdges,
+      { weight: "loc" },
+    );
+    expect(api.nodes.every((n) => n.metrics.loc === 40)).toBe(true);
+  });
+
+  it("includePrivate keeps non-exported symbols and their edges", () => {
+    const api = buildApiGraph(
+      fileGraph,
+      (id) => symbolsOf.get(id) ?? [],
+      symbolEdges,
+      { includePrivate: true },
+    );
+    expect(api.nodes.map((n) => n.label).sort()).toEqual([
+      "Bar",
+      "View",
+      "foo",
+      "hidden",
+      "only",
+    ]);
+    // the private-source edge survives because both endpoints are nodes now
+    expect(api.edges).toContainEqual({
+      source: "symbol:src/core/a.ts:function:hidden:30",
+      target: "symbol:src/core/b.ts:function:only:1",
+    });
+  });
+});
+
 describe("splitApiBoundary", () => {
   it("moves externally-referenced symbols to the module boundary", () => {
     const api = buildApiGraph(

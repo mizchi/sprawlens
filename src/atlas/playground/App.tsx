@@ -42,6 +42,7 @@ import type { AtlasEdge } from "../contracts/graph.js";
 import { defaultLayerOf, matchTestTargets } from "../contracts/layers.js";
 import { defaultModuleIdOf } from "../contracts/modules.js";
 import { apiModuleIdOf, buildApiGraph, splitApiBoundary } from "./apiView.ts";
+import { resolveSelection, reweightByPageRank } from "./viewConfig.ts";
 import { fetchCallHierarchy, refsToEdges } from "./callHierarchyClient.ts";
 import {
   buildHistoryIndex,
@@ -53,6 +54,8 @@ import {
 const WIDTH = 960;
 const HEIGHT = 640;
 const CONVERGENCE_TOLERANCE = 0.02;
+/** Zoom past this implicitly focuses the crosshair target (no selection). */
+const AUTOFOCUS_ZOOM = 1.6;
 
 function clipOf(kind: ClipKind): ClipRegion {
   return kind === "rect"
@@ -146,7 +149,11 @@ export function App() {
   const [params, setParams] = useState<PlaygroundParams>({
     source: "synthetic",
     layout: "rings",
-    view: "files",
+    granularity: "file",
+    weight: "loc",
+    hidePrivate: false,
+    focusGranularity: "file",
+    selectMode: "auto",
     invertRings: false,
     count: 120,
     seed: 1,
@@ -251,7 +258,7 @@ export function App() {
     invert: p.invertRings,
     adaptationRate: p.adaptationRate,
     lloydRate: p.lloydRate,
-    moduleIdOf: p.view === "api" ? apiModuleIdOf : undefined,
+    moduleIdOf: p.granularity === "symbol" ? apiModuleIdOf : undefined,
   });
 
   const symbolsForFile = (fileId: string): AtlasNode[] => {
@@ -278,8 +285,11 @@ export function App() {
         ),
       };
     }
-    if (p.view === "api") {
-      const api = buildApiGraph(graph, symbolsForFile, symbolEdgesRef.current);
+    if (p.granularity === "symbol") {
+      const api = buildApiGraph(graph, symbolsForFile, symbolEdgesRef.current, {
+        includePrivate: !p.hidePrivate,
+        weight: p.weight,
+      });
       // the network's labels come from the projected symbols
       for (const node of api.nodes) labelsRef.current.set(node.id, node.label);
       displayGraphRef.current = api;
@@ -304,6 +314,9 @@ export function App() {
       // ports leave the cell layout; only internals get areas
       return split.internal;
     }
+    // file/module granularity: weight swaps in place — PageRank areas
+    // follow how depended-upon a file is instead of its size
+    if (p.weight === "pagerank") graph = reweightByPageRank(graph);
     displayGraphRef.current = graph;
     return graph;
   };
@@ -349,9 +362,13 @@ export function App() {
       };
       let layout = inner.get(cell.id);
       if (!layout) {
-        const symbols =
+        let symbols =
           symbolsRef.current?.get(cell.id) ??
           synthesizeSymbols(cell.id, loc, 1);
+        if (paramsRef.current.hidePrivate) {
+          const publicOnly = symbols.filter((s) => s.exported === true);
+          if (publicOnly.length > 0) symbols = publicOnly;
+        }
         for (const symbol of symbols) {
           symbolMetaRef.current.set(symbol.id, {
             exported: symbol.exported === true,
@@ -490,26 +507,32 @@ export function App() {
 
   // structural params trigger a rebuild; invert re-rings warm; solver params
   // only update options on the existing layout
-  const structuralKey = `${params.source}|${params.layout}|${params.view}|${params.count}|${params.seed}|${params.clipKind}`;
+  const structuralKey = `${params.source}|${params.layout}|${params.granularity}|${params.count}|${params.seed}|${params.clipKind}`;
+  // weight / filters / invert re-flow warm (the diff animation); only
+  // granularity and data swaps rebuild cold
+  const flowKey = `${params.invertRings}|${params.hiddenLayers.join(",")}|${params.weight}|${params.hidePrivate}`;
   const structuralRef = useRef(structuralKey);
-  const invertRef = useRef(params.invertRings);
-  const layersKeyRef = useRef(params.hiddenLayers.join(","));
+  const flowKeyRef = useRef(flowKey);
+  const hidePrivateRef = useRef(params.hidePrivate);
   useEffect(() => {
     if (structuralRef.current !== structuralKey) {
       structuralRef.current = structuralKey;
-      invertRef.current = paramsRef.current.invertRings;
+      flowKeyRef.current = flowKey;
+      hidePrivateRef.current = paramsRef.current.hidePrivate;
       rebuild(paramsRef.current);
       return;
     }
-    const layersKey = params.hiddenLayers.join(",");
-    if (
-      invertRef.current !== params.invertRings ||
-      layersKeyRef.current !== layersKey
-    ) {
-      invertRef.current = params.invertRings;
-      layersKeyRef.current = layersKey;
+    if (flowKeyRef.current !== flowKey) {
+      flowKeyRef.current = flowKey;
+      if (hidePrivateRef.current !== params.hidePrivate) {
+        hidePrivateRef.current = params.hidePrivate;
+        // nested symbol layouts bake the private filter in: restart them
+        innerLayoutsRef.current = new Map();
+        innerDirtyRef.current = true;
+      }
       if (ringsRef.current) {
-        // layer toggles re-flow the map warm: tests melt out / back in
+        // weight/filter toggles re-flow the map warm: cells melt to their
+        // new areas instead of snapping
         ringsRef.current = applyRingsChanges(
           ringsRef.current,
           effectiveGraph(paramsRef.current),
@@ -530,13 +553,7 @@ export function App() {
         },
       };
     }
-  }, [
-    structuralKey,
-    params.invertRings,
-    params.hiddenLayers.join(","),
-    params.adaptationRate,
-    params.lloydRate,
-  ]);
+  }, [structuralKey, flowKey, params.adaptationRate, params.lloydRate]);
 
   useEffect(() => {
     let raf = 0;
@@ -611,7 +628,10 @@ export function App() {
       }
 
       let innerActive = false;
-      if (paramsRef.current.showNested && paramsRef.current.view !== "api") {
+      if (
+        paramsRef.current.showNested &&
+        paramsRef.current.granularity === "file"
+      ) {
         syncInnerLayouts(outerCells, outerActive, innerBudget);
         for (const layout of innerLayoutsRef.current.values()) {
           if (!isConverged(layout, CONVERGENCE_TOLERANCE)) {
@@ -901,7 +921,7 @@ export function App() {
   /** API view: adapter ports placed on the rim, facing their consumers. */
   const portNodes = (() => {
     const rings = ringsRef.current;
-    if (params.view !== "api" || !rings) return [];
+    if (params.granularity !== "symbol" || !rings) return [];
     const out: { id: string; label: string; x: number; y: number }[] = [];
     for (const [moduleId, ports] of apiBoundaryRef.current) {
       const circle = rings.circles.get(moduleId);
@@ -967,14 +987,16 @@ export function App() {
     const isSymbolId = (id: string) =>
       id.startsWith("symbol:") || id.includes("#");
     const moduleOfId = (id: string) =>
-      params.view === "api" ? apiModuleIdOf(id) : defaultModuleIdOf(id);
+      params.granularity === "symbol"
+        ? apiModuleIdOf(id)
+        : defaultModuleIdOf(id);
     if (selectedId) {
       if (rings.circles.has(selectedId)) {
         parts.push({ id: selectedId, label: selectedId });
       } else if (isSymbolId(selectedId)) {
         const fileId = parentFileOf(selectedId);
         parts.push({ id: moduleOfId(fileId), label: moduleOfId(fileId) });
-        if (params.view !== "api") {
+        if (params.granularity !== "symbol") {
           parts.push({ id: fileId, label: labelOf(fileId) });
         }
         parts.push({ id: selectedId, label: labelOf(selectedId) });
@@ -1001,7 +1023,7 @@ export function App() {
     );
     if (cell) {
       parts.push({ id: cell.id, label: labelOf(cell.id) });
-      if (viewInfo.zoom >= 2.2 && params.view !== "api") {
+      if (viewInfo.zoom >= 2.2 && params.granularity === "file") {
         const symbol = innerLayoutsRef.current
           .get(cell.id)
           ?.cells.find(
@@ -1015,6 +1037,46 @@ export function App() {
     return parts;
   })();
 
+  /**
+   * Zoom focus: without an explicit selection, zooming past the threshold
+   * implicitly selects the crosshair target, clamped to focusGranularity
+   * (LOC file maps stop at files; the API network goes to symbols).
+   * Explicit clicks always override; Esc clears back to implicit.
+   */
+  const implicitId = (() => {
+    if (selectedId || viewInfo.zoom < AUTOFOCUS_ZOOM) return null;
+    if (breadcrumb.length === 0) return null;
+    const depth = { module: 1, file: 2, symbol: 3 }[params.focusGranularity];
+    return breadcrumb[Math.min(depth, breadcrumb.length) - 1]!.id;
+  })();
+  const activeId = selectedId ?? implicitId;
+
+  const selectNode = (id: string | null) => {
+    if (id === null) {
+      setSelectedId(null);
+      return;
+    }
+    setSelectedId(
+      resolveSelection(id, paramsRef.current.selectMode, {
+        isModule: (x) => ringsRef.current?.circles.has(x) ?? false,
+        parentFileOf,
+        moduleOf: (x) =>
+          paramsRef.current.granularity === "symbol"
+            ? apiModuleIdOf(x)
+            : defaultModuleIdOf(x),
+      }),
+    );
+  };
+
+  // Esc drops the explicit selection (zoom focus takes over again)
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setSelectedId(null);
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, []);
+
   const allCells: CellResult[] = ringsRef.current
     ? [...ringsRef.current.moduleLayouts.values()].flatMap((l) => l.cells)
     : (layoutRef.current?.cells ?? []);
@@ -1023,44 +1085,44 @@ export function App() {
   const testTargets = testTargetsRef.current;
   const selected = useMemo(
     () =>
-      allCells.find((c) => c.id === selectedId) ??
-      allInnerCells.find((c) => c.id === selectedId) ??
+      allCells.find((c) => c.id === activeId) ??
+      allInnerCells.find((c) => c.id === activeId) ??
       null,
-    [allCells, allInnerCells, selectedId],
+    [allCells, allInnerCells, activeId],
   );
   const selectedIsModule =
-    selectedId !== null && (ringsRef.current?.circles.has(selectedId) ?? false);
+    activeId !== null && (ringsRef.current?.circles.has(activeId) ?? false);
   const selectedTest =
-    selectedId !== null && testFileIds.has(selectedId)
-      ? (graphRef.current.nodes.find((n) => n.id === selectedId) ?? null)
+    activeId !== null && testFileIds.has(activeId)
+      ? (graphRef.current.nodes.find((n) => n.id === activeId) ?? null)
       : null;
   const selectedPort =
-    selectedId !== null && params.view === "api"
-      ? (portNodesRef.current.find((p) => p.id === selectedId) ?? null)
+    activeId !== null && params.granularity === "symbol"
+      ? (portNodesRef.current.find((p) => p.id === activeId) ?? null)
       : null;
   const selectedIsSymbol =
     selected !== null && !allCells.some((c) => c.id === selected.id);
   const selectedRefs = useMemo(() => {
-    if (!selectedId) return { incoming: [], outgoing: [] };
+    if (!activeId) return { incoming: [], outgoing: [] };
     const edges =
-      paramsRef.current.view === "api"
+      paramsRef.current.granularity === "symbol"
         ? displayGraphRef.current.edges
         : symbolEdgesRef.current;
     return {
       incoming: edges
-        .filter((e) => e.target === selectedId)
+        .filter((e) => e.target === activeId)
         .map((e) => e.source),
       outgoing: edges
-        .filter((e) => e.source === selectedId)
+        .filter((e) => e.source === activeId)
         .map((e) => e.target),
     };
-  }, [selectedId, hierarchyVersion, params.view]);
+  }, [activeId, hierarchyVersion, params.granularity]);
 
   // Phase 3: on-demand call hierarchy from the LSP server. Static
   // symbolImports only know file→symbol; the LSP upgrades the selection to
   // real symbol→symbol caller/callee edges, merged into the edge set.
   useEffect(() => {
-    const id = selectedId;
+    const id = activeId;
     if (!id || !id.startsWith("symbol:")) return;
     const repo = paramsRef.current.source;
     // history snapshots don't match the working tree the LSP sees
@@ -1083,7 +1145,7 @@ export function App() {
           symbolEdgesRef.current = [...symbolEdgesRef.current, ...fresh];
           // the API projection derives from these edges: re-project so the
           // network, PageRank areas and ports pick the new hierarchy up
-          if (paramsRef.current.view === "api" && ringsRef.current) {
+          if (paramsRef.current.granularity === "symbol" && ringsRef.current) {
             ringsRef.current = applyRingsChanges(
               ringsRef.current,
               effectiveGraph(paramsRef.current),
@@ -1097,7 +1159,7 @@ export function App() {
         // server not running or transient failure: allow a later retry
         fetchedHierarchyRef.current.delete(id);
       });
-  }, [selectedId]);
+  }, [activeId]);
   const maxError = ringsRef.current
     ? Math.max(
         0,
@@ -1141,18 +1203,19 @@ export function App() {
         {ringsRef.current ? (
           <RingsMapSvg
             rings={ringsRef.current}
-            innerCells={params.view === "api" ? [] : innerCells}
+            innerCells={params.granularity === "file" ? innerCells : []}
             fileEdges={
-              params.view === "api"
+              params.granularity === "symbol"
                 ? displayGraphRef.current.edges
                 : graphRef.current.edges
             }
             symbolEdges={
-              params.view === "api"
+              params.granularity === "symbol"
                 ? displayGraphRef.current.edges
                 : symbolEdgesRef.current
             }
-            showEdges={params.showEdges || params.view === "api"}
+            showEdges={params.showEdges || params.granularity === "symbol"}
+            showFiles={params.granularity !== "module"}
             labels={labels}
             exportedIds={exportedIds}
             focus={focusView}
@@ -1163,8 +1226,8 @@ export function App() {
             portNodes={portNodes}
             width={WIDTH}
             height={HEIGHT}
-            selectedId={selectedId}
-            onSelect={setSelectedId}
+            selectedId={activeId}
+            onSelect={selectNode}
             focusRequest={focusRequest}
             onViewSettle={(center, zoom) =>
               setViewInfo({ x: center.x, y: center.y, zoom })
@@ -1179,8 +1242,8 @@ export function App() {
             labels={labels}
             width={WIDTH}
             height={HEIGHT}
-            selectedId={selectedId}
-            onSelect={setSelectedId}
+            selectedId={activeId}
+            onSelect={selectNode}
           />
         ) : null}
         {/* hierarchy breadcrumb: selection path, or the crosshair target */}
@@ -1410,7 +1473,7 @@ export function App() {
         {selected || selectedIsModule || selectedTest || selectedPort ? (
           <Section title="選択ノード">
             <div style={{ fontWeight: "600", wordBreak: "break-all" }}>
-              {labelOf(selectedId!)}
+              {labelOf(activeId!)}
               {selectedPort
                 ? " (port)"
                 : selectedIsSymbol
@@ -1421,15 +1484,15 @@ export function App() {
                       ? " (test)"
                       : ""}
             </div>
-            {params.view !== "api" ? (
+            {params.granularity !== "symbol" ? (
               <div style={{ color: "#64748b", wordBreak: "break-all" }}>
-                {selectedId}
+                {activeId}
               </div>
             ) : null}
             <div style={{ display: "flex", gap: "6px", margin: "6px 0" }}>
-              {focusId !== selectedId ? (
+              {focusId !== activeId ? (
                 <button
-                  onClick={() => setFocusId(selectedId)}
+                  onClick={() => setFocusId(activeId)}
                   style={{ padding: "4px 8px", fontSize: "11px", cursor: "pointer" }}
                 >
                   依存経路を抽出
@@ -1468,15 +1531,15 @@ export function App() {
               </button>
             ) : null}
             {params.source === "sprawlens-history" &&
-            selectedId &&
-            historyIndexRef.current?.nodeHistory.has(selectedId) ? (
+            activeId &&
+            historyIndexRef.current?.nodeHistory.has(activeId) ? (
               <div style={{ marginTop: "6px" }}>
                 <div style={{ fontWeight: "600" }}>
                   変更履歴 (
-                  {historyIndexRef.current.nodeHistory.get(selectedId)!.length}
+                  {historyIndexRef.current.nodeHistory.get(activeId)!.length}
                   )
                 </div>
-                {[...historyIndexRef.current.nodeHistory.get(selectedId)!]
+                {[...historyIndexRef.current.nodeHistory.get(activeId)!]
                   .reverse()
                   .map((change) => {
                     const commit = commitsRef.current?.[change.index];
@@ -1537,7 +1600,7 @@ export function App() {
                     }}
                   >
                     ← {labelOf(id)}
-                    {params.view !== "api" && fileOf(id) ? (
+                    {params.granularity !== "symbol" && fileOf(id) ? (
                       <span style={{ color: "#94a3b8" }}> · {fileOf(id)}</span>
                     ) : null}
                   </button>
@@ -1566,7 +1629,7 @@ export function App() {
                     }}
                   >
                     → {labelOf(id)}
-                    {params.view !== "api" && fileOf(id) ? (
+                    {params.granularity !== "symbol" && fileOf(id) ? (
                       <span style={{ color: "#94a3b8" }}> · {fileOf(id)}</span>
                     ) : null}
                   </button>
