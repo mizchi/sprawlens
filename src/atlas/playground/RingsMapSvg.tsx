@@ -107,7 +107,13 @@ export function RingsMapSvg(props: Props) {
   const viewRef = useRef<ViewBox>({ x: 0, y: 0, w: width, h: height });
   const [committedView, setCommittedView] = useState<ViewBox>(viewRef.current);
   const commitTimer = useRef(0);
-  const dragRef = useRef<{ pointerId: number; last: Vec2 } | null>(null);
+  const dragRef = useRef<{
+    pointerId: number;
+    last: Vec2;
+    moved: number;
+  } | null>(null);
+  /** A drag that actually panned must not select on release. */
+  const suppressClickRef = useRef(false);
   const svgRef = useRef<SVGSVGElement>(null);
   const COMMIT_MS = 120;
 
@@ -342,6 +348,14 @@ export function RingsMapSvg(props: Props) {
         touchAction: "none",
         cursor: "grab",
       }}
+      onClickCapture={(e) => {
+        // the click fired by releasing a pan must not (de)select anything
+        if (suppressClickRef.current) {
+          suppressClickRef.current = false;
+          e.stopPropagation();
+          e.preventDefault();
+        }
+      }}
       onClick={() => onSelect(null)}
       onWheel={onWheel}
       onPointerDown={(e) => {
@@ -349,24 +363,33 @@ export function RingsMapSvg(props: Props) {
         dragRef.current = {
           pointerId: e.pointerId,
           last: { x: e.clientX, y: e.clientY },
+          moved: 0,
         };
         (e.target as Element).setPointerCapture(e.pointerId);
       }}
       onPointerMove={(e) => {
         const drag = dragRef.current;
         if (!drag || drag.pointerId !== e.pointerId) return;
+        const dx = e.clientX - drag.last.x;
+        const dy = e.clientY - drag.last.y;
+        drag.moved += Math.abs(dx) + Math.abs(dy);
         const scale = toViewScale();
         const v = viewRef.current;
         viewRef.current = {
           ...v,
-          x: v.x - (e.clientX - drag.last.x) * scale,
-          y: v.y - (e.clientY - drag.last.y) * scale,
+          x: v.x - dx * scale,
+          y: v.y - dy * scale,
         };
         drag.last = { x: e.clientX, y: e.clientY };
         applyView();
       }}
       onPointerUp={(e) => {
-        if (dragRef.current?.pointerId === e.pointerId) dragRef.current = null;
+        const drag = dragRef.current;
+        if (drag?.pointerId === e.pointerId) {
+          // ~5px of accumulated motion = a pan, not a click
+          if (drag.moved > 5) suppressClickRef.current = true;
+          dragRef.current = null;
+        }
       }}
     >
       {/* vector-effect does not inherit from <g>; apply to every shape so
