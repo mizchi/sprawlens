@@ -162,6 +162,7 @@ export function App() {
     selectMode: "auto",
     deselectOffscreen: true,
     followChanges: true,
+    diffBase: "",
     invertRings: false,
     count: 120,
     seed: 1,
@@ -1205,7 +1206,9 @@ export function App() {
     let firstPush = true;
     let failures = 0;
     const seen = new Set<string>();
-    const stream = new EventSource("/api/working-diff/stream?repo=sprawlens");
+    const stream = new EventSource(
+      `/api/working-diff/stream?repo=sprawlens&base=${encodeURIComponent(params.diffBase)}`,
+    );
     stream.onmessage = (event) => {
       failures = 0;
       const diff = JSON.parse(event.data) as {
@@ -1242,7 +1245,7 @@ export function App() {
       if (++failures >= 3) stream.close();
     };
     return () => stream.close();
-  }, [params.source]);
+  }, [params.source, params.diffBase]);
 
   const allCells: CellResult[] = ringsRef.current
     ? [...ringsRef.current.moduleLayouts.values()].flatMap((l) => l.cells)

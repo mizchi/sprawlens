@@ -30,6 +30,8 @@ export type PlaygroundParams = {
   deselectOffscreen: boolean;
   /** Fly the camera to files as their working-tree changes appear. */
   followChanges: boolean;
+  /** Diff comparison base: "" = uncommitted vs HEAD, else a git ref. */
+  diffBase: string;
   invertRings: boolean;
   count: number;
   seed: number;
@@ -202,6 +204,20 @@ export function Controls(props: Props) {
           onInput={(e) =>
             set("followChanges", (e.target as HTMLInputElement).checked)
           }
+        />
+      </label>
+      <label style={row}>
+        <span style={{ width: "110px" }}>diff base</span>
+        {/* commits on blur/Enter (native change), not per keystroke —
+            each value re-subscribes the diff stream */}
+        <input
+          type="text"
+          value={params.diffBase}
+          placeholder="HEAD (dirty)"
+          onChange={(e) =>
+            set("diffBase", (e.target as HTMLInputElement).value.trim())
+          }
+          style={{ flex: "1", fontSize: "12px" }}
         />
       </label>
       <label style={row}>

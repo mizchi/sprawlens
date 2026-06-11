@@ -33,6 +33,9 @@ const TEST_FILL = "hsl(210 10% 81%)";
 const EXPORTED_DOT = "#059669";
 /** Cells of nodes caught in a dependency cycle: the tangles to break. */
 const CYCLE_FILL = "hsl(0 70% 86%)";
+/** Diff layer: changed files read from fill, not outline. */
+const MODIFIED_FILL = "hsl(8 85% 78%)";
+const ADDED_FILL = "hsl(150 55% 80%)";
 
 type Props = {
   rings: RingsState;
@@ -476,24 +479,18 @@ export function RingsMapSvg(props: Props) {
               key={cell.id}
               points={cell.polygon.map((p) => `${p.x},${p.y}`).join(" ")}
               fill={
-                cyclicIds.has(cell.id)
-                  ? CYCLE_FILL
-                  : testFileIds.has(cell.id)
-                    ? TEST_FILL
-                    : cellFill(cell.targetArea, cell.actualArea)
+                changedFiles.get(cell.id) === "added"
+                  ? ADDED_FILL
+                  : changedFiles.get(cell.id) === "modified"
+                    ? MODIFIED_FILL
+                    : cyclicIds.has(cell.id)
+                      ? CYCLE_FILL
+                      : testFileIds.has(cell.id)
+                        ? TEST_FILL
+                        : cellFill(cell.targetArea, cell.actualArea)
               }
-              stroke={
-                cell.id === selectedId
-                  ? "#1d4ed8"
-                  : changedFiles.get(cell.id) === "added"
-                    ? "#059669"
-                    : changedFiles.get(cell.id) === "modified"
-                      ? "#d97706"
-                      : "#475569"
-              }
-              stroke-width={
-                cell.id === selectedId || changedFiles.has(cell.id) ? 2 : 0.8
-              }
+              stroke={cell.id === selectedId ? "#1d4ed8" : "#475569"}
+              stroke-width={cell.id === selectedId ? 2 : 0.8}
               opacity={fileOpacity(cell.id)}
               onClick={(event) => {
                 event.stopPropagation();

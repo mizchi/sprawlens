@@ -37,13 +37,64 @@ export function parseGitStatus(porcelain: string): WorkingDiff {
   return { changed, removed };
 }
 
-export async function workingDiff(root: string): Promise<WorkingDiff> {
-  const { stdout } = await promisify(execFile)(
-    "git",
-    ["status", "--porcelain"],
-    { cwd: root, maxBuffer: 10 * 1024 * 1024 },
-  );
-  return parseGitStatus(stdout);
+/** `git diff --name-status <base>` lines: `M\tpath`, `R087\told\tnew`, ... */
+export function parseNameStatus(output: string): WorkingDiff {
+  const changed: Record<string, "added" | "modified"> = {};
+  const removed: string[] = [];
+  for (const line of output.split("\n")) {
+    const parts = line.split("\t");
+    const code = parts[0]?.[0];
+    if (!code || parts.length < 2) continue;
+    if (code === "R" || code === "C") {
+      if (parts.length >= 3) {
+        if (code === "R") removed.push(parts[1]!);
+        changed[parts[2]!] = "added";
+      }
+    } else if (code === "D") {
+      removed.push(parts[1]!);
+    } else if (code === "A") {
+      changed[parts[1]!] = "added";
+    } else {
+      changed[parts[1]!] = "modified";
+    }
+  }
+  return { changed, removed };
+}
+
+/** Refs travel into git argv: never empty, never option-shaped. */
+export function isSafeRef(ref: string): boolean {
+  return /^[A-Za-z0-9][A-Za-z0-9_./~^@{}-]*$/.test(ref);
+}
+
+const exec = promisify(execFile);
+const GIT_OPTS = { maxBuffer: 10 * 1024 * 1024 };
+
+/**
+ * Changes in the working tree. Without `base`: uncommitted changes vs
+ * HEAD (`git status`). With `base`: everything that differs from that
+ * ref — committed and dirty — plus untracked files.
+ */
+export async function workingDiff(
+  root: string,
+  base?: string,
+): Promise<WorkingDiff> {
+  const { stdout: status } = await exec("git", ["status", "--porcelain"], {
+    cwd: root,
+    ...GIT_OPTS,
+  });
+  const dirty = parseGitStatus(status);
+  if (!base) return dirty;
+  if (!isSafeRef(base)) throw new Error(`unsafe ref: ${base}`);
+  const { stdout } = await exec("git", ["diff", "--name-status", base], {
+    cwd: root,
+    ...GIT_OPTS,
+  });
+  const diff = parseNameStatus(stdout);
+  // git diff misses untracked files; merge them in from status
+  for (const [path, kind] of Object.entries(dirty.changed)) {
+    if (kind === "added" && !diff.changed[path]) diff.changed[path] = "added";
+  }
+  return diff;
 }
 
 /** Event noise the watcher must never react to (or `git status` runs would
@@ -65,6 +116,7 @@ export function watchWorkingDiff(
   root: string,
   listener: (diff: WorkingDiff) => void,
   debounceMs = 300,
+  base?: string,
 ): () => void {
   let timer: ReturnType<typeof setTimeout> | null = null;
   let lastJson: string | null = null;
@@ -74,7 +126,7 @@ export function watchWorkingDiff(
     timer = setTimeout(async () => {
       timer = null;
       try {
-        const diff = await workingDiff(root);
+        const diff = await workingDiff(root, base);
         const json = JSON.stringify(diff);
         if (stopped || json === lastJson) return;
         lastJson = json;
