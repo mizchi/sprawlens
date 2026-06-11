@@ -1224,56 +1224,48 @@ export function App() {
     if (offscreen) setSelectedId(null);
   }, [viewInfo]);
 
-  // Working-tree diff: uncommitted changes highlight like a history diff
-  // (served by dev:atlas-server; silently absent in static builds), and the
-  // camera optionally follows each newly changed file to its neighborhood.
+  // Working-tree diff: the dev server fs-watches the repo and pushes a
+  // batched diff over SSE whenever it changes. Uncommitted files highlight
+  // like a history diff, and the camera optionally follows each newly
+  // changed file to its neighborhood. Static builds (no dev server) fail
+  // the connection a few times and give up quietly.
   useEffect(() => {
     if (params.source !== "sprawlens") return;
-    let stopped = false;
+    let firstPush = true;
     let failures = 0;
-    let firstPoll = true;
     const seen = new Set<string>();
-    const poll = async () => {
-      try {
-        const res = await fetch("/api/working-diff?repo=sprawlens");
-        if (stopped) return;
-        if (!res.ok) throw new Error(String(res.status));
-        failures = 0;
-        const diff = (await res.json()) as {
-          changed: Record<string, "added" | "modified">;
-          removed: string[];
-        };
-        const known = new Set(graphRef.current.nodes.map((n) => n.id));
-        const next = new Map(
-          Object.entries(diff.changed).filter(([id]) => known.has(id)),
-        );
-        const fresh = [...next.keys()].filter((id) => !seen.has(id));
-        seen.clear();
-        for (const id of next.keys()) seen.add(id);
-        const previous = changedFilesRef.current;
-        const dirty =
-          previous.size !== next.size ||
-          [...next].some(([id, kind]) => previous.get(id) !== kind);
-        if (dirty) {
-          changedFilesRef.current = next;
-          setFrame((f) => f + 1);
-        }
-        // follow saves as they happen, but not the backlog at page load
-        if (!firstPoll && fresh.length > 0 && paramsRef.current.followChanges) {
-          jumpTo(fresh[0]!, 6);
-        }
-        firstPoll = false;
-      } catch {
-        // dev server not running (or static build): give up quietly
-        if (++failures >= 3) clearInterval(timer);
+    const stream = new EventSource("/api/working-diff/stream?repo=sprawlens");
+    stream.onmessage = (event) => {
+      failures = 0;
+      const diff = JSON.parse(event.data) as {
+        changed: Record<string, "added" | "modified">;
+        removed: string[];
+      };
+      const known = new Set(graphRef.current.nodes.map((n) => n.id));
+      const next = new Map(
+        Object.entries(diff.changed).filter(([id]) => known.has(id)),
+      );
+      const fresh = [...next.keys()].filter((id) => !seen.has(id));
+      seen.clear();
+      for (const id of next.keys()) seen.add(id);
+      const previous = changedFilesRef.current;
+      const dirty =
+        previous.size !== next.size ||
+        [...next].some(([id, kind]) => previous.get(id) !== kind);
+      if (dirty) {
+        changedFilesRef.current = next;
+        setFrame((f) => f + 1);
       }
+      // follow saves as they happen, but not the backlog at page load
+      if (!firstPush && fresh.length > 0 && paramsRef.current.followChanges) {
+        jumpTo(fresh[0]!, 6);
+      }
+      firstPush = false;
     };
-    poll();
-    const timer = setInterval(poll, 3000);
-    return () => {
-      stopped = true;
-      clearInterval(timer);
+    stream.onerror = () => {
+      if (++failures >= 3) stream.close();
     };
+    return () => stream.close();
   }, [params.source]);
 
   const allCells: CellResult[] = ringsRef.current

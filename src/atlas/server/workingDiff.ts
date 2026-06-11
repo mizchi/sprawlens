@@ -1,4 +1,5 @@
 import { execFile } from "node:child_process";
+import { watch } from "node:fs";
 import { promisify } from "node:util";
 
 /**
@@ -43,4 +44,54 @@ export async function workingDiff(root: string): Promise<WorkingDiff> {
     { cwd: root, maxBuffer: 10 * 1024 * 1024 },
   );
   return parseGitStatus(stdout);
+}
+
+/** Event noise the watcher must never react to (or `git status` runs would
+ * feed back into the watch loop via .git/index writes). */
+export function isIgnoredPath(path: string): boolean {
+  const normalized = path.replaceAll("\\", "/");
+  return /(^|\/)(\.git|node_modules|dist|\.codesprawl|coverage|\.turbo)(\/|$)/.test(
+    normalized,
+  );
+}
+
+/**
+ * Watches the working tree and pushes a fresh diff whenever it actually
+ * changes: fs events are batched through a trailing debounce, then one
+ * `git status` runs and the listener fires only when the result differs
+ * from the last push. Returns a stop function.
+ */
+export function watchWorkingDiff(
+  root: string,
+  listener: (diff: WorkingDiff) => void,
+  debounceMs = 300,
+): () => void {
+  let timer: ReturnType<typeof setTimeout> | null = null;
+  let lastJson: string | null = null;
+  let stopped = false;
+  const refresh = () => {
+    if (timer) clearTimeout(timer);
+    timer = setTimeout(async () => {
+      timer = null;
+      try {
+        const diff = await workingDiff(root);
+        const json = JSON.stringify(diff);
+        if (stopped || json === lastJson) return;
+        lastJson = json;
+        listener(diff);
+      } catch {
+        // git unavailable mid-operation (rebase etc.): retry on next event
+      }
+    }, debounceMs);
+  };
+  const watcher = watch(root, { recursive: true }, (_event, filename) => {
+    if (!filename || isIgnoredPath(filename)) return;
+    refresh();
+  });
+  refresh();
+  return () => {
+    stopped = true;
+    watcher.close();
+    if (timer) clearTimeout(timer);
+  };
 }

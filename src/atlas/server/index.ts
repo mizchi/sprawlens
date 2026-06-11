@@ -1,15 +1,17 @@
 import { createServer } from "node:http";
 import { existsSync } from "node:fs";
 import { resolve } from "node:path";
+import type { ServerResponse } from "node:http";
 import { callHierarchy } from "./callHierarchyProvider.js";
 import { LspClient } from "./lspClient.js";
-import { workingDiff } from "./workingDiff.js";
+import { watchWorkingDiff, workingDiff } from "./workingDiff.js";
 
 /**
  * Atlas symbol-dependency server.
  * Usage: tsx src/atlas/server/index.ts [--port 4710] name=path [name=path...]
- * Exposes POST /api/call-hierarchy {repo, file, symbol} and
- * GET /api/working-diff?repo=name (uncommitted changes vs HEAD).
+ * Exposes POST /api/call-hierarchy {repo, file, symbol},
+ * GET /api/working-diff?repo=name (uncommitted changes vs HEAD), and
+ * GET /api/working-diff/stream?repo=name (SSE: fs-watched diff pushes).
  * One language server per repo, started lazily on first request.
  */
 
@@ -49,6 +51,55 @@ function clientFor(repo: string): Promise<LspClient> {
   return client;
 }
 
+// one fs watcher per repo, shared by every SSE client and torn down with
+// the last one
+type DiffStream = {
+  clients: Set<ServerResponse>;
+  last: string | null;
+  stop: () => void;
+  heartbeat: ReturnType<typeof setInterval>;
+};
+const diffStreams = new Map<string, DiffStream>();
+
+function subscribeWorkingDiff(repo: string, root: string, res: ServerResponse) {
+  let stream = diffStreams.get(repo);
+  if (!stream) {
+    const created: DiffStream = {
+      clients: new Set(),
+      last: null,
+      stop: () => {},
+      heartbeat: setInterval(() => {
+        for (const client of created.clients) client.write(":hb\n\n");
+      }, 25_000),
+    };
+    created.stop = watchWorkingDiff(root, (diff) => {
+      created.last = JSON.stringify(diff);
+      for (const client of created.clients) {
+        client.write(`data: ${created.last}\n\n`);
+      }
+    });
+    diffStreams.set(repo, created);
+    stream = created;
+  }
+  stream.clients.add(res);
+  res.writeHead(200, {
+    "content-type": "text/event-stream",
+    "cache-control": "no-cache",
+    connection: "keep-alive",
+  });
+  if (stream.last !== null) res.write(`data: ${stream.last}\n\n`);
+  res.on("close", () => {
+    const current = diffStreams.get(repo);
+    if (!current) return;
+    current.clients.delete(res);
+    if (current.clients.size === 0) {
+      current.stop();
+      clearInterval(current.heartbeat);
+      diffStreams.delete(repo);
+    }
+  });
+}
+
 const server = createServer(async (req, res) => {
   res.setHeader("Access-Control-Allow-Origin", "*");
   res.setHeader("Access-Control-Allow-Headers", "content-type");
@@ -57,11 +108,15 @@ const server = createServer(async (req, res) => {
     return;
   }
   if (req.method === "GET" && req.url?.startsWith("/api/working-diff")) {
-    const repo =
-      new URL(req.url, "http://localhost").searchParams.get("repo") ?? "";
+    const url = new URL(req.url, "http://localhost");
+    const repo = url.searchParams.get("repo") ?? "";
     const root = repos.get(repo);
     if (!root) {
       res.writeHead(400).end(JSON.stringify({ error: "unknown repo" }));
+      return;
+    }
+    if (url.pathname === "/api/working-diff/stream") {
+      subscribeWorkingDiff(repo, root, res);
       return;
     }
     try {
