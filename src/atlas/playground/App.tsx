@@ -179,7 +179,12 @@ export function App() {
     showNested: true,
     hiddenLayers: [],
   });
-  const [selectedId, setSelectedId] = useState<string | null>(null);
+  // multi-select: ordered ids, last one is the primary (drives the detail
+  // panel, breadcrumb, and labels); shift+click toggles membership
+  const [selectedIds, setSelectedIds] = useState<string[]>([]);
+  const selectedId = selectedIds[selectedIds.length - 1] ?? null;
+  const setSelectedId = (id: string | null) =>
+    setSelectedIds(id === null ? [] : [id]);
   const [focusId, setFocusId] = useState<string | null>(null);
   const [focusRequest, setFocusRequest] = useState<FocusRequest | null>(null);
   const [viewInfo, setViewInfo] = useState({
@@ -1119,28 +1124,42 @@ export function App() {
     return null;
   })();
   const activeId = selectedId ?? implicitId;
+  const selectedIdSet = useMemo(() => new Set(selectedIds), [selectedIds]);
 
-  const selectNode = (id: string | null) => {
+  const selectNode = (id: string | null, additive = false) => {
     if (id === null) {
-      setSelectedId(null);
+      setSelectedIds([]);
+      // the dependency-path focus always tracks the selection — a stale
+      // path over a different selection reads as a broken state
+      setFocusId(null);
       return;
     }
-    setSelectedId(
-      resolveSelection(id, paramsRef.current.selectMode, {
-        isModule: (x) => ringsRef.current?.circles.has(x) ?? false,
-        parentFileOf,
-        moduleOf: (x) =>
-          paramsRef.current.granularity === "symbol"
-            ? apiModuleIdOf(x)
-            : defaultModuleIdOf(x),
-      }),
-    );
+    const resolved = resolveSelection(id, paramsRef.current.selectMode, {
+      isModule: (x) => ringsRef.current?.circles.has(x) ?? false,
+      parentFileOf,
+      moduleOf: (x) =>
+        paramsRef.current.granularity === "symbol"
+          ? apiModuleIdOf(x)
+          : defaultModuleIdOf(x),
+    });
+    const next = !additive
+      ? [resolved]
+      : selectedIds.includes(resolved)
+        ? selectedIds.filter((x) => x !== resolved)
+        : [...selectedIds, resolved];
+    setSelectedIds(next);
+    if (focusId !== null) {
+      setFocusId(next[next.length - 1] ?? null);
+    }
   };
 
   // Esc drops the explicit selection (zoom focus takes over again)
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape") setSelectedId(null);
+      if (e.key === "Escape") {
+        setSelectedIds([]);
+        setFocusId(null);
+      }
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
@@ -1150,11 +1169,11 @@ export function App() {
   // viewport. Reacts to view settles only — never to the selection itself,
   // or a fresh jumpTo to an off-screen target would self-cancel against
   // the stale pre-flight view.
-  const selectedIdRef = useRef(selectedId);
-  selectedIdRef.current = selectedId;
+  const selectedIdsRef = useRef(selectedIds);
+  selectedIdsRef.current = selectedIds;
   useEffect(() => {
-    const selectedId = selectedIdRef.current;
-    if (!selectedId || !paramsRef.current.deselectOffscreen) return;
+    const ids = selectedIdsRef.current;
+    if (ids.length === 0 || !paramsRef.current.deselectOffscreen) return;
     const halfW = WIDTH / viewInfo.zoom / 2;
     const halfH = HEIGHT / viewInfo.zoom / 2;
     const view = {
@@ -1163,8 +1182,8 @@ export function App() {
       y0: viewInfo.y - halfH,
       y1: viewInfo.y + halfH,
     };
-    const bounds = (() => {
-      const circle = ringsRef.current?.circles.get(selectedId);
+    const boundsOf = (id: string) => {
+      const circle = ringsRef.current?.circles.get(id);
       if (circle) {
         return {
           x0: circle.cx - circle.r,
@@ -1173,15 +1192,15 @@ export function App() {
           y1: circle.cy + circle.r,
         };
       }
-      const port = portNodesRef.current.find((p) => p.id === selectedId);
+      const port = portNodesRef.current.find((p) => p.id === id);
       if (port) return { x0: port.x, x1: port.x, y0: port.y, y1: port.y };
       const cell =
         (ringsRef.current
           ? [...ringsRef.current.moduleLayouts.values()]
               .flatMap((l) => l.cells)
-              .find((c) => c.id === selectedId)
-          : layoutRef.current?.cells.find((c) => c.id === selectedId)) ??
-        innerCellsRef.current.find((c) => c.id === selectedId);
+              .find((c) => c.id === id)
+          : layoutRef.current?.cells.find((c) => c.id === id)) ??
+        innerCellsRef.current.find((c) => c.id === id);
       if (!cell || cell.polygon.length < 3) return null;
       let x0 = Infinity;
       let x1 = -Infinity;
@@ -1194,14 +1213,24 @@ export function App() {
         y1 = Math.max(y1, p.y);
       }
       return { x0, x1, y0, y1 };
-    })();
-    if (!bounds) return;
-    const offscreen =
-      bounds.x1 < view.x0 ||
-      bounds.x0 > view.x1 ||
-      bounds.y1 < view.y0 ||
-      bounds.y0 > view.y1;
-    if (offscreen) setSelectedId(null);
+    };
+    const remaining = ids.filter((id) => {
+      const bounds = boundsOf(id);
+      if (!bounds) return true; // unknown geometry: keep, don't guess
+      return !(
+        bounds.x1 < view.x0 ||
+        bounds.x0 > view.x1 ||
+        bounds.y1 < view.y0 ||
+        bounds.y0 > view.y1
+      );
+    });
+    if (remaining.length !== ids.length) {
+      setSelectedIds(remaining);
+      // keep the path focus glued to the (new) primary selection
+      setFocusId((current) =>
+        current === null ? null : (remaining[remaining.length - 1] ?? null),
+      );
+    }
   }, [viewInfo]);
 
   // Working-tree diff: the dev server fs-watches the repo and pushes a
@@ -1413,6 +1442,7 @@ export function App() {
             width={WIDTH}
             height={HEIGHT}
             selectedId={activeId}
+            selectedIds={selectedIdSet}
             onSelect={selectNode}
             focusRequest={focusRequest}
             onViewSettle={(center, zoom) =>
@@ -1430,6 +1460,7 @@ export function App() {
             width={WIDTH}
             height={HEIGHT}
             selectedId={activeId}
+            selectedIds={selectedIdSet}
             onSelect={selectNode}
           />
         ) : null}
@@ -1701,6 +1732,38 @@ export function App() {
             {params.granularity !== "symbol" ? (
               <div style={{ color: "#64748b", wordBreak: "break-all" }}>
                 {activeId}
+              </div>
+            ) : null}
+            {selectedIds.length > 1 ? (
+              <div style={{ marginTop: "4px" }}>
+                <div style={{ color: "#64748b" }}>
+                  選択中 {selectedIds.length} 件 (shift+クリックで増減):
+                </div>
+                {selectedIds.map((id) => (
+                  <button
+                    key={id}
+                    onClick={() =>
+                      setSelectedIds([
+                        ...selectedIds.filter((x) => x !== id),
+                        id,
+                      ])
+                    }
+                    style={{
+                      display: "block",
+                      padding: "1px 4px",
+                      fontSize: "11px",
+                      cursor: "pointer",
+                      background: "none",
+                      border: "none",
+                      color: id === selectedId ? "#1d4ed8" : "#334155",
+                      fontWeight: id === selectedId ? "600" : "400",
+                      textAlign: "left",
+                      wordBreak: "break-all",
+                    }}
+                  >
+                    {labelOf(id)}
+                  </button>
+                ))}
               </div>
             ) : null}
             <div style={{ display: "flex", gap: "6px", margin: "6px 0" }}>

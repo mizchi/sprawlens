@@ -70,7 +70,9 @@ type Props = {
   width: number;
   height: number;
   selectedId: string | null;
-  onSelect: (id: string | null) => void;
+  /** Full multi-selection (shift+click); selectedId is its primary. */
+  selectedIds?: Set<string>;
+  onSelect: (id: string | null, additive?: boolean) => void;
   focusRequest: FocusRequest | null;
   /** Fired when a view settles (LOD commit); world center + zoom. */
   onViewSettle?: (center: Vec2, zoom: number) => void;
@@ -126,6 +128,9 @@ export function RingsMapSvg(props: Props) {
   } = props;
   const showFiles = props.showFiles ?? true;
   const compactModuleLabels = props.compactModuleLabels ?? false;
+  const multiSelected = props.selectedIds ?? new Set<string>();
+  const isSelected = (id: string | null): boolean =>
+    id !== null && (id === selectedId || multiSelected.has(id));
   const cyclicIds = props.cyclicIds ?? new Set<string>();
   const cyclicModuleIds = props.cyclicModuleIds ?? new Set<string>();
   // Interactive zoom/pan writes the viewBox straight to the DOM (cheap),
@@ -264,23 +269,24 @@ export function RingsMapSvg(props: Props) {
    * these label on unfocused files — anything else is noise. */
   const linkedToSelection = useMemo(() => {
     const ids = new Set<string>();
-    if (!selectedId) return ids;
+    if (!selectedId && multiSelected.size === 0) return ids;
     for (const edge of symbolEdges) {
       if (
-        edge.source === selectedId ||
-        parentFileOf(edge.source) === selectedId
+        isSelected(edge.source) ||
+        isSelected(parentFileOf(edge.source))
       ) {
         ids.add(edge.target);
       }
       if (
-        edge.target === selectedId ||
-        parentFileOf(edge.target) === selectedId
+        isSelected(edge.target) ||
+        isSelected(parentFileOf(edge.target))
       ) {
         ids.add(edge.source);
       }
     }
     return ids;
-  }, [symbolEdges, selectedId, parentFileOf]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [symbolEdges, selectedId, multiSelected, parentFileOf]);
   const resolveSite = (id: string): Vec2 | undefined => {
     const site =
       symbolSiteById.get(id) ?? fileSiteById.get(id) ?? portSiteById.get(id);
@@ -333,12 +339,13 @@ export function RingsMapSvg(props: Props) {
       used += count;
       allowed.add(candidate.id);
     }
-    // the selection's file always shows its internals
+    // the selection's files always show their internals
     if (selectedId !== null) allowed.add(parentFileOf(selectedId));
+    for (const id of multiSelected) allowed.add(parentFileOf(id));
     return allowed;
   })();
   const innerVisible = (cell: CellResult) =>
-    cell.id === selectedId ||
+    isSelected(cell.id) ||
     (Math.sqrt(cell.actualArea) * zoom >= MIN_SYMBOL_PX &&
       allowedFiles.has(parentFileOf(cell.id)) &&
       cellVisible(cell));
@@ -472,7 +479,7 @@ export function RingsMapSvg(props: Props) {
             style={{ cursor: "pointer" }}
             onClick={(event) => {
               event.stopPropagation();
-              onSelect(preview.id);
+              onSelect(preview.id, event.shiftKey);
             }}
           >
             {labels.get(preview.id) ?? fallbackLabel(preview.id)}
@@ -482,13 +489,15 @@ export function RingsMapSvg(props: Props) {
     );
   };
   const selectedOutgoing =
-    selectedId === null
+    selectedId === null && multiSelected.size === 0
       ? []
-      : symbolEdges.filter((e) => e.source === selectedId);
+      : symbolEdges.filter((e) => isSelected(e.source));
   const selectedIncoming =
-    selectedId === null
+    selectedId === null && multiSelected.size === 0
       ? []
-      : symbolEdges.filter((e) => e.target === selectedId);
+      : symbolEdges.filter(
+          (e) => isSelected(e.target) && !isSelected(e.source),
+        );
 
   const moduleOpacity = (id: string) =>
     focus && !focus.moduleIds.has(id) ? DIM : 1;
@@ -608,12 +617,12 @@ export function RingsMapSvg(props: Props) {
             cy={circle.cy}
             r={circle.r}
             fill={cyclicModuleIds.has(id) ? "hsl(0 65% 92%)" : "#eef2f7"}
-            stroke={id === selectedId ? "#1d4ed8" : "#334155"}
-            stroke-width={id === selectedId ? 2.4 : 1.2}
+            stroke={isSelected(id) ? "#1d4ed8" : "#334155"}
+            stroke-width={isSelected(id) ? 2.4 : 1.2}
             opacity={moduleOpacity(id)}
             onClick={(event) => {
               event.stopPropagation();
-              onSelect(id);
+              onSelect(id, event.shiftKey);
             }}
           />
         ))}
@@ -635,12 +644,12 @@ export function RingsMapSvg(props: Props) {
                         ? TEST_FILL
                         : cellFill(cell.targetArea, cell.actualArea)
               }
-              stroke={cell.id === selectedId ? "#1d4ed8" : "#475569"}
-              stroke-width={cell.id === selectedId ? 2 : 0.8}
+              stroke={isSelected(cell.id) ? "#1d4ed8" : "#475569"}
+              stroke-width={isSelected(cell.id) ? 2 : 0.8}
               opacity={fileOpacity(cell.id)}
               onClick={(event) => {
                 event.stopPropagation();
-                onSelect(cell.id);
+                onSelect(cell.id, event.shiftKey);
               }}
             />
           ) : null,
@@ -659,12 +668,12 @@ export function RingsMapSvg(props: Props) {
                 key={cell.id}
                 points={cell.polygon.map((p) => `${p.x},${p.y}`).join(" ")}
                 fill="transparent"
-                stroke={cell.id === selectedId ? "#1d4ed8" : undefined}
-                stroke-width={cell.id === selectedId ? 1.6 : undefined}
+                stroke={isSelected(cell.id) ? "#1d4ed8" : undefined}
+                stroke-width={isSelected(cell.id) ? 1.6 : undefined}
                 opacity={symbolOpacity(cell.id)}
                 onClick={(event) => {
                   event.stopPropagation();
-                  onSelect(cell.id);
+                  onSelect(cell.id, event.shiftKey);
                 }}
               />
             ) : null,
@@ -819,13 +828,13 @@ export function RingsMapSvg(props: Props) {
                 <circle
                   cx={port.x}
                   cy={port.y}
-                  r={screenRadius(port.id === selectedId ? 5 : 3.6)}
+                  r={screenRadius(isSelected(port.id) ? 5 : 3.6)}
                   fill="#ffffff"
-                  stroke={port.id === selectedId ? "#1d4ed8" : EXPORTED_DOT}
-                  stroke-width={port.id === selectedId ? 2.4 : 1.8}
+                  stroke={isSelected(port.id) ? "#1d4ed8" : EXPORTED_DOT}
+                  stroke-width={isSelected(port.id) ? 2.4 : 1.8}
                   onClick={(event) => {
                     event.stopPropagation();
-                    onSelect(port.id);
+                    onSelect(port.id, event.shiftKey);
                   }}
                 />
                 <text
@@ -951,9 +960,7 @@ export function RingsMapSvg(props: Props) {
               // (b) its file is selected, (c) it's the selection itself,
               // (d) the selection references it directly
               const linked = linkedToSelection.has(cell.id);
-              const fileSelected =
-                selectedId !== null &&
-                parentFileOf(cell.id) === selectedId;
+              const fileSelected = isSelected(parentFileOf(cell.id));
               const dominant =
                 Math.sqrt(cell.actualArea) * zoom >=
                 Math.min(width, height) * SYMBOL_DOMINANT_FRACTION;
@@ -968,7 +975,7 @@ export function RingsMapSvg(props: Props) {
                 Math.sqrt(cell.actualArea) * 0.3,
                 exported ? 7 : 13,
                 12,
-                cell.id === selectedId || fileSelected || dominant || linked,
+                isSelected(cell.id) || fileSelected || dominant || linked,
                 200,
               );
               if (fontSize === null) return null;

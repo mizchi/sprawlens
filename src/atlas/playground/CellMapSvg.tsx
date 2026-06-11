@@ -16,7 +16,9 @@ type Props = {
   width: number;
   height: number;
   selectedId: string | null;
-  onSelect: (id: string | null) => void;
+  /** Full multi-selection (shift+click); selectedId is its primary. */
+  selectedIds?: Set<string>;
+  onSelect: (id: string | null, additive?: boolean) => void;
 };
 
 /** Error heat: white near 0, red as |relative error| approaches 30%. */
@@ -44,6 +46,9 @@ export function CellMapSvg(props: Props) {
     onSelect,
   } = props;
   const siteById = new Map(state.cells.map((c) => [c.id, c.site]));
+  const multiSelected = props.selectedIds ?? new Set<string>();
+  const isSelected = (id: string): boolean =>
+    id === selectedId || multiSelected.has(id);
   const fillOf = (cell: CellResult) => {
     const changed = changedFiles?.get(cell.id);
     if (changed === "added") return ADDED_FILL;
@@ -63,11 +68,11 @@ export function CellMapSvg(props: Props) {
               key={cell.id}
               points={cell.polygon.map((p) => `${p.x},${p.y}`).join(" ")}
               fill={fillOf(cell)}
-              stroke={cell.id === selectedId ? "#1d4ed8" : "#475569"}
-              stroke-width={cell.id === selectedId ? 2.5 : 0.75}
+              stroke={isSelected(cell.id) ? "#1d4ed8" : "#475569"}
+              stroke-width={isSelected(cell.id) ? 2.5 : 0.75}
               onClick={(event) => {
                 event.stopPropagation();
-                onSelect(cell.id);
+                onSelect(cell.id, event.shiftKey);
               }}
             />
           ) : null,
@@ -113,8 +118,8 @@ export function CellMapSvg(props: Props) {
               key={cell.id}
               cx={cell.site.x}
               cy={cell.site.y}
-              r={cell.id === selectedId ? 5 : 2.5}
-              fill={cell.id === selectedId ? "#1d4ed8" : "#1e293b"}
+              r={isSelected(cell.id) ? 5 : 2.5}
+              fill={isSelected(cell.id) ? "#1d4ed8" : "#1e293b"}
             />
           ) : null,
         )}
