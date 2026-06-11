@@ -9,19 +9,12 @@ import {
   type CellResult,
   type ClipRegion,
 } from "../kernel/capacityLayout.js";
-import { louvain } from "../kernel/louvain.js";
 import {
-  clusteredSeedHints,
   createGraphLayout,
   embedSeedHints,
   forceIterationsFor,
 } from "../kernel/pipeline.js";
-import {
-  centroid,
-  containsPoint,
-  convexHull,
-  type Ring,
-} from "../kernel/polygon.js";
+import { centroid, containsPoint, type Ring } from "../kernel/polygon.js";
 import { createRng, type Rng } from "../kernel/rng.js";
 import { CellMapSvg } from "./CellMapSvg.tsx";
 import { Controls, type ClipKind, type PlaygroundParams } from "./Controls.tsx";
@@ -211,8 +204,6 @@ export function App() {
 
   const graphRef = useRef<AtlasGraph>(null as unknown as AtlasGraph);
   const layoutRef = useRef<CapacityLayoutState | null>(null);
-  /** Louvain assignments (finest → coarsest) for the cluster layout. */
-  const communityLevelsRef = useRef<Map<string, number>[] | null>(null);
   const ringsRef = useRef<RingsState | null>(null);
   const historyRef = useRef<number[]>([]);
   const fpsRef = useRef({ last: 0, ema: 0 });
@@ -504,49 +495,9 @@ export function App() {
     if (p.layout === "rings") {
       ringsRef.current = createRingsState(visible, ringsOptions(p));
       layoutRef.current = null;
-      communityLevelsRef.current = null;
     } else {
-      let clip = clipOf(p.clipKind);
-      let hints = null;
-      if (p.layout === "louvain") {
-        // multi-level cluster layout: Louvain communities drive both the
-        // seeding (community graph first) and the enclosure rendering
-        const result = louvain(
-          visible.nodes.map((n) => n.id),
-          visible.edges,
-        );
-        communityLevelsRef.current = result.levels;
-        const viewport = {
-          kind: "rect" as const,
-          x: 0,
-          y: 0,
-          width: WIDTH,
-          height: HEIGHT,
-        };
-        hints = clusteredSeedHints(visible, viewport, result.communityOf);
-        // no circle confinement: the map outline follows wherever the
-        // embedding spread the clusters (expanded hull of the seeds)
-        if (hints && hints.size >= 3) {
-          const hull = convexHull([...hints.values()]);
-          if (hull.length >= 3) {
-            const c = centroid(hull);
-            const ring = hull.map((point) => ({
-              x: Math.min(
-                Math.max(c.x + (point.x - c.x) * 1.35, 4),
-                WIDTH - 4,
-              ),
-              y: Math.min(
-                Math.max(c.y + (point.y - c.y) * 1.35, 4),
-                HEIGHT - 4,
-              ),
-            }));
-            clip = { kind: "polygon", ring };
-          }
-        }
-      } else {
-        communityLevelsRef.current = null;
-      }
-      const seedHints = hints ?? embedSeedHints(visible, clip);
+      const clip = clipOf(p.clipKind);
+      const seedHints = embedSeedHints(visible, clip);
       layoutRef.current = createGraphLayout(visible, clip, {
         seed: p.seed,
         adaptationRate: p.adaptationRate,
@@ -1474,7 +1425,6 @@ export function App() {
             showEdges={params.showEdges}
             innerCells={innerCells}
             labels={labels}
-            communityLevels={communityLevelsRef.current ?? undefined}
             changedFiles={changedFilesRef.current}
             width={WIDTH}
             height={HEIGHT}

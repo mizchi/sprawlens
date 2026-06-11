@@ -1,11 +1,7 @@
 import { describe, expect, it } from "vitest";
 import type { AtlasGraph } from "../contracts/graph.js";
 import { capacityStep, isConverged, type ClipRegion } from "./capacityLayout.js";
-import {
-  clusteredSeedHints,
-  createGraphLayout,
-  embedSeedHints,
-} from "./pipeline.js";
+import { createGraphLayout, embedSeedHints } from "./pipeline.js";
 
 const rectClip: ClipRegion = { kind: "rect", x: 0, y: 0, width: 1, height: 1 };
 
@@ -142,39 +138,6 @@ describe("embedSeedHints", () => {
     expect(chainSum / (chain.length - 1)).toBeLessThan(allSum / allCount);
   });
 
-  it("clusteredSeedHints keeps community members spatially contiguous", () => {
-    const graph = sampleGraph();
-    // two artificial communities: f0..f5 vs f6..f11
-    const communityOf = new Map(
-      graph.nodes.map((n, i): [string, number] => [n.id, i < 6 ? 0 : 1]),
-    );
-    const hints = clusteredSeedHints(graph, rectClip, communityOf)!;
-    const centroid = (ids: string[]) => {
-      let x = 0;
-      let y = 0;
-      for (const id of ids) {
-        x += hints.get(id)!.x;
-        y += hints.get(id)!.y;
-      }
-      return { x: x / ids.length, y: y / ids.length };
-    };
-    const a = graph.nodes.slice(0, 6).map((n) => n.id);
-    const b = graph.nodes.slice(6).map((n) => n.id);
-    const ca = centroid(a);
-    const cb = centroid(b);
-    const centroidGap = Math.hypot(ca.x - cb.x, ca.y - cb.y);
-    // own-community spread stays below the cross-community separation
-    const spread = (ids: string[], c: { x: number; y: number }) =>
-      ids.reduce(
-        (s, id) =>
-          s + Math.hypot(hints.get(id)!.x - c.x, hints.get(id)!.y - c.y),
-        0,
-      ) / ids.length;
-    expect(spread(a, ca)).toBeLessThan(centroidGap);
-    expect(spread(b, cb)).toBeLessThan(centroidGap);
-    expect(clusteredSeedHints(graph, rectClip, communityOf)).toEqual(hints);
-  });
-
   it("returns null above the node cap and for empty graphs", () => {
     expect(embedSeedHints({ nodes: [], edges: [] }, rectClip)).toBeNull();
     const big: AtlasGraph = {
@@ -189,38 +152,4 @@ describe("embedSeedHints", () => {
     expect(embedSeedHints(big, rectClip)).toBeNull();
   });
 
-  it("clusteredSeedHints stays contiguous above the embedding cap", () => {
-    // 1200 nodes, two communities bridged by one edge — too big for the
-    // full embedding, so members sunflower-pack around their centroid
-    const nodes = Array.from({ length: 1200 }, (_, i) => ({
-      id: `n${i}`,
-      kind: "file" as const,
-      label: `n${i}`,
-      metrics: { loc: 1 },
-    }));
-    const edges = [{ source: "n0", target: "n600" }];
-    const communityOf = new Map(
-      nodes.map((n, i): [string, number] => [n.id, i < 600 ? 0 : 1]),
-    );
-    const hints = clusteredSeedHints({ nodes, edges }, rectClip, communityOf)!;
-    expect(hints.size).toBe(1200);
-    const centroid = (from: number, to: number) => {
-      let x = 0;
-      let y = 0;
-      for (let i = from; i < to; i++) {
-        x += hints.get(`n${i}`)!.x;
-        y += hints.get(`n${i}`)!.y;
-      }
-      return { x: x / (to - from), y: y / (to - from) };
-    };
-    const ca = centroid(0, 600);
-    const cb = centroid(600, 1200);
-    const gap = Math.hypot(ca.x - cb.x, ca.y - cb.y);
-    let spreadA = 0;
-    for (let i = 0; i < 600; i++) {
-      const p = hints.get(`n${i}`)!;
-      spreadA += Math.hypot(p.x - ca.x, p.y - ca.y);
-    }
-    expect(spreadA / 600).toBeLessThan(gap);
-  });
 });
