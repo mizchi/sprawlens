@@ -40,7 +40,7 @@ import {
 } from "./synthetic.ts";
 import type { AtlasEdge } from "../contracts/graph.js";
 import { defaultLayerOf, matchTestTargets } from "../contracts/layers.js";
-import { apiModuleIdOf, buildApiGraph } from "./apiView.ts";
+import { apiModuleIdOf, buildApiGraph, splitApiBoundary } from "./apiView.ts";
 import { fetchCallHierarchy, refsToEdges } from "./callHierarchyClient.ts";
 import {
   buildHistoryIndex,
@@ -211,6 +211,12 @@ export function App() {
   const locOfRef = useRef(new Map<string, number>());
   /** What the layout currently displays (file graph or API projection). */
   const displayGraphRef = useRef<AtlasGraph>({ nodes: [], edges: [] });
+  /** API view: module id → boundary ports, and port id → consumer modules. */
+  const apiBoundaryRef = useRef(new Map<string, AtlasNode[]>());
+  const apiPortPartnersRef = useRef(new Map<string, Set<string>>());
+  const portNodesRef = useRef<
+    { id: string; label: string; x: number; y: number }[]
+  >([]);
   const labelsRef = useRef(new Map<string, string>());
   const exportedIdsRef = useRef(new Set<string>());
   const testFileIdsRef = useRef(new Set<string>());
@@ -271,7 +277,22 @@ export function App() {
       // the network's labels come from the projected symbols
       for (const node of api.nodes) labelsRef.current.set(node.id, node.label);
       displayGraphRef.current = api;
-      return api;
+      const split = splitApiBoundary(api, apiModuleIdOf);
+      apiBoundaryRef.current = split.boundaryByModule;
+      const partners = new Map<string, Set<string>>();
+      for (const edge of api.edges) {
+        const sourceModule = apiModuleIdOf(edge.source);
+        if (sourceModule === apiModuleIdOf(edge.target)) continue;
+        let set = partners.get(edge.target);
+        if (!set) {
+          set = new Set();
+          partners.set(edge.target, set);
+        }
+        set.add(sourceModule);
+      }
+      apiPortPartnersRef.current = partners;
+      // ports leave the cell layout; only internals get areas
+      return split.internal;
     }
     displayGraphRef.current = graph;
     return graph;
@@ -676,6 +697,7 @@ export function App() {
           .find((c) => c.id === id)
       : null;
     const circle = ringsRef.current?.circles.get(id);
+    const port = portNodesRef.current.find((p) => p.id === id);
     let bbox: { cx: number; cy: number; w: number; h: number } | null = null;
     const polygon = innerCell?.polygon ?? fileCell?.polygon;
     if (polygon && polygon.length >= 3) {
@@ -697,6 +719,8 @@ export function App() {
       };
     } else if (circle) {
       bbox = { cx: circle.cx, cy: circle.cy, w: circle.r * 2, h: circle.r * 2 };
+    } else if (port) {
+      bbox = { cx: port.x, cy: port.y, w: 60, h: 60 };
     }
     if (bbox) {
       // frame the bbox with padding: the target ends up ~40% of the view
@@ -864,6 +888,56 @@ export function App() {
   const focusView = focusId ? computeFocus(focusId) : null;
   const exportedIds = exportedIdsRef.current;
 
+  /** API view: adapter ports placed on the rim, facing their consumers. */
+  const portNodes = (() => {
+    const rings = ringsRef.current;
+    if (params.view !== "api" || !rings) return [];
+    const out: { id: string; label: string; x: number; y: number }[] = [];
+    for (const [moduleId, ports] of apiBoundaryRef.current) {
+      const circle = rings.circles.get(moduleId);
+      if (!circle) continue;
+      const placed = ports
+        .map((port, index) => {
+          let sx = 0;
+          let sy = 0;
+          for (const partnerModule of apiPortPartnersRef.current.get(
+            port.id,
+          ) ?? []) {
+            const partner = rings.circles.get(partnerModule);
+            if (!partner) continue;
+            sx += partner.cx - circle.cx;
+            sy += partner.cy - circle.cy;
+          }
+          const angle =
+            sx === 0 && sy === 0
+              ? (index / ports.length) * 2 * Math.PI
+              : Math.atan2(sy, sx);
+          return { port, angle };
+        })
+        .sort((a, b) => a.angle - b.angle);
+      // keep a minimum angular separation so ports don't stack
+      const minSep = Math.min(
+        (2 * Math.PI) / Math.max(placed.length, 1),
+        0.3,
+      );
+      for (let i = 1; i < placed.length; i++) {
+        if (placed[i]!.angle - placed[i - 1]!.angle < minSep) {
+          placed[i]!.angle = placed[i - 1]!.angle + minSep;
+        }
+      }
+      for (const { port, angle } of placed) {
+        out.push({
+          id: port.id,
+          label: port.label,
+          x: circle.cx + Math.cos(angle) * circle.r,
+          y: circle.cy + Math.sin(angle) * circle.r,
+        });
+      }
+    }
+    portNodesRef.current = out;
+    return out;
+  })();
+
   const allCells: CellResult[] = ringsRef.current
     ? [...ringsRef.current.moduleLayouts.values()].flatMap((l) => l.cells)
     : (layoutRef.current?.cells ?? []);
@@ -882,6 +956,10 @@ export function App() {
   const selectedTest =
     selectedId !== null && testFileIds.has(selectedId)
       ? (graphRef.current.nodes.find((n) => n.id === selectedId) ?? null)
+      : null;
+  const selectedPort =
+    selectedId !== null && params.view === "api"
+      ? (portNodesRef.current.find((p) => p.id === selectedId) ?? null)
       : null;
   const selectedIsSymbol =
     selected !== null && !allCells.some((c) => c.id === selected.id);
@@ -926,6 +1004,15 @@ export function App() {
         );
         if (fresh.length > 0) {
           symbolEdgesRef.current = [...symbolEdgesRef.current, ...fresh];
+          // the API projection derives from these edges: re-project so the
+          // network, PageRank areas and ports pick the new hierarchy up
+          if (paramsRef.current.view === "api" && ringsRef.current) {
+            ringsRef.current = applyRingsChanges(
+              ringsRef.current,
+              effectiveGraph(paramsRef.current),
+              ringsOptions(paramsRef.current),
+            );
+          }
         }
         setHierarchyVersion((v) => v + 1);
       })
@@ -1004,6 +1091,7 @@ export function App() {
             hiddenLayers={new Set(params.hiddenLayers)}
             parentFileOf={parentFileOf}
             changedFiles={changedFilesRef.current}
+            portNodes={portNodes}
             width={WIDTH}
             height={HEIGHT}
             selectedId={selectedId}
@@ -1185,21 +1273,25 @@ export function App() {
             onRemoveNode={removeNode}
           />
         </Section>
-        {selected || selectedIsModule || selectedTest ? (
+        {selected || selectedIsModule || selectedTest || selectedPort ? (
           <Section title="選択ノード">
             <div style={{ fontWeight: "600", wordBreak: "break-all" }}>
               {labelOf(selectedId!)}
-              {selectedIsSymbol
-                ? " (symbol)"
-                : selectedIsModule
-                  ? " (module)"
-                  : selectedTest
-                    ? " (test)"
-                    : ""}
+              {selectedPort
+                ? " (port)"
+                : selectedIsSymbol
+                  ? " (symbol)"
+                  : selectedIsModule
+                    ? " (module)"
+                    : selectedTest
+                      ? " (test)"
+                      : ""}
             </div>
-            <div style={{ color: "#64748b", wordBreak: "break-all" }}>
-              {selectedId}
-            </div>
+            {params.view !== "api" ? (
+              <div style={{ color: "#64748b", wordBreak: "break-all" }}>
+                {selectedId}
+              </div>
+            ) : null}
             <div style={{ display: "flex", gap: "6px", margin: "6px 0" }}>
               {focusId !== selectedId ? (
                 <button
@@ -1311,7 +1403,7 @@ export function App() {
                     }}
                   >
                     ← {labelOf(id)}
-                    {fileOf(id) ? (
+                    {params.view !== "api" && fileOf(id) ? (
                       <span style={{ color: "#94a3b8" }}> · {fileOf(id)}</span>
                     ) : null}
                   </button>
@@ -1340,7 +1432,7 @@ export function App() {
                     }}
                   >
                     → {labelOf(id)}
-                    {fileOf(id) ? (
+                    {params.view !== "api" && fileOf(id) ? (
                       <span style={{ color: "#94a3b8" }}> · {fileOf(id)}</span>
                     ) : null}
                   </button>

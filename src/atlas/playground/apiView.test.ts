@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { AtlasEdge, AtlasGraph, AtlasNode } from "../contracts/graph.js";
-import { apiModuleIdOf, buildApiGraph } from "./apiView.js";
+import { apiModuleIdOf, buildApiGraph, splitApiBoundary } from "./apiView.js";
 
 const fileGraph: AtlasGraph = {
   nodes: [
@@ -84,6 +84,36 @@ describe("buildApiGraph", () => {
         source: "symbol:src/ui/v.tsx:function:View:1",
         target: "symbol:src/core/a.ts:function:foo:1",
       },
+      {
+        source: "symbol:src/core/b.ts:function:only:1",
+        target: "symbol:src/core/a.ts:class:Bar:60",
+      },
+    ]);
+  });
+});
+
+describe("splitApiBoundary", () => {
+  it("moves externally-referenced symbols to the module boundary", () => {
+    const api = buildApiGraph(
+      fileGraph,
+      (id) => symbolsOf.get(id) ?? [],
+      symbolEdges,
+    );
+    // View (src/ui) → foo (src/core) is the only cross-module edge:
+    // foo becomes src/core's boundary port; everything else stays internal
+    const split = splitApiBoundary(api, apiModuleIdOf);
+    expect(
+      split.boundaryByModule
+        .get("src/core")!
+        .map((n) => n.label),
+    ).toEqual(["foo"]);
+    expect(split.internal.nodes.map((n) => n.label).sort()).toEqual([
+      "Bar",
+      "View",
+      "only",
+    ]);
+    // internal layout edges keep only internal↔internal pairs
+    expect(split.internal.edges).toEqual([
       {
         source: "symbol:src/core/b.ts:function:only:1",
         target: "symbol:src/core/a.ts:class:Bar:60",

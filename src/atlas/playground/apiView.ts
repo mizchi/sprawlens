@@ -24,6 +24,51 @@ export function apiModuleIdOf(symbolId: string): string {
   return defaultModuleIdOf(parentFileOf(symbolId));
 }
 
+export type ApiBoundarySplit = {
+  /** Internal symbols + internal↔internal edges; what the layout subdivides. */
+  internal: AtlasGraph;
+  /** module id → its externally-referenced symbols (the adapter ports). */
+  boundaryByModule: Map<string, AtlasNode[]>;
+};
+
+/**
+ * Symbols referenced from outside their module are the module's real
+ * interface: they leave the cell layout and sit on the circle's rim as
+ * adapter ports, with their inward references showing the delegation.
+ */
+export function splitApiBoundary(
+  api: AtlasGraph,
+  moduleIdOf: (id: string) => string,
+): ApiBoundarySplit {
+  const boundaryIds = new Set<string>();
+  for (const edge of api.edges) {
+    if (moduleIdOf(edge.source) !== moduleIdOf(edge.target)) {
+      boundaryIds.add(edge.target);
+    }
+  }
+  const boundaryByModule = new Map<string, AtlasNode[]>();
+  const internalNodes: AtlasNode[] = [];
+  for (const node of api.nodes) {
+    if (boundaryIds.has(node.id)) {
+      const moduleId = moduleIdOf(node.id);
+      const list = boundaryByModule.get(moduleId);
+      if (list) list.push(node);
+      else boundaryByModule.set(moduleId, [node]);
+    } else {
+      internalNodes.push(node);
+    }
+  }
+  return {
+    internal: {
+      nodes: internalNodes,
+      edges: api.edges.filter(
+        (e) => !boundaryIds.has(e.source) && !boundaryIds.has(e.target),
+      ),
+    },
+    boundaryByModule,
+  };
+}
+
 export function buildApiGraph(
   fileGraph: AtlasGraph,
   symbolsOf: (fileId: string) => AtlasNode[],

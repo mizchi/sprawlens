@@ -50,6 +50,8 @@ type Props = {
   parentFileOf: (id: string) => string;
   /** History diff: files changed by the displayed commit get accent strokes. */
   changedFiles: Map<string, "added" | "modified">;
+  /** API view: adapter ports sitting on the module rim. */
+  portNodes: { id: string; label: string; x: number; y: number }[];
   width: number;
   height: number;
   selectedId: string | null;
@@ -91,6 +93,7 @@ export function RingsMapSvg(props: Props) {
     hiddenLayers,
     parentFileOf,
     changedFiles,
+    portNodes,
     width,
     height,
     selectedId,
@@ -213,8 +216,13 @@ export function RingsMapSvg(props: Props) {
     () => new Map(innerCells.map((c) => [c.id, c.site])),
     [innerCells],
   );
+  const portSiteById = useMemo(
+    () => new Map(portNodes.map((p) => [p.id, { x: p.x, y: p.y }])),
+    [portNodes],
+  );
   const resolveSite = (id: string): Vec2 | undefined => {
-    const site = symbolSiteById.get(id) ?? fileSiteById.get(id);
+    const site =
+      symbolSiteById.get(id) ?? fileSiteById.get(id) ?? portSiteById.get(id);
     if (site) return site;
     const circle = rings.circles.get(id);
     return circle ? { x: circle.cx, y: circle.cy } : undefined;
@@ -612,6 +620,46 @@ export function RingsMapSvg(props: Props) {
                   onSelect(cell.id);
                 }}
               />
+            );
+          })}
+        </g>
+      ) : null}
+      {/* adapter ports on the module rim (API view) */}
+      {portNodes.length > 0 ? (
+        <g>
+          {portNodes.map((port) => {
+            if (!inView({ x: port.x, y: port.y }, 20)) return null;
+            const opacity = focus
+              ? focus.fileIds.has(port.id) || focus.symbolIds.has(port.id)
+                ? 1
+                : DIM
+              : 1;
+            return (
+              <g key={port.id} opacity={opacity}>
+                <circle
+                  cx={port.x}
+                  cy={port.y}
+                  r={screenRadius(port.id === selectedId ? 5 : 3.6)}
+                  fill="#ffffff"
+                  stroke={port.id === selectedId ? "#1d4ed8" : EXPORTED_DOT}
+                  stroke-width={port.id === selectedId ? 2.4 : 1.8}
+                  onClick={(event) => {
+                    event.stopPropagation();
+                    onSelect(port.id);
+                  }}
+                />
+                <text
+                  x={port.x}
+                  y={port.y - screenRadius(7)}
+                  font-size={11 / zoom}
+                  text-anchor="middle"
+                  font-weight="600"
+                  fill="#047857"
+                  style={{ pointerEvents: "none", userSelect: "none" }}
+                >
+                  {port.label}
+                </text>
+              </g>
             );
           })}
         </g>
