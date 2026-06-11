@@ -40,6 +40,7 @@ import {
 } from "./synthetic.ts";
 import type { AtlasEdge } from "../contracts/graph.js";
 import { defaultLayerOf, matchTestTargets } from "../contracts/layers.js";
+import { apiModuleIdOf, buildApiGraph } from "./apiView.ts";
 import { fetchCallHierarchy, refsToEdges } from "./callHierarchyClient.ts";
 import {
   buildHistoryIndex,
@@ -144,6 +145,7 @@ export function App() {
   const [params, setParams] = useState<PlaygroundParams>({
     source: "synthetic",
     layout: "rings",
+    view: "files",
     invertRings: false,
     count: 120,
     seed: 1,
@@ -207,6 +209,8 @@ export function App() {
   // these per render allocated heavily and drove major-GC pauses during
   // zoom gestures (lightbringer drilldown: GC marking dominated the spans).
   const locOfRef = useRef(new Map<string, number>());
+  /** What the layout currently displays (file graph or API projection). */
+  const displayGraphRef = useRef<AtlasGraph>({ nodes: [], edges: [] });
   const labelsRef = useRef(new Map<string, string>());
   const exportedIdsRef = useRef(new Set<string>());
   const testFileIdsRef = useRef(new Set<string>());
@@ -235,21 +239,42 @@ export function App() {
     invert: p.invertRings,
     adaptationRate: p.adaptationRate,
     lloydRate: p.lloydRate,
+    moduleIdOf: p.view === "api" ? apiModuleIdOf : undefined,
   });
+
+  const symbolsForFile = (fileId: string): AtlasNode[] => {
+    const real = symbolsRef.current?.get(fileId);
+    if (real) return real;
+    const loc = graphRef.current.nodes.find((n) => n.id === fileId)?.metrics
+      .loc;
+    return loc === undefined ? [] : synthesizeSymbols(fileId, loc, 1);
+  };
 
   /** Graph minus hidden layers — what the layout actually subdivides. */
   const effectiveGraph = (p: PlaygroundParams): AtlasGraph => {
-    const graph = graphRef.current;
-    if (!p.hiddenLayers.length) return graph;
-    const hidden = new Set(p.hiddenLayers);
-    const nodes = graph.nodes.filter((n) => !hidden.has(defaultLayerOf(n.id)));
-    const ids = new Set(nodes.map((n) => n.id));
-    return {
-      nodes,
-      edges: graph.edges.filter(
-        (e) => ids.has(e.source) && ids.has(e.target),
-      ),
-    };
+    let graph = graphRef.current;
+    if (p.hiddenLayers.length) {
+      const hidden = new Set(p.hiddenLayers);
+      const nodes = graph.nodes.filter(
+        (n) => !hidden.has(defaultLayerOf(n.id)),
+      );
+      const ids = new Set(nodes.map((n) => n.id));
+      graph = {
+        nodes,
+        edges: graph.edges.filter(
+          (e) => ids.has(e.source) && ids.has(e.target),
+        ),
+      };
+    }
+    if (p.view === "api") {
+      const api = buildApiGraph(graph, symbolsForFile, symbolEdgesRef.current);
+      // the network's labels come from the projected symbols
+      for (const node of api.nodes) labelsRef.current.set(node.id, node.label);
+      displayGraphRef.current = api;
+      return api;
+    }
+    displayGraphRef.current = graph;
+    return graph;
   };
 
   /**
@@ -434,7 +459,7 @@ export function App() {
 
   // structural params trigger a rebuild; invert re-rings warm; solver params
   // only update options on the existing layout
-  const structuralKey = `${params.source}|${params.layout}|${params.count}|${params.seed}|${params.clipKind}`;
+  const structuralKey = `${params.source}|${params.layout}|${params.view}|${params.count}|${params.seed}|${params.clipKind}`;
   const structuralRef = useRef(structuralKey);
   const invertRef = useRef(params.invertRings);
   const layersKeyRef = useRef(params.hiddenLayers.join(","));
@@ -555,7 +580,7 @@ export function App() {
       }
 
       let innerActive = false;
-      if (paramsRef.current.showNested) {
+      if (paramsRef.current.showNested && paramsRef.current.view !== "api") {
         syncInnerLayouts(outerCells, outerActive, innerBudget);
         for (const layout of innerLayoutsRef.current.values()) {
           if (!isConverged(layout, CONVERGENCE_TOLERANCE)) {
@@ -794,8 +819,8 @@ export function App() {
         upstreamEdges: reach.upstreamEdges,
       };
     }
-    if (graphRef.current.nodes.some((n) => n.id === id)) {
-      const reach = reachSubgraph(graphRef.current.edges, id);
+    if (displayGraphRef.current.nodes.some((n) => n.id === id)) {
+      const reach = reachSubgraph(displayGraphRef.current.edges, id);
       const moduleIds = new Set<string>();
       for (const fileId of reach.nodes) {
         const moduleId = fileToModule.get(fileId);
@@ -862,15 +887,19 @@ export function App() {
     selected !== null && !allCells.some((c) => c.id === selected.id);
   const selectedRefs = useMemo(() => {
     if (!selectedId) return { incoming: [], outgoing: [] };
+    const edges =
+      paramsRef.current.view === "api"
+        ? displayGraphRef.current.edges
+        : symbolEdgesRef.current;
     return {
-      incoming: symbolEdgesRef.current
+      incoming: edges
         .filter((e) => e.target === selectedId)
         .map((e) => e.source),
-      outgoing: symbolEdgesRef.current
+      outgoing: edges
         .filter((e) => e.source === selectedId)
         .map((e) => e.target),
     };
-  }, [selectedId, hierarchyVersion]);
+  }, [selectedId, hierarchyVersion, params.view]);
 
   // Phase 3: on-demand call hierarchy from the LSP server. Static
   // symbolImports only know file→symbol; the LSP upgrades the selection to
@@ -956,10 +985,18 @@ export function App() {
         {ringsRef.current ? (
           <RingsMapSvg
             rings={ringsRef.current}
-            innerCells={innerCells}
-            fileEdges={graphRef.current.edges}
-            symbolEdges={symbolEdgesRef.current}
-            showEdges={params.showEdges}
+            innerCells={params.view === "api" ? [] : innerCells}
+            fileEdges={
+              params.view === "api"
+                ? displayGraphRef.current.edges
+                : graphRef.current.edges
+            }
+            symbolEdges={
+              params.view === "api"
+                ? displayGraphRef.current.edges
+                : symbolEdgesRef.current
+            }
+            showEdges={params.showEdges || params.view === "api"}
             labels={labels}
             exportedIds={exportedIds}
             focus={focusView}

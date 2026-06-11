@@ -1,5 +1,5 @@
 import type { AtlasEdge, AtlasGraph } from "../contracts/graph.js";
-import { deriveModules } from "../contracts/modules.js";
+import { deriveModules, type ModuleIdOf } from "../contracts/modules.js";
 import {
   applyGraphChanges,
   capacityStep,
@@ -17,6 +17,8 @@ export type RingsOptions = {
   invert?: boolean;
   adaptationRate?: number;
   lloydRate?: number;
+  /** Node → module assignment; defaults to the path heuristic. */
+  moduleIdOf?: ModuleIdOf;
 };
 
 export type RingsState = {
@@ -40,7 +42,7 @@ function placeCircles(
   filesByModule: ReturnType<typeof deriveModules>["filesByModule"];
   fileEdgesByModule: ReturnType<typeof deriveModules>["fileEdgesByModule"];
 } {
-  const derived = deriveModules(graph);
+  const derived = deriveModules(graph, options.moduleIdOf);
   const ranks = topoRank(
     derived.modules.map((m) => m.id),
     derived.moduleEdges,

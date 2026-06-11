@@ -5,10 +5,13 @@ export type DataSource =
   | "sprawlens-history"
   | "playwright";
 export type LayoutKind = "rings" | "flat";
+export type ViewKind = "files" | "api";
 
 export type PlaygroundParams = {
   source: DataSource;
   layout: LayoutKind;
+  /** files = LOC-weighted file map; api = equal-area public-symbol network. */
+  view: ViewKind;
   invertRings: boolean;
   count: number;
   seed: number;
@@ -89,6 +92,18 @@ export function Controls(props: Props) {
         >
           <option value="rings">rings (modules)</option>
           <option value="flat">flat (files)</option>
+        </select>
+      </label>
+      <label style={row}>
+        <span style={{ width: "110px" }}>view</span>
+        <select
+          value={params.view}
+          onInput={(e) =>
+            set("view", (e.target as HTMLSelectElement).value as ViewKind)
+          }
+        >
+          <option value="files">files (LOC area)</option>
+          <option value="api">public API network</option>
         </select>
       </label>
       {params.layout === "rings" ? (
