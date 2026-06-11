@@ -45,7 +45,8 @@ export function synthesizeSymbols(
     return {
       id: `${fileId}#s${i}`,
       kind: "symbol" as const,
-      label: `${fileId}#s${i}`,
+      // display name carries no path — the map shows location spatially
+      label: `s${i}`,
       metrics: { loc: Math.max(1, symbolLoc) },
       // first symbol is always part of the public surface
       exported: i === 0 || rng() < 0.3,
