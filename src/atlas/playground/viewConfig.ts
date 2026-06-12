@@ -8,20 +8,26 @@ import { pageRank } from "../kernel/pagerank.js";
  * "custom".
  */
 
-/** What unit becomes a layout leaf (and what edges connect). */
+/** What unit becomes a layout leaf (and what edges connect). Derived
+ * from the display levels — the finest partitioning level wins: files
+ * nest symbols when both show; symbols without files form the network. */
 export type Granularity = "module" | "file" | "symbol";
+
+export function granularityOf(
+  levels: readonly DisplayLevel[],
+): Granularity {
+  if (levels.includes("file")) return "file";
+  if (levels.includes("symbol")) return "symbol";
+  return "module";
+}
 /**
  * Boundary levels partition the space: each checked level becomes a ring
  * of nested districts (module ⊃ directory ⊃ file, canonical order). This
  * is the *structure* axis — independent of which elements are displayed.
  * A file boundary only makes sense around sub-file leaves.
  */
-export type BoundaryLevel = "module" | "directory" | "file";
-export const BOUNDARY_LEVELS: readonly BoundaryLevel[] = [
-  "module",
-  "directory",
-  "file",
-];
+export type BoundaryLevel = "module" | "file";
+export const BOUNDARY_LEVELS: readonly BoundaryLevel[] = ["module", "file"];
 
 /**
  * Display levels select which strata are *drawn*. Crucially this is not
@@ -33,16 +39,9 @@ export const BOUNDARY_LEVELS: readonly BoundaryLevel[] = [
  * hierarchy) and rendered only past a zoom threshold, never part of the
  * static graph.
  */
-export type DisplayLevel =
-  | "module"
-  | "directory"
-  | "file"
-  | "symbol"
-  | "ast"
-  | "cfg";
+export type DisplayLevel = "module" | "file" | "symbol" | "ast" | "cfg";
 export const DISPLAY_LEVELS: readonly DisplayLevel[] = [
   "module",
-  "directory",
   "file",
   "symbol",
   "ast",
@@ -74,17 +73,10 @@ export type WeightKind = "loc" | "pagerank";
 export type SelectMode = "auto" | "module" | "file" | "symbol";
 
 export type ViewConfig = {
-  granularity: Granularity;
   boundaries: BoundaryLevel[];
   displayLevels: DisplayLevel[];
   omit: OmitScope[];
   weight: WeightKind;
-  /**
-   * How deep the zoom auto-focus drills when nothing is selected: zooming
-   * past the threshold implicitly selects the crosshair target at this
-   * granularity. Explicit clicks always override it.
-   */
-  focusGranularity: Granularity;
 };
 
 export type ViewPreset = {
@@ -98,36 +90,30 @@ export const VIEW_PRESETS: ViewPreset[] = [
     id: "files",
     label: "files (LOC area)",
     config: {
-      granularity: "file",
       boundaries: ["module"],
       displayLevels: ["module", "file", "symbol"],
       omit: [],
       weight: "loc",
-      focusGranularity: "file",
     },
   },
   {
     id: "api",
     label: "public API network",
     config: {
-      granularity: "symbol",
       boundaries: ["module"],
       displayLevels: ["module", "symbol"],
       omit: ["private-symbol"],
       weight: "pagerank",
-      focusGranularity: "symbol",
     },
   },
   {
     id: "modules",
     label: "modules only",
     config: {
-      granularity: "module",
       boundaries: ["module"],
       displayLevels: ["module"],
       omit: [],
       weight: "loc",
-      focusGranularity: "module",
     },
   },
 ];
@@ -135,14 +121,12 @@ export const VIEW_PRESETS: ViewPreset[] = [
 export function presetOf(config: ViewConfig): string {
   const match = VIEW_PRESETS.find(
     (p) =>
-      p.config.granularity === config.granularity &&
       p.config.boundaries.join("+") === config.boundaries.join("+") &&
       [...p.config.displayLevels].sort().join("+") ===
         [...config.displayLevels].sort().join("+") &&
       [...p.config.omit].sort().join("+") ===
         [...config.omit].sort().join("+") &&
-      p.config.weight === config.weight &&
-      p.config.focusGranularity === config.focusGranularity,
+      p.config.weight === config.weight,
   );
   return match?.id ?? "custom";
 }

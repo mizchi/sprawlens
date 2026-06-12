@@ -9,15 +9,9 @@ import {
   type CellResult,
   type ClipRegion,
 } from "../kernel/capacityLayout.js";
-import {
-  createGraphLayout,
-  embedSeedHints,
-  forceIterationsFor,
-} from "../kernel/pipeline.js";
 import { centroid, containsPoint, type Ring } from "../kernel/polygon.js";
 import { createRng, type Rng } from "../kernel/rng.js";
-import { CellMapSvg } from "./CellMapSvg.tsx";
-import { Controls, type ClipKind, type PlaygroundParams } from "./Controls.tsx";
+import { Controls, type PlaygroundParams } from "./Controls.tsx";
 import {
   snapshotSymbolEdges,
   snapshotSymbols,
@@ -51,7 +45,6 @@ import {
 } from "./synthetic.ts";
 import type { AtlasEdge } from "../contracts/graph.js";
 import {
-  directoryGrouping,
   fileGrouping,
   moduleGrouping,
   type Grouping,
@@ -60,6 +53,7 @@ import { defaultLayerOf, matchTestTargets } from "../contracts/layers.js";
 import { defaultModuleIdOf } from "../contracts/modules.js";
 import { apiModuleIdOf, buildApiGraph, splitApiBoundary } from "./apiView.ts";
 import {
+  granularityOf,
   hiddenLayersOf,
   resolveSelection,
   reweightByPageRank,
@@ -82,25 +76,18 @@ const HEIGHT = 640;
 const CFG_MIN_PX = 64;
 const CONVERGENCE_TOLERANCE = 0.02;
 /** Zoom past this implicitly focuses the crosshair target (no selection). */
-/**
- * Zoom focus engages only when the crosshair target fills this share of
- * the viewport — containing the center point alone is not enough, or a
- * sliver of a small neighboring file would steal the focus.
- */
-const AUTOFOCUS_AREA_FRACTION = 0.12;
 /** Call-hierarchy roots kept in memory; older unselected ones evict. */
 const LSP_CACHE_MAX = 8;
-
-function clipOf(kind: ClipKind): ClipRegion {
-  return kind === "rect"
-    ? { kind: "rect", x: 0, y: 0, width: WIDTH, height: HEIGHT }
-    : { kind: "circle", cx: WIDTH / 2, cy: HEIGHT / 2, r: HEIGHT / 2 - 10 };
-}
-
-/** 16-gon is the circle clip with a coarse polygonization. */
-function segmentsOf(kind: ClipKind): number {
-  return kind === "hexadecagon" ? 16 : 64;
-}
+/** Solver parameters: long-stable knobs, hardcoded out of the UI. */
+const SEED = 1;
+const SYNTH_COUNT = 120;
+const ADAPTATION_RATE = 0.8;
+const LLOYD_RATE = 0.7;
+const STEPS_PER_FRAME = 2;
+/** ?debug=1 reveals the graph-mutation experiment buttons. */
+const DEBUG =
+  typeof location !== "undefined" &&
+  new URLSearchParams(location.search).has("debug");
 
 /** Shrink a convex ring toward its centroid so nested cells stay visually inside. */
 function insetRing(ring: Ring, factor: number): Ring {
@@ -109,33 +96,6 @@ function insetRing(ring: Ring, factor: number): Ring {
     x: c.x + (p.x - c.x) * factor,
     y: c.y + (p.y - c.y) * factor,
   }));
-}
-
-function Sparkline(props: { values: number[] }) {
-  const w = 220;
-  const h = 48;
-  const points = props.values
-    .map((v, i) => {
-      // log scale: 100% error at top, 0.1% at bottom
-      const y = h - (h * (Math.log10(Math.max(v, 1e-3)) + 3)) / 3;
-      const x = (i / Math.max(props.values.length - 1, 1)) * w;
-      return `${x},${Math.min(Math.max(y, 0), h)}`;
-    })
-    .join(" ");
-  return (
-    <svg viewBox={`0 0 ${w} ${h}`} style={{ width: `${w}px`, height: `${h}px` }}>
-      <rect width={w} height={h} fill="#f1f5f9" />
-      <line
-        x1={0}
-        x2={w}
-        y1={h - (h * (Math.log10(0.02) + 3)) / 3}
-        y2={h - (h * (Math.log10(0.02) + 3)) / 3}
-        stroke="#94a3b8"
-        stroke-dasharray="3 3"
-      />
-      <polyline points={points} fill="none" stroke="#dc2626" stroke-width={1.5} />
-    </svg>
-  );
 }
 
 /** Collapsible panel section; user toggles survive re-renders via state. */
@@ -183,25 +143,15 @@ export function App() {
   const [params, setParams] = useState<PlaygroundParams>({
     source: "sprawlens",
     layout: "rings",
-    granularity: "file",
     boundaries: ["module"],
     displayLevels: ["module", "file", "symbol"],
     omit: [],
     omitModules: [],
-    directoryDepth: 3,
     weight: "loc",
-    focusGranularity: "file",
     selectMode: "auto",
-    deselectOffscreen: true,
     followChanges: true,
     diffBase: "",
     invertRings: false,
-    count: 120,
-    seed: 1,
-    clipKind: "circle",
-    adaptationRate: 0.8,
-    lloydRate: 0.7,
-    stepsPerFrame: 2,
     // ambient edges add noise; macro module deps are opt-in via this toggle
     showEdges: false,
   });
@@ -234,15 +184,14 @@ export function App() {
     panelPos === "auto" ? (landscape ? "right" : "bottom") : panelPos;
 
   const graphRef = useRef<AtlasGraph>(null as unknown as AtlasGraph);
-  const layoutRef = useRef<CapacityLayoutState | null>(null);
   const ringsRef = useRef<RingsState | null>(null);
   const treemapRef = useRef<TreemapState | null>(null);
-  const historyRef = useRef<number[]>([]);
-  const fpsRef = useRef({ last: 0, ema: 0 });
   /** Frames since the last repaint commit while a big map converges. */
   const repaintSkipRef = useRef(0);
   const paramsRef = useRef(params);
   paramsRef.current = params;
+  /** Leaf unit, derived from the checked display levels. */
+  const granularity = granularityOf(params.displayLevels);
   const mutationRng = useRef<Rng>(createRng(0xc0ffee));
   const nextNodeId = useRef(0);
   const innerLayoutsRef = useRef(new Map<string, CapacityLayoutState>());
@@ -305,9 +254,8 @@ export function App() {
     const groupings = p.boundaries.flatMap(
       (level): Grouping[] => {
       if (level === "module") return [moduleGrouping()];
-      if (level === "directory") return [directoryGrouping(p.directoryDepth)];
       // file boundaries only make sense around sub-file leaves
-      if (level === "file" && p.granularity === "symbol")
+      if (level === "file" && granularityOf(p.displayLevels) === "symbol")
         return [fileGrouping()];
       return [];
       },
@@ -318,19 +266,19 @@ export function App() {
   const ringsOptions = (p: PlaygroundParams) => ({
     width: WIDTH,
     height: HEIGHT,
-    seed: p.seed,
+    seed: SEED,
     invert: p.invertRings,
-    adaptationRate: p.adaptationRate,
-    lloydRate: p.lloydRate,
+    adaptationRate: ADAPTATION_RATE,
+    lloydRate: LLOYD_RATE,
     boundaries: boundariesOf(p),
   });
 
   const treemapOptions = (p: PlaygroundParams) => ({
     width: WIDTH,
     height: HEIGHT,
-    seed: p.seed,
-    adaptationRate: p.adaptationRate,
-    lloydRate: p.lloydRate,
+    seed: SEED,
+    adaptationRate: ADAPTATION_RATE,
+    lloydRate: LLOYD_RATE,
     boundaries: boundariesOf(p),
   });
 
@@ -361,7 +309,7 @@ export function App() {
         ),
       };
     }
-    if (p.granularity === "symbol") {
+    if (granularityOf(p.displayLevels) === "symbol") {
       const api = buildApiGraph(graph, symbolsForFile, symbolEdgesRef.current, {
         includePrivate: !p.omit.includes("private-symbol"),
         weight: p.weight,
@@ -547,15 +495,14 @@ export function App() {
         symbolEdgesRef.current = snapshotSymbolEdges(snapshot);
       }
     } else {
-      graph = createSyntheticGraph({ count: p.count, seed: p.seed });
+      graph = createSyntheticGraph({ count: SYNTH_COUNT, seed: SEED });
       symbolsRef.current = null;
-      symbolEdgesRef.current = synthesizeSymbolEdges(graph, p.seed);
+      symbolEdgesRef.current = synthesizeSymbolEdges(graph, SEED);
     }
     graphRef.current = graph;
-    nextNodeId.current = p.count;
+    nextNodeId.current = SYNTH_COUNT;
     // reset the per-view lookups BEFORE the projection: effectiveGraph
     // registers the symbol labels, which a later wipe would erase
-    historyRef.current = [];
     innerLayoutsRef.current = new Map();
     symbolMetaRef.current = new Map();
     fetchedHierarchyRef.current = new Set();
@@ -568,43 +515,21 @@ export function App() {
     const visible = effectiveGraph(p);
     if (p.layout === "rings") {
       ringsRef.current = createRingsState(visible, ringsOptions(p));
-      layoutRef.current = null;
       treemapRef.current = null;
-    } else if (p.layout === "treemap") {
+    } else {
       treemapRef.current = createTreemapState(visible, treemapOptions(p));
       ringsRef.current = null;
-      layoutRef.current = null;
-    } else {
-      const clip = clipOf(p.clipKind);
-      const seedHints = embedSeedHints(visible, clip);
-      layoutRef.current = createGraphLayout(visible, clip, {
-        seed: p.seed,
-        adaptationRate: p.adaptationRate,
-        lloydRate: p.lloydRate,
-        circleSegments: segmentsOf(p.clipKind),
-        hints: seedHints ?? undefined,
-        // unbudgeted force froze the page on monorepo-scale graphs
-        forceIterations: seedHints
-          ? 16
-          : forceIterationsFor(visible.nodes.length),
-      });
-      ringsRef.current = null;
-      treemapRef.current = null;
     }
     setFocusId(null);
   };
 
-  if (
-    layoutRef.current === null &&
-    ringsRef.current === null &&
-    treemapRef.current === null
-  ) {
+  if (ringsRef.current === null && treemapRef.current === null) {
     rebuild(params);
   }
 
   // structural params trigger a rebuild; invert re-rings warm; solver params
   // only update options on the existing layout
-  const structuralKey = `${params.source}|${params.layout}|${params.granularity}|${params.boundaries.join("+")}|${params.directoryDepth}|${params.count}|${params.seed}|${params.clipKind}`;
+  const structuralKey = `${params.source}|${params.layout}|${granularity}|${params.boundaries.join("+")}`;
   // weight / filters / invert re-flow warm (the diff animation); only
   // granularity and data swaps rebuild cold
   const detailKey = `${params.omit.join("+")}|${params.omitModules.join(",")}`;
@@ -641,17 +566,7 @@ export function App() {
         return;
       }
     }
-    if (layoutRef.current) {
-      layoutRef.current = {
-        ...layoutRef.current,
-        options: {
-          ...layoutRef.current.options,
-          adaptationRate: params.adaptationRate,
-          lloydRate: params.lloydRate,
-        },
-      };
-    }
-  }, [structuralKey, flowKey, params.adaptationRate, params.lloydRate]);
+  }, [structuralKey, flowKey]);
 
   useEffect(() => {
     let raf = 0;
@@ -668,24 +583,16 @@ export function App() {
       }
     };
     const tick = (now: number) => {
-      const fps = fpsRef.current;
-      if (fps.last > 0) {
-        const instant = 1000 / (now - fps.last);
-        fps.ema = fps.ema === 0 ? instant : fps.ema * 0.9 + instant * 0.1;
-      }
-      fps.last = now;
-
       // time-budgeted stepping: fixed step counts block the main thread for
       // seconds on monorepo-scale graphs. Hidden tabs get a bigger budget to
       // compensate for the ~1 tick/s timer throttling.
       const hidden = document.visibilityState === "hidden";
       const solverBudget = hidden ? 150 : 10;
       const innerBudget = hidden ? 60 : 6;
-      const maxSteps = paramsRef.current.stepsPerFrame * (hidden ? 30 : 1);
+      const maxSteps = STEPS_PER_FRAME * (hidden ? 30 : 1);
       const solverStart = performance.now();
       let outerActive = false;
       let outerCells: CellResult[] = [];
-      let maxError = 0;
       if (ringsRef.current) {
         let steps = 0;
         let active = true;
@@ -702,7 +609,6 @@ export function App() {
         outerActive = active;
         for (const layout of ringsRef.current.leafLayouts.values()) {
           outerCells.push(...layout.cells);
-          maxError = Math.max(maxError, layout.maxRelativeError);
         }
       } else if (treemapRef.current) {
         let steps = 0;
@@ -720,34 +626,14 @@ export function App() {
         outerActive = active;
         for (const layout of treemapRef.current.leafLayouts.values()) {
           outerCells.push(...layout.cells);
-          maxError = Math.max(maxError, layout.maxRelativeError);
         }
-      } else if (layoutRef.current) {
-        let state = layoutRef.current;
-        outerActive = !isConverged(state, CONVERGENCE_TOLERANCE / 4);
-        let steps = 0;
-        while (
-          outerActive &&
-          steps < maxSteps &&
-          performance.now() - solverStart < solverBudget
-        ) {
-          state = capacityStep(state);
-          outerActive = !isConverged(state, CONVERGENCE_TOLERANCE / 4);
-          steps++;
-        }
-        layoutRef.current = state;
-        outerCells = state.cells;
-        maxError = state.maxRelativeError;
-      }
-      if (outerActive) {
-        historyRef.current = [...historyRef.current.slice(-179), maxError];
       }
 
       let innerActive = false;
       if (
         (showsSymbolLevels(paramsRef.current.displayLevels) ||
           paramsRef.current.displayLevels.includes("cfg")) &&
-        paramsRef.current.granularity === "file"
+        granularityOf(paramsRef.current.displayLevels) === "file"
       ) {
         syncInnerLayouts(outerCells, outerActive, innerBudget);
         for (const layout of innerLayoutsRef.current.values()) {
@@ -808,10 +694,7 @@ export function App() {
     }
     if (changedFileId) innerLayoutsRef.current.delete(changedFileId);
     if (paramsRef.current.source === "synthetic") {
-      symbolEdgesRef.current = synthesizeSymbolEdges(
-        graphRef.current,
-        paramsRef.current.seed,
-      );
+      symbolEdgesRef.current = synthesizeSymbolEdges(graphRef.current, SEED);
     }
     setFrame((f) => f + 1);
   };
@@ -851,17 +734,6 @@ export function App() {
         effectiveGraph(paramsRef.current),
         treemapOptions(paramsRef.current),
       );
-    } else if (layoutRef.current) {
-      const visible = effectiveGraph(paramsRef.current);
-      const clip = clipOf(paramsRef.current.clipKind);
-      const seedHints = embedSeedHints(visible, clip);
-      layoutRef.current = createGraphLayout(visible, clip, {
-        seed: paramsRef.current.seed,
-        hints: seedHints ?? undefined,
-        forceIterations: seedHints
-          ? 16
-          : forceIterationsFor(visible.nodes.length),
-      });
     }
     setFrame((f) => f + 1);
   };
@@ -909,7 +781,7 @@ export function App() {
       }
       return null;
     }
-    return layoutRef.current?.cells.find((c) => c.id === id) ?? null;
+    return null;
   };
 
   /** World-space bounding box of any visible element, across layout kinds. */
@@ -976,11 +848,6 @@ export function App() {
       ...graph,
       nodes: graph.nodes.map((n) => (n.id === node.id ? updated : n)),
     };
-    if (layoutRef.current) {
-      layoutRef.current = applyGraphChanges(layoutRef.current, {
-        upsert: [{ id: updated.id, weight: updated.metrics.loc }],
-      });
-    }
     afterGraphMutation(updated.id);
   };
 
@@ -1008,11 +875,6 @@ export function App() {
       edges.push({ source: node.id, target: target.id });
     }
     graphRef.current = { nodes: [...graph.nodes, node], edges };
-    if (layoutRef.current) {
-      layoutRef.current = applyGraphChanges(layoutRef.current, {
-        upsert: [{ id: node.id, weight: node.metrics.loc }],
-      });
-    }
     afterGraphMutation();
   };
 
@@ -1027,11 +889,6 @@ export function App() {
         (e) => e.source !== node.id && e.target !== node.id,
       ),
     };
-    if (layoutRef.current) {
-      layoutRef.current = applyGraphChanges(layoutRef.current, {
-        remove: [node.id],
-      });
-    }
     afterGraphMutation(node.id);
     if (selectedId === node.id) setSelectedId(null);
   };
@@ -1209,7 +1066,7 @@ export function App() {
   /** API view: adapter ports placed on the rim, facing their consumers. */
   const portNodes = (() => {
     const rings = ringsRef.current;
-    if (params.granularity !== "symbol" || !rings) return [];
+    if (granularity !== "symbol" || !rings) return [];
     const out: { id: string; label: string; x: number; y: number }[] = [];
     for (const [moduleId, ports] of apiBoundaryRef.current) {
       const circle = rings.circles.get(moduleId);
@@ -1269,7 +1126,7 @@ export function App() {
   // leafGraph identity changes only on rebuild, so the memo holds between
   // animation frames
   const leafGraph =
-    params.granularity === "symbol"
+    granularity === "symbol"
       ? displayGraphRef.current
       : graphRef.current;
   const cyclicIds = useMemo(
@@ -1305,7 +1162,7 @@ export function App() {
     const isSymbolId = (id: string) =>
       id.startsWith("symbol:") || id.includes("#");
     const moduleOfId = (id: string) =>
-      params.granularity === "symbol"
+      granularity === "symbol"
         ? apiModuleIdOf(id)
         : defaultModuleIdOf(id);
     if (selectedId) {
@@ -1314,7 +1171,7 @@ export function App() {
       } else if (isSymbolId(selectedId)) {
         const fileId = parentFileOf(selectedId);
         parts.push({ id: moduleOfId(fileId), label: moduleOfId(fileId) });
-        if (params.granularity !== "symbol") {
+        if (granularity !== "symbol") {
           parts.push({ id: fileId, label: labelOf(fileId) });
         }
         parts.push({ id: selectedId, label: labelOf(selectedId) });
@@ -1365,7 +1222,7 @@ export function App() {
     );
     if (cell) {
       parts.push({ id: cell.id, label: labelOf(cell.id) });
-      if (viewInfo.zoom >= 2.2 && params.granularity === "file") {
+      if (viewInfo.zoom >= 2.2 && granularity === "file") {
         const symbol = innerLayoutsRef.current
           .get(cell.id)
           ?.cells.find(
@@ -1379,44 +1236,7 @@ export function App() {
     return parts;
   })();
 
-  /**
-   * Zoom focus: without an explicit selection, the crosshair target becomes
-   * the implicit selection once it both contains the view center (the
-   * breadcrumb hit-test) and fills enough of the screen. Candidates run
-   * from focusGranularity upward: a file too small to dominate falls back
-   * to its module, and so on. Explicit clicks always override; Esc clears
-   * back to implicit.
-   */
-  const implicitId = (() => {
-    if (selectedId || breadcrumb.length === 0) return null;
-    const rings = ringsRef.current;
-    const treemap = treemapRef.current;
-    if (!rings && !treemap) return null;
-    const viewportArea = (WIDTH * HEIGHT) / (viewInfo.zoom * viewInfo.zoom);
-    const worldAreaOf = (id: string): number => {
-      const circle = rings?.circles.get(id);
-      if (circle) return Math.PI * circle.r ** 2;
-      const groupCell = groupCellOf(id);
-      if (groupCell) return groupCell.actualArea;
-      const cell = rings
-        ? [...rings.leafLayouts.values()]
-            .flatMap((l) => l.cells)
-            .find((c) => c.id === id)
-        : [...(treemap?.leafLayouts.values() ?? [])]
-            .flatMap((l) => l.cells)
-            .find((c) => c.id === id);
-      if (cell) return cell.actualArea;
-      const inner = innerLayoutsRef.current.get(parentFileOf(id));
-      return inner?.cells.find((c) => c.id === id)?.actualArea ?? 0;
-    };
-    const depth = { module: 1, file: 2, symbol: 3 }[params.focusGranularity];
-    for (let i = Math.min(depth, breadcrumb.length) - 1; i >= 0; i--) {
-      const id = breadcrumb[i]!.id;
-      if (worldAreaOf(id) >= viewportArea * AUTOFOCUS_AREA_FRACTION) return id;
-    }
-    return null;
-  })();
-  const activeId = selectedId ?? implicitId;
+  const activeId = selectedId;
   const selectedIdSet = useMemo(() => new Set(selectedIds), [selectedIds]);
   /** Strata visibility set fed to the map components (level kinds). */
   const visibleLevels = useMemo(
@@ -1478,7 +1298,7 @@ export function App() {
         (treemapRef.current?.levels[0]!.cells.has(x) ?? false),
       parentFileOf,
       moduleOf: (x) =>
-        paramsRef.current.granularity === "symbol"
+        granularityOf(paramsRef.current.displayLevels) === "symbol"
           ? apiModuleIdOf(x)
           : defaultModuleIdOf(x),
     });
@@ -1505,41 +1325,8 @@ export function App() {
     return () => window.removeEventListener("keydown", onKey);
   }, []);
 
-  // Optional: an explicit selection drops once its element leaves the
-  // viewport. Reacts to view settles only — never to the selection itself,
-  // or a fresh jumpTo to an off-screen target would self-cancel against
-  // the stale pre-flight view.
   const selectedIdsRef = useRef(selectedIds);
   selectedIdsRef.current = selectedIds;
-  useEffect(() => {
-    const ids = selectedIdsRef.current;
-    if (ids.length === 0 || !paramsRef.current.deselectOffscreen) return;
-    const halfW = WIDTH / viewInfo.zoom / 2;
-    const halfH = HEIGHT / viewInfo.zoom / 2;
-    const view = {
-      x0: viewInfo.x - halfW,
-      x1: viewInfo.x + halfW,
-      y0: viewInfo.y - halfH,
-      y1: viewInfo.y + halfH,
-    };
-    const remaining = ids.filter((id) => {
-      const bounds = geometryBoundsOf(id);
-      if (!bounds) return true; // unknown geometry: keep, don't guess
-      return !(
-        bounds.x1 < view.x0 ||
-        bounds.x0 > view.x1 ||
-        bounds.y1 < view.y0 ||
-        bounds.y0 > view.y1
-      );
-    });
-    if (remaining.length !== ids.length) {
-      setSelectedIds(remaining);
-      // keep the path focus glued to the (new) primary selection
-      setFocusId((current) =>
-        current === null ? null : (remaining[remaining.length - 1] ?? null),
-      );
-    }
-  }, [viewInfo]);
 
   // Working-tree diff: the dev server fs-watches the repo and pushes a
   // batched diff over SSE whenever it changes. Uncommitted files highlight
@@ -1601,7 +1388,7 @@ export function App() {
     ? [...ringsRef.current.leafLayouts.values()].flatMap((l) => l.cells)
     : treemapRef.current
       ? [...treemapRef.current.leafLayouts.values()].flatMap((l) => l.cells)
-      : (layoutRef.current?.cells ?? []);
+      : [];
   const allInnerCells = innerCellsRef.current;
   const testFileIds = testFileIdsRef.current;
   const testTargets = testTargetsRef.current;
@@ -1628,7 +1415,7 @@ export function App() {
       ? (graphRef.current.nodes.find((n) => n.id === activeId) ?? null)
       : null;
   const selectedPort =
-    activeId !== null && params.granularity === "symbol"
+    activeId !== null && granularity === "symbol"
       ? (portNodesRef.current.find((p) => p.id === activeId) ?? null)
       : null;
   const selectedIsSymbol =
@@ -1636,7 +1423,7 @@ export function App() {
   const selectedRefs = useMemo(() => {
     if (!activeId) return { incoming: [], outgoing: [] };
     const edges = [
-      ...(paramsRef.current.granularity === "symbol"
+      ...(granularityOf(paramsRef.current.displayLevels) === "symbol"
         ? displayGraphRef.current.edges
         : symbolEdgesRef.current),
       // display-only LSP overlay of the active root
@@ -1654,7 +1441,7 @@ export function App() {
         ),
       ],
     };
-  }, [activeId, hierarchyVersion, params.granularity]);
+  }, [activeId, hierarchyVersion, granularity]);
 
   // Phase 3: on-demand call hierarchy from the LSP server. Static
   // symbolImports only know file→symbol; the LSP upgrades the selection to
@@ -1700,7 +1487,7 @@ export function App() {
     const roots = selectedIds.length > 0 ? selectedIds : activeId ? [activeId] : [];
     const out: AtlasEdge[] = [];
     const seen = new Set(
-      (params.granularity === "symbol"
+      (granularity === "symbol"
         ? displayGraphRef.current.edges
         : symbolEdgesRef.current
       ).map((e) => `${e.source}->${e.target}`),
@@ -1715,14 +1502,6 @@ export function App() {
     }
     return out;
   })();
-  const maxError = ringsRef.current
-    ? Math.max(
-        0,
-        ...[...ringsRef.current.leafLayouts.values()].map(
-          (l) => l.maxRelativeError,
-        ),
-      )
-    : (layoutRef.current?.maxRelativeError ?? 0);
   const innerCells = showsSymbolLevels(params.displayLevels)
     ? allInnerCells
     : [];
@@ -1733,7 +1512,7 @@ export function App() {
     const wanted = new Set(selectedIds);
     if (activeId) wanted.add(activeId);
     const cells =
-      params.granularity === "symbol" ? allCells : allInnerCells;
+      granularity === "symbol" ? allCells : allInnerCells;
     const out: CfgEntry[] = [];
     for (const cell of cells) {
       if (!wanted.has(cell.id)) continue;
@@ -1761,7 +1540,7 @@ export function App() {
     viewInfo,
     cfgVersion,
     visibleLevels,
-    params.granularity,
+    granularity,
     activeId,
     selectedIds,
   ]);
@@ -1799,28 +1578,28 @@ export function App() {
         {ringsRef.current ? (
           <RingsMapSvg
             rings={ringsRef.current}
-            innerCells={params.granularity === "file" ? innerCells : []}
+            innerCells={granularity === "file" ? innerCells : []}
             fileEdges={
-              params.granularity === "symbol"
+              granularity === "symbol"
                 ? displayGraphRef.current.edges
                 : graphRef.current.edges
             }
             symbolEdges={
-              params.granularity === "symbol"
+              granularity === "symbol"
                 ? displayGraphRef.current.edges
                 : symbolEdgesRef.current
             }
             lspEdges={lspOverlayEdges}
-            showEdges={params.showEdges || params.granularity === "symbol"}
+            showEdges={params.showEdges || granularity === "symbol"}
             showFiles={
-              params.granularity !== "module" &&
+              granularity !== "module" &&
               params.displayLevels.includes(
-                params.granularity === "symbol" ? "symbol" : "file",
+                granularity === "symbol" ? "symbol" : "file",
               )
             }
             visibleLevels={visibleLevels}
             cfgEntries={cfgEntries}
-            compactModuleLabels={params.granularity === "symbol"}
+            compactModuleLabels={granularity === "symbol"}
             cyclicIds={cyclicIds}
             cyclicModuleIds={cyclicModuleIds}
             labels={labels}
@@ -1848,7 +1627,7 @@ export function App() {
             showEdges={params.showEdges}
             visibleLevels={visibleLevels}
             cfgEntries={cfgEntries}
-            leafKind={params.granularity === "symbol" ? "symbol" : "file"}
+            leafKind={granularity === "symbol" ? "symbol" : "file"}
             labels={labels}
             changedFiles={changedFilesRef.current}
             cyclicIds={cyclicIds}
@@ -1862,20 +1641,6 @@ export function App() {
             onViewSettle={(center, zoom) =>
               setViewInfo({ x: center.x, y: center.y, zoom })
             }
-          />
-        ) : layoutRef.current ? (
-          <CellMapSvg
-            state={layoutRef.current}
-            edges={graphRef.current.edges}
-            showEdges={params.showEdges}
-            innerCells={innerCells}
-            labels={labels}
-            changedFiles={changedFilesRef.current}
-            width={WIDTH}
-            height={HEIGHT}
-            selectedId={activeId}
-            selectedIds={selectedIdSet}
-            onSelect={selectNode}
           />
         ) : null}
         {/* hierarchy breadcrumb: selection path, or the crosshair target */}
@@ -1940,57 +1705,6 @@ export function App() {
             <line x1="12" y1="9" x2="18" y2="9" stroke="#0f172a" />
           </svg>
         ) : null}
-        {/* debug stats float over the map, folded by default */}
-        <Section
-          title="ステータス"
-          defaultOpen={false}
-          style={{
-            position: "absolute",
-            right: "8px",
-            bottom: "8px",
-            width: "248px",
-            background: "rgba(248, 250, 252, 0.92)",
-            fontSize: "12px",
-          }}
-        >
-          <div style={{ display: "flex", flexDirection: "column", gap: "4px" }}>
-            <div>
-              max relative error: {(maxError * 100).toFixed(2)}%
-              {maxError < CONVERGENCE_TOLERANCE ? " (converged)" : ""}
-            </div>
-            <div>fps: {fpsRef.current.ema.toFixed(0)}</div>
-            <div>
-              cells: {allCells.length}
-              {ringsRef.current
-                ? ` / modules: ${ringsRef.current.circles.size}`
-                : ""}
-            </div>
-            {focusView ? (
-              <div
-                style={{ display: "flex", alignItems: "center", gap: "6px" }}
-              >
-                <span style={{ color: "#0369a1" }}>
-                  focus: {labelOf(focusId!)}
-                  {focusRoots.length > 1
-                    ? ` +${focusRoots.length - 1}`
-                    : ""}{" "}
-                  ({focusView.level})
-                </span>
-                <button
-                  onClick={() => setFocusId(null)}
-                  style={{
-                    padding: "2px 6px",
-                    fontSize: "11px",
-                    cursor: "pointer",
-                  }}
-                >
-                  解除
-                </button>
-              </div>
-            ) : null}
-            <Sparkline values={historyRef.current} />
-          </div>
-        </Section>
         {params.source === "sprawlens-history" && commitsRef.current ? (
           <div
             style={{
@@ -2095,6 +1809,7 @@ export function App() {
           <Controls
             params={params}
             availableModules={availableModules}
+            debug={DEBUG}
             onChange={setParams}
             onRegenerate={() => rebuild(paramsRef.current)}
             onMutateWeight={mutateWeight}
@@ -2149,7 +1864,7 @@ export function App() {
                         ? " (test)"
                         : ""}
             </div>
-            {params.granularity !== "symbol" ? (
+            {granularity !== "symbol" ? (
               <div style={{ color: "#64748b", wordBreak: "break-all" }}>
                 {activeId}
               </div>
@@ -2297,7 +2012,7 @@ export function App() {
                     }}
                   >
                     ← {labelOf(id)}
-                    {params.granularity !== "symbol" && fileOf(id) ? (
+                    {granularity !== "symbol" && fileOf(id) ? (
                       <span style={{ color: "#94a3b8" }}> · {fileOf(id)}</span>
                     ) : null}
                   </button>
@@ -2326,7 +2041,7 @@ export function App() {
                     }}
                   >
                     → {labelOf(id)}
-                    {params.granularity !== "symbol" && fileOf(id) ? (
+                    {granularity !== "symbol" && fileOf(id) ? (
                       <span style={{ color: "#94a3b8" }}> · {fileOf(id)}</span>
                     ) : null}
                   </button>

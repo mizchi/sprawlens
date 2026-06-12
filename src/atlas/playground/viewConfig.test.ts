@@ -18,12 +18,10 @@ describe("presets", () => {
 
   it("falls back to custom for unlisted combinations", () => {
     const config: ViewConfig = {
-      granularity: "file",
-      boundaries: ["module", "directory"],
+      boundaries: ["module"],
       displayLevels: ["module", "file"],
       omit: [],
       weight: "pagerank",
-      focusGranularity: "file",
     };
     expect(presetOf(config)).toBe("custom");
   });
