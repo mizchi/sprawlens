@@ -66,6 +66,9 @@ import {
   showsSymbolLevels,
 } from "./viewConfig.ts";
 import { fetchCallHierarchy, refsToEdges } from "./callHierarchyClient.ts";
+import { cfgRequestOf, fetchCfg } from "./cfgClient.ts";
+import type { CfgEntry } from "./CfgLayer.tsx";
+import type { DetailGraph } from "../contracts/detail.js";
 import {
   buildHistoryIndex,
   diffGraphs,
@@ -75,6 +78,8 @@ import {
 
 const WIDTH = 960;
 const HEIGHT = 640;
+/** The selected symbol's CFG draws once its cell fills this many px. */
+const CFG_MIN_PX = 64;
 const CONVERGENCE_TOLERANCE = 0.02;
 /** Zoom past this implicitly focuses the crosshair target (no selection). */
 /**
@@ -182,6 +187,7 @@ export function App() {
     boundaries: ["module"],
     displayLevels: ["module", "file", "symbol"],
     omit: [],
+    omitModules: [],
     directoryDepth: 3,
     weight: "loc",
     focusGranularity: "file",
@@ -340,10 +346,12 @@ export function App() {
   const effectiveGraph = (p: PlaygroundParams): AtlasGraph => {
     let graph = graphRef.current;
     const hiddenLayers = hiddenLayersOf(p.omit);
-    if (hiddenLayers.length) {
+    const omitModules = new Set(p.omitModules);
+    if (hiddenLayers.length || omitModules.size) {
       const hidden = new Set(hiddenLayers);
+      const moduleOf = moduleGrouping().groupOf;
       const nodes = graph.nodes.filter(
-        (n) => !hidden.has(defaultLayerOf(n.id)),
+        (n) => !hidden.has(defaultLayerOf(n.id)) && !omitModules.has(moduleOf(n.id)),
       );
       const ids = new Set(nodes.map((n) => n.id));
       graph = {
@@ -545,6 +553,18 @@ export function App() {
     }
     graphRef.current = graph;
     nextNodeId.current = p.count;
+    // reset the per-view lookups BEFORE the projection: effectiveGraph
+    // registers the symbol labels, which a later wipe would erase
+    historyRef.current = [];
+    innerLayoutsRef.current = new Map();
+    symbolMetaRef.current = new Map();
+    fetchedHierarchyRef.current = new Set();
+    lspEdgesRef.current = new Map();
+    labelsRef.current = new Map();
+    exportedIdsRef.current = new Set();
+    innerCellsRef.current = [];
+    innerDirtyRef.current = true;
+    refreshGraphLookups();
     const visible = effectiveGraph(p);
     if (p.layout === "rings") {
       ringsRef.current = createRingsState(visible, ringsOptions(p));
@@ -571,16 +591,6 @@ export function App() {
       ringsRef.current = null;
       treemapRef.current = null;
     }
-    historyRef.current = [];
-    innerLayoutsRef.current = new Map();
-    symbolMetaRef.current = new Map();
-    fetchedHierarchyRef.current = new Set();
-    lspEdgesRef.current = new Map();
-    labelsRef.current = new Map();
-    exportedIdsRef.current = new Set();
-    innerCellsRef.current = [];
-    innerDirtyRef.current = true;
-    refreshGraphLookups();
     setFocusId(null);
   };
 
@@ -597,7 +607,7 @@ export function App() {
   const structuralKey = `${params.source}|${params.layout}|${params.granularity}|${params.boundaries.join("+")}|${params.directoryDepth}|${params.count}|${params.seed}|${params.clipKind}`;
   // weight / filters / invert re-flow warm (the diff animation); only
   // granularity and data swaps rebuild cold
-  const detailKey = params.omit.join("+");
+  const detailKey = `${params.omit.join("+")}|${params.omitModules.join(",")}`;
   const flowKey = `${params.invertRings}|${detailKey}|${params.weight}`;
   const structuralRef = useRef(structuralKey);
   const flowKeyRef = useRef(flowKey);
@@ -735,7 +745,8 @@ export function App() {
 
       let innerActive = false;
       if (
-        showsSymbolLevels(paramsRef.current.displayLevels) &&
+        (showsSymbolLevels(paramsRef.current.displayLevels) ||
+          paramsRef.current.displayLevels.includes("cfg")) &&
         paramsRef.current.granularity === "file"
       ) {
         syncInnerLayouts(outerCells, outerActive, innerBudget);
@@ -1412,6 +1423,46 @@ export function App() {
     () => new Set<string>(params.displayLevels),
     [params.displayLevels],
   );
+  // --- dynamic CFG detail: fetched per symbol once it fills enough of the
+  // screen, cached for the session; failures (no server) cache as null ---
+  const cfgCacheRef = useRef(
+    new Map<string, DetailGraph | null | "pending">(),
+  );
+  const [cfgVersion, setCfgVersion] = useState(0);
+  // only the selected symbols carry a CFG — full-viewport CFG sweeps were
+  // both heavy and visually inconsistent
+  useEffect(() => {
+    const p = paramsRef.current;
+    if (!p.displayLevels.includes("cfg")) return;
+    if (p.source === "synthetic" || p.source === "sprawlens-history") return;
+    const wanted = new Set(selectedIds);
+    if (activeId) wanted.add(activeId);
+    for (const id of wanted) {
+      if (cfgCacheRef.current.has(id)) continue;
+      const request = cfgRequestOf(id);
+      if (!request) {
+        cfgCacheRef.current.set(id, null);
+        continue;
+      }
+      cfgCacheRef.current.set(id, "pending");
+      fetchCfg(p.source, request.file, request.line).then((graph) => {
+        cfgCacheRef.current.set(id, graph);
+        if (graph) setCfgVersion((v) => v + 1);
+      });
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeId, selectedIds, params.displayLevels, params.source]);
+
+  /** Modules present in the loaded graph — the omit-list candidates.
+   * Derived from the raw graph so omitted modules stay listed. */
+  const availableModules = useMemo(() => {
+    const moduleOf = moduleGrouping().groupOf;
+    return [
+      ...new Set(graphRef.current.nodes.map((n) => moduleOf(n.id))),
+    ].sort();
+    // graphRef refreshes only on rebuild; leafGraph tracks that identity
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [leafGraph]);
 
   const selectNode = (id: string | null, additive = false) => {
     if (id === null) {
@@ -1675,6 +1726,45 @@ export function App() {
   const innerCells = showsSymbolLevels(params.displayLevels)
     ? allInnerCells
     : [];
+  /** CFG diagrams for the selected symbols only (load + coherence). The
+   * host partition is used even when the symbol level itself is hidden. */
+  const cfgEntries = useMemo(() => {
+    if (!visibleLevels.has("cfg")) return [] as CfgEntry[];
+    const wanted = new Set(selectedIds);
+    if (activeId) wanted.add(activeId);
+    const cells =
+      params.granularity === "symbol" ? allCells : allInnerCells;
+    const out: CfgEntry[] = [];
+    for (const cell of cells) {
+      if (!wanted.has(cell.id)) continue;
+      if (cell.polygon.length < 3) continue;
+      if (Math.sqrt(cell.actualArea) * viewInfo.zoom < CFG_MIN_PX) continue;
+      const graph = cfgCacheRef.current.get(cell.id);
+      if (!graph || graph === "pending") continue;
+      let x0 = Infinity;
+      let y0 = Infinity;
+      let x1 = -Infinity;
+      let y1 = -Infinity;
+      for (const p of cell.polygon) {
+        x0 = Math.min(x0, p.x);
+        x1 = Math.max(x1, p.x);
+        y0 = Math.min(y0, p.y);
+        y1 = Math.max(y1, p.y);
+      }
+      out.push({ id: cell.id, x0, y0, x1, y1, polygon: cell.polygon, graph });
+    }
+    return out;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [
+    allCells,
+    allInnerCells,
+    viewInfo,
+    cfgVersion,
+    visibleLevels,
+    params.granularity,
+    activeId,
+    selectedIds,
+  ]);
   /** Parent file name for disambiguating symbol references in lists. */
   const fileOf = (id: string) => {
     if (id.includes("#")) return id.split("#")[0]!.split("/").pop()!;
@@ -1729,6 +1819,7 @@ export function App() {
               )
             }
             visibleLevels={visibleLevels}
+            cfgEntries={cfgEntries}
             compactModuleLabels={params.granularity === "symbol"}
             cyclicIds={cyclicIds}
             cyclicModuleIds={cyclicModuleIds}
@@ -1756,6 +1847,7 @@ export function App() {
             fileEdges={graphRef.current.edges}
             showEdges={params.showEdges}
             visibleLevels={visibleLevels}
+            cfgEntries={cfgEntries}
             leafKind={params.granularity === "symbol" ? "symbol" : "file"}
             labels={labels}
             changedFiles={changedFilesRef.current}
@@ -2002,6 +2094,7 @@ export function App() {
         <Section title="表示オプション">
           <Controls
             params={params}
+            availableModules={availableModules}
             onChange={setParams}
             onRegenerate={() => rebuild(paramsRef.current)}
             onMutateWeight={mutateWeight}

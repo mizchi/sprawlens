@@ -31,6 +31,8 @@ export type PlaygroundParams = {
   boundaries: BoundaryLevel[];
   displayLevels: DisplayLevel[];
   omit: OmitScope[];
+  /** Module ids excluded from the map entirely. */
+  omitModules: string[];
   /** Directory boundary: dirname truncated to this many segments. */
   directoryDepth: number;
   weight: WeightKind;
@@ -55,6 +57,8 @@ export type PlaygroundParams = {
 
 type Props = {
   params: PlaygroundParams;
+  /** Module ids present in the loaded graph, for the omit list. */
+  availableModules: string[];
   onChange: (params: PlaygroundParams) => void;
   onRegenerate: () => void;
   onMutateWeight: () => void;
@@ -111,7 +115,7 @@ function NumberField(props: {
 }
 
 export function Controls(props: Props) {
-  const { params, onChange } = props;
+  const { params, availableModules, onChange } = props;
   const set = <K extends keyof PlaygroundParams>(
     key: K,
     value: PlaygroundParams[K],
@@ -223,7 +227,8 @@ export function Controls(props: Props) {
                   params.granularity === "symbol" &&
                   params.boundaries.includes("file")
                 )) ||
-              (level === "symbol" && params.granularity === "module");
+              ((level === "symbol" || level === "cfg") &&
+                params.granularity === "module");
             return (
               <label
                 key={level}
@@ -277,6 +282,41 @@ export function Controls(props: Props) {
                 }}
               />
               {OMIT_LABELS[scope]}
+            </label>
+          ))}
+        </div>
+      </div>
+      <div style={row}>
+        <span style={{ width: "110px", alignSelf: "start" }}>omit modules</span>
+        <div
+          style={{
+            display: "flex",
+            gap: "8px",
+            flexWrap: "wrap",
+            maxHeight: "96px",
+            overflowY: "auto",
+            flex: "1",
+          }}
+        >
+          {availableModules.map((moduleId) => (
+            <label
+              key={moduleId}
+              style={{ display: "flex", alignItems: "center", gap: "4px" }}
+            >
+              <input
+                type="checkbox"
+                checked={params.omitModules.includes(moduleId)}
+                onInput={(e) => {
+                  const on = (e.target as HTMLInputElement).checked;
+                  set(
+                    "omitModules",
+                    on
+                      ? [...params.omitModules, moduleId]
+                      : params.omitModules.filter((m) => m !== moduleId),
+                  );
+                }}
+              />
+              {moduleId}
             </label>
           ))}
         </div>

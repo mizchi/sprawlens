@@ -1,4 +1,5 @@
 import type { AtlasEdge } from "../contracts/graph.js";
+import { symbolNameOf } from "./cfgClient.ts";
 import type {
   CapacityLayoutState,
   CellResult,
@@ -142,7 +143,10 @@ export function CellMapSvg(props: Props) {
               font-size={Math.max(fontSize, 9)}
               font-weight={cell.id === selectedId ? "700" : "400"}
             >
-              {labels?.get(cell.id) ?? cell.id}
+              {labels?.get(cell.id) ??
+                symbolNameOf(cell.id) ??
+                cell.id.split("/").pop() ??
+                cell.id}
             </text>
           );
         })}

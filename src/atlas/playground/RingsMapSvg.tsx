@@ -4,6 +4,8 @@ import type { CellResult } from "../kernel/capacityLayout.js";
 import type { Vec2 } from "../kernel/vec.js";
 import type { RingsState } from "./ringsController.ts";
 
+import { CfgLayer, cfgAnchorsOf, type CfgEntry } from "./CfgLayer.tsx";
+import { symbolNameOf } from "./cfgClient.ts";
 import {
   useMapViewport,
   type FocusRequest,
@@ -57,6 +59,8 @@ type Props = {
   /** Stratum visibility by level kind ("module", "directory", "symbol",
    * ...): the partition still uses hidden levels, they just don't draw. */
   visibleLevels?: ReadonlySet<string>;
+  /** Dynamic CFG diagrams hosted by symbol cells (zoom-gated). */
+  cfgEntries?: CfgEntry[];
   /** Symbol network: module labels show only the leaf directory until the
    * circle dominates the view, then expand to the full path, one segment
    * per line. */
@@ -83,8 +87,11 @@ function cellFill(targetArea: number, actualArea: number): string {
   return `hsl(${hue} ${30 + t * 60}% ${88 - t * 30}%)`;
 }
 
-/** Last path-ish segment as a fallback label for unlabeled ids. */
+/** Short fallback label: symbol ids reduce to the bare symbol name —
+ * never the directory path, which is unreadable at map scale. */
 function fallbackLabel(id: string): string {
+  const symbolName = symbolNameOf(id);
+  if (symbolName) return symbolName;
   const hash = id.indexOf("#");
   if (hash >= 0) return id.slice(hash + 1);
   return id.split("/").pop() ?? id;
@@ -92,6 +99,10 @@ function fallbackLabel(id: string): string {
 
 /** Zoom level at which individual symbols become interactive nodes. */
 const SYMBOL_ZOOM = 2.2;
+/** Past this natural screen size a cell's name becomes a translucent
+ * watermark behind the detail (symbols, CFG) instead of a foreground
+ * label fighting them for attention. */
+const WATERMARK_PX = 200;
 /**
  * A symbol's name appears only once its cell dominates the screen — this
  * fraction of the viewport's short side (tune to taste). Linked public
@@ -185,6 +196,12 @@ export function RingsMapSvg(props: Props) {
     return ids;
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [symbolEdges, selectedId, multiSelected, parentFileOf]);
+  // displayed CFGs re-anchor reference edges: incoming at the entry
+  // terminal, outgoing at the step block that makes the call
+  const cfgAnchors = useMemo(
+    () => cfgAnchorsOf(props.cfgEntries ?? []),
+    [props.cfgEntries],
+  );
   const resolveSite = (id: string): Vec2 | undefined => {
     const site =
       symbolSiteById.get(id) ?? fileSiteById.get(id) ?? portSiteById.get(id);
@@ -195,6 +212,19 @@ export function RingsMapSvg(props: Props) {
     }
     const circle = rings.circles.get(id);
     return circle ? { x: circle.cx, y: circle.cy } : undefined;
+  };
+  const edgeEndpoints = (edge: AtlasEdge): [Vec2, Vec2] | null => {
+    let a = resolveSite(edge.source);
+    let b = resolveSite(edge.target);
+    if (!a || !b) return null;
+    const sourceCfg = cfgAnchors.get(edge.source);
+    if (sourceCfg) {
+      const name = symbolNameOf(edge.target);
+      a = (name ? sourceCfg.calls.get(name) : undefined) ?? a;
+    }
+    const targetCfg = cfgAnchors.get(edge.target);
+    if (targetCfg) b = targetCfg.entry;
+    return [a, b];
   };
   const moduleList = useMemo(() => [...rings.circles.entries()], [rings]);
   /** Top-level (circle) ancestor of any group or leaf id. */
@@ -286,6 +316,26 @@ export function RingsMapSvg(props: Props) {
   const visibleInnerCells = innerCells.filter(
     (c) => c.polygon.length >= 3 && innerVisible(c),
   );
+  /** Files whose symbols are labeled right now: the file's own foreground
+   * name yields instead of stacking on top of the symbol's name. */
+  const labeledSymbolFiles = (() => {
+    const files = new Set<string>();
+    for (const cell of visibleInnerCells) {
+      if (cell.id.endsWith("#rest")) continue;
+      const dominant =
+        Math.sqrt(cell.actualArea) * zoom >=
+        Math.min(width, height) * SYMBOL_DOMINANT_FRACTION;
+      if (
+        dominant ||
+        linkedToSelection.has(cell.id) ||
+        isSelected(parentFileOf(cell.id)) ||
+        cell.id === selectedId
+      ) {
+        files.add(parentFileOf(cell.id));
+      }
+    }
+    return files;
+  })();
   const selectedIsSymbol =
     selectedId !== null && symbolSiteById.has(selectedId);
   // reference edges touching the selection stay visible at any zoom,
@@ -313,9 +363,9 @@ export function RingsMapSvg(props: Props) {
     const seen = new Set<string>();
     const previews: ExitPreview[] = [];
     for (const edge of edges) {
-      const a = resolveSite(edge.source);
-      const b = resolveSite(edge.target);
-      if (!a || !b) continue;
+      const ends = edgeEndpoints(edge);
+      if (!ends) continue;
+      const [a, b] = ends;
       const aIn = inside(a);
       if (aIn === inside(b)) continue;
       const near = aIn ? a : b;
@@ -617,6 +667,32 @@ export function RingsMapSvg(props: Props) {
           ) : null,
         )}
       </g>
+      {/* watermark names: at deep zoom a cell's name stays centered but
+          sinks into the background so detail layers stay readable */}
+      {sourceVisible ? (
+        <g
+          text-anchor="middle"
+          style={{ pointerEvents: "none", userSelect: "none" }}
+        >
+          {visibleFileCells.map((cell) => {
+            const fontSize = Math.sqrt(cell.actualArea) * 0.18;
+            if (fontSize * zoom < WATERMARK_PX) return null;
+            return (
+              <text
+                key={cell.id}
+                x={cell.site.x}
+                y={cell.site.y + fontSize * 0.35}
+                font-size={fontSize}
+                font-weight="600"
+                fill="#334155"
+                opacity={0.12 * fileOpacity(cell.id)}
+              >
+                {labels.get(cell.id) ?? fallbackLabel(cell.id)}
+              </text>
+            );
+          })}
+        </g>
+      ) : null}
       {showInner ? (
         <g
           stroke="#64748b"
@@ -648,12 +724,17 @@ export function RingsMapSvg(props: Props) {
           )}
         </g>
       ) : null}
+      <CfgLayer
+        entries={props.cfgEntries ?? []}
+        zoom={zoom}
+        view={committedView}
+      />
       {showEdges && sourceVisible && !focus && !symbolMode ? (
         <g stroke="#f97316" stroke-opacity={0.4} fill="none">
           {fileEdges.map((edge) => {
-            const a = fileSiteById.get(edge.source);
-            const b = fileSiteById.get(edge.target);
-            if (!a || !b) return null;
+            const ends = edgeEndpoints(edge);
+            if (!ends) return null;
+            const [a, b] = ends;
             if (Math.hypot(b.x - a.x, b.y - a.y) * zoom < MIN_EDGE_PX) {
               return null;
             }
@@ -677,9 +758,9 @@ export function RingsMapSvg(props: Props) {
       {showEdges && !focus && symbolMode ? (
         <g stroke="#7c3aed" stroke-opacity={0.45} fill="none">
           {symbolEdges.map((edge) => {
-            const a = resolveSite(edge.source);
-            const b = resolveSite(edge.target);
-            if (!a || !b) return null;
+            const ends = edgeEndpoints(edge);
+            if (!ends) return null;
+            const [a, b] = ends;
             const slack = committedView.w * 0.1;
             if (!inView(a, slack) && !inView(b, slack)) return null;
             return (
@@ -704,9 +785,9 @@ export function RingsMapSvg(props: Props) {
           ).map(([edges, color]) => (
             <g key={color} stroke={color} stroke-opacity={0.85} fill="none">
               {edges.map((edge) => {
-                const a = resolveSite(edge.source);
-                const b = resolveSite(edge.target);
-                if (!a || !b) return null;
+                const ends = edgeEndpoints(edge);
+                if (!ends) return null;
+                const [a, b] = ends;
                 return (
                   <line
                     key={`focus-${edge.source}-${edge.target}`}
@@ -739,9 +820,9 @@ export function RingsMapSvg(props: Props) {
             fill="none"
           >
             {edges.map((edge) => {
-              const a = resolveSite(edge.source);
-              const b = resolveSite(edge.target);
-              if (!a || !b) return null;
+              const ends = edgeEndpoints(edge);
+              if (!ends) return null;
+              const [a, b] = ends;
               return (
                 <line
                   key={`sel-${edge.source}-${edge.target}`}
@@ -771,9 +852,9 @@ export function RingsMapSvg(props: Props) {
             fill="none"
           >
             {edges.map((edge) => {
-              const a = resolveSite(edge.source);
-              const b = resolveSite(edge.target);
-              if (!a || !b) return null;
+              const ends = edgeEndpoints(edge);
+              if (!ends) return null;
+              const [a, b] = ends;
               return (
                 <line
                   key={`lsp-${edge.source}-${edge.target}`}
@@ -925,35 +1006,27 @@ export function RingsMapSvg(props: Props) {
         })}
         {showInner
           ? visibleFileCells.map((cell) => {
+              // past the watermark size the background copy takes over
+              if (Math.sqrt(cell.actualArea) * 0.18 * zoom >= WATERMARK_PX)
+                return null;
+              // a labeled symbol owns the spot — no stacked file name
+              if (labeledSymbolFiles.has(cell.id)) return null;
               const fontSize = screenFont(
                 Math.sqrt(cell.actualArea) * 0.18,
                 9,
                 15,
                 cell.id === selectedId,
-                // detailed cells keep their header even when the viewport
-                // sits inside them; the name doubles as a block title
-                allowedFiles.has(cell.id) ? Infinity : 250,
+                WATERMARK_PX,
               );
               if (fontSize === null) return null;
-              // the name stays centered until the file is selected
-              // (explicitly or via zoom focus); only then it becomes a
-              // block-top header clearing room for the symbol labels
-              const detailed = cell.id === selectedId;
-              let y = cell.site.y + fontSize * 0.35;
-              if (detailed) {
-                let minY = Infinity;
-                for (const p of cell.polygon) minY = Math.min(minY, p.y);
-                y = minY + fontSize * 1.2;
-              }
               return (
                 <text
                   key={cell.id}
                   x={cell.site.x}
-                  y={y}
+                  y={cell.site.y + fontSize * 0.35}
                   font-size={fontSize}
-                  font-weight={detailed ? "600" : "400"}
                   fill={testFileIds.has(cell.id) ? "#7a8699" : "#334155"}
-                  opacity={fileOpacity(cell.id) * (detailed ? 0.85 : 1)}
+                  opacity={fileOpacity(cell.id)}
                 >
                   {labels.get(cell.id) ?? fallbackLabel(cell.id)}
                 </text>

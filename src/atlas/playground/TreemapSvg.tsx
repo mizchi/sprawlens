@@ -3,6 +3,8 @@ import type { AtlasEdge } from "../contracts/graph.js";
 import { bundlePath, hierarchyControlPoints } from "../kernel/bundling.js";
 import type { CellResult } from "../kernel/capacityLayout.js";
 import type { Vec2 } from "../kernel/vec.js";
+import { CfgLayer, cfgAnchorsOf, type CfgEntry } from "./CfgLayer.tsx";
+import { symbolNameOf } from "./cfgClient.ts";
 import type { TreemapState } from "./treemapController.js";
 import {
   useMapViewport,
@@ -26,6 +28,8 @@ type Props = {
   visibleLevels?: ReadonlySet<string>;
   /** Kind of the leaf cells ("file" or "symbol"). */
   leafKind?: string;
+  /** Dynamic CFG diagrams hosted by symbol cells (zoom-gated). */
+  cfgEntries?: CfgEntry[];
   width: number;
   height: number;
   selectedId: string | null;
@@ -90,7 +94,7 @@ export function TreemapSvg(props: Props) {
   const levelVisible = (kind: string): boolean =>
     props.visibleLevels?.has(kind) ?? true;
   const leafVisible = levelVisible(props.leafKind ?? "file");
-  const { svgProps, zoom } = useMapViewport({
+  const { svgProps, zoom, committedView } = useMapViewport({
     width,
     height,
     focusRequest: props.focusRequest,
@@ -123,6 +127,12 @@ export function TreemapSvg(props: Props) {
     return current;
   };
 
+  // displayed CFGs re-anchor reference edges: incoming at the entry
+  // terminal, outgoing at the step block that makes the call
+  const cfgAnchors = useMemo(
+    () => cfgAnchorsOf(props.cfgEntries ?? []),
+    [props.cfgEntries],
+  );
   const bundleOf = (edge: AtlasEdge) => {
     const path = hierarchyControlPoints(
       edge.source,
@@ -131,6 +141,14 @@ export function TreemapSvg(props: Props) {
       positionOf,
     );
     if (!path) return null;
+    const sourceCfg = cfgAnchors.get(edge.source);
+    if (sourceCfg) {
+      const name = symbolNameOf(edge.target);
+      const anchor = name ? sourceCfg.calls.get(name) : undefined;
+      if (anchor) path[0] = anchor;
+    }
+    const targetCfg = cfgAnchors.get(edge.target);
+    if (targetCfg) path[path.length - 1] = targetCfg.entry;
     const first = path[0]!;
     const last = path[path.length - 1]!;
     return {
@@ -147,7 +165,7 @@ export function TreemapSvg(props: Props) {
       const b = bundleOf(edge);
       return b ? [b] : [];
     });
-  }, [props.fileEdges, props.showEdges, focus, state, positionOf, bundleStrength]);
+  }, [props.fileEdges, props.showEdges, focus, state, positionOf, bundleStrength, cfgAnchors]);
 
   // extraction mode: only the focused paths render, in direction colors
   const focusBundles = useMemo(() => {
@@ -163,7 +181,7 @@ export function TreemapSvg(props: Props) {
         return b ? [{ ...b, color }] : [];
       }),
     );
-  }, [focus, state, positionOf, bundleStrength]);
+  }, [focus, state, positionOf, bundleStrength, cfgAnchors]);
 
   const moduleOpacity = (id: string): number =>
     focus && !focus.moduleIds.has(id) ? DIM : 1;
@@ -193,7 +211,8 @@ export function TreemapSvg(props: Props) {
         isSelected(c.id) ||
         props.changedFiles?.has(c.id)),
   );
-  const labelOf = (id: string): string => props.labels?.get(id) ?? id;
+  const labelOf = (id: string): string =>
+    props.labels?.get(id) ?? symbolNameOf(id) ?? id.split("/").pop() ?? id;
 
   return (
     <svg
@@ -281,6 +300,11 @@ export function TreemapSvg(props: Props) {
           />
         ))}
       </g>
+      <CfgLayer
+        entries={props.cfgEntries ?? []}
+        zoom={zoom}
+        view={committedView}
+      />
       {/* bundled dependency edges */}
       {props.showEdges && !focus ? (
         <g fill="none">

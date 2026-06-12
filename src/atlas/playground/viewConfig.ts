@@ -49,10 +49,7 @@ export const DISPLAY_LEVELS: readonly DisplayLevel[] = [
   "cfg",
 ];
 /** No dynamic provider yet; the UI lists them disabled. */
-export const UNAVAILABLE_LEVELS: ReadonlySet<DisplayLevel> = new Set([
-  "ast",
-  "cfg",
-]);
+export const UNAVAILABLE_LEVELS: ReadonlySet<DisplayLevel> = new Set(["ast"]);
 
 /**
  * Omit scopes exclude whole content categories from the map, orthogonal

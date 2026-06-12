@@ -30,6 +30,9 @@ export type FocusView = {
 export type ViewBox = { x: number; y: number; w: number; h: number };
 
 const COMMIT_MS = 120;
+/** Deepest zoom-in: dynamic detail levels (CFG inside a symbol cell)
+ * need far more magnification than the cell map itself. */
+const MAX_ZOOM = 400;
 const FLIGHT_MS = 450;
 
 /**
@@ -95,7 +98,7 @@ export function useMapViewport(options: {
     const from = { ...viewRef.current };
     const fromCx = from.x + from.w / 2;
     const fromCy = from.y + from.h / 2;
-    const toW = Math.min(Math.max(focusRequest.viewW, width / 40), width * 3);
+    const toW = Math.min(Math.max(focusRequest.viewW, width / MAX_ZOOM), width * 3);
     const toH = toW * (height / width);
     // rAF never fires in hidden tabs — land instantly there
     if (document.visibilityState === "hidden") {
@@ -144,7 +147,7 @@ export function useMapViewport(options: {
     if (!rect) return;
     const factor = Math.exp(event.deltaY * 0.0018);
     const v = viewRef.current;
-    const newW = Math.min(Math.max(v.w * factor, width / 40), width * 3);
+    const newW = Math.min(Math.max(v.w * factor, width / MAX_ZOOM), width * 3);
     const scale = newW / v.w;
     const px = v.x + ((event.clientX - rect.left) / rect.width) * v.w;
     const py = v.y + ((event.clientY - rect.top) / rect.height) * v.h;
