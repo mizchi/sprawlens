@@ -4,6 +4,7 @@ import {
   circleToPolygon,
   clipHalfPlane,
   convexHull,
+  nearestPointInRing,
   signedArea,
 } from "./polygon.js";
 
@@ -119,5 +120,36 @@ describe("convexHull", () => {
 
   it("passes tiny inputs through", () => {
     expect(convexHull([{ x: 3, y: 4 }])).toEqual([{ x: 3, y: 4 }]);
+  });
+});
+
+describe("nearestPointInRing", () => {
+  it("returns interior points unchanged", () => {
+    const p = { x: 0.3, y: 0.7 };
+    expect(nearestPointInRing(unitSquare, p)).toEqual(p);
+  });
+
+  it("projects onto the closest edge", () => {
+    expect(nearestPointInRing(unitSquare, { x: 2, y: 0.5 })).toEqual({
+      x: 1,
+      y: 0.5,
+    });
+    expect(nearestPointInRing(unitSquare, { x: 0.25, y: -3 })).toEqual({
+      x: 0.25,
+      y: 0,
+    });
+  });
+
+  it("projects onto the closest corner when beyond both edges", () => {
+    const projected = nearestPointInRing(unitSquare, { x: 4, y: 5 });
+    expect(projected.x).toBeCloseTo(1, 12);
+    expect(projected.y).toBeCloseTo(1, 12);
+  });
+
+  it("handles degenerate rings by averaging", () => {
+    expect(nearestPointInRing([{ x: 2, y: 3 }], { x: 9, y: 9 })).toEqual({
+      x: 2,
+      y: 3,
+    });
   });
 });

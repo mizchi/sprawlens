@@ -5,7 +5,7 @@ import {
   randomPointIn,
   type ClipRegion,
 } from "./clip.js";
-import { signedArea } from "./polygon.js";
+import { centroid, nearestPointInRing, signedArea, type Ring } from "./polygon.js";
 import { createRng } from "./rng.js";
 import type { Vec2 } from "./vec.js";
 
@@ -20,6 +20,14 @@ export type ForceOptions = {
   repulsionStrength?: number;
   /** Pull toward the clip center. */
   gravity?: number;
+  /**
+   * Per-node confinement (convex CCW ring). Constrained nodes are projected
+   * to the nearest point of their region every step (projected gradient), so
+   * springs across regions still act while nodes stay inside their parent
+   * cell. Gravity pulls these nodes toward their region centroid instead of
+   * the clip center.
+   */
+  regions?: ReadonlyMap<string, Ring>;
 };
 
 export type ForceLayoutState = {
@@ -28,6 +36,8 @@ export type ForceLayoutState = {
   edges: ForceInputEdge[];
   clip: ClipRegion;
   radii: Map<string, number>;
+  /** Gravity anchor per constrained node (its region centroid). */
+  regionCenters: Map<string, Vec2>;
   iteration: number;
   options: Required<ForceOptions>;
 };
@@ -37,6 +47,7 @@ const DEFAULT_OPTIONS: Required<ForceOptions> = {
   springStrength: 0.08,
   repulsionStrength: 0.04,
   gravity: 0.02,
+  regions: new Map<string, Ring>(),
 };
 
 export function createForceLayout(
@@ -53,12 +64,17 @@ export function createForceLayout(
     }
   }
   const rng = createRng(opts.seed);
+  const regionCenters = new Map<string, Vec2>();
+  for (const [id, ring] of opts.regions) regionCenters.set(id, centroid(ring));
   const positions = new Map<string, Vec2>();
   for (const node of nodes) {
-    positions.set(
-      node.id,
-      node.hint ? clampInto(clip, node.hint) : randomPointIn(clip, rng),
-    );
+    const region = opts.regions.get(node.id);
+    const free = node.hint
+      ? clampInto(clip, node.hint)
+      : region
+        ? randomPointIn({ kind: "polygon", ring: region }, rng)
+        : randomPointIn(clip, rng);
+    positions.set(node.id, region ? nearestPointInRing(region, free) : free);
   }
   // Node radius approximates the cell it will eventually occupy, so the
   // repulsion/rest distances already reflect target areas.
@@ -77,7 +93,16 @@ export function createForceLayout(
         scale * 1e-3,
     ]),
   );
-  return { positions, nodes, edges, clip, radii, iteration: 0, options: opts };
+  return {
+    positions,
+    nodes,
+    edges,
+    clip,
+    radii,
+    regionCenters,
+    iteration: 0,
+    options: opts,
+  };
 }
 
 export function forceStep(state: ForceLayoutState): ForceLayoutState {
@@ -145,8 +170,9 @@ export function forceStep(state: ForceLayoutState): ForceLayoutState {
   for (const node of nodes) {
     const p = state.positions.get(node.id)!;
     const d = disp.get(node.id)!;
-    d.x += (center.x - p.x) * options.gravity;
-    d.y += (center.y - p.y) * options.gravity;
+    const anchor = state.regionCenters.get(node.id) ?? center;
+    d.x += (anchor.x - p.x) * options.gravity;
+    d.y += (anchor.y - p.y) * options.gravity;
   }
 
   const positions = new Map<string, Vec2>();
@@ -155,12 +181,14 @@ export function forceStep(state: ForceLayoutState): ForceLayoutState {
     const d = disp.get(node.id)!;
     const mag = Math.hypot(d.x, d.y);
     const limit = mag > maxMove ? maxMove / mag : 1;
+    const next = {
+      x: p.x + d.x * limit * cooling,
+      y: p.y + d.y * limit * cooling,
+    };
+    const region = options.regions.get(node.id);
     positions.set(
       node.id,
-      clampInto(clip, {
-        x: p.x + d.x * limit * cooling,
-        y: p.y + d.y * limit * cooling,
-      }),
+      region ? nearestPointInRing(region, next) : clampInto(clip, next),
     );
   }
   return { ...state, positions, iteration: state.iteration + 1 };

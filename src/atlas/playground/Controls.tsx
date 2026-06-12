@@ -14,7 +14,7 @@ export type DataSource =
   | "sprawlens"
   | "sprawlens-history"
   | "playwright";
-export type LayoutKind = "rings" | "flat";
+export type LayoutKind = "rings" | "treemap" | "flat";
 
 export type PlaygroundParams = {
   source: DataSource;
@@ -245,6 +245,7 @@ export function Controls(props: Props) {
           }
         >
           <option value="rings">rings (modules)</option>
+          <option value="treemap">treemap (bundled)</option>
           <option value="flat">flat (files)</option>
         </select>
       </label>

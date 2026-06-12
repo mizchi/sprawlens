@@ -44,6 +44,15 @@ describe("polygon clip", () => {
     expect(insideTriangle(out)).toBe(true);
   });
 
+  it("clamps to (near) the nearest boundary point, not the centroid ray", () => {
+    // directly right of the hypotenuse midpoint: nearest point is (2,2);
+    // a centroid-ray pull would land far from it
+    const out = clampInto(triangle, { x: 3, y: 3 });
+    expect(out.x).toBeCloseTo(2, 1);
+    expect(out.y).toBeCloseTo(2, 1);
+    expect(insideTriangle(out)).toBe(true);
+  });
+
   it("uses the polygon centroid as center", () => {
     const c = clipCenter(triangle);
     expect(c.x).toBeCloseTo(4 / 3, 9);

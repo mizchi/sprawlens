@@ -31,6 +31,12 @@ import {
   stepRingsState,
   type RingsState,
 } from "./ringsController.ts";
+import {
+  createTreemapState,
+  stepTreemapState,
+  type TreemapState,
+} from "./treemapController.ts";
+import { TreemapSvg } from "./TreemapSvg.tsx";
 import { reachSubgraph } from "../kernel/reach.js";
 import { cyclicComponents } from "../kernel/scc.js";
 import {
@@ -212,6 +218,7 @@ export function App() {
   const graphRef = useRef<AtlasGraph>(null as unknown as AtlasGraph);
   const layoutRef = useRef<CapacityLayoutState | null>(null);
   const ringsRef = useRef<RingsState | null>(null);
+  const treemapRef = useRef<TreemapState | null>(null);
   const historyRef = useRef<number[]>([]);
   const fpsRef = useRef({ last: 0, ema: 0 });
   /** Frames since the last repaint commit while a big map converges. */
@@ -283,6 +290,14 @@ export function App() {
     adaptationRate: p.adaptationRate,
     lloydRate: p.lloydRate,
     moduleIdOf: p.granularity === "symbol" ? apiModuleIdOf : undefined,
+  });
+
+  const treemapOptions = (p: PlaygroundParams) => ({
+    width: WIDTH,
+    height: HEIGHT,
+    seed: p.seed,
+    adaptationRate: p.adaptationRate,
+    lloydRate: p.lloydRate,
   });
 
   const symbolsForFile = (fileId: string): AtlasNode[] => {
@@ -506,6 +521,11 @@ export function App() {
     if (p.layout === "rings") {
       ringsRef.current = createRingsState(visible, ringsOptions(p));
       layoutRef.current = null;
+      treemapRef.current = null;
+    } else if (p.layout === "treemap") {
+      treemapRef.current = createTreemapState(visible, treemapOptions(p));
+      ringsRef.current = null;
+      layoutRef.current = null;
     } else {
       const clip = clipOf(p.clipKind);
       const seedHints = embedSeedHints(visible, clip);
@@ -521,6 +541,7 @@ export function App() {
           : forceIterationsFor(visible.nodes.length),
       });
       ringsRef.current = null;
+      treemapRef.current = null;
     }
     historyRef.current = [];
     innerLayoutsRef.current = new Map();
@@ -535,7 +556,13 @@ export function App() {
     setFocusId(null);
   };
 
-  if (layoutRef.current === null && ringsRef.current === null) rebuild(params);
+  if (
+    layoutRef.current === null &&
+    ringsRef.current === null &&
+    treemapRef.current === null
+  ) {
+    rebuild(params);
+  }
 
   // structural params trigger a rebuild; invert re-rings warm; solver params
   // only update options on the existing layout
@@ -638,6 +665,24 @@ export function App() {
           outerCells.push(...layout.cells);
           maxError = Math.max(maxError, layout.maxRelativeError);
         }
+      } else if (treemapRef.current) {
+        let steps = 0;
+        let active = true;
+        while (
+          active &&
+          steps < maxSteps &&
+          performance.now() - solverStart < solverBudget
+        ) {
+          const result = stepTreemapState(treemapRef.current, 1);
+          treemapRef.current = result.state;
+          active = result.active;
+          steps++;
+        }
+        outerActive = active;
+        for (const layout of treemapRef.current.fileLayouts.values()) {
+          outerCells.push(...layout.cells);
+          maxError = Math.max(maxError, layout.maxRelativeError);
+        }
       } else if (layoutRef.current) {
         let state = layoutRef.current;
         outerActive = !isConverged(state, CONVERGENCE_TOLERANCE / 4);
@@ -714,6 +759,13 @@ export function App() {
         ringsOptions(paramsRef.current),
       );
     }
+    if (treemapRef.current) {
+      // no warm path yet: module cells move anyway when weights shift
+      treemapRef.current = createTreemapState(
+        effectiveGraph(paramsRef.current),
+        treemapOptions(paramsRef.current),
+      );
+    }
     if (changedFileId) innerLayoutsRef.current.delete(changedFileId);
     if (paramsRef.current.source === "synthetic") {
       symbolEdgesRef.current = synthesizeSymbolEdges(
@@ -753,6 +805,11 @@ export function App() {
         ringsRef.current,
         effectiveGraph(paramsRef.current),
         ringsOptions(paramsRef.current),
+      );
+    } else if (treemapRef.current) {
+      treemapRef.current = createTreemapState(
+        effectiveGraph(paramsRef.current),
+        treemapOptions(paramsRef.current),
       );
     } else if (layoutRef.current) {
       const visible = effectiveGraph(paramsRef.current);
@@ -1539,6 +1596,20 @@ export function App() {
             onViewSettle={(center, zoom) =>
               setViewInfo({ x: center.x, y: center.y, zoom })
             }
+          />
+        ) : treemapRef.current ? (
+          <TreemapSvg
+            state={treemapRef.current}
+            fileEdges={graphRef.current.edges}
+            showEdges={params.showEdges}
+            labels={labels}
+            changedFiles={changedFilesRef.current}
+            cyclicIds={cyclicIds}
+            width={WIDTH}
+            height={HEIGHT}
+            selectedId={activeId}
+            selectedIds={selectedIdSet}
+            onSelect={selectNode}
           />
         ) : layoutRef.current ? (
           <CellMapSvg

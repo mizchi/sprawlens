@@ -97,6 +97,46 @@ export function circleToPolygon(circle: Circle, segments: number): Ring {
 }
 
 /**
+ * Nearest point of a convex ring to `p`: `p` itself when inside, otherwise
+ * the closest point on the boundary (projected-gradient constraint for
+ * region-confined layouts).
+ */
+export function nearestPointInRing(ring: Ring, p: Vec2): Vec2 {
+  if (ring.length < 3) {
+    if (ring.length === 0) return p;
+    let sx = 0;
+    let sy = 0;
+    for (const v of ring) {
+      sx += v.x;
+      sy += v.y;
+    }
+    return { x: sx / ring.length, y: sy / ring.length };
+  }
+  if (containsPoint(ring, p)) return p;
+  let best: Vec2 = ring[0]!;
+  let bestD2 = Infinity;
+  for (let i = 0; i < ring.length; i++) {
+    const a = ring[i]!;
+    const b = ring[(i + 1) % ring.length]!;
+    const ex = b.x - a.x;
+    const ey = b.y - a.y;
+    const len2 = ex * ex + ey * ey;
+    const t =
+      len2 > 0
+        ? Math.max(0, Math.min(1, ((p.x - a.x) * ex + (p.y - a.y) * ey) / len2))
+        : 0;
+    const qx = a.x + ex * t;
+    const qy = a.y + ey * t;
+    const d2 = (p.x - qx) ** 2 + (p.y - qy) ** 2;
+    if (d2 < bestD2) {
+      bestD2 = d2;
+      best = { x: qx, y: qy };
+    }
+  }
+  return best;
+}
+
+/**
  * Convex hull (Andrew monotone chain), CCW in screen coordinates.
  * Returns fewer than 3 points unchanged; collinear inputs collapse to
  * their extremes — callers needing an area must check the result.

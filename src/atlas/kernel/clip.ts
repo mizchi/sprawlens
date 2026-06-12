@@ -1,4 +1,9 @@
-import { centroid, circleToPolygon, type Ring } from "./polygon.js";
+import {
+  centroid,
+  circleToPolygon,
+  nearestPointInRing,
+  type Ring,
+} from "./polygon.js";
 import type { Rng } from "./rng.js";
 import type { Vec2 } from "./vec.js";
 
@@ -85,25 +90,11 @@ export function clampInto(clip: ClipRegion, p: Vec2): Vec2 {
   }
   if (clip.kind === "polygon") {
     if (insideConvex(clip.ring, p)) return p;
-    // pull the point onto the centroid→p ray, just inside the boundary
+    // projected gradient: nearest boundary point, nudged inside so sites
+    // never sit exactly on the clip edge
+    const q = nearestPointInRing(clip.ring, p);
     const c = centroid(clip.ring);
-    let bestT = Infinity;
-    for (let i = 0; i < clip.ring.length; i++) {
-      const a = clip.ring[i]!;
-      const b = clip.ring[(i + 1) % clip.ring.length]!;
-      const ex = b.x - a.x;
-      const ey = b.y - a.y;
-      const dx = p.x - c.x;
-      const dy = p.y - c.y;
-      const denom = dx * ey - dy * ex;
-      if (Math.abs(denom) < 1e-12) continue;
-      const t = ((a.x - c.x) * ey - (a.y - c.y) * ex) / denom;
-      const u = (dx * (a.y - c.y) - dy * (a.x - c.x)) / -denom;
-      if (t > 0 && u >= 0 && u <= 1 && t < bestT) bestT = t;
-    }
-    if (!Number.isFinite(bestT)) return c;
-    const f = bestT * 0.99;
-    return { x: c.x + (p.x - c.x) * f, y: c.y + (p.y - c.y) * f };
+    return { x: q.x + (c.x - q.x) * 0.01, y: q.y + (c.y - q.y) * 0.01 };
   }
   const dx = p.x - clip.cx;
   const dy = p.y - clip.cy;
