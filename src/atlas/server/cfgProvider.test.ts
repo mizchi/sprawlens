@@ -11,11 +11,6 @@ const adjacency = (graph: { edges: { source: string; target: string }[] }) => {
   return out;
 };
 
-const labelOf = (
-  graph: { nodes: { id: string; label: string }[] },
-  id: string,
-) => graph.nodes.find((n) => n.id === id)?.label;
-
 describe("extractCfg", () => {
   it("builds entry → block → exit for a straight-line function", () => {
     const graph = extractCfg(

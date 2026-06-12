@@ -75,33 +75,6 @@ const OMIT_LABELS: Record<OmitScope, string> = {
   "private-symbol": "private symbol",
 };
 
-function NumberField(props: {
-  label: string;
-  value: number;
-  min: number;
-  max: number;
-  step: number;
-  onInput: (value: number) => void;
-}) {
-  return (
-    <label style={row}>
-      <span style={{ width: "110px" }}>{props.label}</span>
-      <input
-        type="range"
-        min={props.min}
-        max={props.max}
-        step={props.step}
-        value={props.value}
-        onInput={(e) =>
-          props.onInput(Number((e.target as HTMLInputElement).value))
-        }
-        style={{ flex: "1" }}
-      />
-      <span style={{ width: "48px", textAlign: "right" }}>{props.value}</span>
-    </label>
-  );
-}
-
 export function Controls(props: Props) {
   const { params, availableModules, onChange } = props;
   const set = <K extends keyof PlaygroundParams>(

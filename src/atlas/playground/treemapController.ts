@@ -14,7 +14,6 @@ import {
   createCapacityLayout,
   isConverged,
   type CapacityLayoutState,
-  type CellResult,
   type ClipRegion,
 } from "../kernel/capacityLayout.js";
 import {
@@ -48,7 +47,7 @@ export type TreemapOptions = {
   lloydRate?: number;
   /**
    * Display boundary chain, outer → inner; defaults to a single module
-   * level. Must not be empty (the flat layout covers the no-boundary case).
+   * level. Must not be empty.
    */
   boundaries?: readonly Grouping[];
   /** Level-native edges (service communication etc.), keyed by level kind. */

@@ -336,8 +336,6 @@ export function RingsMapSvg(props: Props) {
     }
     return files;
   })();
-  const selectedIsSymbol =
-    selectedId !== null && symbolSiteById.has(selectedId);
   // reference edges touching the selection stay visible at any zoom,
   // colored by direction (outgoing = dependencies, incoming = dependents)
   /**
