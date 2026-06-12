@@ -1654,6 +1654,9 @@ export function App() {
         ) : treemapRef.current ? (
           <TreemapSvg
             state={treemapRef.current}
+            innerCells={granularity === "file" ? innerCells : []}
+            exportedIds={exportedIds}
+            parentFileOf={parentFileOf}
             fileEdges={
               granularity === "symbol"
                 ? displayGraphRef.current.edges

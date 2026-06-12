@@ -6,7 +6,11 @@ import { CfgLayer, cfgAnchorsOf, type CfgEntry } from "./CfgLayer.tsx";
 import {
   BUNDLE_STRENGTH,
   DOWNSTREAM_COLOR,
+  ExitPreviewsLayer,
+  EXPORTED_LABEL,
+  INTERNAL_LABEL,
   makeEdgeBundler,
+  SYMBOL_DOMINANT_FRACTION,
   selectionDirections,
   focusDimOf,
   InnerLevelsLayer,
@@ -37,6 +41,11 @@ type Props = {
   cyclicIds?: Set<string>;
   /** File ids on the test layer; rendered with the shared muted fill. */
   testFileIds?: Set<string>;
+  /** Nested symbol layouts inside the file cells (file granularity). */
+  innerCells?: CellResult[];
+  exportedIds?: Set<string>;
+  /** Symbol id → parent file id, for label gating. */
+  parentFileOf?: (id: string) => string;
   /** Dependency-path extraction: members stay lit, everything else dims. */
   focus?: FocusView | null;
   /** Stratum visibility by level kind: the partition still uses hidden
@@ -160,6 +169,32 @@ export function TreemapSvg(props: Props) {
     [props.fileEdges, selectedId, multiSelected, noSelection, focus],
   );
 
+  const edgeEndpoints = (edge: AtlasEdge): [Vec2, Vec2] | null => {
+    let a = positionOf.get(edge.source);
+    let b = positionOf.get(edge.target);
+    if (!a || !b) return null;
+    const sourceCfg = cfgAnchors.get(edge.source);
+    if (sourceCfg) {
+      const name = symbolNameOf(edge.target);
+      a = (name ? sourceCfg.calls.get(name) : undefined) ?? a;
+    }
+    const targetCfg = cfgAnchors.get(edge.target);
+    if (targetCfg) b = targetCfg.entry;
+    return [a, b];
+  };
+
+  const innerCells = props.innerCells ?? [];
+  const parentFileOf = props.parentFileOf ?? ((id: string) => id);
+  const showInner = zoom > 0.8 && innerCells.length > 0;
+  const visibleInnerCells = showInner
+    ? innerCells.filter(
+        (c) =>
+          c.polygon.length >= 3 &&
+          (Math.sqrt(c.actualArea) * zoom >= MIN_CELL_PX ||
+            isSelected(c.id)),
+      )
+    : [];
+
   const fillOf = (cell: CellResult): string =>
     leafFillOf(cell.id, {
       changedFiles: props.changedFiles,
@@ -254,6 +289,64 @@ export function TreemapSvg(props: Props) {
           dim={dim}
         />
       ) : null}
+      {/* nested symbols inside file cells (same rules as rings) */}
+      {showInner ? (
+        <g stroke="#64748b" stroke-width={0.4} stroke-opacity={0.8}>
+          {visibleInnerCells.map((cell) =>
+            cell.id.endsWith("#rest") ? null : (
+              <polygon
+                key={cell.id}
+                points={cell.polygon.map((p) => `${p.x},${p.y}`).join(" ")}
+                fill="transparent"
+                stroke={isSelected(cell.id) ? SELECT_STROKE : undefined}
+                stroke-width={isSelected(cell.id) ? 1.6 : undefined}
+                opacity={dim.symbol(cell.id)}
+                onClick={(event) => {
+                  event.stopPropagation();
+                  onSelect(cell.id, event.shiftKey);
+                }}
+              />
+            ),
+          )}
+        </g>
+      ) : null}
+      {showInner ? (
+        <g
+          text-anchor="middle"
+          style={{ pointerEvents: "none", userSelect: "none" }}
+        >
+          {visibleInnerCells.map((cell) => {
+            if (cell.id.endsWith("#rest")) return null;
+            const fileSelected = isSelected(parentFileOf(cell.id));
+            const dominant =
+              Math.sqrt(cell.actualArea) * zoom >=
+              Math.min(width, height) * SYMBOL_DOMINANT_FRACTION;
+            if (!fileSelected && !dominant && !isSelected(cell.id)) {
+              return null;
+            }
+            const fontSize = Math.min(
+              Math.max(Math.sqrt(cell.actualArea) * 0.3, 9 / zoom),
+              13 / zoom,
+            );
+            return (
+              <text
+                key={cell.id}
+                x={cell.site.x}
+                y={cell.site.y - 4 / zoom}
+                font-size={fontSize}
+                fill={
+                  props.exportedIds?.has(cell.id)
+                    ? EXPORTED_LABEL
+                    : INTERNAL_LABEL
+                }
+                opacity={dim.symbol(cell.id)}
+              >
+                {labelOf(cell.id)}
+              </text>
+            );
+          })}
+        </g>
+      ) : null}
       <CfgLayer
         entries={props.cfgEntries ?? []}
         zoom={zoom}
@@ -303,6 +396,7 @@ export function TreemapSvg(props: Props) {
                   stroke={color}
                   stroke-opacity={0.9}
                   stroke-width={1.6}
+                  stroke-dasharray={`${5 / zoom} ${4 / zoom}`}
                   style={{ pointerEvents: "none" }}
                 />
               );
@@ -336,9 +430,10 @@ export function TreemapSvg(props: Props) {
       >
         {[...topCells.values()].map((cell) => {
           if (cell.polygon.length < 3) return null;
+          // screen-px cap: district names stay readable, never dominant
           const fontSize = Math.min(
             Math.sqrt(cell.actualArea) * 0.18,
-            22 / zoom + 6,
+            28 / zoom,
           );
           return (
             <text
@@ -370,7 +465,12 @@ export function TreemapSvg(props: Props) {
           if (isWatermarkSized(cell, zoom)) return null;
           const px = Math.sqrt(cell.actualArea) * zoom;
           if (px < 46 && !isSelected(cell.id)) return null;
-          const fontSize = Math.max(Math.sqrt(cell.actualArea) * 0.14, 9 / zoom);
+          // screen-px cap (like rings): the name stays modest while
+          // zooming until the watermark copy takes over
+          const fontSize = Math.min(
+            Math.max(Math.sqrt(cell.actualArea) * 0.14, 9 / zoom),
+            16 / zoom,
+          );
           return (
             <text
               key={cell.id}
@@ -385,6 +485,27 @@ export function TreemapSvg(props: Props) {
           );
         })}
       </g>
+      {(focus
+        ? ([
+            [focus.downstreamEdges, DOWNSTREAM_COLOR, "exit-focus-down"],
+            [focus.upstreamEdges, UPSTREAM_COLOR, "exit-focus-up"],
+          ] as const)
+        : ([
+            [directions.outgoing, DOWNSTREAM_COLOR, "exit-sel-down"],
+            [directions.incoming, UPSTREAM_COLOR, "exit-sel-up"],
+          ] as const)
+      ).map(([edges, color, key]) => (
+        <ExitPreviewsLayer
+          key={key}
+          edges={edges}
+          color={color}
+          view={committedView}
+          endpointsOf={edgeEndpoints}
+          labelOf={labelOf}
+          onSelect={onSelect}
+          zoom={zoom}
+        />
+      ))}
     </svg>
   );
 }

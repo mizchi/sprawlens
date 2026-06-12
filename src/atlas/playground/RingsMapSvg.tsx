@@ -9,7 +9,10 @@ import {
   DIM,
   DOWNSTREAM_COLOR,
   DOWNSTREAM_FILL,
+  ExitPreviewsLayer,
   focusDimOf,
+  SYMBOL_DOMINANT_FRACTION,
+  SYMBOL_ZOOM,
   InnerLevelsLayer,
   isWatermarkSized,
   leafFillOf,
@@ -91,14 +94,6 @@ function fallbackLabel(id: string): string {
   return id.split("/").pop() ?? id;
 }
 
-/** Zoom level at which individual symbols become interactive nodes. */
-const SYMBOL_ZOOM = 2.2;
-/**
- * A symbol's name appears only once its cell dominates the screen — this
- * fraction of the viewport's short side (tune to taste). Linked public
- * symbols and symbols of the selected file are exempt.
- */
-const SYMBOL_DOMINANT_FRACTION = 0.35;
 /** Cells smaller than this on screen render as nothing — the module
  * circle's fill carries the texture; zooming in reveals them. */
 const MIN_CELL_PX = 2.5;
@@ -359,126 +354,6 @@ export function RingsMapSvg(props: Props) {
    * edge — you can read (and click) what's at the other end without
    * panning. One preview per far node.
    */
-  type ExitPreview = {
-    id: string;
-    x: number;
-    y: number;
-    side: "left" | "right" | "top" | "bottom";
-  };
-  const exitPreviews = (edges: AtlasEdge[]): ExitPreview[] => {
-    const v = committedView;
-    const x0 = v.x;
-    const x1 = v.x + v.w;
-    const y0 = v.y;
-    const y1 = v.y + v.h;
-    const inside = (p: Vec2) =>
-      p.x >= x0 && p.x <= x1 && p.y >= y0 && p.y <= y1;
-    const seen = new Set<string>();
-    const previews: ExitPreview[] = [];
-    for (const edge of edges) {
-      const ends = edgeEndpoints(edge);
-      if (!ends) continue;
-      const [a, b] = ends;
-      const aIn = inside(a);
-      if (aIn === inside(b)) continue;
-      const near = aIn ? a : b;
-      const far = aIn ? b : a;
-      const farId = aIn ? edge.target : edge.source;
-      if (seen.has(farId)) continue;
-      seen.add(farId);
-      const dx = far.x - near.x;
-      const dy = far.y - near.y;
-      let t = 1;
-      let side: ExitPreview["side"] = "right";
-      if (dx > 0 && far.x > x1) {
-        const tt = (x1 - near.x) / dx;
-        if (tt < t) {
-          t = tt;
-          side = "right";
-        }
-      }
-      if (dx < 0 && far.x < x0) {
-        const tt = (x0 - near.x) / dx;
-        if (tt < t) {
-          t = tt;
-          side = "left";
-        }
-      }
-      if (dy > 0 && far.y > y1) {
-        const tt = (y1 - near.y) / dy;
-        if (tt < t) {
-          t = tt;
-          side = "bottom";
-        }
-      }
-      if (dy < 0 && far.y < y0) {
-        const tt = (y0 - near.y) / dy;
-        if (tt < t) {
-          t = tt;
-          side = "top";
-        }
-      }
-      previews.push({
-        id: farId,
-        x: near.x + dx * t,
-        y: near.y + dy * t,
-        side,
-      });
-    }
-    return previews;
-  };
-  const renderExitPreviews = (
-    edges: AtlasEdge[],
-    color: string,
-    keyPrefix: string,
-  ) => {
-    const previews = exitPreviews(edges);
-    if (previews.length === 0) return null;
-    const fontSize = 10.5 / zoom;
-    return (
-      <g key={keyPrefix} style={{ userSelect: "none" }}>
-        {previews.map((preview) => (
-          <text
-            key={preview.id}
-            x={
-              preview.side === "left"
-                ? preview.x + fontSize * 0.5
-                : preview.side === "right"
-                  ? preview.x - fontSize * 0.5
-                  : preview.x
-            }
-            y={
-              preview.side === "top"
-                ? preview.y + fontSize * 1.3
-                : preview.side === "bottom"
-                  ? preview.y - fontSize * 0.5
-                  : preview.y + fontSize * 0.35
-            }
-            font-size={fontSize}
-            font-weight="600"
-            text-anchor={
-              preview.side === "left"
-                ? "start"
-                : preview.side === "right"
-                  ? "end"
-                  : "middle"
-            }
-            fill={color}
-            stroke="#f8fafc"
-            stroke-width={3 / zoom}
-            paint-order="stroke"
-            style={{ cursor: "pointer" }}
-            onClick={(event) => {
-              event.stopPropagation();
-              onSelect(preview.id, event.shiftKey);
-            }}
-          >
-            {labels.get(preview.id) ?? fallbackLabel(preview.id)}
-          </text>
-        ))}
-      </g>
-    );
-  };
   // an endpoint belongs to the selection directly or via its parent file
   // (raw symbol references carry symbol ids; a selected file owns them)
   const noSelection = selectedId === null && multiSelected.size === 0;
@@ -510,8 +385,7 @@ export function RingsMapSvg(props: Props) {
   const dim = focusDimOf(focus);
   const moduleOpacity = dim.module;
   const fileOpacity = dim.leaf;
-  const symbolOpacity = (id: string) =>
-    focus && !focus.symbolIds.has(id) ? DIM : 1;
+  const symbolOpacity = dim.symbol;
 
   /**
    * Screen-space label sizing: a label's natural size (world * zoom) must
@@ -773,6 +647,7 @@ export function RingsMapSvg(props: Props) {
             key={`sel-${color}`}
             stroke={color}
             stroke-opacity={0.9}
+            stroke-dasharray={`${5 / zoom} ${4 / zoom}`}
             fill="none"
           >
             {edges.map((edge) => {
@@ -821,31 +696,35 @@ export function RingsMapSvg(props: Props) {
       )}
       {/* names of reference targets that left the screen, docked where
           their edge crosses the viewport border */}
-      {focus
-        ? [
-            renderExitPreviews(
-              focus.downstreamEdges,
-              DOWNSTREAM_COLOR,
-              "exit-focus-down",
-            ),
-            renderExitPreviews(
-              focus.upstreamEdges,
-              UPSTREAM_COLOR,
-              "exit-focus-up",
-            ),
-          ]
-        : [
-            renderExitPreviews(
+      {(focus
+        ? ([
+            [focus.downstreamEdges, DOWNSTREAM_COLOR, "exit-focus-down"],
+            [focus.upstreamEdges, UPSTREAM_COLOR, "exit-focus-up"],
+          ] as const)
+        : ([
+            [
               [...selectedOutgoing, ...lspOutgoing],
               DOWNSTREAM_COLOR,
               "exit-sel-down",
-            ),
-            renderExitPreviews(
+            ],
+            [
               [...selectedIncoming, ...lspIncoming],
               UPSTREAM_COLOR,
               "exit-sel-up",
-            ),
-          ]}
+            ],
+          ] as const)
+      ).map(([edges, color, key]) => (
+        <ExitPreviewsLayer
+          key={key}
+          edges={edges}
+          color={color}
+          view={committedView}
+          endpointsOf={edgeEndpoints}
+          labelOf={(id) => labels.get(id) ?? fallbackLabel(id)}
+          onSelect={onSelect}
+          zoom={zoom}
+        />
+      ))}
       {/* symbol sites are conceptual edge waypoints only — no dots */}
       {/* adapter ports on the module rim (API view) */}
       {portNodes.length > 0 ? (

@@ -37,6 +37,15 @@ export const SELECT_STROKE = "#1d4ed8";
  * label fighting them for attention. */
 export const WATERMARK_PX = 200;
 
+/** Zoom level at which individual symbols become interactive nodes. */
+export const SYMBOL_ZOOM = 2.2;
+/** A symbol's name appears once its cell fills this share of the
+ * viewport's short side (selected/linked symbols are exempt). */
+export const SYMBOL_DOMINANT_FRACTION = 0.35;
+/** Exported-symbol label color vs internal symbols. */
+export const EXPORTED_LABEL = "#047857";
+export const INTERNAL_LABEL = "#5b21b6";
+
 /** Stable pastel per top-level group so the borders read as districts. */
 export function moduleHue(moduleId: string): number {
   let h = 0;
@@ -67,6 +76,7 @@ export function makeTopAncestorOf(
 export type FocusDim = {
   module: (id: string) => number;
   leaf: (id: string) => number;
+  symbol: (id: string) => number;
   /** Intermediate districts dim per group when the focus runs at their
    * level, otherwise they follow their top-level ancestor. */
   group: (id: string, top: string) => number;
@@ -74,12 +84,13 @@ export type FocusDim = {
 
 export function focusDimOf(focus: FocusView | null): FocusDim {
   if (!focus) {
-    return { module: () => 1, leaf: () => 1, group: () => 1 };
+    return { module: () => 1, leaf: () => 1, symbol: () => 1, group: () => 1 };
   }
   const module = (id: string) => (focus.moduleIds.has(id) ? 1 : DIM);
   return {
     module,
     leaf: (id) => (focus.fileIds.has(id) ? 1 : DIM),
+    symbol: (id) => (focus.symbolIds.has(id) ? 1 : DIM),
     group: (id, top) =>
       focus.groupIds ? (focus.groupIds.has(id) ? 1 : DIM) : module(top),
   };
@@ -283,6 +294,128 @@ export function selectionDirections(options: {
     dependentIds.add(parentFileOf(edge.source));
   }
   return { outgoing, incoming, dependencyIds, dependentIds };
+}
+
+/* --------------------------------------------------------- exit previews */
+
+type ExitPreview = {
+  id: string;
+  x: number;
+  y: number;
+  side: "left" | "right" | "top" | "bottom";
+};
+
+/**
+ * Names of reference targets that left the screen, docked where their
+ * edge crosses the viewport border. Clicking one selects the target.
+ */
+export function ExitPreviewsLayer(props: {
+  edges: readonly AtlasEdge[];
+  color: string;
+  view: { x: number; y: number; w: number; h: number };
+  endpointsOf: (edge: AtlasEdge) => [Vec2, Vec2] | null;
+  labelOf: (id: string) => string;
+  onSelect: (id: string, additive?: boolean) => void;
+  zoom: number;
+}) {
+  const { view, zoom, labelOf, onSelect } = props;
+  const x0 = view.x;
+  const x1 = view.x + view.w;
+  const y0 = view.y;
+  const y1 = view.y + view.h;
+  const inside = (p: Vec2) => p.x >= x0 && p.x <= x1 && p.y >= y0 && p.y <= y1;
+  const seen = new Set<string>();
+  const previews: ExitPreview[] = [];
+  for (const edge of props.edges) {
+    const ends = props.endpointsOf(edge);
+    if (!ends) continue;
+    const [a, b] = ends;
+    const aIn = inside(a);
+    if (aIn === inside(b)) continue;
+    const near = aIn ? a : b;
+    const far = aIn ? b : a;
+    const farId = aIn ? edge.target : edge.source;
+    if (seen.has(farId)) continue;
+    seen.add(farId);
+    const dx = far.x - near.x;
+    const dy = far.y - near.y;
+    let t = 1;
+    let side: ExitPreview["side"] = "right";
+    if (dx > 0 && far.x > x1) {
+      const tt = (x1 - near.x) / dx;
+      if (tt < t) {
+        t = tt;
+        side = "right";
+      }
+    }
+    if (dx < 0 && far.x < x0) {
+      const tt = (x0 - near.x) / dx;
+      if (tt < t) {
+        t = tt;
+        side = "left";
+      }
+    }
+    if (dy > 0 && far.y > y1) {
+      const tt = (y1 - near.y) / dy;
+      if (tt < t) {
+        t = tt;
+        side = "bottom";
+      }
+    }
+    if (dy < 0 && far.y < y0) {
+      const tt = (y0 - near.y) / dy;
+      if (tt < t) {
+        t = tt;
+        side = "top";
+      }
+    }
+    previews.push({ id: farId, x: near.x + dx * t, y: near.y + dy * t, side });
+  }
+  if (previews.length === 0) return null;
+  const fontSize = 10.5 / zoom;
+  return (
+    <g style={{ userSelect: "none" }}>
+      {previews.map((preview) => (
+        <text
+          key={preview.id}
+          x={
+            preview.side === "left"
+              ? preview.x + fontSize * 0.5
+              : preview.side === "right"
+                ? preview.x - fontSize * 0.5
+                : preview.x
+          }
+          y={
+            preview.side === "top"
+              ? preview.y + fontSize * 1.3
+              : preview.side === "bottom"
+                ? preview.y - fontSize * 0.5
+                : preview.y + fontSize * 0.35
+          }
+          font-size={fontSize}
+          font-weight="600"
+          text-anchor={
+            preview.side === "left"
+              ? "start"
+              : preview.side === "right"
+                ? "end"
+                : "middle"
+          }
+          fill={props.color}
+          stroke="#f8fafc"
+          stroke-width={3 / zoom}
+          paint-order="stroke"
+          style={{ cursor: "pointer" }}
+          onClick={(event) => {
+            event.stopPropagation();
+            onSelect(preview.id, event.shiftKey);
+          }}
+        >
+          {labelOf(preview.id)}
+        </text>
+      ))}
+    </g>
+  );
 }
 
 /* ----------------------------------------------------------- edge bundles */
