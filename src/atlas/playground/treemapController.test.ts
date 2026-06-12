@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { AtlasGraph } from "../contracts/graph.js";
+import { cellAdjacency, realizedEdgeRate } from "../kernel/neighborhood.js";
 import { containsPoint } from "../kernel/polygon.js";
 import {
   createTreemapState,
@@ -90,6 +91,24 @@ describe("createTreemapState", () => {
     const state = createTreemapState(sampleGraph(), OPTIONS);
     expect(state.parentOf.get("src/alpha/a.ts")).toBe("src/alpha");
     expect(state.parentOf.get("src/alpha")).toBeNull();
+  });
+
+  it("realizes intra-module dependency chains as adjacent cells", () => {
+    // one module: 8 files in a chain with mixed sizes
+    const nodes = Array.from({ length: 8 }, (_, i) => ({
+      id: `src/alpha/f${i}.ts`,
+      kind: "file" as const,
+      label: `f${i}.ts`,
+      metrics: { loc: 50 + (i % 3) * 40 },
+    }));
+    const edges = Array.from({ length: 7 }, (_, i) => ({
+      source: `src/alpha/f${i}.ts`,
+      target: `src/alpha/f${i + 1}.ts`,
+    }));
+    const state = settled(createTreemapState({ nodes, edges }, OPTIONS));
+    const layout = state.fileLayouts.get("src/alpha")!;
+    const rate = realizedEdgeRate(cellAdjacency(layout.cells), edges);
+    expect(rate).toBeGreaterThanOrEqual(0.7);
   });
 
   it("is deterministic", () => {

@@ -1,19 +1,27 @@
 import type { AtlasEdge, AtlasGraph } from "../contracts/graph.js";
 import { deriveModules, type ModuleIdOf } from "../contracts/modules.js";
+import { minCostAssignment } from "../kernel/assignment.js";
 import {
   capacityStep,
   createCapacityLayout,
   isConverged,
   type CapacityLayoutState,
   type CellResult,
+  type ClipRegion,
 } from "../kernel/capacityLayout.js";
+import { clipCenter } from "../kernel/clip.js";
 import { createForceLayout, forceStep } from "../kernel/forceLayout.js";
+import {
+  cellAdjacency,
+  greedySwapAssignment,
+} from "../kernel/neighborhood.js";
 import {
   createGraphLayout,
   embedSeedHints,
   forceIterationsFor,
 } from "../kernel/pipeline.js";
 import { centroid, type Ring } from "../kernel/polygon.js";
+import type { Vec2 } from "../kernel/vec.js";
 
 /**
  * Full-canvas Voronoi treemap (expert-suggested layout): module cells tile
@@ -68,6 +76,66 @@ function constrainedForceIterations(nodeCount: number): number {
   return Math.max(8, Math.min(60, Math.floor(8_000_000 / (nodeCount * nodeCount))));
 }
 
+/** Above this the O(n³) assignment dominates the build; fall back to
+ * placing nodes directly at their similarity positions. */
+const ASSIGN_NODE_CAP = 320;
+const CVT_MAX_STEPS = 80;
+const CVT_CONVERGENCE = 0.05;
+
+/**
+ * Neighborhood-preserving seeding (Paetzold et al. 2025, arXiv:2508.03445):
+ * converge an equal-area CVT inside the clip to get well-shaped slots,
+ * optimally match nodes onto slots by similarity-position distance
+ * (Kuhn-Munkres), then greedily swap assignments so dependency edges are
+ * realized as slot adjacencies. Nodes are hinted at their slot sites; the
+ * later capacity melt grows cells to their LOC areas — the paper's
+ * "grow only at the end" phase — keeping the neighborhood structure.
+ */
+function assignedSlotHints(
+  nodes: AtlasGraph["nodes"],
+  edges: readonly AtlasEdge[],
+  clip: ClipRegion,
+  similarity: ReadonlyMap<string, Vec2>,
+  seed: number,
+): Map<string, Vec2> | null {
+  const n = nodes.length;
+  if (n < 2 || n > ASSIGN_NODE_CAP) return null;
+  let cvt = createCapacityLayout(
+    nodes.map((node) => ({ id: node.id, weight: 1 })),
+    clip,
+    { seed },
+  );
+  for (let i = 0; i < CVT_MAX_STEPS && !isConverged(cvt, CVT_CONVERGENCE); i++) {
+    cvt = capacityStep(cvt);
+  }
+  const slots = cvt.cells;
+  const center = clipCenter(clip);
+  const cost = nodes.map((node) => {
+    const p = similarity.get(node.id) ?? center;
+    return slots.map(
+      (slot) => (p.x - slot.site.x) ** 2 + (p.y - slot.site.y) ** 2,
+    );
+  });
+  const matched = minCostAssignment(cost);
+  const slotIndexOf = new Map(slots.map((slot, i) => [slot.id, i]));
+  const adjacency = cellAdjacency(slots);
+  const slotAdjacency = slots.map(
+    (slot) =>
+      new Set(
+        [...(adjacency.get(slot.id) ?? [])].map((id) => slotIndexOf.get(id)!),
+      ),
+  );
+  const swapped = greedySwapAssignment(
+    matched,
+    nodes.map((node) => node.id),
+    slotAdjacency,
+    edges,
+  );
+  return new Map(
+    nodes.map((node, i) => [node.id, { ...slots[swapped[i]!]!.site }]),
+  );
+}
+
 export function createTreemapState(
   graph: AtlasGraph,
   options: TreemapOptions,
@@ -87,16 +155,37 @@ export function createTreemapState(
   };
 
   // Top level: modules tile the viewport; small n, solved at creation so the
-  // nested layouts start from stable parent geometry.
+  // nested layouts start from stable parent geometry. The embedding gives
+  // similarity positions; CVT slots + assignment turn them into a layout
+  // whose adjacencies follow the module dependencies.
   const moduleGraph = { nodes: derived.modules, edges: derived.moduleEdges };
   const moduleHints = embedSeedHints(moduleGraph, clip);
-  let moduleLayout = createGraphLayout(moduleGraph, clip, {
-    ...solver,
-    hints: moduleHints ?? undefined,
-    forceIterations: moduleHints
-      ? DECLUMP_ITERATIONS
-      : forceIterationsFor(derived.modules.length),
-  });
+  const moduleSlots = moduleHints
+    ? assignedSlotHints(
+        derived.modules,
+        derived.moduleEdges,
+        clip,
+        moduleHints,
+        options.seed,
+      )
+    : null;
+  let moduleLayout = moduleSlots
+    ? createCapacityLayout(
+        derived.modules.map((module) => ({
+          id: module.id,
+          weight: module.metrics.loc,
+          hint: moduleSlots.get(module.id),
+        })),
+        clip,
+        solver,
+      )
+    : createGraphLayout(moduleGraph, clip, {
+        ...solver,
+        hints: moduleHints ?? undefined,
+        forceIterations: moduleHints
+          ? DECLUMP_ITERATIONS
+          : forceIterationsFor(derived.modules.length),
+      });
   for (
     let i = 0;
     i < MODULE_MAX_STEPS && !isConverged(moduleLayout, MODULE_CONVERGENCE);
@@ -137,21 +226,34 @@ export function createTreemapState(
     : constrainedForceIterations(graph.nodes.length);
   for (let i = 0; i < iterations; i++) force = forceStep(force);
 
-  // Bottom level: capacity subdivision of each module cell, seeded with the
-  // constrained force positions.
+  // Bottom level: capacity subdivision of each module cell. The constrained
+  // force positions act as the similarity layout; per module, equal-area CVT
+  // slots + optimal assignment + adjacency swaps seed the cells so that
+  // intra-module dependencies share borders, then the melt grows areas.
   const fileLayouts = new Map<string, CapacityLayoutState>();
   for (const [moduleId, files] of derived.filesByModule) {
     const cell = moduleCells.get(moduleId);
     if (!cell || cell.polygon.length < 3 || files.length === 0) continue;
+    const fileClip: ClipRegion = {
+      kind: "polygon",
+      ring: insetRing(cell.polygon, FILE_INSET),
+    };
+    const slotHints = assignedSlotHints(
+      files,
+      derived.fileEdgesByModule.get(moduleId) ?? [],
+      fileClip,
+      force.positions,
+      options.seed,
+    );
     fileLayouts.set(
       moduleId,
       createCapacityLayout(
         files.map((file) => ({
           id: file.id,
           weight: file.metrics.loc,
-          hint: force.positions.get(file.id),
+          hint: slotHints?.get(file.id) ?? force.positions.get(file.id),
         })),
-        { kind: "polygon", ring: insetRing(cell.polygon, FILE_INSET) },
+        fileClip,
         solver,
       ),
     );
