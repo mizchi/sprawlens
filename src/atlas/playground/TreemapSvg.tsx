@@ -1,9 +1,22 @@
 import { useMemo } from "preact/hooks";
 import type { AtlasEdge } from "../contracts/graph.js";
-import { bundlePath, hierarchyControlPoints } from "../kernel/bundling.js";
 import type { CellResult } from "../kernel/capacityLayout.js";
 import type { Vec2 } from "../kernel/vec.js";
 import { CfgLayer, cfgAnchorsOf, type CfgEntry } from "./CfgLayer.tsx";
+import {
+  DOWNSTREAM_COLOR,
+  makeEdgeBundler,
+  selectionDirections,
+  focusDimOf,
+  InnerLevelsLayer,
+  isWatermarkSized,
+  leafFillOf,
+  makeTopAncestorOf,
+  moduleHue,
+  SELECT_STROKE,
+  UPSTREAM_COLOR,
+  WatermarkLabelsLayer,
+} from "./mapShared.tsx";
 import { symbolNameOf } from "./cfgClient.ts";
 import type { TreemapState } from "./treemapController.js";
 import {
@@ -21,6 +34,8 @@ type Props = {
   labels?: Map<string, string>;
   changedFiles?: Map<string, "added" | "modified">;
   cyclicIds?: Set<string>;
+  /** File ids on the test layer; rendered with the shared muted fill. */
+  testFileIds?: Set<string>;
   /** Dependency-path extraction: members stay lit, everything else dims. */
   focus?: FocusView | null;
   /** Stratum visibility by level kind: the partition still uses hidden
@@ -40,47 +55,10 @@ type Props = {
   onViewSettle?: (center: Vec2, zoom: number) => void;
 };
 
-const MODIFIED_FILL = "hsl(8 85% 78%)";
-const ADDED_FILL = "hsl(150 55% 80%)";
-const CYCLE_FILL = "hsl(0 70% 86%)";
-/** Direction palette: what I depend on vs what depends on me. */
-const DOWNSTREAM_COLOR = "#ea580c";
-const UPSTREAM_COLOR = "#0891b2";
-const DIM = 0.1;
 /** Cells smaller than this on screen are not worth a polygon. */
 const MIN_CELL_PX = 2.5;
 /** Edges shorter than this on screen are sub-pixel noise. */
 const MIN_EDGE_PX = 6;
-
-/** Stable pastel per module so the borders read as districts. */
-function moduleHue(moduleId: string): number {
-  let h = 0;
-  for (let i = 0; i < moduleId.length; i++) {
-    h = (h * 31 + moduleId.charCodeAt(i)) % 360;
-  }
-  return h;
-}
-
-/** Catmull-Rom through the control points as a cubic-Bézier SVG path. */
-function smoothPathD(points: readonly Vec2[]): string {
-  if (points.length < 2) return "";
-  if (points.length === 2) {
-    return `M${points[0]!.x},${points[0]!.y}L${points[1]!.x},${points[1]!.y}`;
-  }
-  let d = `M${points[0]!.x},${points[0]!.y}`;
-  for (let i = 0; i < points.length - 1; i++) {
-    const p0 = points[Math.max(i - 1, 0)]!;
-    const p1 = points[i]!;
-    const p2 = points[i + 1]!;
-    const p3 = points[Math.min(i + 2, points.length - 1)]!;
-    const c1x = p1.x + (p2.x - p0.x) / 6;
-    const c1y = p1.y + (p2.y - p0.y) / 6;
-    const c2x = p2.x - (p3.x - p1.x) / 6;
-    const c2y = p2.y - (p3.y - p1.y) / 6;
-    d += `C${c1x},${c1y} ${c2x},${c2y} ${p2.x},${p2.y}`;
-  }
-  return d;
-}
 
 export function TreemapSvg(props: Props) {
   const { state, width, height, selectedId, onSelect } = props;
@@ -118,14 +96,9 @@ export function TreemapSvg(props: Props) {
   }, [state, fileCells]);
   const parentModuleOf = (id: string): string | null =>
     state.parentOf.get(id) ?? null;
-  /** Top-level (district) ancestor of any group or leaf id. */
-  const topAncestorOf = (id: string): string | null => {
-    let current: string | null = id;
-    while (current != null && !topCells.has(current)) {
-      current = state.parentOf.get(current) ?? null;
-    }
-    return current;
-  };
+  const topAncestorOf = makeTopAncestorOf(state.parentOf, (id) =>
+    topCells.has(id),
+  );
 
   // displayed CFGs re-anchor reference edges: incoming at the entry
   // terminal, outgoing at the step block that makes the call
@@ -133,31 +106,16 @@ export function TreemapSvg(props: Props) {
     () => cfgAnchorsOf(props.cfgEntries ?? []),
     [props.cfgEntries],
   );
-  const bundleOf = (edge: AtlasEdge) => {
-    const path = hierarchyControlPoints(
-      edge.source,
-      edge.target,
-      state.parentOf,
-      positionOf,
-    );
-    if (!path) return null;
-    const sourceCfg = cfgAnchors.get(edge.source);
-    if (sourceCfg) {
-      const name = symbolNameOf(edge.target);
-      const anchor = name ? sourceCfg.calls.get(name) : undefined;
-      if (anchor) path[0] = anchor;
-    }
-    const targetCfg = cfgAnchors.get(edge.target);
-    if (targetCfg) path[path.length - 1] = targetCfg.entry;
-    const first = path[0]!;
-    const last = path[path.length - 1]!;
-    return {
-      source: edge.source,
-      target: edge.target,
-      d: smoothPathD(bundlePath(path, bundleStrength)),
-      chord: Math.hypot(last.x - first.x, last.y - first.y),
-    };
-  };
+  const bundleOf = useMemo(
+    () =>
+      makeEdgeBundler({
+        parentOf: state.parentOf,
+        positionOf,
+        strength: bundleStrength,
+        cfgAnchors,
+      }),
+    [state.parentOf, positionOf, bundleStrength, cfgAnchors],
+  );
 
   const bundled = useMemo(() => {
     if (!props.showEdges || focus) return [];
@@ -183,26 +141,32 @@ export function TreemapSvg(props: Props) {
     );
   }, [focus, state, positionOf, bundleStrength, cfgAnchors]);
 
-  const moduleOpacity = (id: string): number =>
-    focus && !focus.moduleIds.has(id) ? DIM : 1;
-  const fileOpacity = (id: string): number =>
-    focus && !focus.fileIds.has(id) ? DIM : 1;
-  /** Intermediate districts dim per group when the focus runs at their
-   * level, otherwise they follow their module. */
-  const groupOpacity = (id: string, top: string): number => {
-    if (!focus) return 1;
-    if (focus.groupIds) return focus.groupIds.has(id) ? 1 : DIM;
-    return moduleOpacity(top);
-  };
+  const dim = focusDimOf(focus);
+  const moduleOpacity = dim.module;
+  const fileOpacity = dim.leaf;
 
-  const fillOf = (cell: CellResult): string => {
-    const changed = props.changedFiles?.get(cell.id);
-    if (changed === "added") return ADDED_FILL;
-    if (changed === "modified") return MODIFIED_FILL;
-    if (cyclicIds.has(cell.id)) return CYCLE_FILL;
-    const hue = moduleHue(topAncestorOf(cell.id) ?? "");
-    return `hsl(${hue} 25% 94%)`;
-  };
+  // selection split: what the selection depends on vs what depends on it,
+  // drawn regardless of the ambient-edges toggle (same as rings)
+  const noSelection = selectedId === null && multiSelected.size === 0;
+  const directions = useMemo(
+    () =>
+      selectionDirections({
+        edges: noSelection || focus ? [] : props.fileEdges,
+        isSelected,
+      }),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [props.fileEdges, selectedId, multiSelected, noSelection, focus],
+  );
+
+  const fillOf = (cell: CellResult): string =>
+    leafFillOf(cell.id, {
+      changedFiles: props.changedFiles,
+      cyclicIds,
+      testFileIds: props.testFileIds,
+      dependencyIds: directions.dependencyIds,
+      dependentIds: directions.dependentIds,
+      topAncestorOf,
+    });
 
   const visibleFileCells = fileCells.filter(
     (c) =>
@@ -238,7 +202,7 @@ export function TreemapSvg(props: Props) {
               fill-opacity={moduleOpacity(cell.id)}
               stroke={
                 isSelected(cell.id)
-                  ? "#1d4ed8"
+                  ? SELECT_STROKE
                   : `hsl(${moduleHue(cell.id)} 45% 55%)`
               }
               stroke-opacity={moduleOpacity(cell.id)}
@@ -251,37 +215,17 @@ export function TreemapSvg(props: Props) {
           ) : null,
         )}
       </g>
-      {/* intermediate boundary levels (directory districts etc.) */}
-      {innerLevels.map((level, i) => (
-        <g
-          key={`${level.kind}-${i}`}
-          fill="none"
-          style={{ display: levelVisible(level.kind) ? "" : "none" }}
-        >
-          {[...level.cells.values()].map((cell) => {
-            if (cell.polygon.length < 3) return null;
-            const top = topAncestorOf(cell.id) ?? "";
-            return (
-              <polygon
-                key={cell.id}
-                points={cell.polygon.map((p) => `${p.x},${p.y}`).join(" ")}
-                stroke={
-                  isSelected(cell.id)
-                    ? "#1d4ed8"
-                    : `hsl(${moduleHue(top)} 35% 62%)`
-                }
-                stroke-opacity={groupOpacity(cell.id, top)}
-                stroke-width={isSelected(cell.id) ? 2.5 : 1}
-                stroke-dasharray={isSelected(cell.id) ? undefined : "5 3"}
-                onClick={(event) => {
-                  event.stopPropagation();
-                  onSelect(cell.id, event.shiftKey);
-                }}
-              />
-            );
-          })}
-        </g>
-      ))}
+      {/* intermediate boundary districts (shared with rings) */}
+      <InnerLevelsLayer
+        levels={innerLevels}
+        topAncestorOf={topAncestorOf}
+        isSelected={isSelected}
+        onSelect={onSelect}
+        dim={dim}
+        zoom={zoom}
+        labels={props.labels}
+        visibleLevels={props.visibleLevels}
+      />
       {/* file cells */}
       <g style={{ display: leafVisible ? "" : "none" }}>
         {visibleFileCells.map((cell) => (
@@ -290,7 +234,7 @@ export function TreemapSvg(props: Props) {
             points={cell.polygon.map((p) => `${p.x},${p.y}`).join(" ")}
             fill={fillOf(cell)}
             fill-opacity={fileOpacity(cell.id)}
-            stroke={isSelected(cell.id) ? "#1d4ed8" : "#94a3b8"}
+            stroke={isSelected(cell.id) ? SELECT_STROKE : "#94a3b8"}
             stroke-opacity={fileOpacity(cell.id)}
             stroke-width={isSelected(cell.id) ? 2.5 : 0.6}
             onClick={(event) => {
@@ -300,6 +244,14 @@ export function TreemapSvg(props: Props) {
           />
         ))}
       </g>
+      {leafVisible ? (
+        <WatermarkLabelsLayer
+          cells={visibleFileCells}
+          zoom={zoom}
+          labelOf={labelOf}
+          dim={dim}
+        />
+      ) : null}
       <CfgLayer
         entries={props.cfgEntries ?? []}
         zoom={zoom}
@@ -327,6 +279,33 @@ export function TreemapSvg(props: Props) {
               />
             );
           })}
+        </g>
+      ) : null}
+      {/* selection references, colored by direction; independent of the
+          ambient-edge toggle */}
+      {!focus ? (
+        <g fill="none">
+          {(
+            [
+              [directions.outgoing, DOWNSTREAM_COLOR],
+              [directions.incoming, UPSTREAM_COLOR],
+            ] as const
+          ).flatMap(([edges, color]) =>
+            edges.map((edge) => {
+              const bundle = bundleOf(edge);
+              if (!bundle) return null;
+              return (
+                <path
+                  key={`sel-${edge.source}-${edge.target}`}
+                  d={bundle.d}
+                  stroke={color}
+                  stroke-opacity={0.9}
+                  stroke-width={1.6}
+                  style={{ pointerEvents: "none" }}
+                />
+              );
+            }),
+          )}
         </g>
       ) : null}
       {/* extracted dependency paths, colored by direction */}
@@ -374,39 +353,8 @@ export function TreemapSvg(props: Props) {
           );
         })}
       </g>
-      {/* intermediate labels appear once their district is readable */}
-      <g
-        text-anchor="middle"
-        style={{ pointerEvents: "none", userSelect: "none" }}
-      >
-        {innerLevels.flatMap((level) =>
-          [...level.cells.values()].map((cell) => {
-            if (!levelVisible(level.kind)) return null;
-            if (cell.polygon.length < 3) return null;
-            const px = Math.sqrt(cell.actualArea) * zoom;
-            if (px < 80 && !isSelected(cell.id)) return null;
-            const top = topAncestorOf(cell.id) ?? "";
-            const fontSize = Math.min(
-              Math.sqrt(cell.actualArea) * 0.12,
-              16 / zoom + 4,
-            );
-            return (
-              <text
-                key={cell.id}
-                x={cell.site.x}
-                y={cell.site.y}
-                font-size={fontSize}
-                font-weight="600"
-                fill={`hsl(${moduleHue(top)} 40% 42%)`}
-                fill-opacity={0.7 * groupOpacity(cell.id, top)}
-              >
-                {props.labels?.get(cell.id) ?? cell.id.split("/").pop()!}
-              </text>
-            );
-          }),
-        )}
-      </g>
-      {/* file labels appear once their cell is readable */}
+      {/* file labels appear once their cell is readable, and hand off to
+          the background watermark past the shared threshold */}
       <g
         fill="#334155"
         text-anchor="middle"
@@ -417,6 +365,7 @@ export function TreemapSvg(props: Props) {
         }}
       >
         {visibleFileCells.map((cell) => {
+          if (isWatermarkSized(cell, zoom)) return null;
           const px = Math.sqrt(cell.actualArea) * zoom;
           if (px < 46 && !isSelected(cell.id)) return null;
           const fontSize = Math.max(Math.sqrt(cell.actualArea) * 0.14, 9 / zoom);

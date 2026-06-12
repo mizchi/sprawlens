@@ -12,6 +12,7 @@ import {
 import { centroid, containsPoint, type Ring } from "../kernel/polygon.js";
 import { createRng, type Rng } from "../kernel/rng.js";
 import { Controls, type PlaygroundParams } from "./Controls.tsx";
+import { makeTopAncestorOf } from "./mapShared.tsx";
 import {
   snapshotSymbolEdges,
   snapshotSymbols,
@@ -45,6 +46,7 @@ import {
 } from "./synthetic.ts";
 import type { AtlasEdge } from "../contracts/graph.js";
 import {
+  directoryGrouping,
   fileGrouping,
   moduleGrouping,
   parentFileOf as contractParentFileOf,
@@ -84,6 +86,8 @@ const SYNTH_COUNT = 120;
 const ADAPTATION_RATE = 0.8;
 const LLOYD_RATE = 0.7;
 const STEPS_PER_FRAME = 2;
+/** Directory boundary: dirname truncated to this many path segments. */
+const DIRECTORY_DEPTH = 3;
 /** Top-level include scope of a node: the first path segment ("src",
  * "e2e"), or "(root)" for files at the repository root. Deliberately does
  * NOT descend into subdirectories — scopes are coarse areas, the finer
@@ -294,6 +298,7 @@ export function App() {
     const groupings = p.boundaries.flatMap(
       (level): Grouping[] => {
       if (level === "module") return [moduleGrouping()];
+      if (level === "directory") return [directoryGrouping(DIRECTORY_DEPTH)];
       // file boundaries only make sense around sub-file leaves
       if (level === "file" && granularityOf(p.displayLevels) === "symbol")
         return [fileGrouping()];
@@ -799,15 +804,10 @@ export function App() {
   };
 
   /** Top-level group (module) of any treemap group or leaf id. */
-  const treemapTopOf = (state: TreemapState, id: string): string => {
-    let current = id;
-    let parent = state.parentOf.get(current) ?? null;
-    while (parent != null) {
-      current = parent;
-      parent = state.parentOf.get(current) ?? null;
-    }
-    return current;
-  };
+  const treemapTopOf = (state: TreemapState, id: string): string =>
+    makeTopAncestorOf(state.parentOf, (x) => state.levels[0]!.cells.has(x))(
+      id,
+    ) ?? id;
 
   /** Outer-layout cell (group or file) for an id, across layout kinds. */
   const outerCellOf = (id: string): CellResult | null => {
@@ -1654,7 +1654,11 @@ export function App() {
         ) : treemapRef.current ? (
           <TreemapSvg
             state={treemapRef.current}
-            fileEdges={graphRef.current.edges}
+            fileEdges={
+              granularity === "symbol"
+                ? displayGraphRef.current.edges
+                : graphRef.current.edges
+            }
             showEdges={params.showEdges}
             visibleLevels={visibleLevels}
             cfgEntries={cfgEntries}
@@ -1662,6 +1666,7 @@ export function App() {
             labels={labels}
             changedFiles={changedFilesRef.current}
             cyclicIds={cyclicIds}
+            testFileIds={testFileIds}
             focus={focusView}
             width={mapSize.width}
             height={mapSize.height}

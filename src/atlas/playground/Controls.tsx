@@ -60,6 +60,7 @@ const row: Record<string, string> = {
 
 const LEVEL_LABELS: Record<DisplayLevel, string> = {
   module: "module",
+  directory: "directory",
   file: "file",
   symbol: "symbol",
   ast: "AST",
@@ -196,6 +197,8 @@ export function Controls(props: Props) {
             // network. CFG needs symbols to exist somewhere.
             const disabled =
               UNAVAILABLE_LEVELS.has(level) ||
+              (level === "directory" &&
+                !params.boundaries.includes("directory")) ||
               (level === "cfg" && granularity === "module");
             return (
               <label

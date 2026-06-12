@@ -26,8 +26,12 @@ export function granularityOf(
  * is the *structure* axis — independent of which elements are displayed.
  * A file boundary only makes sense around sub-file leaves.
  */
-export type BoundaryLevel = "module" | "file";
-export const BOUNDARY_LEVELS: readonly BoundaryLevel[] = ["module", "file"];
+export type BoundaryLevel = "module" | "directory" | "file";
+export const BOUNDARY_LEVELS: readonly BoundaryLevel[] = [
+  "module",
+  "directory",
+  "file",
+];
 
 /**
  * Display levels select which strata are *drawn*. Crucially this is not
@@ -39,9 +43,16 @@ export const BOUNDARY_LEVELS: readonly BoundaryLevel[] = ["module", "file"];
  * hierarchy) and rendered only past a zoom threshold, never part of the
  * static graph.
  */
-export type DisplayLevel = "module" | "file" | "symbol" | "ast" | "cfg";
+export type DisplayLevel =
+  | "module"
+  | "directory"
+  | "file"
+  | "symbol"
+  | "ast"
+  | "cfg";
 export const DISPLAY_LEVELS: readonly DisplayLevel[] = [
   "module",
+  "directory",
   "file",
   "symbol",
   "ast",

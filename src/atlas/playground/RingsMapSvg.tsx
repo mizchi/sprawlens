@@ -5,6 +5,22 @@ import type { Vec2 } from "../kernel/vec.js";
 import type { RingsState } from "./ringsController.ts";
 
 import { CfgLayer, cfgAnchorsOf, type CfgEntry } from "./CfgLayer.tsx";
+import {
+  DIM,
+  DOWNSTREAM_COLOR,
+  DOWNSTREAM_FILL,
+  focusDimOf,
+  InnerLevelsLayer,
+  isWatermarkSized,
+  leafFillOf,
+  makeEdgeBundler,
+  makeTopAncestorOf,
+  selectionDirections,
+  SELECT_STROKE,
+  UPSTREAM_COLOR,
+  UPSTREAM_FILL,
+  WatermarkLabelsLayer,
+} from "./mapShared.tsx";
 import { symbolNameOf } from "./cfgClient.ts";
 import {
   useMapViewport,
@@ -14,23 +30,8 @@ import {
 
 export type { FocusRequest, FocusView } from "./useMapViewport.ts";
 
-/** Direction palette: what I depend on vs what depends on me. */
-const DOWNSTREAM_COLOR = "#ea580c";
-const UPSTREAM_COLOR = "#0891b2";
-/** Muted fill for test-layer cells: visible for ratio reading, not loud. */
-const TEST_FILL = "hsl(210 10% 81%)";
 /** Public API marker: the site dot, not the cell area, carries the signal. */
 const EXPORTED_DOT = "#059669";
-/** Cells of nodes caught in a dependency cycle: the tangles to break. */
-const CYCLE_FILL = "hsl(0 70% 86%)";
-/** Diff layer: changed files read from fill, not outline. */
-const MODIFIED_FILL = "hsl(8 85% 78%)";
-const ADDED_FILL = "hsl(150 55% 80%)";
-/** Direction tints: a selection's reference targets fill in the edge's
- * color, so "what I depend on" vs "what depends on me" reads from the
- * background without tracing lines. */
-const DOWNSTREAM_FILL = "hsl(21 90% 86%)";
-const UPSTREAM_FILL = "hsl(193 70% 86%)";
 
 type Props = {
   rings: RingsState;
@@ -80,13 +81,6 @@ type Props = {
   onViewSettle?: (center: Vec2, zoom: number) => void;
 };
 
-function cellFill(targetArea: number, actualArea: number): string {
-  const error = Math.abs(actualArea - targetArea) / targetArea;
-  const t = Math.min(error / 0.3, 1);
-  const hue = 215 - t * 215;
-  return `hsl(${hue} ${30 + t * 60}% ${88 - t * 30}%)`;
-}
-
 /** Short fallback label: symbol ids reduce to the bare symbol name —
  * never the directory path, which is unreadable at map scale. */
 function fallbackLabel(id: string): string {
@@ -99,17 +93,12 @@ function fallbackLabel(id: string): string {
 
 /** Zoom level at which individual symbols become interactive nodes. */
 const SYMBOL_ZOOM = 2.2;
-/** Past this natural screen size a cell's name becomes a translucent
- * watermark behind the detail (symbols, CFG) instead of a foreground
- * label fighting them for attention. */
-const WATERMARK_PX = 200;
 /**
  * A symbol's name appears only once its cell dominates the screen — this
  * fraction of the viewport's short side (tune to taste). Linked public
  * symbols and symbols of the selected file are exempt.
  */
 const SYMBOL_DOMINANT_FRACTION = 0.35;
-const DIM = 0.1;
 /** Cells smaller than this on screen render as nothing — the module
  * circle's fill carries the texture; zooming in reveals them. */
 const MIN_CELL_PX = 2.5;
@@ -213,6 +202,33 @@ export function RingsMapSvg(props: Props) {
     const circle = rings.circles.get(id);
     return circle ? { x: circle.cx, y: circle.cy } : undefined;
   };
+  // HEB bundling, same as the treemap: control points run the parent
+  // chain; raw symbols (below the layout leaves) hang off their file
+  const bundleParentOf = useMemo(() => {
+    const map = new Map(rings.parentOf);
+    for (const cell of innerCells) {
+      if (!map.has(cell.id)) map.set(cell.id, parentFileOf(cell.id));
+    }
+    return map;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [rings.parentOf, innerCells, parentFileOf]);
+  const positionOf = useMemo(() => {
+    const map = new Map<string, Vec2>();
+    for (const [id, circle] of rings.circles) {
+      map.set(id, { x: circle.cx, y: circle.cy });
+    }
+    for (const level of rings.innerLevels) {
+      for (const [id, cell] of level.cells) map.set(id, cell.site);
+    }
+    for (const cell of fileCells) map.set(cell.id, cell.site);
+    for (const cell of innerCells) map.set(cell.id, cell.site);
+    for (const port of portNodes) map.set(port.id, { x: port.x, y: port.y });
+    return map;
+  }, [rings, fileCells, innerCells, portNodes]);
+  const bundleOf = useMemo(
+    () => makeEdgeBundler({ parentOf: bundleParentOf, positionOf, cfgAnchors }),
+    [bundleParentOf, positionOf, cfgAnchors],
+  );
   const edgeEndpoints = (edge: AtlasEdge): [Vec2, Vec2] | null => {
     let a = resolveSite(edge.source);
     let b = resolveSite(edge.target);
@@ -227,16 +243,9 @@ export function RingsMapSvg(props: Props) {
     return [a, b];
   };
   const moduleList = useMemo(() => [...rings.circles.entries()], [rings]);
-  /** Top-level (circle) ancestor of any group or leaf id. */
-  const topAncestorOf = (id: string): string => {
-    let current = id;
-    let parent = rings.parentOf.get(current) ?? null;
-    while (parent != null) {
-      current = parent;
-      parent = rings.parentOf.get(current) ?? null;
-    }
-    return current;
-  };
+  const topAncestorOf = makeTopAncestorOf(rings.parentOf, (id) =>
+    rings.circles.has(id),
+  );
 
   const sourceVisible = !hiddenLayers.has("source");
   const showInner = sourceVisible && zoom > 0.8;
@@ -466,45 +475,35 @@ export function RingsMapSvg(props: Props) {
   };
   // an endpoint belongs to the selection directly or via its parent file
   // (raw symbol references carry symbol ids; a selected file owns them)
-  const touchesSelection = (id: string) =>
-    isSelected(id) || isSelected(parentFileOf(id));
   const noSelection = selectedId === null && multiSelected.size === 0;
-  const outgoingOf = (edges: AtlasEdge[]) =>
-    noSelection
-      ? []
-      : edges.filter(
-          (e) => touchesSelection(e.source) && !touchesSelection(e.target),
-        );
-  const incomingOf = (edges: AtlasEdge[]) =>
-    noSelection
-      ? []
-      : edges.filter(
-          (e) => touchesSelection(e.target) && !touchesSelection(e.source),
-        );
-  const selectedOutgoing = outgoingOf(symbolEdges);
-  const selectedIncoming = incomingOf(symbolEdges);
-  const lspOutgoing = outgoingOf(lspEdges);
-  const lspIncoming = incomingOf(lspEdges);
+  const directions = selectionDirections({
+    edges: noSelection ? [] : symbolEdges,
+    isSelected: (id) => isSelected(id),
+    parentFileOf,
+  });
+  const lspDirections = selectionDirections({
+    edges: noSelection ? [] : lspEdges,
+    isSelected: (id) => isSelected(id),
+    parentFileOf,
+  });
+  const selectedOutgoing = directions.outgoing;
+  const selectedIncoming = directions.incoming;
+  const lspOutgoing = lspDirections.outgoing;
+  const lspIncoming = lspDirections.incoming;
   // nodes one reference away from the selection, keyed by direction —
   // their backgrounds take the matching edge color
-  const dependencyIds = new Set<string>();
-  for (const edge of [...selectedOutgoing, ...lspOutgoing]) {
-    if (isSelected(edge.target)) continue;
-    dependencyIds.add(edge.target);
-    // symbol endpoints tint their parent file's cell as well
-    dependencyIds.add(parentFileOf(edge.target));
-  }
-  const dependentIds = new Set<string>();
-  for (const edge of [...selectedIncoming, ...lspIncoming]) {
-    if (isSelected(edge.source)) continue;
-    dependentIds.add(edge.source);
-    dependentIds.add(parentFileOf(edge.source));
-  }
+  const dependencyIds = new Set([
+    ...directions.dependencyIds,
+    ...lspDirections.dependencyIds,
+  ]);
+  const dependentIds = new Set([
+    ...directions.dependentIds,
+    ...lspDirections.dependentIds,
+  ]);
 
-  const moduleOpacity = (id: string) =>
-    focus && !focus.moduleIds.has(id) ? DIM : 1;
-  const fileOpacity = (id: string) =>
-    focus && !focus.fileIds.has(id) ? DIM : 1;
+  const dim = focusDimOf(focus);
+  const moduleOpacity = dim.module;
+  const fileOpacity = dim.leaf;
   const symbolOpacity = (id: string) =>
     focus && !focus.symbolIds.has(id) ? DIM : 1;
 
@@ -546,7 +545,9 @@ export function RingsMapSvg(props: Props) {
     >
       {/* vector-effect does not inherit from <g>; apply to every shape so
           stroke widths (including selection highlights) stay in screen px */}
-      <style>{"polygon, line, circle { vector-effect: non-scaling-stroke; }"}</style>
+      <style>
+        {"polygon, line, circle, path { vector-effect: non-scaling-stroke; }"}
+      </style>
       {/* aggregated module dependencies: the macro structure, always on */}
       {!focus ? (
         <g stroke="#475569" fill="none">
@@ -602,59 +603,32 @@ export function RingsMapSvg(props: Props) {
           />
         ))}
       </g>
-      {/* intermediate boundary districts (directory etc.) inside circles */}
-      {rings.innerLevels.map((level, i) => (
-        <g
-          key={`${level.kind}-${i}`}
-          fill="none"
-          style={{ display: levelVisible(level.kind) ? "" : "none" }}
-        >
-          {[...level.cells.values()].map((cell) =>
-            cell.polygon.length >= 3 ? (
-              <polygon
-                key={cell.id}
-                points={cell.polygon.map((p) => `${p.x},${p.y}`).join(" ")}
-                stroke={isSelected(cell.id) ? "#1d4ed8" : "#64748b"}
-                stroke-width={isSelected(cell.id) ? 2.4 : 1}
-                stroke-dasharray={isSelected(cell.id) ? undefined : "5 3"}
-                opacity={
-                  focus?.groupIds
-                    ? focus.groupIds.has(cell.id)
-                      ? 1
-                      : DIM
-                    : moduleOpacity(topAncestorOf(cell.id))
-                }
-                onClick={(event) => {
-                  event.stopPropagation();
-                  onSelect(cell.id, event.shiftKey);
-                }}
-              />
-            ) : null,
-          )}
-        </g>
-      ))}
+      {/* intermediate boundary districts (shared with treemap) */}
+      <InnerLevelsLayer
+        levels={rings.innerLevels}
+        topAncestorOf={topAncestorOf}
+        isSelected={(id) => isSelected(id)}
+        onSelect={onSelect}
+        dim={dim}
+        zoom={zoom}
+        labels={labels}
+        visibleLevels={props.visibleLevels}
+      />
       <g style={{ display: sourceVisible ? "" : "none" }}>
         {visibleFileCells.map((cell) =>
           true ? (
             <polygon
               key={cell.id}
               points={pointsOf(cell)}
-              fill={
-                dependencyIds.has(cell.id)
-                  ? DOWNSTREAM_FILL
-                  : dependentIds.has(cell.id)
-                    ? UPSTREAM_FILL
-                    : changedFiles.get(cell.id) === "added"
-                      ? ADDED_FILL
-                      : changedFiles.get(cell.id) === "modified"
-                        ? MODIFIED_FILL
-                        : cyclicIds.has(cell.id)
-                          ? CYCLE_FILL
-                          : testFileIds.has(cell.id)
-                            ? TEST_FILL
-                            : cellFill(cell.targetArea, cell.actualArea)
-              }
-              stroke={isSelected(cell.id) ? "#1d4ed8" : "#475569"}
+              fill={leafFillOf(cell.id, {
+                changedFiles,
+                cyclicIds,
+                testFileIds,
+                dependencyIds,
+                dependentIds,
+                topAncestorOf,
+              })}
+              stroke={isSelected(cell.id) ? SELECT_STROKE : "#94a3b8"}
               stroke-width={isSelected(cell.id) ? 2 : 0.8}
               opacity={fileOpacity(cell.id)}
               onClick={(event) => {
@@ -665,31 +639,13 @@ export function RingsMapSvg(props: Props) {
           ) : null,
         )}
       </g>
-      {/* watermark names: at deep zoom a cell's name stays centered but
-          sinks into the background so detail layers stay readable */}
       {sourceVisible ? (
-        <g
-          text-anchor="middle"
-          style={{ pointerEvents: "none", userSelect: "none" }}
-        >
-          {visibleFileCells.map((cell) => {
-            const fontSize = Math.sqrt(cell.actualArea) * 0.18;
-            if (fontSize * zoom < WATERMARK_PX) return null;
-            return (
-              <text
-                key={cell.id}
-                x={cell.site.x}
-                y={cell.site.y + fontSize * 0.35}
-                font-size={fontSize}
-                font-weight="600"
-                fill="#334155"
-                opacity={0.12 * fileOpacity(cell.id)}
-              >
-                {labels.get(cell.id) ?? fallbackLabel(cell.id)}
-              </text>
-            );
-          })}
-        </g>
+        <WatermarkLabelsLayer
+          cells={visibleFileCells}
+          zoom={zoom}
+          labelOf={(id) => labels.get(id) ?? fallbackLabel(id)}
+          dim={dim}
+        />
       ) : null}
       {showInner ? (
         <g
@@ -728,26 +684,24 @@ export function RingsMapSvg(props: Props) {
         view={committedView}
       />
       {showEdges && sourceVisible && !focus && !symbolMode ? (
-        <g stroke="#f97316" stroke-opacity={0.4} fill="none">
+        <g fill="none">
           {fileEdges.map((edge) => {
-            const ends = edgeEndpoints(edge);
-            if (!ends) return null;
-            const [a, b] = ends;
-            if (Math.hypot(b.x - a.x, b.y - a.y) * zoom < MIN_EDGE_PX) {
-              return null;
-            }
+            const bundle = bundleOf(edge);
+            if (!bundle) return null;
+            const active =
+              isSelected(edge.source) ||
+              isSelected(edge.target) ||
+              isSelected(rings.parentOf.get(edge.source) ?? "") ||
+              isSelected(rings.parentOf.get(edge.target) ?? "");
+            if (!active && bundle.chord * zoom < MIN_EDGE_PX) return null;
             return (
-              <line
+              <path
                 key={`${edge.source}-${edge.target}`}
-                x1={a.x}
-                y1={a.y}
-                x2={b.x}
-                y2={b.y}
-                stroke-width={
-                  edge.source === selectedId || edge.target === selectedId
-                    ? 1.6
-                    : 0.5
-                }
+                d={bundle.d}
+                stroke={active ? "#c2410c" : UPSTREAM_COLOR}
+                stroke-opacity={active ? 0.9 : selectedId ? 0.08 : 0.22}
+                stroke-width={active ? 1.8 : 1}
+                style={{ pointerEvents: "none" }}
               />
             );
           })}
@@ -758,17 +712,18 @@ export function RingsMapSvg(props: Props) {
           {symbolEdges.map((edge) => {
             const ends = edgeEndpoints(edge);
             if (!ends) return null;
-            const [a, b] = ends;
             const slack = committedView.w * 0.1;
-            if (!inView(a, slack) && !inView(b, slack)) return null;
+            if (!inView(ends[0], slack) && !inView(ends[1], slack)) {
+              return null;
+            }
+            const bundle = bundleOf(edge);
+            if (!bundle) return null;
             return (
-              <line
+              <path
                 key={`${edge.source}-${edge.target}`}
-                x1={a.x}
-                y1={a.y}
-                x2={b.x}
-                y2={b.y}
+                d={bundle.d}
                 stroke-width={0.6}
+                style={{ pointerEvents: "none" }}
               />
             );
           })}
@@ -783,21 +738,18 @@ export function RingsMapSvg(props: Props) {
           ).map(([edges, color]) => (
             <g key={color} stroke={color} stroke-opacity={0.85} fill="none">
               {edges.map((edge) => {
-                const ends = edgeEndpoints(edge);
-                if (!ends) return null;
-                const [a, b] = ends;
+                const bundle = bundleOf(edge);
+                if (!bundle) return null;
                 return (
-                  <line
+                  <path
                     key={`focus-${edge.source}-${edge.target}`}
-                    x1={a.x}
-                    y1={a.y}
-                    x2={b.x}
-                    y2={b.y}
+                    d={bundle.d}
                     stroke-width={
                       focus.level === "module"
                         ? 1.5 + Math.log2(1 + (edge.weight ?? 1))
                         : 1.2
                     }
+                    style={{ pointerEvents: "none" }}
                   />
                 );
               })}
@@ -818,17 +770,14 @@ export function RingsMapSvg(props: Props) {
             fill="none"
           >
             {edges.map((edge) => {
-              const ends = edgeEndpoints(edge);
-              if (!ends) return null;
-              const [a, b] = ends;
+              const bundle = bundleOf(edge);
+              if (!bundle) return null;
               return (
-                <line
+                <path
                   key={`sel-${edge.source}-${edge.target}`}
-                  x1={a.x}
-                  y1={a.y}
-                  x2={b.x}
-                  y2={b.y}
+                  d={bundle.d}
                   stroke-width={1.6}
+                  style={{ pointerEvents: "none" }}
                 />
               );
             })}
@@ -850,17 +799,14 @@ export function RingsMapSvg(props: Props) {
             fill="none"
           >
             {edges.map((edge) => {
-              const ends = edgeEndpoints(edge);
-              if (!ends) return null;
-              const [a, b] = ends;
+              const bundle = bundleOf(edge);
+              if (!bundle) return null;
               return (
-                <line
+                <path
                   key={`lsp-${edge.source}-${edge.target}`}
-                  x1={a.x}
-                  y1={a.y}
-                  x2={b.x}
-                  y2={b.y}
+                  d={bundle.d}
                   stroke-width={1.4}
+                  style={{ pointerEvents: "none" }}
                 />
               );
             })}
@@ -1005,8 +951,7 @@ export function RingsMapSvg(props: Props) {
         {showInner
           ? visibleFileCells.map((cell) => {
               // past the watermark size the background copy takes over
-              if (Math.sqrt(cell.actualArea) * 0.18 * zoom >= WATERMARK_PX)
-                return null;
+              if (isWatermarkSized(cell, zoom)) return null;
               // a labeled symbol owns the spot — no stacked file name
               if (labeledSymbolFiles.has(cell.id)) return null;
               const fontSize = screenFont(
@@ -1014,7 +959,7 @@ export function RingsMapSvg(props: Props) {
                 9,
                 15,
                 cell.id === selectedId,
-                WATERMARK_PX,
+                Infinity, // the watermark gate above already capped it
               );
               if (fontSize === null) return null;
               return (
