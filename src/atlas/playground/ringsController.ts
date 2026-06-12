@@ -43,7 +43,6 @@ export type RingsOptions = {
   width: number;
   height: number;
   seed: number;
-  invert?: boolean;
   adaptationRate?: number;
   lloydRate?: number;
   /** Display boundary chain, outer → inner; defaults to module level. */
@@ -120,7 +119,6 @@ function placeCircles(
       rank: ranks.get(m.id) ?? 0,
     })),
     top.edges,
-    { invert: options.invert },
   );
   const scale =
     placed.totalRadius > 0

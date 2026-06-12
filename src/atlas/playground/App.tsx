@@ -47,6 +47,7 @@ import type { AtlasEdge } from "../contracts/graph.js";
 import {
   fileGrouping,
   moduleGrouping,
+  parentFileOf as contractParentFileOf,
   type Grouping,
 } from "../contracts/hierarchy.js";
 import { defaultLayerOf, matchTestTargets } from "../contracts/layers.js";
@@ -55,7 +56,6 @@ import { apiModuleIdOf, buildApiGraph, splitApiBoundary } from "./apiView.ts";
 import {
   granularityOf,
   hiddenLayersOf,
-  resolveSelection,
   reweightByPageRank,
   showsSymbolLevels,
 } from "./viewConfig.ts";
@@ -84,6 +84,16 @@ const SYNTH_COUNT = 120;
 const ADAPTATION_RATE = 0.8;
 const LLOYD_RATE = 0.7;
 const STEPS_PER_FRAME = 2;
+/** Top-level include scope of a node: the first path segment ("src",
+ * "e2e"), or "(root)" for files at the repository root. Deliberately does
+ * NOT descend into subdirectories — scopes are coarse areas, the finer
+ * exclusions belong to test/local. */
+function scopeOf(id: string): string {
+  const file = contractParentFileOf(id);
+  const slash = file.indexOf("/");
+  return slash < 0 ? "(root)" : file.slice(0, slash);
+}
+
 /** ?debug=1 reveals the graph-mutation experiment buttons. */
 const DEBUG =
   typeof location !== "undefined" &&
@@ -148,10 +158,8 @@ export function App() {
     omit: [],
     omitModules: [],
     weight: "loc",
-    selectMode: "auto",
     followChanges: true,
     diffBase: "",
-    invertRings: false,
     // ambient edges add noise; macro module deps are opt-in via this toggle
     showEdges: false,
   });
@@ -267,7 +275,6 @@ export function App() {
     width: WIDTH,
     height: HEIGHT,
     seed: SEED,
-    invert: p.invertRings,
     adaptationRate: ADAPTATION_RATE,
     lloydRate: LLOYD_RATE,
     boundaries: boundariesOf(p),
@@ -294,12 +301,12 @@ export function App() {
   const effectiveGraph = (p: PlaygroundParams): AtlasGraph => {
     let graph = graphRef.current;
     const hiddenLayers = hiddenLayersOf(p.omit);
-    const omitModules = new Set(p.omitModules);
-    if (hiddenLayers.length || omitModules.size) {
+    const omitScopes = new Set(p.omitModules);
+    if (hiddenLayers.length || omitScopes.size) {
       const hidden = new Set(hiddenLayers);
-      const moduleOf = moduleGrouping().groupOf;
       const nodes = graph.nodes.filter(
-        (n) => !hidden.has(defaultLayerOf(n.id)) && !omitModules.has(moduleOf(n.id)),
+        (n) =>
+          !hidden.has(defaultLayerOf(n.id)) && !omitScopes.has(scopeOf(n.id)),
       );
       const ids = new Set(nodes.map((n) => n.id));
       graph = {
@@ -311,7 +318,7 @@ export function App() {
     }
     if (granularityOf(p.displayLevels) === "symbol") {
       const api = buildApiGraph(graph, symbolsForFile, symbolEdgesRef.current, {
-        includePrivate: !p.omit.includes("private-symbol"),
+        includePrivate: !p.omit.includes("local"),
         weight: p.weight,
       });
       // the network's labels come from the projected symbols
@@ -389,7 +396,7 @@ export function App() {
         let symbols =
           symbolsRef.current?.get(cell.id) ??
           synthesizeSymbols(cell.id, loc, 1);
-        if (paramsRef.current.omit.includes("private-symbol")) {
+        if (paramsRef.current.omit.includes("local")) {
           symbols = symbols.filter((s) => s.exported === true);
         }
         for (const symbol of symbols) {
@@ -527,13 +534,13 @@ export function App() {
     rebuild(params);
   }
 
-  // structural params trigger a rebuild; invert re-rings warm; solver params
-  // only update options on the existing layout
+  // structural params trigger a rebuild; solver params only update
+  // options on the existing layout
   const structuralKey = `${params.source}|${params.layout}|${granularity}|${params.boundaries.join("+")}`;
-  // weight / filters / invert re-flow warm (the diff animation); only
-  // granularity and data swaps rebuild cold
+  // weight / filters re-flow warm (the diff animation); only granularity
+  // and data swaps rebuild cold
   const detailKey = `${params.omit.join("+")}|${params.omitModules.join(",")}`;
-  const flowKey = `${params.invertRings}|${detailKey}|${params.weight}`;
+  const flowKey = `${detailKey}|${params.weight}`;
   const structuralRef = useRef(structuralKey);
   const flowKeyRef = useRef(flowKey);
   const detailKeyRef = useRef(detailKey);
@@ -1273,13 +1280,11 @@ export function App() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeId, selectedIds, params.displayLevels, params.source]);
 
-  /** Modules present in the loaded graph — the omit-list candidates.
-   * Derived from the raw graph so omitted modules stay listed. */
-  const availableModules = useMemo(() => {
-    const moduleOf = moduleGrouping().groupOf;
-    return [
-      ...new Set(graphRef.current.nodes.map((n) => moduleOf(n.id))),
-    ].sort();
+  /** Top-level scopes present in the loaded graph — the include-list
+   * candidates. Derived from the raw graph so excluded scopes stay
+   * listed. */
+  const availableScopes = useMemo(() => {
+    return [...new Set(graphRef.current.nodes.map((n) => scopeOf(n.id)))].sort();
     // graphRef refreshes only on rebuild; leafGraph tracks that identity
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [leafGraph]);
@@ -1292,16 +1297,7 @@ export function App() {
       setFocusId(null);
       return;
     }
-    const resolved = resolveSelection(id, paramsRef.current.selectMode, {
-      isModule: (x) =>
-        (ringsRef.current?.circles.has(x) ?? false) ||
-        (treemapRef.current?.levels[0]!.cells.has(x) ?? false),
-      parentFileOf,
-      moduleOf: (x) =>
-        granularityOf(paramsRef.current.displayLevels) === "symbol"
-          ? apiModuleIdOf(x)
-          : defaultModuleIdOf(x),
-    });
+    const resolved = id;
     const next = !additive
       ? [resolved]
       : selectedIds.includes(resolved)
@@ -1808,7 +1804,7 @@ export function App() {
         <Section title="表示オプション">
           <Controls
             params={params}
-            availableModules={availableModules}
+            availableScopes={availableScopes}
             debug={DEBUG}
             onChange={setParams}
             onRegenerate={() => rebuild(paramsRef.current)}

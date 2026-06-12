@@ -10,7 +10,6 @@ import {
   type BoundaryLevel,
   type DisplayLevel,
   type OmitScope,
-  type SelectMode,
   type ViewConfig,
   type WeightKind,
 } from "./viewConfig.ts";
@@ -29,23 +28,20 @@ export type PlaygroundParams = {
   boundaries: BoundaryLevel[];
   displayLevels: DisplayLevel[];
   omit: OmitScope[];
-  /** Module ids excluded from the map entirely. */
+  /** Top-level scopes excluded from the map ((root), src, e2e, ...). */
   omitModules: string[];
   weight: WeightKind;
-  /** What a click resolves to. */
-  selectMode: SelectMode;
   /** Fly the camera to files as their working-tree changes appear. */
   followChanges: boolean;
   /** Diff comparison base (no UI yet; git tooling will own this). */
   diffBase: string;
-  invertRings: boolean;
   showEdges: boolean;
 };
 
 type Props = {
   params: PlaygroundParams;
-  /** Module ids present in the loaded graph, for the omit list. */
-  availableModules: string[];
+  /** Top-level scopes present in the loaded graph. */
+  availableScopes: string[];
   /** Experiment helpers (graph mutation buttons) show only when set. */
   debug?: boolean;
   onChange: (params: PlaygroundParams) => void;
@@ -70,13 +66,13 @@ const LEVEL_LABELS: Record<DisplayLevel, string> = {
   cfg: "CFG",
 };
 
-const OMIT_LABELS: Record<OmitScope, string> = {
+const INCLUDE_LABELS: Record<OmitScope, string> = {
   test: "test",
-  "private-symbol": "private symbol",
+  local: "local",
 };
 
 export function Controls(props: Props) {
-  const { params, availableModules, onChange } = props;
+  const { params, availableScopes, onChange } = props;
   const set = <K extends keyof PlaygroundParams>(
     key: K,
     value: PlaygroundParams[K],
@@ -101,6 +97,20 @@ export function Controls(props: Props) {
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
       <label style={row}>
+        <span style={{ width: "110px" }}>data</span>
+        <select
+          value={params.source}
+          onInput={(e) =>
+            set("source", (e.target as HTMLSelectElement).value as DataSource)
+          }
+        >
+          <option value="synthetic">synthetic</option>
+          <option value="sprawlens">sprawlens (this repo)</option>
+          <option value="sprawlens-history">sprawlens (git log)</option>
+          <option value="playwright">playwright (monorepo)</option>
+        </select>
+      </label>
+      <label style={row}>
         <span style={{ width: "110px" }}>preset</span>
         <select
           value={activePreset}
@@ -116,6 +126,30 @@ export function Controls(props: Props) {
               custom
             </option>
           ) : null}
+        </select>
+      </label>
+      <label style={row}>
+        <span style={{ width: "110px" }}>layout</span>
+        <select
+          value={params.layout}
+          onInput={(e) =>
+            set("layout", (e.target as HTMLSelectElement).value as LayoutKind)
+          }
+        >
+          <option value="rings">rings (modules)</option>
+          <option value="treemap">treemap (bundled)</option>
+        </select>
+      </label>
+      <label style={row}>
+        <span style={{ width: "110px" }}>weight</span>
+        <select
+          value={params.weight}
+          onInput={(e) =>
+            set("weight", (e.target as HTMLSelectElement).value as WeightKind)
+          }
+        >
+          <option value="loc">LOC</option>
+          <option value="pagerank">PageRank</option>
         </select>
       </label>
       <div style={row}>
@@ -196,8 +230,10 @@ export function Controls(props: Props) {
           })}
         </div>
       </div>
+      {/* checked = shown; the state stays an exclusion set so new
+          scopes default to included */}
       <div style={row}>
-        <span style={{ width: "110px", alignSelf: "start" }}>omit</span>
+        <span style={{ width: "110px", alignSelf: "start" }}>include</span>
         <div
           style={{
             display: "flex",
@@ -215,70 +251,41 @@ export function Controls(props: Props) {
             >
               <input
                 type="checkbox"
-                checked={params.omit.includes(scope)}
+                checked={!params.omit.includes(scope)}
                 onInput={(e) => {
-                  const on = (e.target as HTMLInputElement).checked;
+                  const shown = (e.target as HTMLInputElement).checked;
                   const next = OMIT_SCOPES.filter((s) =>
-                    s === scope ? on : params.omit.includes(s),
+                    s === scope ? !shown : params.omit.includes(s),
                   );
                   set("omit", next);
                 }}
               />
-              {OMIT_LABELS[scope]}
+              {INCLUDE_LABELS[scope]}
             </label>
           ))}
-          {availableModules.map((moduleId) => (
+          {availableScopes.map((scope) => (
             <label
-              key={moduleId}
+              key={scope}
               style={{ display: "flex", alignItems: "center", gap: "4px" }}
             >
               <input
                 type="checkbox"
-                checked={params.omitModules.includes(moduleId)}
+                checked={!params.omitModules.includes(scope)}
                 onInput={(e) => {
-                  const on = (e.target as HTMLInputElement).checked;
+                  const shown = (e.target as HTMLInputElement).checked;
                   set(
                     "omitModules",
-                    on
-                      ? [...params.omitModules, moduleId]
-                      : params.omitModules.filter((m) => m !== moduleId),
+                    shown
+                      ? params.omitModules.filter((m) => m !== scope)
+                      : [...params.omitModules, scope],
                   );
                 }}
               />
-              {moduleId}
+              {scope}
             </label>
           ))}
         </div>
       </div>
-      <label style={row}>
-        <span style={{ width: "110px" }}>weight</span>
-        <select
-          value={params.weight}
-          onInput={(e) =>
-            set("weight", (e.target as HTMLSelectElement).value as WeightKind)
-          }
-        >
-          <option value="loc">LOC</option>
-          <option value="pagerank">PageRank</option>
-        </select>
-      </label>
-      <label style={row}>
-        <span style={{ width: "110px" }}>select mode</span>
-        <select
-          value={params.selectMode}
-          onInput={(e) =>
-            set(
-              "selectMode",
-              (e.target as HTMLSelectElement).value as SelectMode,
-            )
-          }
-        >
-          <option value="auto">auto (LOD)</option>
-          <option value="module">module</option>
-          <option value="file">file</option>
-          <option value="symbol">symbol</option>
-        </select>
-      </label>
       <label style={row}>
         <span style={{ width: "110px" }}>follow changes</span>
         <input
@@ -288,44 +295,6 @@ export function Controls(props: Props) {
             set("followChanges", (e.target as HTMLInputElement).checked)
           }
         />
-      </label>
-      <label style={row}>
-        <span style={{ width: "110px" }}>layout</span>
-        <select
-          value={params.layout}
-          onInput={(e) =>
-            set("layout", (e.target as HTMLSelectElement).value as LayoutKind)
-          }
-        >
-          <option value="rings">rings (modules)</option>
-          <option value="treemap">treemap (bundled)</option>
-        </select>
-      </label>
-      {params.layout === "rings" ? (
-        <label style={row}>
-          <span style={{ width: "110px" }}>invert rings</span>
-          <input
-            type="checkbox"
-            checked={params.invertRings}
-            onInput={(e) =>
-              set("invertRings", (e.target as HTMLInputElement).checked)
-            }
-          />
-        </label>
-      ) : null}
-      <label style={row}>
-        <span style={{ width: "110px" }}>data</span>
-        <select
-          value={params.source}
-          onInput={(e) =>
-            set("source", (e.target as HTMLSelectElement).value as DataSource)
-          }
-        >
-          <option value="synthetic">synthetic</option>
-          <option value="sprawlens">sprawlens (this repo)</option>
-          <option value="sprawlens-history">sprawlens (git log)</option>
-          <option value="playwright">playwright (monorepo)</option>
-        </select>
       </label>
       <label style={row}>
         <span style={{ width: "110px" }}>detail edges</span>

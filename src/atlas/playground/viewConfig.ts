@@ -51,12 +51,13 @@ export const DISPLAY_LEVELS: readonly DisplayLevel[] = [
 export const UNAVAILABLE_LEVELS: ReadonlySet<DisplayLevel> = new Set(["ast"]);
 
 /**
- * Omit scopes exclude whole content categories from the map, orthogonal
- * to both depth and boundaries — the recurring "production code only"
- * views: drop test files, drop non-exported symbols.
+ * Include scopes: content categories the map shows, orthogonal to both
+ * depth and boundaries. Unchecking excludes — internally the state stays
+ * an exclusion set so newly appearing scopes default to included. "test"
+ * is the test-file layer, "local" the non-exported symbols.
  */
-export type OmitScope = "test" | "private-symbol";
-export const OMIT_SCOPES: readonly OmitScope[] = ["test", "private-symbol"];
+export type OmitScope = "test" | "local";
+export const OMIT_SCOPES: readonly OmitScope[] = ["test", "local"];
 
 /** Layers (contracts/layers.ts) hidden by the omit selection. */
 export function hiddenLayersOf(omit: readonly OmitScope[]): string[] {
@@ -69,8 +70,6 @@ export function showsSymbolLevels(levels: readonly DisplayLevel[]): boolean {
 }
 /** What scores a leaf's area. */
 export type WeightKind = "loc" | "pagerank";
-/** What a click resolves to; "auto" selects whatever the LOD shows. */
-export type SelectMode = "auto" | "module" | "file" | "symbol";
 
 export type ViewConfig = {
   boundaries: BoundaryLevel[];
@@ -102,7 +101,7 @@ export const VIEW_PRESETS: ViewPreset[] = [
     config: {
       boundaries: ["module"],
       displayLevels: ["module", "symbol"],
-      omit: ["private-symbol"],
+      omit: ["local"],
       weight: "pagerank",
     },
   },
@@ -164,25 +163,3 @@ export function reweightByPageRank(graph: AtlasGraph): AtlasGraph {
   };
 }
 
-export type SelectionContext = {
-  isModule: (id: string) => boolean;
-  /** Symbol id → its file id; non-symbols map to themselves. */
-  parentFileOf: (id: string) => string;
-  moduleOf: (id: string) => string;
-};
-
-/**
- * Resolve a clicked id to the configured selection granularity. Only
- * coarsening is possible — clicking a file in symbol mode cannot invent a
- * symbol, so finer modes pass coarser ids through unchanged.
- */
-export function resolveSelection(
-  id: string,
-  mode: SelectMode,
-  ctx: SelectionContext,
-): string {
-  if (mode === "auto" || mode === "symbol") return id;
-  if (ctx.isModule(id)) return id;
-  if (mode === "module") return ctx.moduleOf(ctx.parentFileOf(id));
-  return ctx.parentFileOf(id);
-}

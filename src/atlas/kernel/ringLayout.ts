@@ -2,15 +2,13 @@ export type RingModule = {
   id: string;
   /** Target visual area; circle radius = sqrt(area / pi). */
   area: number;
-  /** Topological rank; rank 0 sits at the center unless inverted. */
+  /** Topological rank; rank 0 sits at the center. */
   rank: number;
 };
 
 export type RingEdge = { source: string; target: string; weight?: number };
 
 export type RingOptions = {
-  /** Flip ring order so the highest rank is central. */
-  invert?: boolean;
   /** Minimum clearance between circles, as a fraction of the mean radius. */
   gapRatio?: number;
 };
@@ -33,7 +31,7 @@ export function ringLayout(
   edges: readonly RingEdge[],
   options?: RingOptions,
 ): RingLayoutResult {
-  const { invert = false, gapRatio = 0.25 } = options ?? {};
+  const { gapRatio = 0.25 } = options ?? {};
   const circles = new Map<string, PlacedCircle>();
   if (modules.length === 0) return { circles, totalRadius: 0 };
 
@@ -44,11 +42,10 @@ export function ringLayout(
     [...radii.values()].reduce((s, r) => s + r, 0) / radii.size;
   const gap = meanRadius * gapRatio;
 
-  const maxRank = Math.max(...modules.map((m) => m.rank));
-  const ringIndexOf = (rank: number) => (invert ? maxRank - rank : rank);
+
   const rings = new Map<number, RingModule[]>();
   for (const module of modules) {
-    const index = ringIndexOf(module.rank);
+    const index = module.rank;
     const ring = rings.get(index);
     if (ring) ring.push(module);
     else rings.set(index, [module]);

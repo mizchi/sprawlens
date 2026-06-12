@@ -3,7 +3,6 @@ import type { AtlasGraph } from "../contracts/graph.js";
 import {
   presetConfig,
   presetOf,
-  resolveSelection,
   reweightByPageRank,
   VIEW_PRESETS,
   type ViewConfig,
@@ -68,34 +67,3 @@ describe("reweightByPageRank", () => {
   });
 });
 
-describe("resolveSelection", () => {
-  const ctx = {
-    isModule: (id: string) => id.startsWith("mod:"),
-    parentFileOf: (id: string) =>
-      id.startsWith("symbol:") ? (id.split(":")[1] ?? id) : id,
-    moduleOf: (id: string) => "mod:" + (id.split("/")[0] ?? id),
-  };
-  const symbol = "symbol:core/a.ts:function:foo:1";
-
-  it("auto keeps whatever was clicked", () => {
-    expect(resolveSelection(symbol, "auto", ctx)).toBe(symbol);
-    expect(resolveSelection("core/a.ts", "auto", ctx)).toBe("core/a.ts");
-  });
-
-  it("module mode resolves anything up to its module", () => {
-    expect(resolveSelection(symbol, "module", ctx)).toBe("mod:core");
-    expect(resolveSelection("core/a.ts", "module", ctx)).toBe("mod:core");
-    expect(resolveSelection("mod:core", "module", ctx)).toBe("mod:core");
-  });
-
-  it("file mode resolves symbols to their file, leaves coarser ids alone", () => {
-    expect(resolveSelection(symbol, "file", ctx)).toBe("core/a.ts");
-    expect(resolveSelection("core/a.ts", "file", ctx)).toBe("core/a.ts");
-    expect(resolveSelection("mod:core", "file", ctx)).toBe("mod:core");
-  });
-
-  it("symbol mode keeps the finest unit clicked", () => {
-    expect(resolveSelection(symbol, "symbol", ctx)).toBe(symbol);
-    expect(resolveSelection("core/a.ts", "symbol", ctx)).toBe("core/a.ts");
-  });
-});

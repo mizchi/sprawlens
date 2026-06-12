@@ -67,17 +67,6 @@ describe("ringLayout", () => {
     expect(core.cy).toBe(0);
   });
 
-  it("inverts ring order when requested", () => {
-    const placed = ringLayout(modulesFixture(), edges, { invert: true });
-    const distOf = (id: string) => {
-      const c = placed.circles.get(id)!;
-      return Math.hypot(c.cx, c.cy);
-    };
-    // rank2 (app) now innermost, rank0 outermost
-    expect(distOf("app")).toBeLessThan(distOf("core"));
-    expect(distOf("app")).toBeLessThan(distOf("utils"));
-  });
-
   it("is deterministic", () => {
     const a = ringLayout(modulesFixture(), edges);
     const b = ringLayout(modulesFixture(), edges);
