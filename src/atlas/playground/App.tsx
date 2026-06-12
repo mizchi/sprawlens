@@ -58,7 +58,7 @@ import { apiModuleIdOf, buildApiGraph, splitApiBoundary } from "./apiView.ts";
 import {
   granularityOf,
   hiddenLayersOf,
-  reweightByPageRank,
+  reweightByTransitiveComplexity,
   showsSymbolLevels,
 } from "./viewConfig.ts";
 import { fetchCallHierarchy, refsToEdges } from "./callHierarchyClient.ts";
@@ -384,7 +384,9 @@ export function App() {
     }
     // file/module granularity: weight swaps in place — PageRank areas
     // follow how depended-upon a file is instead of its size
-    if (p.weight === "pagerank") graph = reweightByPageRank(graph);
+    if (p.weight === "complexity") {
+      graph = reweightByTransitiveComplexity(graph);
+    }
     displayGraphRef.current = graph;
     return graph;
   };

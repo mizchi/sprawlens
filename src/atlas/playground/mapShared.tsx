@@ -35,7 +35,7 @@ export const SELECT_STROKE = "#1d4ed8";
 /** Past this natural screen size a cell's name becomes a translucent
  * watermark behind the detail (symbols, CFG) instead of a foreground
  * label fighting them for attention. */
-export const WATERMARK_PX = 200;
+export const WATERMARK_PX = 140;
 
 /** Zoom level at which individual symbols become interactive nodes. */
 export const SYMBOL_ZOOM = 2.2;
@@ -213,25 +213,56 @@ export function WatermarkLabelsLayer(props: {
   zoom: number;
   labelOf: (id: string) => string;
   dim: FocusDim;
+  /** Committed viewport: the name slides along inside its cell so it
+   * stays on screen while the camera is inside the cell. */
+  view?: { x: number; y: number; w: number; h: number };
 }) {
-  const { cells, zoom, labelOf, dim } = props;
+  const { cells, zoom, labelOf, dim, view } = props;
   return (
     <g
       text-anchor="middle"
       style={{ pointerEvents: "none", userSelect: "none" }}
     >
       {cells.map((cell) => {
-        const fontSize = Math.sqrt(cell.actualArea) * 0.18;
-        if (fontSize * zoom < WATERMARK_PX) return null;
+        const natural = Math.sqrt(cell.actualArea) * 0.18;
+        if (natural * zoom < WATERMARK_PX) return null;
+        // deep inside a cell, a centroid-anchored giant name leaves the
+        // screen entirely — cap the size to the viewport and clamp the
+        // anchor into the visible part of the cell
+        const fontSize = view ? Math.min(natural, view.w * 0.09) : natural;
+        let x = cell.site.x;
+        let y = cell.site.y + fontSize * 0.35;
+        if (view) {
+          let minX = Infinity;
+          let maxX = -Infinity;
+          let minY = Infinity;
+          let maxY = -Infinity;
+          for (const p of cell.polygon) {
+            minX = Math.min(minX, p.x);
+            maxX = Math.max(maxX, p.x);
+            minY = Math.min(minY, p.y);
+            maxY = Math.max(maxY, p.y);
+          }
+          const padX = fontSize * 2;
+          const padY = fontSize;
+          const lo = (a: number, b: number) => Math.max(a, b);
+          const hi = (a: number, b: number) => Math.min(a, b);
+          const x0 = lo(minX + padX, view.x + padX);
+          const x1 = hi(maxX - padX, view.x + view.w - padX);
+          const y0 = lo(minY + padY, view.y + padY);
+          const y1 = hi(maxY - padY, view.y + view.h - padY);
+          if (x0 <= x1) x = Math.min(Math.max(x, x0), x1);
+          if (y0 <= y1) y = Math.min(Math.max(y, y0), y1);
+        }
         return (
           <text
             key={cell.id}
-            x={cell.site.x}
-            y={cell.site.y + fontSize * 0.35}
+            x={x}
+            y={y}
             font-size={fontSize}
             font-weight="600"
             fill="#334155"
-            opacity={0.12 * dim.leaf(cell.id)}
+            opacity={0.3 * dim.leaf(cell.id)}
           >
             {labelOf(cell.id)}
           </text>

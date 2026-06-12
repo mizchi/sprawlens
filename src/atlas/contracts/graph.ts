@@ -19,6 +19,9 @@ export type AtlasNodeKind =
 
 export type AtlasNodeMetrics = {
   loc: number;
+  /** Cyclomatic complexity (branch points + 1) when the producer measured
+   * it; consumers fall back to a LOC-based estimate. */
+  complexity?: number;
 };
 
 export type AtlasNode = {

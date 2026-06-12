@@ -1,7 +1,8 @@
 import type { AtlasEdge, AtlasGraph, AtlasNode } from "../contracts/graph.js";
 import { parentFileOf } from "../contracts/hierarchy.js";
 import { defaultModuleIdOf } from "../contracts/modules.js";
-import { pageRank } from "../kernel/pagerank.js";
+import { transitiveWeights } from "../kernel/transitiveWeight.js";
+import { complexityOf } from "./viewConfig.js";
 
 /**
  * Public-API network projection: file scope is dropped, every exported
@@ -77,8 +78,8 @@ export function splitApiBoundary(
 export type ApiGraphOptions = {
   /** Keep non-exported symbols too (the full symbol network). */
   includePrivate?: boolean;
-  /** Area scoring; defaults to PageRank over the projected network. */
-  weight?: "pagerank" | "loc";
+  /** Area scoring; defaults to transitive complexity over the network. */
+  weight?: "complexity" | "loc";
 };
 
 export function buildApiGraph(
@@ -123,16 +124,17 @@ export function buildApiGraph(
     edges.push({ source, target: edge.target });
   }
 
-  // area = PageRank: rank flows toward the most-depended-upon symbols.
-  // Normalized so the mean weight is 1 (unlinked symbols keep a floor).
-  // weight: "loc" keeps the symbols' own sizes instead.
+  // area = transitive complexity: a symbol grows with the total
+  // complexity it pulls in through the projected network
   if (options.weight !== "loc") {
-    const ranks = pageRank(
+    const byId = new Map(nodes.map((n) => [n.id, n]));
+    const weights = transitiveWeights(
       nodes.map((n) => n.id),
       edges,
+      (id) => complexityOf(byId.get(id)!),
     );
     for (const node of nodes) {
-      node.metrics.loc = (ranks.get(node.id) ?? 0) * nodes.length;
+      node.metrics.loc = weights.get(node.id) ?? node.metrics.loc;
     }
   }
   return { nodes, edges };

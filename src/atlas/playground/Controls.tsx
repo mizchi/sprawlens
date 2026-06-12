@@ -150,7 +150,7 @@ export function Controls(props: Props) {
           }
         >
           <option value="loc">LOC</option>
-          <option value="pagerank">PageRank</option>
+          <option value="complexity">complexity (deps)</option>
         </select>
       </label>
       <div style={row}>

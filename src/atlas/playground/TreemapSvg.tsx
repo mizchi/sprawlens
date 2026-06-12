@@ -287,6 +287,7 @@ export function TreemapSvg(props: Props) {
           zoom={zoom}
           labelOf={labelOf}
           dim={dim}
+          view={committedView}
         />
       ) : null}
       {/* nested symbols inside file cells (same rules as rings) */}
@@ -464,12 +465,12 @@ export function TreemapSvg(props: Props) {
         {visibleFileCells.map((cell) => {
           if (isWatermarkSized(cell, zoom)) return null;
           const px = Math.sqrt(cell.actualArea) * zoom;
-          if (px < 46 && !isSelected(cell.id)) return null;
+          if (px < 28 && !isSelected(cell.id)) return null;
           // screen-px cap (like rings): the name stays modest while
           // zooming until the watermark copy takes over
           const fontSize = Math.min(
             Math.max(Math.sqrt(cell.actualArea) * 0.14, 9 / zoom),
-            16 / zoom,
+            18 / zoom,
           );
           return (
             <text

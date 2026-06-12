@@ -65,6 +65,8 @@ export type CodeSymbol = {
   startLine: number;
   endLine: number;
   loc: number;
+  /** Cyclomatic complexity: 1 + branch points in the declaration. */
+  complexity: number;
   exported: boolean;
 };
 

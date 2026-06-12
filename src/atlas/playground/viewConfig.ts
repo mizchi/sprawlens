@@ -1,5 +1,5 @@
-import type { AtlasGraph } from "../contracts/graph.js";
-import { pageRank } from "../kernel/pagerank.js";
+import type { AtlasGraph, AtlasNode } from "../contracts/graph.js";
+import { transitiveWeights } from "../kernel/transitiveWeight.js";
 
 /**
  * Orthogonal view axes. The old ViewKind ("files" | "api") bundled all of
@@ -80,7 +80,7 @@ export function showsSymbolLevels(levels: readonly DisplayLevel[]): boolean {
   return levels.includes("symbol");
 }
 /** What scores a leaf's area. */
-export type WeightKind = "loc" | "pagerank";
+export type WeightKind = "loc" | "complexity";
 
 export type ViewConfig = {
   boundaries: BoundaryLevel[];
@@ -113,7 +113,7 @@ export const VIEW_PRESETS: ViewPreset[] = [
       boundaries: ["module"],
       displayLevels: ["module", "symbol"],
       omit: ["local"],
-      weight: "pagerank",
+      weight: "complexity",
     },
   },
   {
@@ -153,21 +153,30 @@ export function presetConfig(id: string): ViewConfig | null {
     : null;
 }
 
+/** Own cyclomatic complexity, measured by the producer or estimated
+ * from LOC (branching correlates with length closely enough to rank). */
+export function complexityOf(node: AtlasNode): number {
+  return node.metrics.complexity ?? 1 + node.metrics.loc / 12;
+}
+
 /**
- * PageRank-weighted variant of a graph: areas follow how depended-upon a
- * node is instead of its size. Normalized to mean 1 so totals stay stable.
+ * Transitive-complexity weights: a node's area follows the total
+ * complexity it pulls in — its own plus everything it transitively
+ * references (shared dependencies counted once, cycles share a closure).
  */
-export function reweightByPageRank(graph: AtlasGraph): AtlasGraph {
-  const ranks = pageRank(
+export function reweightByTransitiveComplexity(graph: AtlasGraph): AtlasGraph {
+  const byId = new Map(graph.nodes.map((n) => [n.id, n]));
+  const weights = transitiveWeights(
     graph.nodes.map((n) => n.id),
     graph.edges,
+    (id) => complexityOf(byId.get(id)!),
   );
   return {
     nodes: graph.nodes.map((node) => ({
       ...node,
       metrics: {
         ...node.metrics,
-        loc: (ranks.get(node.id) ?? 0) * graph.nodes.length,
+        loc: weights.get(node.id) ?? node.metrics.loc,
       },
     })),
     edges: graph.edges,

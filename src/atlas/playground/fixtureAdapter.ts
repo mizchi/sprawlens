@@ -6,6 +6,7 @@ import type { AtlasEdge, AtlasGraph, AtlasNode } from "../contracts/graph.js";
  * from the legacy pipeline; only the data shape is shared.
  */
 export type SnapshotSymbolLike = {
+  complexity?: number;
   id: string;
   name: string;
   kind: string;
@@ -46,11 +47,18 @@ export function snapshotToAtlasGraph(snapshot: SnapshotLike): AtlasGraph {
   for (const node of snapshot.nodes) {
     if (node.type !== "file" || !node.path) continue;
     pathByNodeId.set(node.id, node.path);
+    const complexity = (node.symbols ?? []).reduce(
+      (sum, s) => sum + (s.complexity ?? 0),
+      0,
+    );
     nodes.push({
       id: node.path,
       kind: "file",
       label: baseName(node.path),
-      metrics: { loc: Math.max(node.loc ?? 0, 1) },
+      metrics: {
+        loc: Math.max(node.loc ?? 0, 1),
+        ...(complexity > 0 ? { complexity } : {}),
+      },
     });
   }
   const edges: AtlasGraph["edges"] = [];
@@ -110,7 +118,12 @@ export function snapshotSymbols(
       id: symbol.id,
       kind: "symbol",
       label: symbol.name,
-      metrics: { loc: Math.max(symbol.loc, 1) },
+      metrics: {
+        loc: Math.max(symbol.loc, 1),
+        ...(symbol.complexity !== undefined
+          ? { complexity: symbol.complexity }
+          : {}),
+      },
       exported: symbol.exported === true,
     }));
     const covered = symbols.reduce((sum, s) => sum + s.metrics.loc, 0);

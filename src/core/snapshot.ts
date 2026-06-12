@@ -450,8 +450,47 @@ function createSymbol(
     startLine: start,
     endLine: end,
     loc: Math.max(1, end - start + 1),
+    complexity: cyclomaticComplexity(node),
     exported,
   };
+}
+
+/** Cyclomatic complexity: 1 + decision points in the subtree. Logical
+ * operators count (short-circuiting is a branch); case clauses count per
+ * clause; else does not (it is the other side of the if). */
+function cyclomaticComplexity(root: ts.Node): number {
+  let branches = 0;
+  const visit = (node: ts.Node) => {
+    switch (node.kind) {
+      case ts.SyntaxKind.IfStatement:
+      case ts.SyntaxKind.ConditionalExpression:
+      case ts.SyntaxKind.ForStatement:
+      case ts.SyntaxKind.ForInStatement:
+      case ts.SyntaxKind.ForOfStatement:
+      case ts.SyntaxKind.WhileStatement:
+      case ts.SyntaxKind.DoStatement:
+      case ts.SyntaxKind.CaseClause:
+      case ts.SyntaxKind.CatchClause:
+        branches++;
+        break;
+      case ts.SyntaxKind.BinaryExpression: {
+        const op = (node as ts.BinaryExpression).operatorToken.kind;
+        if (
+          op === ts.SyntaxKind.AmpersandAmpersandToken ||
+          op === ts.SyntaxKind.BarBarToken ||
+          op === ts.SyntaxKind.QuestionQuestionToken
+        ) {
+          branches++;
+        }
+        break;
+      }
+      default:
+        break;
+    }
+    ts.forEachChild(node, visit);
+  };
+  visit(root);
+  return 1 + branches;
 }
 
 function hasExportModifier(node: ts.Node): boolean {

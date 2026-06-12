@@ -525,6 +525,7 @@ export function RingsMapSvg(props: Props) {
           zoom={zoom}
           labelOf={(id) => labels.get(id) ?? fallbackLabel(id)}
           dim={dim}
+          view={committedView}
         />
       ) : null}
       {showInner ? (
