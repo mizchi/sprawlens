@@ -1592,7 +1592,7 @@ export function App() {
         height: "100vh",
         padding: "12px",
         boxSizing: "border-box",
-        fontFamily: "ui-sans-serif, system-ui, sans-serif",
+        fontFamily: "Monaco, ui-monospace, Menlo, monospace",
         background: "#e2e8f0",
       }}
     >

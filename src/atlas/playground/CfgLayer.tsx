@@ -426,7 +426,7 @@ function CfgGlyph(props: { entry: CfgEntry; zoom: number; view?: ViewRect }) {
                     color: "#e2e8f0",
                     borderRadius: `${fontSize * 0.5}px`,
                     padding: `${fontSize * 0.6}px ${fontSize * 0.8}px`,
-                    fontFamily: "ui-monospace, monospace",
+                    fontFamily: "Monaco, ui-monospace, Menlo, monospace",
                     fontSize: `${fontSize}px`,
                     lineHeight: `${lineH}px`,
                     whiteSpace: "pre",

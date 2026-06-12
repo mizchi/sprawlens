@@ -4,6 +4,7 @@ import type { CellResult } from "../kernel/capacityLayout.js";
 import type { Vec2 } from "../kernel/vec.js";
 import { CfgLayer, cfgAnchorsOf, type CfgEntry } from "./CfgLayer.tsx";
 import {
+  BUNDLE_STRENGTH,
   DOWNSTREAM_COLOR,
   makeEdgeBundler,
   selectionDirections,
@@ -67,7 +68,7 @@ export function TreemapSvg(props: Props) {
     id === selectedId || multiSelected.has(id);
   const cyclicIds = props.cyclicIds ?? new Set<string>();
   const focus = props.focus ?? null;
-  const bundleStrength = props.bundleStrength ?? 0.85;
+  const bundleStrength = props.bundleStrength ?? BUNDLE_STRENGTH;
 
   const levelVisible = (kind: string): boolean =>
     props.visibleLevels?.has(kind) ?? true;
@@ -112,9 +113,10 @@ export function TreemapSvg(props: Props) {
         parentOf: state.parentOf,
         positionOf,
         strength: bundleStrength,
+        span: Math.hypot(width, height),
         cfgAnchors,
       }),
-    [state.parentOf, positionOf, bundleStrength, cfgAnchors],
+    [state.parentOf, positionOf, bundleStrength, cfgAnchors, width, height],
   );
 
   const bundled = useMemo(() => {

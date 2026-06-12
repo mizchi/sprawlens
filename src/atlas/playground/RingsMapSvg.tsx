@@ -226,8 +226,14 @@ export function RingsMapSvg(props: Props) {
     return map;
   }, [rings, fileCells, innerCells, portNodes]);
   const bundleOf = useMemo(
-    () => makeEdgeBundler({ parentOf: bundleParentOf, positionOf, cfgAnchors }),
-    [bundleParentOf, positionOf, cfgAnchors],
+    () =>
+      makeEdgeBundler({
+        parentOf: bundleParentOf,
+        positionOf,
+        span: Math.hypot(width, height),
+        cfgAnchors,
+      }),
+    [bundleParentOf, positionOf, cfgAnchors, width, height],
   );
   const edgeEndpoints = (edge: AtlasEdge): [Vec2, Vec2] | null => {
     let a = resolveSite(edge.source);

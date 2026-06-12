@@ -308,6 +308,16 @@ export function smoothPathD(points: readonly Vec2[]): string {
   return d;
 }
 
+/** Bundling pull toward the hierarchy route. With only a couple of
+ * control points per edge, textbook-strong β reads as wild S-curves;
+ * a mild pull keeps the trunk grouping without the swerves. */
+export const BUNDLE_STRENGTH = 0.45;
+/** Detour ratio (route length / chord) where straightening kicks in. */
+const BUNDLE_MAX_DETOUR = 1.3;
+/** Chords shorter than this share of the map diagonal barely bundle —
+ * neighbors should connect directly, only the long hauls join trunks. */
+const BUNDLE_FULL_AT = 0.35;
+
 export type EdgeBundle = {
   source: string;
   target: string;
@@ -327,9 +337,11 @@ export function makeEdgeBundler(options: {
   parentOf: ReadonlyMap<string, string | null>;
   positionOf: ReadonlyMap<string, Vec2>;
   strength?: number;
+  /** Map diagonal; short edges (relative to it) stay near-straight. */
+  span?: number;
   cfgAnchors?: ReadonlyMap<string, CfgAnchor>;
 }): (edge: AtlasEdge) => EdgeBundle | null {
-  const strength = options.strength ?? 0.85;
+  const strength = options.strength ?? BUNDLE_STRENGTH;
   return (edge) => {
     let path = hierarchyControlPoints(
       edge.source,
@@ -353,11 +365,31 @@ export function makeEdgeBundler(options: {
     if (targetCfg) path[path.length - 1] = targetCfg.entry;
     const first = path[0]!;
     const last = path[path.length - 1]!;
+    const chord = Math.hypot(last.x - first.x, last.y - first.y);
+    // adaptive strength: when the control route detours far relative to
+    // the direct chord (a short hop whose LCA sits across the module),
+    // full bundling hairpins past the target — straighten such edges
+    // instead of dragging them through the distant ancestor
+    let route = 0;
+    for (let i = 1; i < path.length; i++) {
+      route += Math.hypot(
+        path[i]!.x - path[i - 1]!.x,
+        path[i]!.y - path[i - 1]!.y,
+      );
+    }
+    const detour = chord > 1e-6 ? route / chord : 1;
+    const lengthRamp = options.span
+      ? Math.min(1, chord / (options.span * BUNDLE_FULL_AT))
+      : 1;
+    const effective =
+      strength *
+      lengthRamp *
+      Math.min(1, BUNDLE_MAX_DETOUR / Math.max(detour, 1e-6));
     return {
       source: edge.source,
       target: edge.target,
-      d: smoothPathD(bundlePath(path, strength)),
-      chord: Math.hypot(last.x - first.x, last.y - first.y),
+      d: smoothPathD(bundlePath(path, effective)),
+      chord,
     };
   };
 }
