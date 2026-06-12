@@ -198,6 +198,38 @@ export function App() {
   const repaintSkipRef = useRef(0);
   const paramsRef = useRef(params);
   paramsRef.current = params;
+  // The treemap lays out at the viewport's real pixel size so the map
+  // maximizes the screen; resizes re-solve the layout, so they throttle
+  // to one rebuild per pause. Rings keep the fixed canvas (radial scale).
+  const [mapSize, setMapSize] = useState({ width: WIDTH, height: HEIGHT });
+  const mapSizeRef = useRef(mapSize);
+  mapSizeRef.current = mapSize;
+  const mapContainerRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    const element = mapContainerRef.current;
+    if (!element) return;
+    let timer = 0;
+    const apply = () => {
+      const rect = element.getBoundingClientRect();
+      const width = Math.max(320, Math.round(rect.width));
+      const height = Math.max(240, Math.round(rect.height));
+      setMapSize((prev) =>
+        Math.abs(prev.width - width) < 2 && Math.abs(prev.height - height) < 2
+          ? prev
+          : { width, height },
+      );
+    };
+    apply();
+    const observer = new ResizeObserver(() => {
+      clearTimeout(timer);
+      timer = window.setTimeout(apply, 250);
+    });
+    observer.observe(element);
+    return () => {
+      observer.disconnect();
+      clearTimeout(timer);
+    };
+  }, []);
   /** Leaf unit, derived from the checked display levels. */
   const granularity = granularityOf(params.displayLevels);
   const mutationRng = useRef<Rng>(createRng(0xc0ffee));
@@ -281,8 +313,8 @@ export function App() {
   });
 
   const treemapOptions = (p: PlaygroundParams) => ({
-    width: WIDTH,
-    height: HEIGHT,
+    width: mapSizeRef.current.width,
+    height: mapSizeRef.current.height,
     seed: SEED,
     adaptationRate: ADAPTATION_RATE,
     lloydRate: LLOYD_RATE,
@@ -536,7 +568,9 @@ export function App() {
 
   // structural params trigger a rebuild; solver params only update
   // options on the existing layout
-  const structuralKey = `${params.source}|${params.layout}|${granularity}|${params.boundaries.join("+")}`;
+  const treemapSizeKey =
+    params.layout === "treemap" ? `${mapSize.width}x${mapSize.height}` : "";
+  const structuralKey = `${params.source}|${params.layout}|${granularity}|${params.boundaries.join("+")}|${treemapSizeKey}`;
   // weight / filters re-flow warm (the diff animation); only granularity
   // and data swaps rebuild cold
   const detailKey = `${params.omit.join("+")}|${params.omitModules.join(",")}`;
@@ -1563,6 +1597,7 @@ export function App() {
       }}
     >
       <div
+        ref={mapContainerRef}
         style={{
           background: "#f8fafc",
           borderRadius: "8px",
@@ -1628,8 +1663,8 @@ export function App() {
             changedFiles={changedFilesRef.current}
             cyclicIds={cyclicIds}
             focus={focusView}
-            width={WIDTH}
-            height={HEIGHT}
+            width={mapSize.width}
+            height={mapSize.height}
             selectedId={activeId}
             selectedIds={selectedIdSet}
             onSelect={selectNode}
