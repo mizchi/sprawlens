@@ -826,52 +826,75 @@ export function App() {
     setFrame((f) => f + 1);
   };
 
+  /** Outer-layout cell (module or file) for an id, across layout kinds. */
+  const outerCellOf = (id: string): CellResult | null => {
+    if (ringsRef.current) {
+      for (const layout of ringsRef.current.moduleLayouts.values()) {
+        const cell = layout.cells.find((c) => c.id === id);
+        if (cell) return cell;
+      }
+      return null;
+    }
+    if (treemapRef.current) {
+      const moduleCell = treemapRef.current.moduleCells.get(id);
+      if (moduleCell) return moduleCell;
+      for (const layout of treemapRef.current.fileLayouts.values()) {
+        const cell = layout.cells.find((c) => c.id === id);
+        if (cell) return cell;
+      }
+      return null;
+    }
+    return layoutRef.current?.cells.find((c) => c.id === id) ?? null;
+  };
+
+  /** World-space bounding box of any visible element, across layout kinds. */
+  const geometryBoundsOf = (
+    id: string,
+  ): { x0: number; x1: number; y0: number; y1: number } | null => {
+    const circle = ringsRef.current?.circles.get(id);
+    if (circle) {
+      return {
+        x0: circle.cx - circle.r,
+        x1: circle.cx + circle.r,
+        y0: circle.cy - circle.r,
+        y1: circle.cy + circle.r,
+      };
+    }
+    const port = portNodesRef.current.find((p) => p.id === id);
+    if (port) return { x0: port.x, x1: port.x, y0: port.y, y1: port.y };
+    const cell =
+      innerCellsRef.current.find((c) => c.id === id) ?? outerCellOf(id);
+    if (!cell || cell.polygon.length < 3) return null;
+    let x0 = Infinity;
+    let x1 = -Infinity;
+    let y0 = Infinity;
+    let y1 = -Infinity;
+    for (const p of cell.polygon) {
+      x0 = Math.min(x0, p.x);
+      x1 = Math.max(x1, p.x);
+      y0 = Math.min(y0, p.y);
+      y1 = Math.max(y1, p.y);
+    }
+    return { x0, x1, y0, y1 };
+  };
+
   /** Fly the camera to a view rect framing the target's bounding box. */
   const jumpTo = (id: string, padding = 2.5) => {
     setSelectedId(id);
-    const innerCell = innerCellsRef.current.find((c) => c.id === id);
-    const fileCell = ringsRef.current
-      ? [...ringsRef.current.moduleLayouts.values()]
-          .flatMap((l) => l.cells)
-          .find((c) => c.id === id)
-      : null;
-    const circle = ringsRef.current?.circles.get(id);
-    const port = portNodesRef.current.find((p) => p.id === id);
-    let bbox: { cx: number; cy: number; w: number; h: number } | null = null;
-    const polygon = innerCell?.polygon ?? fileCell?.polygon;
-    if (polygon && polygon.length >= 3) {
-      let minX = Infinity;
-      let maxX = -Infinity;
-      let minY = Infinity;
-      let maxY = -Infinity;
-      for (const p of polygon) {
-        minX = Math.min(minX, p.x);
-        maxX = Math.max(maxX, p.x);
-        minY = Math.min(minY, p.y);
-        maxY = Math.max(maxY, p.y);
-      }
-      bbox = {
-        cx: (minX + maxX) / 2,
-        cy: (minY + maxY) / 2,
-        w: maxX - minX,
-        h: maxY - minY,
-      };
-    } else if (circle) {
-      bbox = { cx: circle.cx, cy: circle.cy, w: circle.r * 2, h: circle.r * 2 };
-    } else if (port) {
-      bbox = { cx: port.x, cy: port.y, w: 60, h: 60 };
-    }
-    if (bbox) {
-      // frame the bbox with padding: at the default the target ends up
-      // ~40% of the view; larger paddings frame its neighborhood instead
-      const viewW = Math.max(bbox.w, (bbox.h * WIDTH) / HEIGHT) * padding;
-      setFocusRequest({
-        cx: bbox.cx,
-        cy: bbox.cy,
-        viewW,
-        token: (focusRequest?.token ?? 0) + 1,
-      });
-    }
+    const bounds = geometryBoundsOf(id);
+    if (!bounds) return;
+    // point geometry (ports) gets a fixed frame; padding then scales it
+    const w = bounds.x1 - bounds.x0 || 60;
+    const h = bounds.y1 - bounds.y0 || 60;
+    // frame the bbox with padding: at the default the target ends up
+    // ~40% of the view; larger paddings frame its neighborhood instead
+    const viewW = Math.max(w, (h * WIDTH) / HEIGHT) * padding;
+    setFocusRequest({
+      cx: (bounds.x0 + bounds.x1) / 2,
+      cy: (bounds.y0 + bounds.y1) / 2,
+      viewW,
+      token: (focusRequest?.token ?? 0) + 1,
+    });
   };
 
   const mutateWeight = () => {
@@ -951,9 +974,14 @@ export function App() {
   /** Dependency-path extraction across the three levels. */
   const computeFocus = (id: string): FocusView | null => {
     const rings = ringsRef.current;
-    if (!rings) return null;
+    const treemap = treemapRef.current;
+    if (!rings && !treemap) return null;
+    const fileLayoutsByModule = rings
+      ? rings.moduleLayouts
+      : treemap!.fileLayouts;
+    const moduleEdges = rings ? rings.moduleEdges : treemap!.moduleEdges;
     const fileToModule = new Map<string, string>();
-    for (const [moduleId, layout] of rings.moduleLayouts) {
+    for (const [moduleId, layout] of fileLayoutsByModule) {
       for (const cell of layout.cells) fileToModule.set(cell.id, moduleId);
     }
     const symbolsOfFiles = (fileIds: Set<string>): Set<string> => {
@@ -971,8 +999,11 @@ export function App() {
       return out;
     };
 
-    if (rings.circles.has(id)) {
-      const reach = reachSubgraph(rings.moduleEdges, id);
+    const isModuleId = rings
+      ? rings.circles.has(id)
+      : treemap!.moduleCells.has(id);
+    if (isModuleId) {
+      const reach = reachSubgraph(moduleEdges, id);
       const fileIds = filesOfModules(reach.nodes);
       return {
         level: "module",
@@ -1162,7 +1193,11 @@ export function App() {
    */
   const breadcrumb = (() => {
     const rings = ringsRef.current;
-    if (!rings) return [];
+    const treemap = treemapRef.current;
+    if (!rings && !treemap) return [];
+    const isModuleId = (id: string) =>
+      (rings?.circles.has(id) ?? false) ||
+      (treemap?.moduleCells.has(id) ?? false);
     const parts: { id: string; label: string }[] = [];
     const isSymbolId = (id: string) =>
       id.startsWith("symbol:") || id.includes("#");
@@ -1171,7 +1206,7 @@ export function App() {
         ? apiModuleIdOf(id)
         : defaultModuleIdOf(id);
     if (selectedId) {
-      if (rings.circles.has(selectedId)) {
+      if (isModuleId(selectedId)) {
         parts.push({ id: selectedId, label: selectedId });
       } else if (isSymbolId(selectedId)) {
         const fileId = parentFileOf(selectedId);
@@ -1189,15 +1224,26 @@ export function App() {
     // crosshair hit-test at the settled view center
     const p = { x: viewInfo.x, y: viewInfo.y };
     let moduleId: string | null = null;
-    for (const [id, circle] of rings.circles) {
-      if (Math.hypot(p.x - circle.cx, p.y - circle.cy) <= circle.r) {
-        moduleId = id;
-        break;
+    if (rings) {
+      for (const [id, circle] of rings.circles) {
+        if (Math.hypot(p.x - circle.cx, p.y - circle.cy) <= circle.r) {
+          moduleId = id;
+          break;
+        }
+      }
+    } else if (treemap) {
+      for (const [id, cell] of treemap.moduleCells) {
+        if (cell.polygon.length >= 3 && containsPoint(cell.polygon, p)) {
+          moduleId = id;
+          break;
+        }
       }
     }
     if (!moduleId) return [];
     parts.push({ id: moduleId, label: moduleId });
-    const layout = rings.moduleLayouts.get(moduleId);
+    const layout = rings
+      ? rings.moduleLayouts.get(moduleId)
+      : treemap?.fileLayouts.get(moduleId);
     const cell = layout?.cells.find(
       (c) => c.polygon.length >= 3 && containsPoint(c.polygon, p),
     );
@@ -1228,12 +1274,17 @@ export function App() {
   const implicitId = (() => {
     if (selectedId || breadcrumb.length === 0) return null;
     const rings = ringsRef.current;
-    if (!rings) return null;
+    const treemap = treemapRef.current;
+    if (!rings && !treemap) return null;
     const viewportArea = (WIDTH * HEIGHT) / (viewInfo.zoom * viewInfo.zoom);
     const worldAreaOf = (id: string): number => {
-      const circle = rings.circles.get(id);
+      const circle = rings?.circles.get(id);
       if (circle) return Math.PI * circle.r ** 2;
-      const moduleLayout = rings.moduleLayouts.get(breadcrumb[0]!.id);
+      const moduleCell = treemap?.moduleCells.get(id);
+      if (moduleCell) return moduleCell.actualArea;
+      const moduleLayout = rings
+        ? rings.moduleLayouts.get(breadcrumb[0]!.id)
+        : treemap?.fileLayouts.get(breadcrumb[0]!.id);
       const cell = moduleLayout?.cells.find((c) => c.id === id);
       if (cell) return cell.actualArea;
       const inner = innerLayoutsRef.current.get(parentFileOf(id));
@@ -1258,7 +1309,9 @@ export function App() {
       return;
     }
     const resolved = resolveSelection(id, paramsRef.current.selectMode, {
-      isModule: (x) => ringsRef.current?.circles.has(x) ?? false,
+      isModule: (x) =>
+        (ringsRef.current?.circles.has(x) ?? false) ||
+        (treemapRef.current?.moduleCells.has(x) ?? false),
       parentFileOf,
       moduleOf: (x) =>
         paramsRef.current.granularity === "symbol"
@@ -1305,40 +1358,8 @@ export function App() {
       y0: viewInfo.y - halfH,
       y1: viewInfo.y + halfH,
     };
-    const boundsOf = (id: string) => {
-      const circle = ringsRef.current?.circles.get(id);
-      if (circle) {
-        return {
-          x0: circle.cx - circle.r,
-          x1: circle.cx + circle.r,
-          y0: circle.cy - circle.r,
-          y1: circle.cy + circle.r,
-        };
-      }
-      const port = portNodesRef.current.find((p) => p.id === id);
-      if (port) return { x0: port.x, x1: port.x, y0: port.y, y1: port.y };
-      const cell =
-        (ringsRef.current
-          ? [...ringsRef.current.moduleLayouts.values()]
-              .flatMap((l) => l.cells)
-              .find((c) => c.id === id)
-          : layoutRef.current?.cells.find((c) => c.id === id)) ??
-        innerCellsRef.current.find((c) => c.id === id);
-      if (!cell || cell.polygon.length < 3) return null;
-      let x0 = Infinity;
-      let x1 = -Infinity;
-      let y0 = Infinity;
-      let y1 = -Infinity;
-      for (const p of cell.polygon) {
-        x0 = Math.min(x0, p.x);
-        x1 = Math.max(x1, p.x);
-        y0 = Math.min(y0, p.y);
-        y1 = Math.max(y1, p.y);
-      }
-      return { x0, x1, y0, y1 };
-    };
     const remaining = ids.filter((id) => {
-      const bounds = boundsOf(id);
+      const bounds = geometryBoundsOf(id);
       if (!bounds) return true; // unknown geometry: keep, don't guess
       return !(
         bounds.x1 < view.x0 ||
@@ -1414,7 +1435,9 @@ export function App() {
 
   const allCells: CellResult[] = ringsRef.current
     ? [...ringsRef.current.moduleLayouts.values()].flatMap((l) => l.cells)
-    : (layoutRef.current?.cells ?? []);
+    : treemapRef.current
+      ? [...treemapRef.current.fileLayouts.values()].flatMap((l) => l.cells)
+      : (layoutRef.current?.cells ?? []);
   const allInnerCells = innerCellsRef.current;
   const testFileIds = testFileIdsRef.current;
   const testTargets = testTargetsRef.current;
@@ -1426,7 +1449,9 @@ export function App() {
     [allCells, allInnerCells, activeId],
   );
   const selectedIsModule =
-    activeId !== null && (ringsRef.current?.circles.has(activeId) ?? false);
+    activeId !== null &&
+    ((ringsRef.current?.circles.has(activeId) ?? false) ||
+      (treemapRef.current?.moduleCells.has(activeId) ?? false));
   const selectedTest =
     activeId !== null && testFileIds.has(activeId)
       ? (graphRef.current.nodes.find((n) => n.id === activeId) ?? null)
@@ -1605,11 +1630,16 @@ export function App() {
             labels={labels}
             changedFiles={changedFilesRef.current}
             cyclicIds={cyclicIds}
+            focus={focusView}
             width={WIDTH}
             height={HEIGHT}
             selectedId={activeId}
             selectedIds={selectedIdSet}
             onSelect={selectNode}
+            focusRequest={focusRequest}
+            onViewSettle={(center, zoom) =>
+              setViewInfo({ x: center.x, y: center.y, zoom })
+            }
           />
         ) : layoutRef.current ? (
           <CellMapSvg

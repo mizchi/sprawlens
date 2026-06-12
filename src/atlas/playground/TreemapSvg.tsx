@@ -1,9 +1,14 @@
-import { useEffect, useMemo, useRef, useState } from "preact/hooks";
+import { useMemo } from "preact/hooks";
 import type { AtlasEdge } from "../contracts/graph.js";
 import { bundlePath, hierarchyControlPoints } from "../kernel/bundling.js";
 import type { CellResult } from "../kernel/capacityLayout.js";
 import type { Vec2 } from "../kernel/vec.js";
 import type { TreemapState } from "./treemapController.js";
+import {
+  useMapViewport,
+  type FocusRequest,
+  type FocusView,
+} from "./useMapViewport.ts";
 
 type Props = {
   state: TreemapState;
@@ -14,21 +19,29 @@ type Props = {
   labels?: Map<string, string>;
   changedFiles?: Map<string, "added" | "modified">;
   cyclicIds?: Set<string>;
+  /** Dependency-path extraction: members stay lit, everything else dims. */
+  focus?: FocusView | null;
   width: number;
   height: number;
   selectedId: string | null;
   selectedIds?: Set<string>;
   onSelect: (id: string | null, additive?: boolean) => void;
+  focusRequest?: FocusRequest | null;
+  /** Fired when a view settles (LOD commit); world center + zoom. */
+  onViewSettle?: (center: Vec2, zoom: number) => void;
 };
-
-type ViewBox = { x: number; y: number; w: number; h: number };
 
 const MODIFIED_FILL = "hsl(8 85% 78%)";
 const ADDED_FILL = "hsl(150 55% 80%)";
 const CYCLE_FILL = "hsl(0 70% 86%)";
+/** Direction palette: what I depend on vs what depends on me. */
+const DOWNSTREAM_COLOR = "#ea580c";
+const UPSTREAM_COLOR = "#0891b2";
+const DIM = 0.1;
 /** Cells smaller than this on screen are not worth a polygon. */
 const MIN_CELL_PX = 2.5;
-const COMMIT_MS = 120;
+/** Edges shorter than this on screen are sub-pixel noise. */
+const MIN_EDGE_PX = 6;
 
 /** Stable pastel per module so the borders read as districts. */
 function moduleHue(moduleId: string): number {
@@ -66,49 +79,15 @@ export function TreemapSvg(props: Props) {
   const isSelected = (id: string): boolean =>
     id === selectedId || multiSelected.has(id);
   const cyclicIds = props.cyclicIds ?? new Set<string>();
+  const focus = props.focus ?? null;
   const bundleStrength = props.bundleStrength ?? 0.85;
 
-  // zoom/pan: gestures write the viewBox straight to the DOM; the
-  // LOD-affecting re-render commits after the gesture settles (same
-  // pattern as RingsMapSvg).
-  const viewRef = useRef<ViewBox>({ x: 0, y: 0, w: width, h: height });
-  const [committedView, setCommittedView] = useState<ViewBox>(viewRef.current);
-  const commitTimer = useRef(0);
-  const dragRef = useRef<{ pointerId: number; last: Vec2; moved: number } | null>(
-    null,
-  );
-  const suppressClickRef = useRef(false);
-  const svgRef = useRef<SVGSVGElement>(null);
-  const applyView = () => {
-    const v = viewRef.current;
-    svgRef.current?.setAttribute("viewBox", `${v.x} ${v.y} ${v.w} ${v.h}`);
-    clearTimeout(commitTimer.current);
-    commitTimer.current = window.setTimeout(() => {
-      commitTimer.current = 0;
-      setCommittedView({ ...viewRef.current });
-    }, COMMIT_MS);
-  };
-  useEffect(() => () => clearTimeout(commitTimer.current), []);
-  const zoom = width / committedView.w;
-
-  const onWheel = (event: WheelEvent) => {
-    event.preventDefault();
-    const rect = svgRef.current?.getBoundingClientRect();
-    if (!rect) return;
-    const factor = Math.exp(event.deltaY * 0.0018);
-    const v = viewRef.current;
-    const newW = Math.min(Math.max(v.w * factor, width / 40), width * 3);
-    const scale = newW / v.w;
-    const px = v.x + ((event.clientX - rect.left) / rect.width) * v.w;
-    const py = v.y + ((event.clientY - rect.top) / rect.height) * v.h;
-    viewRef.current = {
-      x: px - (px - v.x) * scale,
-      y: py - (py - v.y) * scale,
-      w: newW,
-      h: v.h * scale,
-    };
-    applyView();
-  };
+  const { svgProps, zoom } = useMapViewport({
+    width,
+    height,
+    focusRequest: props.focusRequest,
+    onViewSettle: props.onViewSettle,
+  });
 
   const fileCells = useMemo(
     () => [...state.fileLayouts.values()].flatMap((l) => l.cells),
@@ -123,28 +102,52 @@ export function TreemapSvg(props: Props) {
   const parentModuleOf = (id: string): string | null =>
     state.parentOf.get(id) ?? null;
 
+  const bundleOf = (edge: AtlasEdge) => {
+    const path = hierarchyControlPoints(
+      edge.source,
+      edge.target,
+      state.parentOf,
+      positionOf,
+    );
+    if (!path) return null;
+    const first = path[0]!;
+    const last = path[path.length - 1]!;
+    return {
+      source: edge.source,
+      target: edge.target,
+      d: smoothPathD(bundlePath(path, bundleStrength)),
+      chord: Math.hypot(last.x - first.x, last.y - first.y),
+    };
+  };
+
   const bundled = useMemo(() => {
-    if (!props.showEdges) return [];
+    if (!props.showEdges || focus) return [];
     return props.fileEdges.flatMap((edge) => {
-      const path = hierarchyControlPoints(
-        edge.source,
-        edge.target,
-        state.parentOf,
-        positionOf,
-      );
-      if (!path) return [];
-      const first = path[0]!;
-      const last = path[path.length - 1]!;
-      return [
-        {
-          source: edge.source,
-          target: edge.target,
-          d: smoothPathD(bundlePath(path, bundleStrength)),
-          chord: Math.hypot(last.x - first.x, last.y - first.y),
-        },
-      ];
+      const b = bundleOf(edge);
+      return b ? [b] : [];
     });
-  }, [props.fileEdges, props.showEdges, state, positionOf, bundleStrength]);
+  }, [props.fileEdges, props.showEdges, focus, state, positionOf, bundleStrength]);
+
+  // extraction mode: only the focused paths render, in direction colors
+  const focusBundles = useMemo(() => {
+    if (!focus) return [];
+    return (
+      [
+        [focus.downstreamEdges, DOWNSTREAM_COLOR],
+        [focus.upstreamEdges, UPSTREAM_COLOR],
+      ] as const
+    ).flatMap(([edges, color]) =>
+      edges.flatMap((edge) => {
+        const b = bundleOf(edge);
+        return b ? [{ ...b, color }] : [];
+      }),
+    );
+  }, [focus, state, positionOf, bundleStrength]);
+
+  const moduleOpacity = (id: string): number =>
+    focus && !focus.moduleIds.has(id) ? DIM : 1;
+  const fileOpacity = (id: string): number =>
+    focus && !focus.fileIds.has(id) ? DIM : 1;
 
   const fillOf = (cell: CellResult): string => {
     const changed = props.changedFiles?.get(cell.id);
@@ -166,54 +169,17 @@ export function TreemapSvg(props: Props) {
 
   return (
     <svg
-      ref={svgRef}
-      viewBox={`${viewRef.current.x} ${viewRef.current.y} ${viewRef.current.w} ${viewRef.current.h}`}
+      {...svgProps}
       style={{
         width: "100%",
         height: "100%",
         display: "block",
         touchAction: "none",
-        cursor: dragRef.current ? "grabbing" : "default",
+        cursor: "grab",
       }}
-      onWheel={onWheel}
-      onPointerDown={(e) => {
-        const svg = svgRef.current;
-        if (!svg) return;
-        svg.setPointerCapture(e.pointerId);
-        dragRef.current = {
-          pointerId: e.pointerId,
-          last: { x: e.clientX, y: e.clientY },
-          moved: 0,
-        };
-      }}
-      onPointerMove={(e) => {
-        const drag = dragRef.current;
-        if (!drag || drag.pointerId !== e.pointerId) return;
-        const rect = svgRef.current?.getBoundingClientRect();
-        if (!rect) return;
-        const v = viewRef.current;
-        const dx = ((e.clientX - drag.last.x) / rect.width) * v.w;
-        const dy = ((e.clientY - drag.last.y) / rect.height) * v.h;
-        drag.moved += Math.abs(dx) + Math.abs(dy);
-        drag.last = { x: e.clientX, y: e.clientY };
-        viewRef.current = { ...v, x: v.x - dx, y: v.y - dy };
-        applyView();
-      }}
-      onPointerUp={(e) => {
-        const drag = dragRef.current;
-        if (drag && drag.pointerId === e.pointerId) {
-          suppressClickRef.current = drag.moved > 4;
-          dragRef.current = null;
-        }
-      }}
-      onClick={() => {
-        if (suppressClickRef.current) {
-          suppressClickRef.current = false;
-          return;
-        }
-        onSelect(null);
-      }}
+      onClick={() => onSelect(null)}
     >
+      <style>{"polygon, path { vector-effect: non-scaling-stroke; }"}</style>
       {/* module districts */}
       <g>
         {[...state.moduleCells.values()].map((cell) =>
@@ -222,18 +188,16 @@ export function TreemapSvg(props: Props) {
               key={cell.id}
               points={cell.polygon.map((p) => `${p.x},${p.y}`).join(" ")}
               fill={`hsl(${moduleHue(cell.id)} 30% 97%)`}
+              fill-opacity={moduleOpacity(cell.id)}
               stroke={
                 isSelected(cell.id)
                   ? "#1d4ed8"
                   : `hsl(${moduleHue(cell.id)} 45% 55%)`
               }
-              stroke-width={(isSelected(cell.id) ? 3 : 1.6) / zoom}
+              stroke-opacity={moduleOpacity(cell.id)}
+              stroke-width={isSelected(cell.id) ? 3 : 1.6}
               onClick={(event) => {
                 event.stopPropagation();
-                if (suppressClickRef.current) {
-                  suppressClickRef.current = false;
-                  return;
-                }
                 onSelect(cell.id, event.shiftKey);
               }}
             />
@@ -247,21 +211,19 @@ export function TreemapSvg(props: Props) {
             key={cell.id}
             points={cell.polygon.map((p) => `${p.x},${p.y}`).join(" ")}
             fill={fillOf(cell)}
+            fill-opacity={fileOpacity(cell.id)}
             stroke={isSelected(cell.id) ? "#1d4ed8" : "#94a3b8"}
-            stroke-width={(isSelected(cell.id) ? 2.5 : 0.6) / zoom}
+            stroke-opacity={fileOpacity(cell.id)}
+            stroke-width={isSelected(cell.id) ? 2.5 : 0.6}
             onClick={(event) => {
               event.stopPropagation();
-              if (suppressClickRef.current) {
-                suppressClickRef.current = false;
-                return;
-              }
               onSelect(cell.id, event.shiftKey);
             }}
           />
         ))}
       </g>
       {/* bundled dependency edges */}
-      {props.showEdges ? (
+      {props.showEdges && !focus ? (
         <g fill="none">
           {bundled.map((edge) => {
             const active =
@@ -270,18 +232,33 @@ export function TreemapSvg(props: Props) {
               isSelected(parentModuleOf(edge.source) ?? "") ||
               isSelected(parentModuleOf(edge.target) ?? "");
             // sub-pixel intra-module edges are pure overdraw at overview
-            if (!active && edge.chord * zoom < 6) return null;
+            if (!active && edge.chord * zoom < MIN_EDGE_PX) return null;
             return (
               <path
                 key={`${edge.source} ${edge.target}`}
                 d={edge.d}
                 stroke={active ? "#c2410c" : "#0891b2"}
                 stroke-opacity={active ? 0.9 : selectedId ? 0.08 : 0.22}
-                stroke-width={(active ? 1.8 : 1) / zoom}
+                stroke-width={active ? 1.8 : 1}
                 style={{ pointerEvents: "none" }}
               />
             );
           })}
+        </g>
+      ) : null}
+      {/* extracted dependency paths, colored by direction */}
+      {focus ? (
+        <g fill="none">
+          {focusBundles.map((edge) => (
+            <path
+              key={`focus-${edge.source} ${edge.target}`}
+              d={edge.d}
+              stroke={edge.color}
+              stroke-opacity={0.85}
+              stroke-width={1.8}
+              style={{ pointerEvents: "none" }}
+            />
+          ))}
         </g>
       ) : null}
       {/* module labels */}
@@ -303,7 +280,7 @@ export function TreemapSvg(props: Props) {
               font-size={fontSize}
               font-weight="700"
               fill={`hsl(${moduleHue(cell.id)} 50% 32%)`}
-              fill-opacity={0.85}
+              fill-opacity={0.85 * moduleOpacity(cell.id)}
             >
               {labelOf(cell.id)}
             </text>
@@ -327,6 +304,7 @@ export function TreemapSvg(props: Props) {
               y={cell.site.y}
               font-size={fontSize}
               font-weight={isSelected(cell.id) ? "700" : "400"}
+              fill-opacity={fileOpacity(cell.id)}
             >
               {labelOf(cell.id)}
             </text>
