@@ -1,4 +1,5 @@
 import type { AtlasEdge, AtlasGraph, AtlasNode } from "../contracts/graph.js";
+import { parentFileOf } from "../contracts/hierarchy.js";
 import { defaultModuleIdOf } from "../contracts/modules.js";
 import { pageRank } from "../kernel/pagerank.js";
 
@@ -9,15 +10,6 @@ import { pageRank } from "../kernel/pagerank.js";
  * most-depended-upon API surfaces grow — and positions come from graph
  * proximity (force layout).
  */
-
-/** Parent file of a symbol id (`symbol:<path>:...` or `<path>#sN`). */
-function parentFileOf(symbolId: string): string {
-  if (symbolId.startsWith("symbol:")) {
-    return symbolId.split(":")[1] ?? symbolId;
-  }
-  const hash = symbolId.indexOf("#");
-  return hash >= 0 ? symbolId.slice(0, hash) : symbolId;
-}
 
 /** Module of a symbol = module of its parent file. */
 export function apiModuleIdOf(symbolId: string): string {

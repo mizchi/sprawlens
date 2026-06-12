@@ -2,7 +2,20 @@
  * Language-agnostic code graph contract. Producers (TypeScript analyzers,
  * future MoonBit / LSP providers) emit this shape; layout consumes it.
  */
-export type AtlasNodeKind = "module" | "file" | "symbol";
+/**
+ * Containment levels, outer to inner. "service" groups modules into
+ * deployment/communication units; "block" is a CFG basic block inside a
+ * symbol. Any subset of levels can act as display boundaries — see
+ * contracts/hierarchy.ts.
+ */
+export type AtlasNodeKind =
+  | "service"
+  | "module"
+  | "directory"
+  | "file"
+  | "class"
+  | "symbol"
+  | "block";
 
 export type AtlasNodeMetrics = {
   loc: number;
@@ -17,10 +30,19 @@ export type AtlasNode = {
   exported?: boolean;
 };
 
+/**
+ * Edge provenance: "import" is a static code dependency, "call" is an
+ * observed/declared communication link (service RPC, queue), "flow" is a
+ * control-flow edge between CFG blocks. Lifted aggregates keep the kind
+ * only when every contributing edge agrees.
+ */
+export type AtlasEdgeKind = "import" | "call" | "flow";
+
 export type AtlasEdge = {
   source: string;
   target: string;
   weight?: number;
+  kind?: AtlasEdgeKind;
 };
 
 export type AtlasGraph = {
