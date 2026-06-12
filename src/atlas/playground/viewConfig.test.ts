@@ -19,8 +19,10 @@ describe("presets", () => {
   it("falls back to custom for unlisted combinations", () => {
     const config: ViewConfig = {
       granularity: "file",
+      boundaries: ["module", "directory"],
+      displayLevels: ["module", "file"],
+      omit: [],
       weight: "pagerank",
-      hidePrivate: false,
       focusGranularity: "file",
     };
     expect(presetOf(config)).toBe("custom");

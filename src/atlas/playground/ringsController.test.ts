@@ -1,4 +1,6 @@
 import { describe, expect, it } from "vitest";
+import { directoryGrouping, moduleGrouping } from "../contracts/hierarchy.js";
+import { containsPoint } from "../kernel/polygon.js";
 import {
   applyRingsChanges,
   createRingsState,
@@ -12,7 +14,7 @@ describe("createRingsState layers", () => {
   it("lays out test files alongside source so areas show the ratio", () => {
     const graph = createSyntheticGraph({ count: 40, seed: 9 });
     const state = createRingsState(graph, opts);
-    const allCellIds = [...state.moduleLayouts.values()].flatMap((l) =>
+    const allCellIds = [...state.leafLayouts.values()].flatMap((l) =>
       l.cells.map((c) => c.id),
     );
     expect(allCellIds.some((id) => id.includes(".test."))).toBe(true);
@@ -24,8 +26,8 @@ describe("createRingsState", () => {
   it("creates one capacity layout per module, clipped to its circle", () => {
     const graph = createSyntheticGraph({ count: 60, seed: 1 });
     const state = createRingsState(graph, opts);
-    expect(state.moduleLayouts.size).toBe(state.circles.size);
-    for (const [moduleId, layout] of state.moduleLayouts) {
+    expect(state.leafLayouts.size).toBe(state.circles.size);
+    for (const [moduleId, layout] of state.leafLayouts) {
       const circle = state.circles.get(moduleId)!;
       expect(layout.clip).toEqual({
         kind: "circle",
@@ -54,21 +56,87 @@ describe("createRingsState", () => {
     expect(Math.max(...ranks)).toBeGreaterThan(0);
   });
 
-  it("embedding seeds make file placement seed-independent", () => {
+  it("is deterministic for a fixed seed", () => {
     const graph = createSyntheticGraph({ count: 60, seed: 5 });
-    const a = createRingsState(graph, { ...opts, seed: 1 });
-    const b = createRingsState(graph, { ...opts, seed: 42 });
-    for (const [moduleId, layout] of a.moduleLayouts) {
-      const other = b.moduleLayouts.get(moduleId)!;
+    const a = createRingsState(graph, { ...opts, seed: 7 });
+    const b = createRingsState(graph, { ...opts, seed: 7 });
+    for (const [moduleId, layout] of a.leafLayouts) {
+      const other = b.leafLayouts.get(moduleId)!;
       expect(layout.cells.map((c) => c.site)).toEqual(
         other.cells.map((c) => c.site),
       );
     }
   });
+
+  it("exposes the parent chain of every leaf", () => {
+    const graph = createSyntheticGraph({ count: 40, seed: 8 });
+    const state = createRingsState(graph, opts);
+    for (const [groupId, layout] of state.leafLayouts) {
+      for (const cell of layout.cells) {
+        expect(state.parentOf.get(cell.id)).toBe(groupId);
+      }
+      expect(state.parentOf.get(groupId)).toBeNull();
+    }
+  });
+});
+
+describe("createRingsState — multi-level boundaries", () => {
+  function deepGraph() {
+    const file = (id: string, loc: number) => ({
+      id,
+      kind: "file" as const,
+      label: id.split("/").pop()!,
+      metrics: { loc },
+    });
+    return {
+      nodes: [
+        file("src/alpha/core/a.ts", 100),
+        file("src/alpha/core/b.ts", 60),
+        file("src/alpha/util/c.ts", 40),
+        file("src/beta/core/d.ts", 150),
+        file("src/beta/core/e.ts", 50),
+      ],
+      edges: [
+        { source: "src/alpha/core/a.ts", target: "src/alpha/core/b.ts" },
+        { source: "src/alpha/util/c.ts", target: "src/beta/core/d.ts" },
+      ],
+    };
+  }
+  const BOUNDARIES = [moduleGrouping(), directoryGrouping(3)];
+
+  it("nests directory cells inside the module circles", () => {
+    const state = createRingsState(deepGraph(), {
+      ...opts,
+      boundaries: BOUNDARIES,
+    });
+    expect(state.innerLevels).toHaveLength(1);
+    expect(state.innerLevels[0]!.kind).toBe("directory");
+    for (const [dirId, cell] of state.innerLevels[0]!.cells) {
+      const moduleId = state.parentOf.get(dirId)!;
+      const circle = state.circles.get(moduleId)!;
+      const distance = Math.hypot(cell.site.x - circle.cx, cell.site.y - circle.cy);
+      expect(distance).toBeLessThanOrEqual(circle.r);
+    }
+  });
+
+  it("keys leaf layouts by the innermost group and confines leaves", () => {
+    const state = createRingsState(deepGraph(), {
+      ...opts,
+      boundaries: BOUNDARIES,
+    });
+    expect(state.leafLayouts.has("src/alpha/core")).toBe(true);
+    expect(state.leafLayouts.has("src/alpha")).toBe(false);
+    for (const [dirId, layout] of state.leafLayouts) {
+      const dirCell = state.innerLevels[0]!.cells.get(dirId)!;
+      for (const cell of layout.cells) {
+        expect(containsPoint(dirCell.polygon, cell.site)).toBe(true);
+      }
+    }
+  });
 });
 
 describe("stepRingsState", () => {
-  it("converges every module layout", () => {
+  it("converges every leaf layout", () => {
     const graph = createSyntheticGraph({ count: 50, seed: 4 });
     let state = createRingsState(graph, { ...opts, seed: 4 });
     let guard = 0;
@@ -78,14 +146,14 @@ describe("stepRingsState", () => {
       if (!result.active || ++guard > 1000) break;
     }
     expect(guard).toBeLessThanOrEqual(1000);
-    for (const layout of state.moduleLayouts.values()) {
+    for (const layout of state.leafLayouts.values()) {
       expect(layout.maxRelativeError).toBeLessThan(0.02);
     }
   });
 });
 
 describe("applyRingsChanges", () => {
-  it("keeps module layouts warm when a file weight changes", () => {
+  it("keeps leaf layouts warm when a file weight changes", () => {
     const graph = createSyntheticGraph({ count: 50, seed: 5 });
     let state = createRingsState(graph, { ...opts, seed: 5 });
     let guard = 0;
@@ -104,10 +172,10 @@ describe("applyRingsChanges", () => {
       ),
     };
     const next = applyRingsChanges(state, mutated, { ...opts, seed: 5 });
-    expect(next.moduleLayouts.size).toBe(state.moduleLayouts.size);
+    expect(next.leafLayouts.size).toBe(state.leafLayouts.size);
     // sites carried over: the same file ids exist with similar positions
-    for (const [moduleId, layout] of next.moduleLayouts) {
-      const before = state.moduleLayouts.get(moduleId)!;
+    for (const [moduleId, layout] of next.leafLayouts) {
+      const before = state.leafLayouts.get(moduleId)!;
       expect(layout.cells.map((c) => c.id).sort()).toEqual(
         before.cells.map((c) => c.id).sort(),
       );
@@ -117,7 +185,7 @@ describe("applyRingsChanges", () => {
   it("drops removed files and their module when it empties", () => {
     const graph = createSyntheticGraph({ count: 30, seed: 6 });
     const state = createRingsState(graph, { ...opts, seed: 6 });
-    const someModule = [...state.moduleLayouts.keys()][0]!;
+    const someModule = [...state.leafLayouts.keys()][0]!;
     const without = {
       ...graph,
       nodes: graph.nodes.filter((n) => !n.id.startsWith(`${someModule}/`)),
@@ -128,6 +196,6 @@ describe("applyRingsChanges", () => {
       ),
     };
     const next = applyRingsChanges(state, without, { ...opts, seed: 6 });
-    expect(next.moduleLayouts.has(someModule)).toBe(false);
+    expect(next.leafLayouts.has(someModule)).toBe(false);
   });
 });

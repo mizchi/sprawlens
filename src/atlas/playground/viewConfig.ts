@@ -10,6 +10,67 @@ import { pageRank } from "../kernel/pagerank.js";
 
 /** What unit becomes a layout leaf (and what edges connect). */
 export type Granularity = "module" | "file" | "symbol";
+/**
+ * Boundary levels partition the space: each checked level becomes a ring
+ * of nested districts (module ⊃ directory ⊃ file, canonical order). This
+ * is the *structure* axis — independent of which elements are displayed.
+ * A file boundary only makes sense around sub-file leaves.
+ */
+export type BoundaryLevel = "module" | "directory" | "file";
+export const BOUNDARY_LEVELS: readonly BoundaryLevel[] = [
+  "module",
+  "directory",
+  "file",
+];
+
+/**
+ * Display levels select which strata are *drawn*. Crucially this is not
+ * the partition: a level can be used as a subdivision unit (boundaries,
+ * leaf placement) while its rendering is switched off — e.g. partition by
+ * directory but hide the directory outlines, or place symbols by their
+ * file regions without drawing file borders. AST and CFG are planned
+ * dynamic levels: fetched on demand (an LSP/analyzer round-trip like call
+ * hierarchy) and rendered only past a zoom threshold, never part of the
+ * static graph.
+ */
+export type DisplayLevel =
+  | "module"
+  | "directory"
+  | "file"
+  | "symbol"
+  | "ast"
+  | "cfg";
+export const DISPLAY_LEVELS: readonly DisplayLevel[] = [
+  "module",
+  "directory",
+  "file",
+  "symbol",
+  "ast",
+  "cfg",
+];
+/** No dynamic provider yet; the UI lists them disabled. */
+export const UNAVAILABLE_LEVELS: ReadonlySet<DisplayLevel> = new Set([
+  "ast",
+  "cfg",
+]);
+
+/**
+ * Omit scopes exclude whole content categories from the map, orthogonal
+ * to both depth and boundaries — the recurring "production code only"
+ * views: drop test files, drop non-exported symbols.
+ */
+export type OmitScope = "test" | "private-symbol";
+export const OMIT_SCOPES: readonly OmitScope[] = ["test", "private-symbol"];
+
+/** Layers (contracts/layers.ts) hidden by the omit selection. */
+export function hiddenLayersOf(omit: readonly OmitScope[]): string[] {
+  return omit.includes("test") ? ["test"] : [];
+}
+
+/** Whether sub-file detail is rendered at all (nested symbol layouts). */
+export function showsSymbolLevels(levels: readonly DisplayLevel[]): boolean {
+  return levels.includes("symbol");
+}
 /** What scores a leaf's area. */
 export type WeightKind = "loc" | "pagerank";
 /** What a click resolves to; "auto" selects whatever the LOD shows. */
@@ -17,13 +78,10 @@ export type SelectMode = "auto" | "module" | "file" | "symbol";
 
 export type ViewConfig = {
   granularity: Granularity;
+  boundaries: BoundaryLevel[];
+  displayLevels: DisplayLevel[];
+  omit: OmitScope[];
   weight: WeightKind;
-  /**
-   * Symbol granularity only: drop non-exported symbols and re-project
-   * edges through them (the public-API network). Nested file views filter
-   * by layers instead.
-   */
-  hidePrivate: boolean;
   /**
    * How deep the zoom auto-focus drills when nothing is selected: zooming
    * past the threshold implicitly selects the crosshair target at this
@@ -44,8 +102,10 @@ export const VIEW_PRESETS: ViewPreset[] = [
     label: "files (LOC area)",
     config: {
       granularity: "file",
+      boundaries: ["module"],
+      displayLevels: ["module", "file", "symbol"],
+      omit: [],
       weight: "loc",
-      hidePrivate: false,
       focusGranularity: "file",
     },
   },
@@ -54,8 +114,10 @@ export const VIEW_PRESETS: ViewPreset[] = [
     label: "public API network",
     config: {
       granularity: "symbol",
+      boundaries: ["module"],
+      displayLevels: ["module", "symbol"],
+      omit: ["private-symbol"],
       weight: "pagerank",
-      hidePrivate: true,
       focusGranularity: "symbol",
     },
   },
@@ -64,8 +126,10 @@ export const VIEW_PRESETS: ViewPreset[] = [
     label: "modules only",
     config: {
       granularity: "module",
+      boundaries: ["module"],
+      displayLevels: ["module"],
+      omit: [],
       weight: "loc",
-      hidePrivate: false,
       focusGranularity: "module",
     },
   },
@@ -75,8 +139,12 @@ export function presetOf(config: ViewConfig): string {
   const match = VIEW_PRESETS.find(
     (p) =>
       p.config.granularity === config.granularity &&
+      p.config.boundaries.join("+") === config.boundaries.join("+") &&
+      [...p.config.displayLevels].sort().join("+") ===
+        [...config.displayLevels].sort().join("+") &&
+      [...p.config.omit].sort().join("+") ===
+        [...config.omit].sort().join("+") &&
       p.config.weight === config.weight &&
-      p.config.hidePrivate === config.hidePrivate &&
       p.config.focusGranularity === config.focusGranularity,
   );
   return match?.id ?? "custom";
@@ -84,7 +152,14 @@ export function presetOf(config: ViewConfig): string {
 
 export function presetConfig(id: string): ViewConfig | null {
   const preset = VIEW_PRESETS.find((p) => p.id === id);
-  return preset ? { ...preset.config } : null;
+  return preset
+    ? {
+        ...preset.config,
+        boundaries: [...preset.config.boundaries],
+        displayLevels: [...preset.config.displayLevels],
+        omit: [...preset.config.omit],
+      }
+    : null;
 }
 
 /**

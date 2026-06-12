@@ -50,10 +50,21 @@ import {
   synthesizeSymbols,
 } from "./synthetic.ts";
 import type { AtlasEdge } from "../contracts/graph.js";
+import {
+  directoryGrouping,
+  fileGrouping,
+  moduleGrouping,
+  type Grouping,
+} from "../contracts/hierarchy.js";
 import { defaultLayerOf, matchTestTargets } from "../contracts/layers.js";
 import { defaultModuleIdOf } from "../contracts/modules.js";
 import { apiModuleIdOf, buildApiGraph, splitApiBoundary } from "./apiView.ts";
-import { resolveSelection, reweightByPageRank } from "./viewConfig.ts";
+import {
+  hiddenLayersOf,
+  resolveSelection,
+  reweightByPageRank,
+  showsSymbolLevels,
+} from "./viewConfig.ts";
 import { fetchCallHierarchy, refsToEdges } from "./callHierarchyClient.ts";
 import {
   buildHistoryIndex,
@@ -168,8 +179,11 @@ export function App() {
     source: "sprawlens",
     layout: "rings",
     granularity: "file",
+    boundaries: ["module"],
+    displayLevels: ["module", "file", "symbol"],
+    omit: [],
+    directoryDepth: 3,
     weight: "loc",
-    hidePrivate: false,
     focusGranularity: "file",
     selectMode: "auto",
     deselectOffscreen: true,
@@ -184,8 +198,6 @@ export function App() {
     stepsPerFrame: 2,
     // ambient edges add noise; macro module deps are opt-in via this toggle
     showEdges: false,
-    showNested: true,
-    hiddenLayers: [],
   });
   // multi-select: ordered ids, last one is the primary (drives the detail
   // panel, breadcrumb, and labels); shift+click toggles membership
@@ -282,6 +294,21 @@ export function App() {
     for (const node of graph.nodes) labels.set(node.id, node.label);
   };
 
+  /** Display boundary chain from the view config (leaf-independent). */
+  const boundariesOf = (p: PlaygroundParams): Grouping[] => {
+    const groupings = p.boundaries.flatMap(
+      (level): Grouping[] => {
+      if (level === "module") return [moduleGrouping()];
+      if (level === "directory") return [directoryGrouping(p.directoryDepth)];
+      // file boundaries only make sense around sub-file leaves
+      if (level === "file" && p.granularity === "symbol")
+        return [fileGrouping()];
+      return [];
+      },
+    );
+    return groupings.length > 0 ? groupings : [moduleGrouping()];
+  };
+
   const ringsOptions = (p: PlaygroundParams) => ({
     width: WIDTH,
     height: HEIGHT,
@@ -289,7 +316,7 @@ export function App() {
     invert: p.invertRings,
     adaptationRate: p.adaptationRate,
     lloydRate: p.lloydRate,
-    moduleIdOf: p.granularity === "symbol" ? apiModuleIdOf : undefined,
+    boundaries: boundariesOf(p),
   });
 
   const treemapOptions = (p: PlaygroundParams) => ({
@@ -298,6 +325,7 @@ export function App() {
     seed: p.seed,
     adaptationRate: p.adaptationRate,
     lloydRate: p.lloydRate,
+    boundaries: boundariesOf(p),
   });
 
   const symbolsForFile = (fileId: string): AtlasNode[] => {
@@ -308,11 +336,12 @@ export function App() {
     return loc === undefined ? [] : synthesizeSymbols(fileId, loc, 1);
   };
 
-  /** Graph minus hidden layers — what the layout actually subdivides. */
+  /** Graph minus hidden display levels — what the layout subdivides. */
   const effectiveGraph = (p: PlaygroundParams): AtlasGraph => {
     let graph = graphRef.current;
-    if (p.hiddenLayers.length) {
-      const hidden = new Set(p.hiddenLayers);
+    const hiddenLayers = hiddenLayersOf(p.omit);
+    if (hiddenLayers.length) {
+      const hidden = new Set(hiddenLayers);
       const nodes = graph.nodes.filter(
         (n) => !hidden.has(defaultLayerOf(n.id)),
       );
@@ -326,7 +355,7 @@ export function App() {
     }
     if (p.granularity === "symbol") {
       const api = buildApiGraph(graph, symbolsForFile, symbolEdgesRef.current, {
-        includePrivate: !p.hidePrivate,
+        includePrivate: !p.omit.includes("private-symbol"),
         weight: p.weight,
       });
       // the network's labels come from the projected symbols
@@ -404,9 +433,8 @@ export function App() {
         let symbols =
           symbolsRef.current?.get(cell.id) ??
           synthesizeSymbols(cell.id, loc, 1);
-        if (paramsRef.current.hidePrivate) {
-          const publicOnly = symbols.filter((s) => s.exported === true);
-          if (publicOnly.length > 0) symbols = publicOnly;
+        if (paramsRef.current.omit.includes("private-symbol")) {
+          symbols = symbols.filter((s) => s.exported === true);
         }
         for (const symbol of symbols) {
           symbolMetaRef.current.set(symbol.id, {
@@ -566,26 +594,27 @@ export function App() {
 
   // structural params trigger a rebuild; invert re-rings warm; solver params
   // only update options on the existing layout
-  const structuralKey = `${params.source}|${params.layout}|${params.granularity}|${params.count}|${params.seed}|${params.clipKind}`;
+  const structuralKey = `${params.source}|${params.layout}|${params.granularity}|${params.boundaries.join("+")}|${params.directoryDepth}|${params.count}|${params.seed}|${params.clipKind}`;
   // weight / filters / invert re-flow warm (the diff animation); only
   // granularity and data swaps rebuild cold
-  const flowKey = `${params.invertRings}|${params.hiddenLayers.join(",")}|${params.weight}|${params.hidePrivate}`;
+  const detailKey = params.omit.join("+");
+  const flowKey = `${params.invertRings}|${detailKey}|${params.weight}`;
   const structuralRef = useRef(structuralKey);
   const flowKeyRef = useRef(flowKey);
-  const hidePrivateRef = useRef(params.hidePrivate);
+  const detailKeyRef = useRef(detailKey);
   useEffect(() => {
     if (structuralRef.current !== structuralKey) {
       structuralRef.current = structuralKey;
       flowKeyRef.current = flowKey;
-      hidePrivateRef.current = paramsRef.current.hidePrivate;
+      detailKeyRef.current = detailKey;
       rebuild(paramsRef.current);
       return;
     }
     if (flowKeyRef.current !== flowKey) {
       flowKeyRef.current = flowKey;
-      if (hidePrivateRef.current !== params.hidePrivate) {
-        hidePrivateRef.current = params.hidePrivate;
-        // nested symbol layouts bake the private filter in: restart them
+      if (detailKeyRef.current !== detailKey) {
+        detailKeyRef.current = detailKey;
+        // nested symbol layouts bake the level filter in: restart them
         innerLayoutsRef.current = new Map();
         innerDirtyRef.current = true;
       }
@@ -661,7 +690,7 @@ export function App() {
           steps++;
         }
         outerActive = active;
-        for (const layout of ringsRef.current.moduleLayouts.values()) {
+        for (const layout of ringsRef.current.leafLayouts.values()) {
           outerCells.push(...layout.cells);
           maxError = Math.max(maxError, layout.maxRelativeError);
         }
@@ -679,7 +708,7 @@ export function App() {
           steps++;
         }
         outerActive = active;
-        for (const layout of treemapRef.current.fileLayouts.values()) {
+        for (const layout of treemapRef.current.leafLayouts.values()) {
           outerCells.push(...layout.cells);
           maxError = Math.max(maxError, layout.maxRelativeError);
         }
@@ -706,7 +735,7 @@ export function App() {
 
       let innerActive = false;
       if (
-        paramsRef.current.showNested &&
+        showsSymbolLevels(paramsRef.current.displayLevels) &&
         paramsRef.current.granularity === "file"
       ) {
         syncInnerLayouts(outerCells, outerActive, innerBudget);
@@ -826,19 +855,44 @@ export function App() {
     setFrame((f) => f + 1);
   };
 
-  /** Outer-layout cell (module or file) for an id, across layout kinds. */
-  const outerCellOf = (id: string): CellResult | null => {
-    if (ringsRef.current) {
-      for (const layout of ringsRef.current.moduleLayouts.values()) {
-        const cell = layout.cells.find((c) => c.id === id);
+  /** Boundary-group cell (module, directory, ...) across layout kinds. */
+  const groupCellOf = (id: string): CellResult | null => {
+    const treemap = treemapRef.current;
+    if (treemap) {
+      for (const level of treemap.levels) {
+        const cell = level.cells.get(id);
         if (cell) return cell;
       }
-      return null;
     }
-    if (treemapRef.current) {
-      const moduleCell = treemapRef.current.moduleCells.get(id);
-      if (moduleCell) return moduleCell;
-      for (const layout of treemapRef.current.fileLayouts.values()) {
+    const rings = ringsRef.current;
+    if (rings) {
+      for (const level of rings.innerLevels) {
+        const cell = level.cells.get(id);
+        if (cell) return cell;
+      }
+    }
+    return null;
+  };
+
+  /** Top-level group (module) of any treemap group or leaf id. */
+  const treemapTopOf = (state: TreemapState, id: string): string => {
+    let current = id;
+    let parent = state.parentOf.get(current) ?? null;
+    while (parent != null) {
+      current = parent;
+      parent = state.parentOf.get(current) ?? null;
+    }
+    return current;
+  };
+
+  /** Outer-layout cell (group or file) for an id, across layout kinds. */
+  const outerCellOf = (id: string): CellResult | null => {
+    const layouts =
+      ringsRef.current?.leafLayouts ?? treemapRef.current?.leafLayouts;
+    if (layouts) {
+      const groupCell = groupCellOf(id);
+      if (groupCell) return groupCell;
+      for (const layout of layouts.values()) {
         const cell = layout.cells.find((c) => c.id === id);
         if (cell) return cell;
       }
@@ -977,11 +1031,14 @@ export function App() {
     const treemap = treemapRef.current;
     if (!rings && !treemap) return null;
     const fileLayoutsByModule = rings
-      ? rings.moduleLayouts
-      : treemap!.fileLayouts;
-    const moduleEdges = rings ? rings.moduleEdges : treemap!.moduleEdges;
+      ? rings.leafLayouts
+      : treemap!.leafLayouts;
+    const moduleEdges = rings ? rings.topEdges : treemap!.topEdges;
     const fileToModule = new Map<string, string>();
-    for (const [moduleId, layout] of fileLayoutsByModule) {
+    for (const [groupId, layout] of fileLayoutsByModule) {
+      // leaf layouts hang off the innermost boundary; the focus sets work
+      // at the top (module) level, so resolve through the parent chain
+      const moduleId = rings ? groupId : treemapTopOf(treemap!, groupId);
       for (const cell of layout.cells) fileToModule.set(cell.id, moduleId);
     }
     const symbolsOfFiles = (fileIds: Set<string>): Set<string> => {
@@ -1001,7 +1058,7 @@ export function App() {
 
     const isModuleId = rings
       ? rings.circles.has(id)
-      : treemap!.moduleCells.has(id);
+      : treemap!.levels[0]!.cells.has(id);
     if (isModuleId) {
       const reach = reachSubgraph(moduleEdges, id);
       const fileIds = filesOfModules(reach.nodes);
@@ -1010,6 +1067,37 @@ export function App() {
         moduleIds: reach.nodes,
         fileIds,
         symbolIds: symbolsOfFiles(fileIds),
+        downstreamEdges: reach.downstreamEdges,
+        upstreamEdges: reach.upstreamEdges,
+      };
+    }
+    // intermediate boundary group (directory, file district, ...): reach
+    // over that level's own network, then light up the member leaves
+    const intermediateLevel = (
+      rings ? rings.innerLevels : treemap!.levels.slice(1)
+    ).find((level) => level.cells.has(id));
+    if (intermediateLevel) {
+      const parentOf = rings ? rings.parentOf : treemap!.parentOf;
+      const reach = reachSubgraph(intermediateLevel.edges, id);
+      const fileIds = new Set<string>();
+      for (const leafId of fileToModule.keys()) {
+        let current = parentOf.get(leafId) ?? null;
+        while (current != null && !reach.nodes.has(current)) {
+          current = parentOf.get(current) ?? null;
+        }
+        if (current != null) fileIds.add(leafId);
+      }
+      const moduleIds = new Set<string>();
+      for (const fileId of fileIds) {
+        const moduleId = fileToModule.get(fileId);
+        if (moduleId) moduleIds.add(moduleId);
+      }
+      return {
+        level: "module",
+        moduleIds,
+        fileIds,
+        symbolIds: symbolsOfFiles(fileIds),
+        groupIds: reach.nodes,
         downstreamEdges: reach.downstreamEdges,
         upstreamEdges: reach.upstreamEdges,
       };
@@ -1075,6 +1163,10 @@ export function App() {
       for (const id of view.moduleIds) merged.moduleIds.add(id);
       for (const id of view.fileIds) merged.fileIds.add(id);
       for (const id of view.symbolIds) merged.symbolIds.add(id);
+      if (view.groupIds) {
+        merged.groupIds ??= new Set();
+        for (const id of view.groupIds) merged.groupIds.add(id);
+      }
       for (const edge of view.downstreamEdges) {
         const key = `${edge.source} ${edge.target}`;
         if (!seenDown.has(key)) {
@@ -1179,7 +1271,7 @@ export function App() {
       ),
     [leafGraph],
   );
-  const moduleEdgesNow = ringsRef.current?.moduleEdges ?? null;
+  const moduleEdgesNow = ringsRef.current?.topEdges ?? null;
   const cyclicModuleIds = useMemo(() => {
     if (!moduleEdgesNow) return new Set<string>();
     const ids = [
@@ -1197,7 +1289,7 @@ export function App() {
     if (!rings && !treemap) return [];
     const isModuleId = (id: string) =>
       (rings?.circles.has(id) ?? false) ||
-      (treemap?.moduleCells.has(id) ?? false);
+      (treemap?.levels[0]!.cells.has(id) ?? false);
     const parts: { id: string; label: string }[] = [];
     const isSymbolId = (id: string) =>
       id.startsWith("symbol:") || id.includes("#");
@@ -1232,7 +1324,7 @@ export function App() {
         }
       }
     } else if (treemap) {
-      for (const [id, cell] of treemap.moduleCells) {
+      for (const [id, cell] of treemap.levels[0]!.cells) {
         if (cell.polygon.length >= 3 && containsPoint(cell.polygon, p)) {
           moduleId = id;
           break;
@@ -1241,9 +1333,22 @@ export function App() {
     }
     if (!moduleId) return [];
     parts.push({ id: moduleId, label: moduleId });
+    // descend the intermediate boundary levels under the crosshair
+    let leafGroupId = moduleId;
+    const intermediateLevels = rings
+      ? rings.innerLevels
+      : treemap!.levels.slice(1);
+    for (const level of intermediateLevels) {
+      const hit = [...level.cells.values()].find(
+        (c) => c.polygon.length >= 3 && containsPoint(c.polygon, p),
+      );
+      if (!hit) break;
+      parts.push({ id: hit.id, label: hit.id.split("/").pop()! });
+      leafGroupId = hit.id;
+    }
     const layout = rings
-      ? rings.moduleLayouts.get(moduleId)
-      : treemap?.fileLayouts.get(moduleId);
+      ? rings.leafLayouts.get(leafGroupId)
+      : treemap?.leafLayouts.get(leafGroupId);
     const cell = layout?.cells.find(
       (c) => c.polygon.length >= 3 && containsPoint(c.polygon, p),
     );
@@ -1280,12 +1385,15 @@ export function App() {
     const worldAreaOf = (id: string): number => {
       const circle = rings?.circles.get(id);
       if (circle) return Math.PI * circle.r ** 2;
-      const moduleCell = treemap?.moduleCells.get(id);
-      if (moduleCell) return moduleCell.actualArea;
-      const moduleLayout = rings
-        ? rings.moduleLayouts.get(breadcrumb[0]!.id)
-        : treemap?.fileLayouts.get(breadcrumb[0]!.id);
-      const cell = moduleLayout?.cells.find((c) => c.id === id);
+      const groupCell = groupCellOf(id);
+      if (groupCell) return groupCell.actualArea;
+      const cell = rings
+        ? [...rings.leafLayouts.values()]
+            .flatMap((l) => l.cells)
+            .find((c) => c.id === id)
+        : [...(treemap?.leafLayouts.values() ?? [])]
+            .flatMap((l) => l.cells)
+            .find((c) => c.id === id);
       if (cell) return cell.actualArea;
       const inner = innerLayoutsRef.current.get(parentFileOf(id));
       return inner?.cells.find((c) => c.id === id)?.actualArea ?? 0;
@@ -1299,6 +1407,11 @@ export function App() {
   })();
   const activeId = selectedId ?? implicitId;
   const selectedIdSet = useMemo(() => new Set(selectedIds), [selectedIds]);
+  /** Strata visibility set fed to the map components (level kinds). */
+  const visibleLevels = useMemo(
+    () => new Set<string>(params.displayLevels),
+    [params.displayLevels],
+  );
 
   const selectNode = (id: string | null, additive = false) => {
     if (id === null) {
@@ -1311,7 +1424,7 @@ export function App() {
     const resolved = resolveSelection(id, paramsRef.current.selectMode, {
       isModule: (x) =>
         (ringsRef.current?.circles.has(x) ?? false) ||
-        (treemapRef.current?.moduleCells.has(x) ?? false),
+        (treemapRef.current?.levels[0]!.cells.has(x) ?? false),
       parentFileOf,
       moduleOf: (x) =>
         paramsRef.current.granularity === "symbol"
@@ -1434,9 +1547,9 @@ export function App() {
   }, [params.source, params.diffBase]);
 
   const allCells: CellResult[] = ringsRef.current
-    ? [...ringsRef.current.moduleLayouts.values()].flatMap((l) => l.cells)
+    ? [...ringsRef.current.leafLayouts.values()].flatMap((l) => l.cells)
     : treemapRef.current
-      ? [...treemapRef.current.fileLayouts.values()].flatMap((l) => l.cells)
+      ? [...treemapRef.current.leafLayouts.values()].flatMap((l) => l.cells)
       : (layoutRef.current?.cells ?? []);
   const allInnerCells = innerCellsRef.current;
   const testFileIds = testFileIdsRef.current;
@@ -1451,7 +1564,14 @@ export function App() {
   const selectedIsModule =
     activeId !== null &&
     ((ringsRef.current?.circles.has(activeId) ?? false) ||
-      (treemapRef.current?.moduleCells.has(activeId) ?? false));
+      (treemapRef.current?.levels[0]!.cells.has(activeId) ?? false));
+  /** Intermediate boundary group (directory etc.) — its level kind. */
+  const selectedGroupKind =
+    activeId !== null && !selectedIsModule
+      ? (ringsRef.current?.kindOf.get(activeId) ??
+        treemapRef.current?.kindOf.get(activeId) ??
+        null)
+      : null;
   const selectedTest =
     activeId !== null && testFileIds.has(activeId)
       ? (graphRef.current.nodes.find((n) => n.id === activeId) ?? null)
@@ -1547,12 +1667,14 @@ export function App() {
   const maxError = ringsRef.current
     ? Math.max(
         0,
-        ...[...ringsRef.current.moduleLayouts.values()].map(
+        ...[...ringsRef.current.leafLayouts.values()].map(
           (l) => l.maxRelativeError,
         ),
       )
     : (layoutRef.current?.maxRelativeError ?? 0);
-  const innerCells = params.showNested ? allInnerCells : [];
+  const innerCells = showsSymbolLevels(params.displayLevels)
+    ? allInnerCells
+    : [];
   /** Parent file name for disambiguating symbol references in lists. */
   const fileOf = (id: string) => {
     if (id.includes("#")) return id.split("#")[0]!.split("/").pop()!;
@@ -1600,7 +1722,13 @@ export function App() {
             }
             lspEdges={lspOverlayEdges}
             showEdges={params.showEdges || params.granularity === "symbol"}
-            showFiles={params.granularity !== "module"}
+            showFiles={
+              params.granularity !== "module" &&
+              params.displayLevels.includes(
+                params.granularity === "symbol" ? "symbol" : "file",
+              )
+            }
+            visibleLevels={visibleLevels}
             compactModuleLabels={params.granularity === "symbol"}
             cyclicIds={cyclicIds}
             cyclicModuleIds={cyclicModuleIds}
@@ -1608,7 +1736,7 @@ export function App() {
             exportedIds={exportedIds}
             focus={focusView}
             testFileIds={testFileIds}
-            hiddenLayers={new Set(params.hiddenLayers)}
+            hiddenLayers={new Set(hiddenLayersOf(params.omit))}
             parentFileOf={parentFileOf}
             changedFiles={changedFilesRef.current}
             portNodes={portNodes}
@@ -1627,6 +1755,8 @@ export function App() {
             state={treemapRef.current}
             fileEdges={graphRef.current.edges}
             showEdges={params.showEdges}
+            visibleLevels={visibleLevels}
+            leafKind={params.granularity === "symbol" ? "symbol" : "file"}
             labels={labels}
             changedFiles={changedFilesRef.current}
             cyclicIds={cyclicIds}
@@ -1872,11 +2002,6 @@ export function App() {
         <Section title="表示オプション">
           <Controls
             params={params}
-            availableLayers={[
-              ...new Set(
-                graphRef.current.nodes.map((n) => defaultLayerOf(n.id)),
-              ),
-            ].sort()}
             onChange={setParams}
             onRegenerate={() => rebuild(paramsRef.current)}
             onMutateWeight={mutateWeight}
@@ -1911,7 +2036,11 @@ export function App() {
             </div>
           </Section>
         ) : null}
-        {selected || selectedIsModule || selectedTest || selectedPort ? (
+        {selected ||
+        selectedIsModule ||
+        selectedGroupKind ||
+        selectedTest ||
+        selectedPort ? (
           <Section title="選択ノード">
             <div style={{ fontWeight: "600", wordBreak: "break-all" }}>
               {labelOf(activeId!)}
@@ -1921,9 +2050,11 @@ export function App() {
                   ? " (symbol)"
                   : selectedIsModule
                     ? " (module)"
-                    : selectedTest
-                      ? " (test)"
-                      : ""}
+                    : selectedGroupKind
+                      ? ` (${selectedGroupKind})`
+                      : selectedTest
+                        ? " (test)"
+                        : ""}
             </div>
             {params.granularity !== "symbol" ? (
               <div style={{ color: "#64748b", wordBreak: "break-all" }}>

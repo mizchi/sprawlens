@@ -1,10 +1,21 @@
-import type { AtlasEdge, AtlasGraph } from "../contracts/graph.js";
-import { deriveModules, type ModuleIdOf } from "../contracts/modules.js";
+import type {
+  AtlasEdge,
+  AtlasGraph,
+  AtlasNodeKind,
+} from "../contracts/graph.js";
+import {
+  deriveLevels,
+  moduleGrouping,
+  type Grouping,
+  type LevelTree,
+} from "../contracts/hierarchy.js";
+import type { ModuleIdOf } from "../contracts/modules.js";
 import {
   applyGraphChanges,
   capacityStep,
   isConverged,
   type CapacityLayoutState,
+  type ClipRegion,
 } from "../kernel/capacityLayout.js";
 import {
   createGraphLayout,
@@ -13,6 +24,20 @@ import {
 } from "../kernel/pipeline.js";
 import { ringLayout, type PlacedCircle } from "../kernel/ringLayout.js";
 import { topoRank } from "../kernel/topoRank.js";
+import {
+  DECLUMP_ITERATIONS,
+  seedLeafLayout,
+  subdivideUnder,
+  type SubdivisionLevel,
+} from "./subdivision.js";
+
+/**
+ * Concentric-ring layout: the top boundary level's network is placed as
+ * circles on topological-rank rings, then the shared nested subdivision
+ * descends the remaining boundary levels inside each circle (see
+ * subdivision.ts). Rings and treemap are just two shapes for the top
+ * level's network.
+ */
 
 export type RingsOptions = {
   width: number;
@@ -21,46 +46,55 @@ export type RingsOptions = {
   invert?: boolean;
   adaptationRate?: number;
   lloydRate?: number;
-  /** Node → module assignment; defaults to the path heuristic. */
+  /** Display boundary chain, outer → inner; defaults to module level. */
+  boundaries?: readonly Grouping[];
+  /** Level-native edges (service communication etc.), keyed by level kind. */
+  nativeEdges?: ReadonlyMap<string, readonly AtlasEdge[]>;
+  /** Module assignment for the default boundary; path heuristic otherwise. */
   moduleIdOf?: ModuleIdOf;
 };
 
 export type RingsState = {
-  /** Module circles in viewport pixels. */
+  /** Top-level circles in viewport pixels. */
   circles: Map<string, PlacedCircle>;
-  moduleLayouts: Map<string, CapacityLayoutState>;
-  moduleEdges: AtlasEdge[];
+  /** Solved intermediate boundary levels nested inside the circles. */
+  innerLevels: SubdivisionLevel[];
+  /** Innermost group id → its (animated) leaf subdivision. */
+  leafLayouts: Map<string, CapacityLayoutState>;
+  /** The top level's network (lifted + native edges). */
+  topEdges: AtlasEdge[];
   ranks: Map<string, number>;
+  /** Any id (group or leaf) → parent group id; top groups → null. */
+  parentOf: Map<string, string | null>;
+  /** Group id → its boundary level kind. */
+  kindOf: Map<string, AtlasNodeKind>;
 };
 
 const CONVERGENCE = 0.005;
 const CLIP_INSET = 0.94;
 
-/** When the embedding provides the structure, force only declumps. */
-const DECLUMP_ITERATIONS = 16;
+function resolvedBoundaries(options: RingsOptions): readonly Grouping[] {
+  return options.boundaries && options.boundaries.length > 0
+    ? options.boundaries
+    : [moduleGrouping(options.moduleIdOf)];
+}
 
-/**
- * Cold per-module layout: deterministic embedding seeds when the module is
- * small enough, force fallback above the cap. With embedding seeds the
- * layout no longer depends on the seed parameter at all.
- */
-function createModuleLayout(
-  files: AtlasGraph["nodes"],
-  edges: AtlasEdge[],
-  clip: { kind: "circle"; cx: number; cy: number; r: number },
-  options: RingsOptions,
-): CapacityLayoutState {
-  const graph = { nodes: files, edges };
-  const hints = embedSeedHints(graph, clip);
-  return createGraphLayout(graph, clip, {
+function canvasOf(options: RingsOptions): ClipRegion {
+  return {
+    kind: "rect",
+    x: 0,
+    y: 0,
+    width: options.width,
+    height: options.height,
+  };
+}
+
+function solverOf(options: RingsOptions) {
+  return {
     seed: options.seed,
     adaptationRate: options.adaptationRate,
     lloydRate: options.lloydRate,
-    hints: hints ?? undefined,
-    forceIterations: hints
-      ? Math.min(DECLUMP_ITERATIONS, forceIterationsFor(files.length))
-      : forceIterationsFor(files.length),
-  });
+  };
 }
 
 function placeCircles(
@@ -68,23 +102,24 @@ function placeCircles(
   options: RingsOptions,
 ): {
   circles: Map<string, PlacedCircle>;
-  moduleEdges: AtlasEdge[];
+  tree: LevelTree;
   ranks: Map<string, number>;
-  filesByModule: ReturnType<typeof deriveModules>["filesByModule"];
-  fileEdgesByModule: ReturnType<typeof deriveModules>["fileEdgesByModule"];
 } {
-  const derived = deriveModules(graph, options.moduleIdOf);
+  const tree = deriveLevels(graph, resolvedBoundaries(options), {
+    nativeEdges: options.nativeEdges,
+  });
+  const top = tree.levels[0]!;
   const ranks = topoRank(
-    derived.modules.map((m) => m.id),
-    derived.moduleEdges,
+    top.nodes.map((m) => m.id),
+    top.edges,
   );
   const placed = ringLayout(
-    derived.modules.map((m) => ({
+    top.nodes.map((m) => ({
       id: m.id,
       area: m.metrics.loc,
       rank: ranks.get(m.id) ?? 0,
     })),
-    derived.moduleEdges,
+    top.edges,
     { invert: options.invert },
   );
   const scale =
@@ -100,13 +135,22 @@ function placeCircles(
       rank: c.rank,
     });
   }
-  return {
-    circles,
-    moduleEdges: derived.moduleEdges,
-    ranks,
-    filesByModule: derived.filesByModule,
-    fileEdgesByModule: derived.fileEdgesByModule,
-  };
+  return { circles, tree, ranks };
+}
+
+function circleClips(
+  circles: ReadonlyMap<string, PlacedCircle>,
+): Map<string, ClipRegion> {
+  const clips = new Map<string, ClipRegion>();
+  for (const [id, circle] of circles) {
+    clips.set(id, {
+      kind: "circle",
+      cx: circle.cx,
+      cy: circle.cy,
+      r: circle.r * CLIP_INSET,
+    });
+  }
+  return clips;
 }
 
 export function createRingsState(
@@ -114,52 +158,67 @@ export function createRingsState(
   options: RingsOptions,
 ): RingsState {
   const base = placeCircles(graph, options);
-  const moduleLayouts = new Map<string, CapacityLayoutState>();
-  for (const [moduleId, circle] of base.circles) {
-    const files = base.filesByModule.get(moduleId) ?? [];
-    moduleLayouts.set(
-      moduleId,
-      createModuleLayout(
-        files,
-        base.fileEdgesByModule.get(moduleId) ?? [],
-        { kind: "circle", cx: circle.cx, cy: circle.cy, r: circle.r * CLIP_INSET },
-        options,
+  const solver = solverOf(options);
+  const sub = subdivideUnder(
+    graph,
+    base.tree,
+    circleClips(base.circles),
+    canvasOf(options),
+    solver,
+  );
+  const leafLayouts = new Map<string, CapacityLayoutState>();
+  for (const [groupId, leafClip] of sub.leafClips) {
+    const leaves = base.tree.childrenOf.get(groupId) ?? [];
+    if (leaves.length === 0) continue;
+    leafLayouts.set(
+      groupId,
+      seedLeafLayout(
+        leaves,
+        base.tree.innerEdgesOf.get(groupId) ?? [],
+        leafClip,
+        sub.positions,
+        solver,
       ),
     );
   }
   return {
     circles: base.circles,
-    moduleLayouts,
-    moduleEdges: base.moduleEdges,
+    innerLevels: sub.innerLevels,
+    leafLayouts,
+    topEdges: base.tree.levels[0]!.edges,
     ranks: base.ranks,
+    parentOf: base.tree.parentOf,
+    kindOf: base.tree.kindOf,
   };
 }
 
-/** Advance unconverged module layouts; active=false once everything settled. */
+/** Advance unconverged leaf layouts; active=false once everything settled. */
 export function stepRingsState(
   state: RingsState,
   stepsPerFrame: number,
 ): { state: RingsState; active: boolean } {
   let active = false;
-  let moduleLayouts: Map<string, CapacityLayoutState> | null = null;
-  for (const [moduleId, layout] of state.moduleLayouts) {
+  let leafLayouts: Map<string, CapacityLayoutState> | null = null;
+  for (const [groupId, layout] of state.leafLayouts) {
     if (isConverged(layout, CONVERGENCE)) continue;
     active = true;
     let next = layout;
     for (let i = 0; i < stepsPerFrame; i++) next = capacityStep(next);
-    if (!moduleLayouts) moduleLayouts = new Map(state.moduleLayouts);
-    moduleLayouts.set(moduleId, next);
+    if (!leafLayouts) leafLayouts = new Map(state.leafLayouts);
+    leafLayouts.set(groupId, next);
   }
   return {
-    state: moduleLayouts ? { ...state, moduleLayouts } : state,
+    state: leafLayouts ? { ...state, leafLayouts } : state,
     active,
   };
 }
 
 /**
- * Warm-start after the graph changed: modules are re-derived and re-placed,
- * existing module layouts keep their sites via applyGraphChanges (new clip,
- * refreshed weights, removed files dropped); brand-new modules start cold.
+ * Warm-start after the graph changed: the top level is re-derived and
+ * re-placed, existing leaf layouts keep their sites via applyGraphChanges
+ * (new clip, refreshed weights, removed leaves dropped); brand-new groups
+ * start cold. With a single boundary the (cheap) path skips the global
+ * force entirely; deeper chains re-solve the intermediate levels.
  */
 export function applyRingsChanges(
   state: RingsState,
@@ -167,45 +226,75 @@ export function applyRingsChanges(
   options: RingsOptions,
 ): RingsState {
   const base = placeCircles(graph, options);
-  const moduleLayouts = new Map<string, CapacityLayoutState>();
-  for (const [moduleId, circle] of base.circles) {
-    const files = base.filesByModule.get(moduleId) ?? [];
-    const clip = {
-      kind: "circle" as const,
-      cx: circle.cx,
-      cy: circle.cy,
-      r: circle.r * CLIP_INSET,
-    };
-    const existing = state.moduleLayouts.get(moduleId);
-    if (!existing) {
-      moduleLayouts.set(
-        moduleId,
-        createModuleLayout(
-          files,
-          base.fileEdgesByModule.get(moduleId) ?? [],
+  const solver = solverOf(options);
+  const topClips = circleClips(base.circles);
+
+  let innerLevels: SubdivisionLevel[] = [];
+  let leafClips: ReadonlyMap<string, ClipRegion> = topClips;
+  let positions: ReadonlyMap<string, { x: number; y: number }> | null = null;
+  if (base.tree.levels.length > 1) {
+    const sub = subdivideUnder(
+      graph,
+      base.tree,
+      topClips,
+      canvasOf(options),
+      solver,
+    );
+    innerLevels = sub.innerLevels;
+    leafClips = sub.leafClips;
+    positions = sub.positions;
+  }
+
+  const leafLayouts = new Map<string, CapacityLayoutState>();
+  for (const [groupId, clip] of leafClips) {
+    const leaves = base.tree.childrenOf.get(groupId) ?? [];
+    if (leaves.length === 0) continue;
+    const edges = base.tree.innerEdgesOf.get(groupId) ?? [];
+    const existing = state.leafLayouts.get(groupId);
+    if (existing) {
+      const leafIds = new Set(leaves.map((f) => f.id));
+      const remove = existing.cells
+        .map((c) => c.id)
+        .filter((id) => !leafIds.has(id));
+      leafLayouts.set(
+        groupId,
+        applyGraphChanges(existing, {
           clip,
-          options,
-        ),
+          upsert: leaves.map((f) => ({ id: f.id, weight: f.metrics.loc })),
+          remove,
+        }),
       );
       continue;
     }
-    const fileIds = new Set(files.map((f) => f.id));
-    const remove = existing.cells
-      .map((c) => c.id)
-      .filter((id) => !fileIds.has(id));
-    moduleLayouts.set(
-      moduleId,
-      applyGraphChanges(existing, {
-        clip,
-        upsert: files.map((f) => ({ id: f.id, weight: f.metrics.loc })),
-        remove,
+    if (positions) {
+      leafLayouts.set(
+        groupId,
+        seedLeafLayout(leaves, edges, clip, positions, solver),
+      );
+      continue;
+    }
+    // cold group on the fast path: embedding seeds inside its own clip
+    const subgraph = { nodes: [...leaves], edges: [...edges] };
+    const hints = embedSeedHints(subgraph, clip);
+    leafLayouts.set(
+      groupId,
+      createGraphLayout(subgraph, clip, {
+        ...solver,
+        hints: hints ?? undefined,
+        forceIterations: hints
+          ? Math.min(DECLUMP_ITERATIONS, forceIterationsFor(leaves.length))
+          : forceIterationsFor(leaves.length),
       }),
     );
   }
+
   return {
     circles: base.circles,
-    moduleLayouts,
-    moduleEdges: base.moduleEdges,
+    innerLevels,
+    leafLayouts,
+    topEdges: base.tree.levels[0]!.edges,
     ranks: base.ranks,
+    parentOf: base.tree.parentOf,
+    kindOf: base.tree.kindOf,
   };
 }

@@ -1,8 +1,15 @@
 import {
+  BOUNDARY_LEVELS,
+  DISPLAY_LEVELS,
+  OMIT_SCOPES,
   presetConfig,
   presetOf,
+  UNAVAILABLE_LEVELS,
   VIEW_PRESETS,
+  type BoundaryLevel,
+  type DisplayLevel,
   type Granularity,
+  type OmitScope,
   type SelectMode,
   type ViewConfig,
   type WeightKind,
@@ -21,8 +28,12 @@ export type PlaygroundParams = {
   layout: LayoutKind;
   /** Orthogonal view axes; presets bundle them (see viewConfig.ts). */
   granularity: Granularity;
+  boundaries: BoundaryLevel[];
+  displayLevels: DisplayLevel[];
+  omit: OmitScope[];
+  /** Directory boundary: dirname truncated to this many segments. */
+  directoryDepth: number;
   weight: WeightKind;
-  hidePrivate: boolean;
   focusGranularity: Granularity;
   /** What a click resolves to; zoom focus uses focusGranularity instead. */
   selectMode: SelectMode;
@@ -40,14 +51,10 @@ export type PlaygroundParams = {
   lloydRate: number;
   stepsPerFrame: number;
   showEdges: boolean;
-  showNested: boolean;
-  /** Layer ids switched off (layers come from the graph: source, test, ...). */
-  hiddenLayers: string[];
 };
 
 type Props = {
   params: PlaygroundParams;
-  availableLayers: string[];
   onChange: (params: PlaygroundParams) => void;
   onRegenerate: () => void;
   onMutateWeight: () => void;
@@ -60,6 +67,20 @@ const row: Record<string, string> = {
   alignItems: "center",
   gap: "8px",
   fontSize: "12px",
+};
+
+const LEVEL_LABELS: Record<DisplayLevel, string> = {
+  module: "module",
+  directory: "directory",
+  file: "file",
+  symbol: "symbol",
+  ast: "AST",
+  cfg: "CFG",
+};
+
+const OMIT_LABELS: Record<OmitScope, string> = {
+  test: "test",
+  "private-symbol": "private symbol",
 };
 
 function NumberField(props: {
@@ -90,15 +111,17 @@ function NumberField(props: {
 }
 
 export function Controls(props: Props) {
-  const { params, availableLayers, onChange } = props;
+  const { params, onChange } = props;
   const set = <K extends keyof PlaygroundParams>(
     key: K,
     value: PlaygroundParams[K],
   ) => onChange({ ...params, [key]: value });
   const viewConfig: ViewConfig = {
     granularity: params.granularity,
+    boundaries: params.boundaries,
+    displayLevels: params.displayLevels,
+    omit: params.omit,
     weight: params.weight,
-    hidePrivate: params.hidePrivate,
     focusGranularity: params.focusGranularity,
   };
   const activePreset = presetOf(viewConfig);
@@ -147,6 +170,127 @@ export function Controls(props: Props) {
           <option value="symbol">symbol (network)</option>
         </select>
       </label>
+      <div style={row}>
+        <span style={{ width: "110px" }}>boundaries</span>
+        <div style={{ display: "flex", gap: "10px", flexWrap: "wrap" }}>
+          {BOUNDARY_LEVELS.map((level) => {
+            // a file boundary around file leaves is the leaf itself
+            const disabled =
+              level === "file" && params.granularity !== "symbol";
+            return (
+              <label
+                key={level}
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  gap: "4px",
+                  opacity: disabled ? 0.4 : 1,
+                }}
+              >
+                <input
+                  type="checkbox"
+                  disabled={disabled}
+                  checked={params.boundaries.includes(level)}
+                  onInput={(e) => {
+                    const on = (e.target as HTMLInputElement).checked;
+                    // chain order stays canonical regardless of click order
+                    const next = BOUNDARY_LEVELS.filter((l) =>
+                      l === level ? on : params.boundaries.includes(l),
+                    );
+                    set("boundaries", next);
+                  }}
+                />
+                {level}
+              </label>
+            );
+          })}
+        </div>
+      </div>
+      <div style={row}>
+        <span style={{ width: "110px" }}>levels</span>
+        <div style={{ display: "flex", gap: "10px", flexWrap: "wrap" }}>
+          {DISPLAY_LEVELS.map((level) => {
+            // visibility per stratum: the partition may still USE a level
+            // (boundaries) while this hides its rendering. Disabled when
+            // the stratum cannot exist in the current configuration.
+            const disabled =
+              UNAVAILABLE_LEVELS.has(level) ||
+              (level === "directory" &&
+                !params.boundaries.includes("directory")) ||
+              (level === "file" &&
+                params.granularity !== "file" &&
+                !(
+                  params.granularity === "symbol" &&
+                  params.boundaries.includes("file")
+                )) ||
+              (level === "symbol" && params.granularity === "module");
+            return (
+              <label
+                key={level}
+                title={
+                  UNAVAILABLE_LEVELS.has(level)
+                    ? "fetched dynamically at deep zoom — provider pending"
+                    : undefined
+                }
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  gap: "4px",
+                  opacity: disabled ? 0.4 : 1,
+                }}
+              >
+                <input
+                  type="checkbox"
+                  disabled={disabled}
+                  checked={params.displayLevels.includes(level)}
+                  onInput={(e) => {
+                    const on = (e.target as HTMLInputElement).checked;
+                    const next = DISPLAY_LEVELS.filter((l) =>
+                      l === level ? on : params.displayLevels.includes(l),
+                    );
+                    set("displayLevels", next);
+                  }}
+                />
+                {LEVEL_LABELS[level]}
+              </label>
+            );
+          })}
+        </div>
+      </div>
+      <div style={row}>
+        <span style={{ width: "110px" }}>omit</span>
+        <div style={{ display: "flex", gap: "10px", flexWrap: "wrap" }}>
+          {OMIT_SCOPES.map((scope) => (
+            <label
+              key={scope}
+              style={{ display: "flex", alignItems: "center", gap: "4px" }}
+            >
+              <input
+                type="checkbox"
+                checked={params.omit.includes(scope)}
+                onInput={(e) => {
+                  const on = (e.target as HTMLInputElement).checked;
+                  const next = OMIT_SCOPES.filter((s) =>
+                    s === scope ? on : params.omit.includes(s),
+                  );
+                  set("omit", next);
+                }}
+              />
+              {OMIT_LABELS[scope]}
+            </label>
+          ))}
+        </div>
+      </div>
+      {params.boundaries.includes("directory") ? (
+        <NumberField
+          label="directory depth"
+          value={params.directoryDepth}
+          min={1}
+          max={8}
+          step={1}
+          onInput={(v) => set("directoryDepth", v)}
+        />
+      ) : null}
       <label style={row}>
         <span style={{ width: "110px" }}>weight</span>
         <select
@@ -158,16 +302,6 @@ export function Controls(props: Props) {
           <option value="loc">LOC</option>
           <option value="pagerank">PageRank</option>
         </select>
-      </label>
-      <label style={row}>
-        <span style={{ width: "110px" }}>hide private</span>
-        <input
-          type="checkbox"
-          checked={params.hidePrivate}
-          onInput={(e) =>
-            set("hidePrivate", (e.target as HTMLInputElement).checked)
-          }
-        />
       </label>
       <label style={row}>
         <span style={{ width: "110px" }}>select mode</span>
@@ -338,42 +472,6 @@ export function Controls(props: Props) {
           }
         />
       </label>
-      <label style={row}>
-        <span style={{ width: "110px" }}>nested symbols</span>
-        <input
-          type="checkbox"
-          checked={params.showNested}
-          onInput={(e) =>
-            set("showNested", (e.target as HTMLInputElement).checked)
-          }
-        />
-      </label>
-      <div style={row}>
-        <span style={{ width: "110px" }}>layers</span>
-        <div style={{ display: "flex", gap: "10px", flexWrap: "wrap" }}>
-          {availableLayers.map((layer) => (
-            <label
-              key={layer}
-              style={{ display: "flex", alignItems: "center", gap: "4px" }}
-            >
-              <input
-                type="checkbox"
-                checked={!params.hiddenLayers.includes(layer)}
-                onInput={(e) => {
-                  const visible = (e.target as HTMLInputElement).checked;
-                  set(
-                    "hiddenLayers",
-                    visible
-                      ? params.hiddenLayers.filter((l) => l !== layer)
-                      : [...params.hiddenLayers, layer],
-                  );
-                }}
-              />
-              {layer}
-            </label>
-          ))}
-        </div>
-      </div>
       <div style={{ display: "flex", gap: "6px", flexWrap: "wrap" }}>
         <button style={button} onClick={props.onRegenerate}>
           regenerate

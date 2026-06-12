@@ -16,6 +16,11 @@ export type FocusView = {
   moduleIds: Set<string>;
   fileIds: Set<string>;
   symbolIds: Set<string>;
+  /**
+   * Reached intermediate boundary groups (directory etc.) when the focus
+   * runs at such a level; absent for module/file/symbol extractions.
+   */
+  groupIds?: Set<string>;
   /** Paths the focused node depends on. */
   downstreamEdges: AtlasEdge[];
   /** Paths that depend on the focused node. */

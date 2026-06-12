@@ -21,6 +21,11 @@ type Props = {
   cyclicIds?: Set<string>;
   /** Dependency-path extraction: members stay lit, everything else dims. */
   focus?: FocusView | null;
+  /** Stratum visibility by level kind: the partition still uses hidden
+   * levels (placement, confinement), they just don't draw. */
+  visibleLevels?: ReadonlySet<string>;
+  /** Kind of the leaf cells ("file" or "symbol"). */
+  leafKind?: string;
   width: number;
   height: number;
   selectedId: string | null;
@@ -82,6 +87,9 @@ export function TreemapSvg(props: Props) {
   const focus = props.focus ?? null;
   const bundleStrength = props.bundleStrength ?? 0.85;
 
+  const levelVisible = (kind: string): boolean =>
+    props.visibleLevels?.has(kind) ?? true;
+  const leafVisible = levelVisible(props.leafKind ?? "file");
   const { svgProps, zoom } = useMapViewport({
     width,
     height,
@@ -89,18 +97,31 @@ export function TreemapSvg(props: Props) {
     onViewSettle: props.onViewSettle,
   });
 
+  const topCells = state.levels[0]!.cells;
+  const innerLevels = state.levels.slice(1);
   const fileCells = useMemo(
-    () => [...state.fileLayouts.values()].flatMap((l) => l.cells),
+    () => [...state.leafLayouts.values()].flatMap((l) => l.cells),
     [state],
   );
   const positionOf = useMemo(() => {
     const map = new Map<string, Vec2>();
-    for (const [id, cell] of state.moduleCells) map.set(id, cell.site);
+    // every boundary level contributes bundling control points
+    for (const level of state.levels) {
+      for (const [id, cell] of level.cells) map.set(id, cell.site);
+    }
     for (const cell of fileCells) map.set(cell.id, cell.site);
     return map;
   }, [state, fileCells]);
   const parentModuleOf = (id: string): string | null =>
     state.parentOf.get(id) ?? null;
+  /** Top-level (district) ancestor of any group or leaf id. */
+  const topAncestorOf = (id: string): string | null => {
+    let current: string | null = id;
+    while (current != null && !topCells.has(current)) {
+      current = state.parentOf.get(current) ?? null;
+    }
+    return current;
+  };
 
   const bundleOf = (edge: AtlasEdge) => {
     const path = hierarchyControlPoints(
@@ -148,13 +169,20 @@ export function TreemapSvg(props: Props) {
     focus && !focus.moduleIds.has(id) ? DIM : 1;
   const fileOpacity = (id: string): number =>
     focus && !focus.fileIds.has(id) ? DIM : 1;
+  /** Intermediate districts dim per group when the focus runs at their
+   * level, otherwise they follow their module. */
+  const groupOpacity = (id: string, top: string): number => {
+    if (!focus) return 1;
+    if (focus.groupIds) return focus.groupIds.has(id) ? 1 : DIM;
+    return moduleOpacity(top);
+  };
 
   const fillOf = (cell: CellResult): string => {
     const changed = props.changedFiles?.get(cell.id);
     if (changed === "added") return ADDED_FILL;
     if (changed === "modified") return MODIFIED_FILL;
     if (cyclicIds.has(cell.id)) return CYCLE_FILL;
-    const hue = moduleHue(parentModuleOf(cell.id) ?? "");
+    const hue = moduleHue(topAncestorOf(cell.id) ?? "");
     return `hsl(${hue} 25% 94%)`;
   };
 
@@ -180,9 +208,9 @@ export function TreemapSvg(props: Props) {
       onClick={() => onSelect(null)}
     >
       <style>{"polygon, path { vector-effect: non-scaling-stroke; }"}</style>
-      {/* module districts */}
-      <g>
-        {[...state.moduleCells.values()].map((cell) =>
+      {/* top-level districts */}
+      <g style={{ display: levelVisible(state.levels[0]!.kind) ? "" : "none" }}>
+        {[...topCells.values()].map((cell) =>
           cell.polygon.length >= 3 ? (
             <polygon
               key={cell.id}
@@ -204,8 +232,39 @@ export function TreemapSvg(props: Props) {
           ) : null,
         )}
       </g>
+      {/* intermediate boundary levels (directory districts etc.) */}
+      {innerLevels.map((level, i) => (
+        <g
+          key={`${level.kind}-${i}`}
+          fill="none"
+          style={{ display: levelVisible(level.kind) ? "" : "none" }}
+        >
+          {[...level.cells.values()].map((cell) => {
+            if (cell.polygon.length < 3) return null;
+            const top = topAncestorOf(cell.id) ?? "";
+            return (
+              <polygon
+                key={cell.id}
+                points={cell.polygon.map((p) => `${p.x},${p.y}`).join(" ")}
+                stroke={
+                  isSelected(cell.id)
+                    ? "#1d4ed8"
+                    : `hsl(${moduleHue(top)} 35% 62%)`
+                }
+                stroke-opacity={groupOpacity(cell.id, top)}
+                stroke-width={isSelected(cell.id) ? 2.5 : 1}
+                stroke-dasharray={isSelected(cell.id) ? undefined : "5 3"}
+                onClick={(event) => {
+                  event.stopPropagation();
+                  onSelect(cell.id, event.shiftKey);
+                }}
+              />
+            );
+          })}
+        </g>
+      ))}
       {/* file cells */}
-      <g>
+      <g style={{ display: leafVisible ? "" : "none" }}>
         {visibleFileCells.map((cell) => (
           <polygon
             key={cell.id}
@@ -261,12 +320,16 @@ export function TreemapSvg(props: Props) {
           ))}
         </g>
       ) : null}
-      {/* module labels */}
+      {/* top-level labels */}
       <g
         text-anchor="middle"
-        style={{ pointerEvents: "none", userSelect: "none" }}
+        style={{
+          pointerEvents: "none",
+          userSelect: "none",
+          display: levelVisible(state.levels[0]!.kind) ? "" : "none",
+        }}
       >
-        {[...state.moduleCells.values()].map((cell) => {
+        {[...topCells.values()].map((cell) => {
           if (cell.polygon.length < 3) return null;
           const fontSize = Math.min(
             Math.sqrt(cell.actualArea) * 0.18,
@@ -287,11 +350,47 @@ export function TreemapSvg(props: Props) {
           );
         })}
       </g>
+      {/* intermediate labels appear once their district is readable */}
+      <g
+        text-anchor="middle"
+        style={{ pointerEvents: "none", userSelect: "none" }}
+      >
+        {innerLevels.flatMap((level) =>
+          [...level.cells.values()].map((cell) => {
+            if (!levelVisible(level.kind)) return null;
+            if (cell.polygon.length < 3) return null;
+            const px = Math.sqrt(cell.actualArea) * zoom;
+            if (px < 80 && !isSelected(cell.id)) return null;
+            const top = topAncestorOf(cell.id) ?? "";
+            const fontSize = Math.min(
+              Math.sqrt(cell.actualArea) * 0.12,
+              16 / zoom + 4,
+            );
+            return (
+              <text
+                key={cell.id}
+                x={cell.site.x}
+                y={cell.site.y}
+                font-size={fontSize}
+                font-weight="600"
+                fill={`hsl(${moduleHue(top)} 40% 42%)`}
+                fill-opacity={0.7 * groupOpacity(cell.id, top)}
+              >
+                {props.labels?.get(cell.id) ?? cell.id.split("/").pop()!}
+              </text>
+            );
+          }),
+        )}
+      </g>
       {/* file labels appear once their cell is readable */}
       <g
         fill="#334155"
         text-anchor="middle"
-        style={{ pointerEvents: "none", userSelect: "none" }}
+        style={{
+          pointerEvents: "none",
+          userSelect: "none",
+          display: leafVisible ? "" : "none",
+        }}
       >
         {visibleFileCells.map((cell) => {
           const px = Math.sqrt(cell.actualArea) * zoom;

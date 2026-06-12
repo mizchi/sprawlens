@@ -54,6 +54,9 @@ type Props = {
   portNodes: { id: string; label: string; x: number; y: number }[];
   /** Module granularity hides the file subdivision entirely. */
   showFiles?: boolean;
+  /** Stratum visibility by level kind ("module", "directory", "symbol",
+   * ...): the partition still uses hidden levels, they just don't draw. */
+  visibleLevels?: ReadonlySet<string>;
   /** Symbol network: module labels show only the leaf directory until the
    * circle dominates the view, then expand to the full path, one segment
    * per line. */
@@ -125,6 +128,8 @@ export function RingsMapSvg(props: Props) {
     onViewSettle,
   } = props;
   const showFiles = props.showFiles ?? true;
+  const levelVisible = (kind: string): boolean =>
+    props.visibleLevels?.has(kind) ?? true;
   const compactModuleLabels = props.compactModuleLabels ?? false;
   const multiSelected = props.selectedIds ?? new Set<string>();
   const lspEdges = props.lspEdges ?? [];
@@ -143,7 +148,7 @@ export function RingsMapSvg(props: Props) {
   // memos stop per-commit Map/array rebuilds (a major GC-pressure source)
   const fileCells = useMemo(
     () =>
-      showFiles ? [...rings.moduleLayouts.values()].flatMap((l) => l.cells) : [],
+      showFiles ? [...rings.leafLayouts.values()].flatMap((l) => l.cells) : [],
     [rings, showFiles],
   );
   const fileSiteById = useMemo(
@@ -184,10 +189,24 @@ export function RingsMapSvg(props: Props) {
     const site =
       symbolSiteById.get(id) ?? fileSiteById.get(id) ?? portSiteById.get(id);
     if (site) return site;
+    for (const level of rings.innerLevels) {
+      const cell = level.cells.get(id);
+      if (cell) return cell.site;
+    }
     const circle = rings.circles.get(id);
     return circle ? { x: circle.cx, y: circle.cy } : undefined;
   };
   const moduleList = useMemo(() => [...rings.circles.entries()], [rings]);
+  /** Top-level (circle) ancestor of any group or leaf id. */
+  const topAncestorOf = (id: string): string => {
+    let current = id;
+    let parent = rings.parentOf.get(current) ?? null;
+    while (parent != null) {
+      current = parent;
+      parent = rings.parentOf.get(current) ?? null;
+    }
+    return current;
+  };
 
   const sourceVisible = !hiddenLayers.has("source");
   const showInner = sourceVisible && zoom > 0.8;
@@ -483,7 +502,7 @@ export function RingsMapSvg(props: Props) {
       {/* aggregated module dependencies: the macro structure, always on */}
       {!focus ? (
         <g stroke="#475569" fill="none">
-          {rings.moduleEdges.map((edge) => {
+          {rings.topEdges.map((edge) => {
             const a = rings.circles.get(edge.source);
             const b = rings.circles.get(edge.target);
             if (!a || !b) return null;
@@ -501,7 +520,15 @@ export function RingsMapSvg(props: Props) {
           })}
         </g>
       ) : null}
-      <g>
+      <g
+        style={{
+          display: levelVisible(
+            rings.kindOf.get(moduleList[0]?.[0] ?? "") ?? "module",
+          )
+            ? ""
+            : "none",
+        }}
+      >
         {moduleList.map(([id, circle]) => (
           <circle
             key={id}
@@ -527,6 +554,37 @@ export function RingsMapSvg(props: Props) {
           />
         ))}
       </g>
+      {/* intermediate boundary districts (directory etc.) inside circles */}
+      {rings.innerLevels.map((level, i) => (
+        <g
+          key={`${level.kind}-${i}`}
+          fill="none"
+          style={{ display: levelVisible(level.kind) ? "" : "none" }}
+        >
+          {[...level.cells.values()].map((cell) =>
+            cell.polygon.length >= 3 ? (
+              <polygon
+                key={cell.id}
+                points={cell.polygon.map((p) => `${p.x},${p.y}`).join(" ")}
+                stroke={isSelected(cell.id) ? "#1d4ed8" : "#64748b"}
+                stroke-width={isSelected(cell.id) ? 2.4 : 1}
+                stroke-dasharray={isSelected(cell.id) ? undefined : "5 3"}
+                opacity={
+                  focus?.groupIds
+                    ? focus.groupIds.has(cell.id)
+                      ? 1
+                      : DIM
+                    : moduleOpacity(topAncestorOf(cell.id))
+                }
+                onClick={(event) => {
+                  event.stopPropagation();
+                  onSelect(cell.id, event.shiftKey);
+                }}
+              />
+            ) : null,
+          )}
+        </g>
+      ))}
       <g style={{ display: sourceVisible ? "" : "none" }}>
         {visibleFileCells.map((cell) =>
           true ? (
@@ -800,7 +858,15 @@ export function RingsMapSvg(props: Props) {
       ) : null}
       <g
         text-anchor="middle"
-        style={{ pointerEvents: "none", userSelect: "none" }}
+        style={{
+          pointerEvents: "none",
+          userSelect: "none",
+          display: levelVisible(
+            rings.kindOf.get(moduleList[0]?.[0] ?? "") ?? "module",
+          )
+            ? ""
+            : "none",
+        }}
       >
         {moduleList.map(([id, circle]) => {
           // modules are the macro anchors: always labeled, 10–18px on screen
