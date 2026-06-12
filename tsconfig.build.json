@@ -8,5 +8,5 @@
     "noEmit": false
   },
   "include": ["src/cli/**/*.ts", "src/core/**/*.ts"],
-  "exclude": ["src/**/*.test.ts", "src/ui"]
+  "exclude": ["src/**/*.test.ts"]
 }

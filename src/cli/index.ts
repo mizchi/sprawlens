@@ -1,7 +1,6 @@
 #!/usr/bin/env node
 import { Command } from "commander";
 import { analyzeRepository, collectRepository } from "../core/collect.js";
-import { startServer } from "../core/server.js";
 
 const program = new Command();
 
@@ -26,15 +25,6 @@ program
     console.log(`Analyzed ${result.snapshots.length} snapshots and wrote ${result.diffs.length} diffs`);
   });
 
-program
-  .command("serve")
-  .argument("<repo>", "repository path or repository containing .codesprawl")
-  .option("--host <host>", "host to bind", "127.0.0.1")
-  .option("--port <port>", "port to bind", parsePositiveInteger, 4173)
-  .action(async (repo: string, options: { host: string; port: number }) => {
-    const running = await startServer(repo, options);
-    console.log(`CodeSprawl Lens: ${running.url}`);
-  });
 
 program.parseAsync().catch((error: unknown) => {
   console.error(error instanceof Error ? error.message : String(error));
