@@ -13,7 +13,8 @@
     "dev:atlas": "vite -c vite.atlas.config.ts --host 127.0.0.1",
     "dev:atlas-server": "tsx src/atlas/server/index.ts sprawlens=. playwright=$HOME/ghq/github.com/microsoft/playwright",
     "test": "vitest run",
-    "typecheck": "tsc -p tsconfig.json --noEmit && tsc -p tsconfig.atlas.json --noEmit"
+    "typecheck": "tsc -p tsconfig.json --noEmit && tsc -p tsconfig.atlas.json --noEmit",
+    "bench": "vitest bench --run"
   },
   "dependencies": {
     "@deck.gl/core": "^9.3.3",
