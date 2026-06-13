@@ -217,6 +217,29 @@ export function App() {
   const repaintSkipRef = useRef(0);
   const paramsRef = useRef(params);
   paramsRef.current = params;
+  // The OS color scheme drives dark mode: the initial value reads it, and
+  // this listener keeps the map in sync when the system flips (e.g. an auto
+  // day/night switch) — unless the user has taken manual control, which then
+  // wins until reload.
+  const darkOverriddenRef = useRef(false);
+  useEffect(() => {
+    if (typeof matchMedia === "undefined") return;
+    const query = matchMedia("(prefers-color-scheme: dark)");
+    const onSchemeChange = (event: MediaQueryListEvent) => {
+      if (darkOverriddenRef.current) return;
+      setParams((prev) =>
+        prev.dark === event.matches ? prev : { ...prev, dark: event.matches },
+      );
+    };
+    query.addEventListener("change", onSchemeChange);
+    return () => query.removeEventListener("change", onSchemeChange);
+  }, []);
+  /** Controls edits flow through here so a manual dark toggle pins the
+   * theme and stops the system listener from overriding it. */
+  const onControlsChange = (next: PlaygroundParams) => {
+    if (next.dark !== paramsRef.current.dark) darkOverriddenRef.current = true;
+    setParams(next);
+  };
   // The treemap lays out at the viewport's real pixel size so the map
   // maximizes the screen; resizes re-solve the layout, so they throttle
   // to one rebuild per pause. Rings keep the fixed canvas (radial scale).
@@ -1954,11 +1977,11 @@ export function App() {
           ))}
         </div>
         <Section title="表示オプション">
-          <Controls
+          <Controls /* dark toggles route through onControlsChange */
             params={params}
             availableScopes={availableScopes}
             debug={DEBUG}
-            onChange={setParams}
+            onChange={onControlsChange}
             onRegenerate={() => rebuild(paramsRef.current)}
             onMutateWeight={mutateWeight}
             onAddNode={addNode}
