@@ -1,6 +1,6 @@
 import { useMemo, useRef, useState } from "preact/hooks";
 import type { AtlasEdge, SymbolKind } from "../contracts/graph.js";
-import { SymbolTag, symbolGlyphOf } from "./symbolIcons.tsx";
+import { isStaticKind, SymbolTag, symbolGlyphOf } from "./symbolIcons.tsx";
 import type { CellResult } from "../kernel/capacityLayout.js";
 import type { Vec2 } from "../kernel/vec.js";
 import { CfgLayer, cfgAnchorsOf, type CfgEntry } from "./CfgLayer.tsx";
@@ -472,7 +472,8 @@ export function TreemapSvg(props: Props) {
               13 / zoom,
             );
             const name = labelOf(cell.id);
-            const glyph = symbolGlyphOf(props.symbolKindOf?.(cell.id), name);
+            const kind = props.symbolKindOf?.(cell.id);
+            const glyph = symbolGlyphOf(kind, name);
             return (
               <SymbolTag
                 key={cell.id}
@@ -480,6 +481,7 @@ export function TreemapSvg(props: Props) {
                 cy={cell.site.y - 4 / zoom}
                 name={name}
                 glyph={glyph}
+                static={isStaticKind(kind)}
                 fontSize={fontSize}
                 color={
                   glyph
@@ -665,10 +667,9 @@ export function TreemapSvg(props: Props) {
           );
           const name = labelOf(cell.id);
           // symbol leaves get their kind icon + matching ink; files stay plain
-          const glyph =
-            props.leafKind === "symbol"
-              ? symbolGlyphOf(props.symbolKindOf?.(cell.id), name)
-              : null;
+          const kind =
+            props.leafKind === "symbol" ? props.symbolKindOf?.(cell.id) : undefined;
+          const glyph = symbolGlyphOf(kind, name);
           return (
             <SymbolTag
               key={cell.id}
@@ -676,6 +677,7 @@ export function TreemapSvg(props: Props) {
               cy={cell.site.y}
               name={name}
               glyph={glyph}
+              static={isStaticKind(kind)}
               fontSize={fontSize}
               color={glyph ? SYMBOL_KIND_COLORS[glyph]! : FILE_LABEL_INK}
               opacity={fileOpacity(cell.id)}

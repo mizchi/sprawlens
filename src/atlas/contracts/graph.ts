@@ -32,7 +32,12 @@ export type SymbolKind =
   | "variable"
   | "type"
   | "interface"
-  | "enum";
+  | "enum"
+  // class members; static- variants are the static counterparts
+  | "method"
+  | "property"
+  | "static-method"
+  | "static-property";
 
 export type AtlasNode = {
   id: string;

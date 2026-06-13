@@ -96,6 +96,10 @@ const SYMBOL_KIND_SET: ReadonlySet<string> = new Set([
   "type",
   "interface",
   "enum",
+  "method",
+  "property",
+  "static-method",
+  "static-property",
 ]);
 /** Module⊃symbol view lays out at most this many symbol cells; the rest
  * fold into per-module "(module scope)" fillers. A monorepo has thousands

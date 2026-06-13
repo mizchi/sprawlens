@@ -1,6 +1,6 @@
 import { useMemo, useRef, useState } from "preact/hooks";
 import type { AtlasEdge, SymbolKind } from "../contracts/graph.js";
-import { SymbolTag, symbolGlyphOf } from "./symbolIcons.tsx";
+import { isStaticKind, SymbolTag, symbolGlyphOf } from "./symbolIcons.tsx";
 import type { CellResult } from "../kernel/capacityLayout.js";
 import type { Vec2 } from "../kernel/vec.js";
 import type { RingsState } from "./ringsController.ts";
@@ -1273,7 +1273,8 @@ export function RingsMapSvg(props: Props) {
               );
               if (fontSize === null) return null;
               const name = labels.get(cell.id) ?? fallbackLabel(cell.id);
-              const glyph = symbolGlyphOf(props.symbolKindOf?.(cell.id), name);
+              const kind = props.symbolKindOf?.(cell.id);
+              const glyph = symbolGlyphOf(kind, name);
               return (
                 <SymbolTag
                   key={cell.id}
@@ -1281,6 +1282,7 @@ export function RingsMapSvg(props: Props) {
                   cy={cell.site.y - screenRadius(4)}
                   name={name}
                   glyph={glyph}
+                  static={isStaticKind(kind)}
                   fontSize={fontSize}
                   color={
                     glyph

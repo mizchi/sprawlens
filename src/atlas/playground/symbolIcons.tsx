@@ -13,18 +13,28 @@ export type SymbolGlyph =
   | "variable"
   | "type"
   | "interface"
-  | "enum";
+  | "enum"
+  | "method"
+  | "property";
 
 /** Map a producer kind + name to a glyph. CamelCase functions/values read as
- * components (React etc.); everything else keeps its declaration glyph. */
+ * components (React etc.); class members collapse to method/property (the
+ * static distinction is carried separately, see isStaticKind). */
 export function symbolGlyphOf(
   kind: SymbolKind | undefined,
   name: string,
 ): SymbolGlyph | null {
   if (!kind) return null;
+  if (kind === "method" || kind === "static-method") return "method";
+  if (kind === "property" || kind === "static-property") return "property";
   const camel = /^[A-Z]/.test(name);
   if ((kind === "function" || kind === "variable") && camel) return "component";
   return kind;
+}
+
+/** Whether a member kind is the static counterpart (gets a static badge). */
+export function isStaticKind(kind: SymbolKind | undefined): boolean {
+  return kind === "static-method" || kind === "static-property";
 }
 
 // Codicon paths (16×16, fill="currentColor").
@@ -50,6 +60,13 @@ const GLYPH_PATHS: Record<Exclude<SymbolGlyph, "component">, string[]> = {
   enum: [
     "M15 3.5V7.5C15 7.9 14.85 8.28 14.56 8.56C14.28 8.84 13.9 9 13.5 9H11V8.5C11 8.33 10.98 8.16 10.95 8H13.5C13.63 8 13.76 7.95 13.85 7.85C13.95 7.76 14 7.63 14 7.5V3.5C14 3.37 13.95 3.24 13.85 3.15C13.76 3.05 13.63 3 13.5 3H7.5C7.37 3 7.24 3.05 7.15 3.15C7.05 3.24 7 3.37 7 3.5V6H6V3.5C6 3.1 6.16 2.72 6.44 2.44C6.72 2.16 7.1 2 7.5 2H13.5C13.9 2 14.28 2.16 14.56 2.44C14.84 2.72 15 3.1 15 3.5ZM12.5 5C12.776 5 13 4.776 13 4.5C13 4.224 12.776 4 12.5 4H8.5C8.224 4 8 4.224 8 4.5C8 4.776 8.224 5 8.5 5H12.5ZM13 6.5C13 6.22 12.78 6 12.5 6H8.5C9.32 6 10.04 6.39 10.5 7H12.5C12.78 7 13 6.78 13 6.5ZM7.5 9H3.5C3.224 9 3 9.224 3 9.5C3 9.776 3.224 10 3.5 10H7.5C7.776 10 8 9.776 8 9.5C8 9.224 7.776 9 7.5 9ZM7.5 11H3.5C3.224 11 3 11.224 3 11.5C3 11.776 3.224 12 3.5 12H7.5C7.776 12 8 11.776 8 11.5C8 11.224 7.776 11 7.5 11ZM10 8.5V12.5C10 13.327 9.327 14 8.5 14H2.5C1.673 14 1 13.327 1 12.5V8.5C1 7.673 1.673 7 2.5 7H8.5C9.327 7 10 7.673 10 8.5ZM9 8.5C9 8.225 8.775 8 8.5 8H2.5C2.225 8 2 8.225 2 8.5V12.5C2 12.775 2.225 13 2.5 13H8.5C8.775 13 9 12.775 9 12.5V8.5Z",
   ],
+  // method shares the cube with function (both callable); color separates them
+  method: [
+    "M4.69684 5.04043C4.44303 4.93166 4.14909 5.04923 4.04031 5.30305C3.93153 5.55686 4.04911 5.8508 4.30292 5.95958L7.49988 7.3297V10.5C7.49988 10.7761 7.72374 11 7.99988 11C8.27603 11 8.49988 10.7761 8.49988 10.5V7.3297L11.6968 5.95958C11.9507 5.8508 12.0682 5.55686 11.9595 5.30305C11.8507 5.04923 11.5567 4.93166 11.3029 5.04043L7.99988 6.45602L4.69684 5.04043ZM9.07694 1.37855C8.38373 1.11193 7.61627 1.11193 6.92306 1.37855L1.96153 3.28683C1.38224 3.50964 1 4.06619 1 4.68685V11.3133C1 11.9339 1.38224 12.4905 1.96153 12.7133L6.92306 14.6216C7.61627 14.8882 8.38373 14.8882 9.07694 14.6216L14.0385 12.7133C14.6178 12.4905 15 11.9339 15 11.3133V4.68685C15 4.06619 14.6178 3.50964 14.0385 3.28683L9.07694 1.37855ZM7.28204 2.3119C7.74418 2.13415 8.25582 2.13415 8.71796 2.3119L13.6795 4.22018C13.8726 4.29445 14 4.47997 14 4.68685V11.3133C14 11.5201 13.8726 11.7057 13.6795 11.7799L8.71796 13.6882C8.25582 13.866 7.74418 13.866 7.28204 13.6882L2.32051 11.7799C2.12741 11.7057 2 11.5201 2 11.3133V4.68685C2 4.47997 2.12741 4.29445 2.32051 4.22018L7.28204 2.3119Z",
+  ],
+  property: [
+    "M11.967 6.08899C11.9907 6.15031 12.0021 6.2157 12.0005 6.28143C11.9989 6.34715 11.9843 6.41191 11.9577 6.47201C11.931 6.5321 11.8928 6.58635 11.8451 6.63165C11.7975 6.67695 11.7414 6.7124 11.68 6.73599L7.5 8.34399V10.02C7.5 10.1526 7.44732 10.2798 7.35355 10.3735C7.25979 10.4673 7.13261 10.52 7 10.52C6.86739 10.52 6.74021 10.4673 6.64645 10.3735C6.55268 10.2798 6.5 10.1526 6.5 10.02V8.34299L4.32 7.50499C4.25874 7.48135 4.20273 7.44588 4.15518 7.40059C4.10763 7.35531 4.06946 7.30111 4.04286 7.24107C4.01625 7.18104 4.00173 7.11635 4.00013 7.05071C3.99852 6.98507 4.00986 6.91975 4.0335 6.85849C4.05714 6.79722 4.09261 6.74122 4.13789 6.69367C4.18318 6.64611 4.23738 6.60795 4.29741 6.58134C4.35745 6.55474 4.42213 6.54022 4.48778 6.53861C4.55342 6.53701 4.61874 6.54835 4.68 6.57199L7 7.46399L11.32 5.79999C11.3814 5.77634 11.447 5.76505 11.5128 5.76678C11.5786 5.76852 11.6434 5.78323 11.7035 5.81008C11.7636 5.83694 11.8179 5.8754 11.8631 5.92326C11.9083 5.97112 11.9436 6.02744 11.967 6.08899ZM15 5.79999V9.42899C14.9986 9.73191 14.9061 10.0274 14.7345 10.2771C14.563 10.5268 14.3203 10.7191 14.038 10.829L7.538 13.329C7.19108 13.4626 6.80692 13.4626 6.46 13.329L1.961 11.6C1.67891 11.4899 1.43643 11.2975 1.26506 11.0479C1.09369 10.7982 1.00134 10.5028 1 10.2V6.57099C1.00155 6.26809 1.0941 5.97265 1.26565 5.72301C1.43719 5.47336 1.6798 5.28104 1.962 5.17099L8.462 2.67099C8.80902 2.53798 9.19298 2.53798 9.54 2.67099L14.04 4.40199C14.3215 4.51223 14.5635 4.70438 14.7346 4.95361C14.9058 5.20283 14.9982 5.49766 15 5.79999ZM14 5.79999C14 5.69881 13.9694 5.6 13.912 5.51662C13.8547 5.43324 13.7735 5.36921 13.679 5.33299L9.179 3.60299C9.06398 3.55763 8.93602 3.55763 8.821 3.60299L2.321 6.10299C2.22637 6.13927 2.145 6.20345 2.08767 6.28703C2.03034 6.37061 1.99977 6.46964 2 6.57099V10.2C2.0001 10.3009 2.03071 10.3994 2.08782 10.4825C2.14494 10.5657 2.22587 10.6297 2.32 10.666L6.82 12.398C6.93524 12.4422 7.06276 12.4422 7.178 12.398L13.678 9.89799C13.773 9.8618 13.8547 9.79754 13.9122 9.71375C13.9697 9.62996 14.0004 9.53062 14 9.42899V5.79999Z",
+  ],
 };
 
 /**
@@ -67,6 +84,7 @@ export function SymbolTag(props: {
   fontSize: number;
   color: string;
   opacity?: number;
+  static?: boolean;
 }) {
   const { cx, cy, name, glyph, fontSize, color, opacity } = props;
   const iconSize = fontSize * 1.1;
@@ -83,6 +101,7 @@ export function SymbolTag(props: {
           cy={cy}
           size={iconSize}
           color={color}
+          static={props.static}
         />
       ) : null}
       <text
@@ -106,31 +125,41 @@ export function SymbolIcon(props: {
   /** Icon box size in world units (the 16-unit viewBox scales to this). */
   size: number;
   color: string;
+  /** Static member: adds a corner badge. */
+  static?: boolean;
 }) {
   const { glyph, cx, cy, size, color } = props;
   const s = size / 16;
   const transform = `translate(${cx - size / 2},${cy - size / 2}) scale(${s})`;
+  // a filled corner dot marks static members
+  const badge = props.static ? (
+    <circle cx={14} cy={2.5} r={3} fill={color} stroke="none" />
+  ) : null;
   if (glyph === "component") {
     return (
-      <g
-        transform={transform}
-        fill="none"
-        stroke={color}
-        stroke-width={1.9}
-        stroke-linecap="round"
-        stroke-linejoin="round"
-        style={{ pointerEvents: "none" }}
-      >
-        <path d="M6 4.5 2.2 8 6 11.5" />
-        <path d="M10 4.5 13.8 8 10 11.5" />
+      <g transform={transform} style={{ pointerEvents: "none" }}>
+        <g
+          fill="none"
+          stroke={color}
+          stroke-width={1.9}
+          stroke-linecap="round"
+          stroke-linejoin="round"
+        >
+          <path d="M6 4.5 2.2 8 6 11.5" />
+          <path d="M10 4.5 13.8 8 10 11.5" />
+        </g>
+        {badge}
       </g>
     );
   }
   return (
-    <g transform={transform} fill={color} style={{ pointerEvents: "none" }}>
-      {GLYPH_PATHS[glyph].map((d, i) => (
-        <path key={i} d={d} fill-rule="evenodd" clip-rule="evenodd" />
-      ))}
+    <g transform={transform} style={{ pointerEvents: "none" }}>
+      <g fill={color}>
+        {GLYPH_PATHS[glyph].map((d, i) => (
+          <path key={i} d={d} fill-rule="evenodd" clip-rule="evenodd" />
+        ))}
+      </g>
+      {badge}
     </g>
   );
 }

@@ -59,6 +59,8 @@ export let SYMBOL_KIND_COLORS: Record<string, string> = {
   type: "#db2777",
   interface: "#0891b2",
   enum: "#4d7c0f",
+  method: "#7c3aed",
+  property: "#2563eb",
 };
 export let EXPORTED_DOT = "#059669";
 /** Panel / page chrome, consumed by the App shell. */
@@ -123,6 +125,8 @@ export function setMapTheme(dark: boolean): void {
       type: "#f472b6",
       interface: "#22d3ee",
       enum: "#a3e635",
+      method: "#a78bfa",
+      property: "#60a5fa",
     };
     EXPORTED_DOT = "#34d399";
     EXPORTED_LABEL = "#34d399";
@@ -167,6 +171,8 @@ export function setMapTheme(dark: boolean): void {
       type: "#db2777",
       interface: "#0891b2",
       enum: "#4d7c0f",
+      method: "#7c3aed",
+      property: "#2563eb",
     };
     MODULE_LABEL_INK = "#0f172a";
     FILE_LABEL_INK = "#334155";
