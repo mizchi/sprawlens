@@ -106,6 +106,8 @@ const SYMBOL_KIND_SET: ReadonlySet<string> = new Set([
  * fold into per-module "(module scope)" fillers. A monorepo has thousands
  * of symbols — laying them all out is slow to converge and heavy to draw. */
 const SYMBOL_BUDGET = 600;
+/** Upper bound on the zoom-scaled symbol budget (perf cap on cell count). */
+const SYMBOL_BUDGET_MAX = 2500;
 /** The selected symbol's CFG draws once its cell fills this many px. */
 const CFG_MIN_PX = 64;
 const CONVERGENCE_TOLERANCE = 0.02;
@@ -432,7 +434,9 @@ export function App() {
     const dy = circle.cy - view.y;
     const radius = (WIDTH / Math.max(view.zoom, 0.2)) * 0.6;
     const proximity = 1 / (1 + (dx * dx + dy * dy) / (radius * radius));
-    return weight * proximity;
+    // sqrt flattens the area weight so small members aren't crushed by large
+    // siblings once a district is in focus — proximity then carries the LOD
+    return Math.sqrt(weight) * proximity;
   };
 
   /**
@@ -442,8 +446,15 @@ export function App() {
    * weights — so it runs on every focus change.
    */
   const budgetedApiGraph = (full: AtlasGraph): AtlasGraph => {
+    // semantic zoom: the budget grows as you zoom in. Off-screen districts
+    // fold via proximity, so the larger budget is spent on the focused
+    // district — deep enough and all of its members surface.
+    const budget = Math.min(
+      SYMBOL_BUDGET_MAX,
+      Math.round(SYMBOL_BUDGET * Math.max(1, viewInfoRef.current.zoom)),
+    );
     const api = applySymbolBudget(full, {
-      budget: SYMBOL_BUDGET,
+      budget,
       priorityOf: symbolPriorityOf,
     });
     for (const node of api.nodes) labelsRef.current.set(node.id, node.label);
