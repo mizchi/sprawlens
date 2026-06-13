@@ -19,6 +19,7 @@ import {
   LEAF_BORDER_MIN_PX,
   makeEdgeBundler,
   SYMBOL_DOMINANT_FRACTION,
+  SYMBOL_KIND_COLORS,
   SYMBOL_STROKE,
   SYMBOL_ZOOM,
   selectionDirections,
@@ -714,11 +715,7 @@ export function TreemapSvg(props: Props) {
                 cx={cell.site.x}
                 cy={cy}
                 size={size}
-                color={
-                  props.exportedIds?.has(cell.id)
-                    ? EXPORTED_LABEL
-                    : INTERNAL_LABEL
-                }
+                color={SYMBOL_KIND_COLORS[glyph]!}
               />
             );
           })

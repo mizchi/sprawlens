@@ -26,6 +26,7 @@ import {
   MODULE_LABEL_INK,
   PORT_FILL,
   SYMBOL_DOMINANT_FRACTION,
+  SYMBOL_KIND_COLORS,
   SYMBOL_EDGE,
   SYMBOL_STROKE,
   SYMBOL_ZOOM,
@@ -1303,9 +1304,7 @@ export function RingsMapSvg(props: Props) {
                     cx={cell.site.x}
                     cy={cy}
                     size={size}
-                    color={
-                      exportedIds.has(cell.id) ? EXPORTED_LABEL : INTERNAL_LABEL
-                    }
+                    color={SYMBOL_KIND_COLORS[glyph]!}
                   />
                 </g>
               );

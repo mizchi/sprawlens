@@ -48,6 +48,18 @@ export let FILE_LABEL_INK = "#334155";
 export let TEST_LABEL_INK = "#7a8699";
 export let WATERMARK_INK = "#334155";
 export let PORT_FILL = "#ffffff";
+/** Per-kind ink for the symbol classification icons, so each kind reads at a
+ * glance (à la an editor's outline). Theme-switched below. Keyed by the
+ * SymbolGlyph strings from symbolIcons.ts. */
+export let SYMBOL_KIND_COLORS: Record<string, string> = {
+  function: "#7c3aed",
+  component: "#0d9488",
+  class: "#d97706",
+  variable: "#2563eb",
+  type: "#db2777",
+  interface: "#0891b2",
+  enum: "#4d7c0f",
+};
 export let EXPORTED_DOT = "#059669";
 /** Panel / page chrome, consumed by the App shell. */
 export let PAGE_BG = "#e2e8f0";
@@ -103,6 +115,15 @@ export function setMapTheme(dark: boolean): void {
     TEST_LABEL_INK = "#64748b";
     WATERMARK_INK = "#cbd5e1";
     PORT_FILL = "#0f172a";
+    SYMBOL_KIND_COLORS = {
+      function: "#a78bfa",
+      component: "#2dd4bf",
+      class: "#fbbf24",
+      variable: "#60a5fa",
+      type: "#f472b6",
+      interface: "#22d3ee",
+      enum: "#a3e635",
+    };
     EXPORTED_DOT = "#34d399";
     EXPORTED_LABEL = "#34d399";
     INTERNAL_LABEL = "#c4b5fd";
@@ -138,6 +159,15 @@ export function setMapTheme(dark: boolean): void {
     CIRCLE_FILL = "#eef2f7";
     CIRCLE_STROKE = "#334155";
     CIRCLE_CYCLE_FILL = "hsl(0 65% 92%)";
+    SYMBOL_KIND_COLORS = {
+      function: "#7c3aed",
+      component: "#0d9488",
+      class: "#d97706",
+      variable: "#2563eb",
+      type: "#db2777",
+      interface: "#0891b2",
+      enum: "#4d7c0f",
+    };
     MODULE_LABEL_INK = "#0f172a";
     FILE_LABEL_INK = "#334155";
     TEST_LABEL_INK = "#7a8699";
