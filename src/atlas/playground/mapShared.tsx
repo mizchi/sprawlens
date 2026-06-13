@@ -15,23 +15,154 @@ import type { FocusView } from "./useMapViewport.ts";
  * drifting apart behaviorally is what this module exists to prevent.
  */
 
-/* ---------------------------------------------------------------- palette */
+/* ---------------------------------------------------------------- palette
+ * Theme tokens are `let` exports: ESM live bindings let setMapTheme swap
+ * the whole palette in place while every import site keeps its name. */
 
 export const DIM = 0.1;
 /** Diff layer: changed files read from fill, not outline. */
-export const MODIFIED_FILL = "hsl(8 85% 78%)";
-export const ADDED_FILL = "hsl(150 55% 80%)";
+export let MODIFIED_FILL = "hsl(8 85% 78%)";
+export let ADDED_FILL = "hsl(150 55% 80%)";
 /** Cells of nodes caught in a dependency cycle: the tangles to break. */
-export const CYCLE_FILL = "hsl(0 70% 86%)";
+export let CYCLE_FILL = "hsl(0 70% 86%)";
 /** Muted fill for test-layer cells: visible for ratio reading, not loud. */
-export const TEST_FILL = "hsl(210 10% 81%)";
+export let TEST_FILL = "hsl(210 10% 81%)";
 /** Direction palette: what I depend on vs what depends on me. */
-export const DOWNSTREAM_COLOR = "#ea580c";
-export const UPSTREAM_COLOR = "#0891b2";
-export const DOWNSTREAM_FILL = "hsl(21 90% 86%)";
-export const UPSTREAM_FILL = "hsl(193 70% 86%)";
+export let DOWNSTREAM_COLOR = "#ea580c";
+export let UPSTREAM_COLOR = "#0891b2";
+export let DOWNSTREAM_FILL = "hsl(21 90% 86%)";
+export let UPSTREAM_FILL = "hsl(193 70% 86%)";
 /** Selection outline everywhere. */
-export const SELECT_STROKE = "#1d4ed8";
+export let SELECT_STROKE = "#1d4ed8";
+/** SVG strata inks and chrome, theme-switched. */
+export let LEAF_STROKE = "#94a3b8";
+export let SYMBOL_STROKE = "#64748b";
+export let SYMBOL_EDGE = "#7c3aed";
+export let MACRO_EDGE = "#475569";
+export let ACTIVE_EDGE = "#c2410c";
+export let CIRCLE_FILL = "#eef2f7";
+export let CIRCLE_STROKE = "#334155";
+export let CIRCLE_CYCLE_FILL = "hsl(0 65% 92%)";
+export let MODULE_LABEL_INK = "#0f172a";
+export let FILE_LABEL_INK = "#334155";
+export let TEST_LABEL_INK = "#7a8699";
+export let WATERMARK_INK = "#334155";
+export let PORT_FILL = "#ffffff";
+export let EXPORTED_DOT = "#059669";
+/** Panel / page chrome, consumed by the App shell. */
+export let PAGE_BG = "#e2e8f0";
+export let MAP_BG = "#f8fafc";
+export let PANEL_BG = "rgba(248, 250, 252, 0.92)";
+export let PANEL_BORDER = "#cbd5e1";
+export let INK = "#0f172a";
+export let MUTED_INK = "#64748b";
+/** District hue lightness profile (top fill/stroke, inner stroke, labels,
+ * leaf tint), switched together with the rest of the theme. */
+let hueProfile = {
+  topFill: "30% 97%",
+  topStroke: "45% 55%",
+  topLabel: "50% 32%",
+  innerStroke: "35% 62%",
+  innerLabel: "40% 42%",
+  leafTint: "25% 94%",
+};
+export const districtFill = (id: string) =>
+  `hsl(${moduleHue(id)} ${hueProfile.topFill})`;
+export const districtStroke = (id: string) =>
+  `hsl(${moduleHue(id)} ${hueProfile.topStroke})`;
+export const districtLabelFill = (id: string) =>
+  `hsl(${moduleHue(id)} ${hueProfile.topLabel})`;
+export const innerDistrictStroke = (id: string) =>
+  `hsl(${moduleHue(id)} ${hueProfile.innerStroke})`;
+export const innerDistrictLabelFill = (id: string) =>
+  `hsl(${moduleHue(id)} ${hueProfile.innerLabel})`;
+export const leafTint = (id: string) =>
+  `hsl(${moduleHue(id)} ${hueProfile.leafTint})`;
+
+export function setMapTheme(dark: boolean): void {
+  if (dark) {
+    MODIFIED_FILL = "hsl(8 65% 32%)";
+    ADDED_FILL = "hsl(150 45% 25%)";
+    CYCLE_FILL = "hsl(0 50% 27%)";
+    TEST_FILL = "hsl(210 10% 26%)";
+    DOWNSTREAM_COLOR = "#fb923c";
+    UPSTREAM_COLOR = "#22d3ee";
+    DOWNSTREAM_FILL = "hsl(21 65% 28%)";
+    UPSTREAM_FILL = "hsl(193 55% 26%)";
+    SELECT_STROKE = "#60a5fa";
+    LEAF_STROKE = "#475569";
+    SYMBOL_STROKE = "#64748b";
+    SYMBOL_EDGE = "#a78bfa";
+    MACRO_EDGE = "#94a3b8";
+    ACTIVE_EDGE = "#f97316";
+    CIRCLE_FILL = "#1e293b";
+    CIRCLE_STROKE = "#94a3b8";
+    CIRCLE_CYCLE_FILL = "hsl(0 45% 20%)";
+    MODULE_LABEL_INK = "#f1f5f9";
+    FILE_LABEL_INK = "#cbd5e1";
+    TEST_LABEL_INK = "#64748b";
+    WATERMARK_INK = "#cbd5e1";
+    PORT_FILL = "#0f172a";
+    EXPORTED_DOT = "#34d399";
+    EXPORTED_LABEL = "#34d399";
+    INTERNAL_LABEL = "#c4b5fd";
+    PAGE_BG = "#0b1120";
+    MAP_BG = "#111827";
+    PANEL_BG = "rgba(15, 23, 42, 0.92)";
+    PANEL_BORDER = "#334155";
+    INK = "#e2e8f0";
+    MUTED_INK = "#94a3b8";
+    hueProfile = {
+      topFill: "35% 10%",
+      topStroke: "50% 45%",
+      topLabel: "55% 70%",
+      innerStroke: "40% 50%",
+      innerLabel: "45% 65%",
+      leafTint: "30% 16%",
+    };
+  } else {
+    MODIFIED_FILL = "hsl(8 85% 78%)";
+    ADDED_FILL = "hsl(150 55% 80%)";
+    CYCLE_FILL = "hsl(0 70% 86%)";
+    TEST_FILL = "hsl(210 10% 81%)";
+    DOWNSTREAM_COLOR = "#ea580c";
+    UPSTREAM_COLOR = "#0891b2";
+    DOWNSTREAM_FILL = "hsl(21 90% 86%)";
+    UPSTREAM_FILL = "hsl(193 70% 86%)";
+    SELECT_STROKE = "#1d4ed8";
+    LEAF_STROKE = "#94a3b8";
+    SYMBOL_STROKE = "#64748b";
+    SYMBOL_EDGE = "#7c3aed";
+    MACRO_EDGE = "#475569";
+    ACTIVE_EDGE = "#c2410c";
+    CIRCLE_FILL = "#eef2f7";
+    CIRCLE_STROKE = "#334155";
+    CIRCLE_CYCLE_FILL = "hsl(0 65% 92%)";
+    MODULE_LABEL_INK = "#0f172a";
+    FILE_LABEL_INK = "#334155";
+    TEST_LABEL_INK = "#7a8699";
+    WATERMARK_INK = "#334155";
+    PORT_FILL = "#ffffff";
+    EXPORTED_DOT = "#059669";
+    EXPORTED_LABEL = "#047857";
+    INTERNAL_LABEL = "#5b21b6";
+    PAGE_BG = "#e2e8f0";
+    MAP_BG = "#f8fafc";
+    PANEL_BG = "rgba(248, 250, 252, 0.92)";
+    PANEL_BORDER = "#cbd5e1";
+    INK = "#0f172a";
+    MUTED_INK = "#64748b";
+    hueProfile = {
+      topFill: "30% 97%",
+      topStroke: "45% 55%",
+      topLabel: "50% 32%",
+      innerStroke: "35% 62%",
+      innerLabel: "40% 42%",
+      leafTint: "25% 94%",
+    };
+  }
+}
+
 /** Past this natural screen size a cell's name becomes a translucent
  * watermark behind the detail (symbols, CFG) instead of a foreground
  * label fighting them for attention. */
@@ -43,8 +174,8 @@ export const SYMBOL_ZOOM = 2.2;
  * viewport's short side (selected/linked symbols are exempt). */
 export const SYMBOL_DOMINANT_FRACTION = 0.35;
 /** Exported-symbol label color vs internal symbols. */
-export const EXPORTED_LABEL = "#047857";
-export const INTERNAL_LABEL = "#5b21b6";
+export let EXPORTED_LABEL = "#047857";
+export let INTERNAL_LABEL = "#5b21b6";
 
 /** Stable pastel per top-level group so the borders read as districts. */
 export function moduleHue(moduleId: string): number {
@@ -118,7 +249,7 @@ export function leafFillOf(id: string, ctx: LeafFillContext): string {
   if (changed === "modified") return MODIFIED_FILL;
   if (ctx.cyclicIds?.has(id)) return CYCLE_FILL;
   if (ctx.testFileIds?.has(id)) return TEST_FILL;
-  return `hsl(${moduleHue(ctx.topAncestorOf(id) ?? "")} 25% 94%)`;
+  return leafTint(ctx.topAncestorOf(id) ?? "");
 }
 
 /* -------------------------------------------------- intermediate levels */
@@ -151,9 +282,7 @@ export function InnerLevelsLayer(props: {
                 key={cell.id}
                 points={cell.polygon.map((p) => `${p.x},${p.y}`).join(" ")}
                 stroke={
-                  isSelected(cell.id)
-                    ? SELECT_STROKE
-                    : `hsl(${moduleHue(top)} 35% 62%)`
+                  isSelected(cell.id) ? SELECT_STROKE : innerDistrictStroke(top)
                 }
                 stroke-opacity={dim.group(cell.id, top)}
                 stroke-width={isSelected(cell.id) ? 2.5 : 1}
@@ -190,7 +319,7 @@ export function InnerLevelsLayer(props: {
                 y={cell.site.y}
                 font-size={fontSize}
                 font-weight="600"
-                fill={`hsl(${moduleHue(top)} 40% 42%)`}
+                fill={innerDistrictLabelFill(top)}
                 fill-opacity={0.7 * dim.group(cell.id, top)}
               >
                 {props.labels?.get(cell.id) ?? cell.id.split("/").pop()!}
@@ -261,7 +390,7 @@ export function WatermarkLabelsLayer(props: {
             y={y}
             font-size={fontSize}
             font-weight="600"
-            fill="#334155"
+            fill={WATERMARK_INK}
             opacity={0.3 * dim.leaf(cell.id)}
           >
             {labelOf(cell.id)}

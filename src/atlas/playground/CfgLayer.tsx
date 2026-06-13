@@ -2,6 +2,7 @@ import { useMemo, useState } from "preact/hooks";
 import type { DetailGraph } from "../contracts/detail.js";
 import type { AtlasNode } from "../contracts/graph.js";
 import { layoutCfg } from "../kernel/cfgLayout.js";
+import { FILE_LABEL_INK, MACRO_EDGE, SELECT_STROKE } from "./mapShared.tsx";
 import type { Vec2 } from "../kernel/vec.js";
 
 /**
@@ -39,10 +40,11 @@ const IO_RE = /^(await|fetch)$/;
 const BRANCH_FILL = "#d97706";
 const LOOP_FILL = "#0e7490";
 const RETURN_FILL = "#be123c";
-const ENTRY_FILL = "#2563eb";
-const EXIT_FILL = "#334155";
 const BLOCK_FILL = "#64748b";
-const EDGE_STROKE = "#475569";
+/** Entry follows the selection blue; exit/edges follow the theme ink. */
+const entryFill = () => SELECT_STROKE;
+const exitFill = () => FILE_LABEL_INK;
+const edgeStroke = () => MACRO_EDGE;
 /** Effect badges: external mutation vs async/external I/O. */
 const MUTATION_BADGE = "#e11d48";
 const IO_BADGE = "#7c3aed";
@@ -122,7 +124,7 @@ function CfgShape(props: {
         cx={x}
         cy={y}
         r={size * 0.45}
-        fill={node.label === "entry" ? ENTRY_FILL : EXIT_FILL}
+        fill={node.label === "entry" ? entryFill() : exitFill()}
         {...hoverProps}
       />
     );
@@ -332,7 +334,7 @@ function CfgGlyph(props: { entry: CfgEntry; zoom: number; view?: ViewRect }) {
     <g>
       <g
         fill="none"
-        stroke={EDGE_STROKE}
+        stroke={edgeStroke()}
         stroke-width={strokeWidth}
         style={{ pointerEvents: "none" }}
       >
@@ -467,7 +469,7 @@ export function CfgLayer(props: {
           orient="auto-start-reverse"
           markerUnits="strokeWidth"
         >
-          <path d="M0,0 L10,5 L0,10 z" fill={EDGE_STROKE} />
+          <path d="M0,0 L10,5 L0,10 z" fill={edgeStroke()} />
         </marker>
       </defs>
       {props.entries.map((entry) => (

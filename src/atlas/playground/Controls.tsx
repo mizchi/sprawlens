@@ -36,6 +36,8 @@ export type PlaygroundParams = {
   /** Diff comparison base (no UI yet; git tooling will own this). */
   diffBase: string;
   showEdges: boolean;
+  /** Dark map + chrome; defaults to the system preference. */
+  dark: boolean;
 };
 
 type Props = {
@@ -297,6 +299,14 @@ export function Controls(props: Props) {
           onInput={(e) =>
             set("followChanges", (e.target as HTMLInputElement).checked)
           }
+        />
+      </label>
+      <label style={row}>
+        <span style={{ width: "110px" }}>dark</span>
+        <input
+          type="checkbox"
+          checked={params.dark}
+          onInput={(e) => set("dark", (e.target as HTMLInputElement).checked)}
         />
       </label>
       <label style={row}>
