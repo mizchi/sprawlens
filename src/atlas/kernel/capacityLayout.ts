@@ -359,6 +359,14 @@ export function applyGraphChanges(
   const roomiest = [...state.cells]
     .filter((c) => !removed.has(c.id))
     .sort((a, b) => b.actualArea - a.actualArea)[0];
+  // a fresh site entering a warm diagram with weight 0 among adapted
+  // (possibly large) neighbor weights starts as an empty cell; the
+  // minimum surviving weight keeps it alive (PowerHierarchy's insert)
+  const surviving = kept.filter((k) => k.site !== null);
+  const entryWeight =
+    surviving.length > 0
+      ? Math.min(...surviving.map((k) => k.site!.weight))
+      : 0;
   let sites: SiteState[] = kept.map((k, i) => {
     if (k.site) {
       const clamped = clampInto(clip, { x: k.site.x, y: k.site.y });
@@ -374,7 +382,7 @@ export function applyGraphChanges(
       id: k.node.id,
       x: base.x + (rng() - 0.5) * jitter,
       y: base.y + (rng() - 0.5) * jitter,
-      weight: 0,
+      weight: entryWeight,
       rawWeight: raws[i]!,
       targetArea: 0,
     };

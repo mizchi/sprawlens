@@ -10,12 +10,15 @@ import {
 } from "../contracts/hierarchy.js";
 import type { ModuleIdOf } from "../contracts/modules.js";
 import {
+  applyGraphChanges,
   capacityStep,
   createCapacityLayout,
   isConverged,
   type CapacityLayoutState,
+  type CellResult,
   type ClipRegion,
 } from "../kernel/capacityLayout.js";
+import { nearestPointInRing } from "../kernel/polygon.js";
 import {
   createGraphLayout,
   embedSeedHints,
@@ -188,5 +191,175 @@ export function stepTreemapState(
   return {
     state: leafLayouts ? { ...state, leafLayouts } : state,
     active,
+  };
+}
+
+/**
+ * Warm-start after the graph changed (PowerHierarchy's updating scheme):
+ * every level re-solves from the previous frame's sites instead of a
+ * fresh embedding, so the same element stays where it was. Sites whose
+ * parent region moved are projected back inside (external-site
+ * projection), surviving leaf layouts keep their full solver state via
+ * applyGraphChanges, and new entries start at the minimum neighbor
+ * weight. Structural view changes (boundaries, granularity, canvas size)
+ * still rebuild cold — this path is for data mutations.
+ */
+export function applyTreemapChanges(
+  state: TreemapState,
+  graph: AtlasGraph,
+  options: TreemapOptions,
+): TreemapState {
+  const boundaries =
+    options.boundaries && options.boundaries.length > 0
+      ? options.boundaries
+      : [moduleGrouping(options.moduleIdOf)];
+  const tree = deriveLevels(graph, boundaries, {
+    nativeEdges: options.nativeEdges,
+  });
+  const clip = {
+    kind: "rect" as const,
+    x: 0,
+    y: 0,
+    width: options.width,
+    height: options.height,
+  };
+  const solver = {
+    seed: options.seed,
+    adaptationRate: options.adaptationRate,
+    lloydRate: options.lloydRate,
+  };
+  /** Previous site of an id, wherever it lived. */
+  const previousSiteOf = (id: string) => {
+    for (const level of state.levels) {
+      const cell = level.cells.get(id);
+      if (cell) return cell.site;
+    }
+    return undefined;
+  };
+
+  // top level: previous district sites carry over as hints
+  const top = tree.levels[0]!;
+  const topLayout = solveLevel(
+    createCapacityLayout(
+      top.nodes.map((node) => ({
+        id: node.id,
+        weight: node.metrics.loc,
+        hint: previousSiteOf(node.id),
+      })),
+      clip,
+      solver,
+    ),
+  );
+  const levels: TreemapLevelCells[] = [
+    {
+      kind: top.kind,
+      cells: new Map(topLayout.cells.map((c) => [c.id, c])),
+      edges: top.edges,
+    },
+  ];
+
+  // intermediate levels: previous sites, projected into the parent's new
+  // region when it moved out from under them
+  let parentClips = new Map<string, ClipRegion>();
+  for (const cell of topLayout.cells) {
+    if (cell.polygon.length < 3) continue;
+    parentClips.set(cell.id, {
+      kind: "polygon",
+      ring: insetRing(cell.polygon, NEST_INSET),
+    });
+  }
+  for (let k = 1; k < tree.levels.length; k++) {
+    const cells = new Map<string, CellResult>();
+    const nextClips = new Map<string, ClipRegion>();
+    for (const [parentId, parentClip] of parentClips) {
+      const children = tree.childrenOf.get(parentId) ?? [];
+      if (children.length === 0) continue;
+      const ring = parentClip.kind === "polygon" ? parentClip.ring : null;
+      const layout = solveLevel(
+        createCapacityLayout(
+          children.map((child) => {
+            const previous = previousSiteOf(child.id);
+            return {
+              id: child.id,
+              weight: child.metrics.loc,
+              hint:
+                previous && ring ? nearestPointInRing(ring, previous) : previous,
+            };
+          }),
+          parentClip,
+          solver,
+        ),
+      );
+      for (const cell of layout.cells) {
+        cells.set(cell.id, cell);
+        if (cell.polygon.length >= 3) {
+          nextClips.set(cell.id, {
+            kind: "polygon",
+            ring: insetRing(cell.polygon, NEST_INSET),
+          });
+        }
+      }
+    }
+    levels.push({ kind: tree.levels[k]!.kind, cells, edges: tree.levels[k]!.edges });
+    parentClips = nextClips;
+  }
+
+  // leaves: surviving group layouts keep their solver state; new groups
+  // start from the previous leaf sites where any exist
+  const leafLayouts = new Map<string, CapacityLayoutState>();
+  for (const [groupId, leafClip] of parentClips) {
+    const leaves = tree.childrenOf.get(groupId) ?? [];
+    if (leaves.length === 0) continue;
+    const existing = state.leafLayouts.get(groupId);
+    if (existing) {
+      const leafIds = new Set(leaves.map((leaf) => leaf.id));
+      const remove = existing.cells
+        .map((c) => c.id)
+        .filter((id) => !leafIds.has(id));
+      leafLayouts.set(
+        groupId,
+        applyGraphChanges(existing, {
+          clip: leafClip,
+          upsert: leaves.map((leaf) => ({
+            id: leaf.id,
+            weight: leaf.metrics.loc,
+          })),
+          remove,
+        }),
+      );
+      continue;
+    }
+    const prevLeafSiteOf = (id: string) => {
+      for (const layout of state.leafLayouts.values()) {
+        const cell = layout.cells.find((c) => c.id === id);
+        if (cell) return cell.site;
+      }
+      return undefined;
+    };
+    const ring = leafClip.kind === "polygon" ? leafClip.ring : null;
+    leafLayouts.set(
+      groupId,
+      createCapacityLayout(
+        leaves.map((leaf) => {
+          const previous = prevLeafSiteOf(leaf.id);
+          return {
+            id: leaf.id,
+            weight: leaf.metrics.loc,
+            hint:
+              previous && ring ? nearestPointInRing(ring, previous) : previous,
+          };
+        }),
+        leafClip,
+        solver,
+      ),
+    );
+  }
+
+  return {
+    levels,
+    leafLayouts,
+    topEdges: top.edges,
+    parentOf: tree.parentOf,
+    kindOf: tree.kindOf,
   };
 }

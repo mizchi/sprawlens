@@ -4,6 +4,7 @@ import { directoryGrouping, moduleGrouping } from "../contracts/hierarchy.js";
 import { cellAdjacency, realizedEdgeRate } from "../kernel/neighborhood.js";
 import { containsPoint } from "../kernel/polygon.js";
 import {
+  applyTreemapChanges,
   createTreemapState,
   stepTreemapState,
   type TreemapState,
@@ -218,6 +219,136 @@ describe("stepTreemapState", () => {
     expect(active).toBe(false);
     for (const layout of state.leafLayouts.values()) {
       expect(layout.maxRelativeError).toBeLessThan(0.02);
+    }
+  });
+});
+
+describe("applyTreemapChanges", () => {
+  it("keeps leaf layouts warm when a file weight changes", () => {
+    const graph = sampleGraph();
+    const state = settled(createTreemapState(graph, OPTIONS));
+    const mutated = {
+      ...graph,
+      nodes: graph.nodes.map((n) =>
+        n.id === "src/alpha/a.ts"
+          ? { ...n, metrics: { loc: Math.round(n.metrics.loc * 1.3) } }
+          : n,
+      ),
+    };
+    const next = applyTreemapChanges(state, mutated, OPTIONS);
+    expect(next.leafLayouts.size).toBe(state.leafLayouts.size);
+    for (const [groupId, layout] of next.leafLayouts) {
+      const before = state.leafLayouts.get(groupId)!;
+      expect(layout.cells.map((c) => c.id).sort()).toEqual(
+        before.cells.map((c) => c.id).sort(),
+      );
+    }
+  });
+
+  it("moves surviving sites less than a cold rebuild would", () => {
+    const graph = sampleGraph();
+    const state = settled(createTreemapState(graph, OPTIONS));
+    const mutated = {
+      ...graph,
+      nodes: graph.nodes.map((n) =>
+        n.id === "src/beta/d.ts"
+          ? { ...n, metrics: { loc: Math.round(n.metrics.loc * 1.4) } }
+          : n,
+      ),
+    };
+    const siteOf = (s: TreemapState, id: string) => {
+      for (const layout of s.leafLayouts.values()) {
+        const cell = layout.cells.find((c) => c.id === id);
+        if (cell) return cell.site;
+      }
+      throw new Error(`missing ${id}`);
+    };
+    const dist = (a: { x: number; y: number }, b: { x: number; y: number }) =>
+      Math.hypot(a.x - b.x, a.y - b.y);
+    const warm = settled(applyTreemapChanges(state, mutated, OPTIONS));
+    const cold = settled(createTreemapState(mutated, { ...OPTIONS, seed: 9 }));
+    let warmShift = 0;
+    let coldShift = 0;
+    for (const node of graph.nodes) {
+      warmShift += dist(siteOf(state, node.id), siteOf(warm, node.id));
+      coldShift += dist(siteOf(state, node.id), siteOf(cold, node.id));
+    }
+    expect(warmShift).toBeLessThan(coldShift * 0.5);
+  });
+
+  it("drops removed files and their group when it empties", () => {
+    const graph = sampleGraph();
+    const state = settled(createTreemapState(graph, OPTIONS));
+    const without = {
+      ...graph,
+      nodes: graph.nodes.filter((n) => !n.id.startsWith("src/gamma/")),
+      edges: graph.edges.filter(
+        (e) =>
+          !e.source.startsWith("src/gamma/") &&
+          !e.target.startsWith("src/gamma/"),
+      ),
+    };
+    const next = applyTreemapChanges(state, without, OPTIONS);
+    expect(next.leafLayouts.has("src/gamma")).toBe(false);
+    expect(next.levels[0]!.cells.has("src/gamma")).toBe(false);
+  });
+
+  it("admits new files into an existing group", () => {
+    const graph = sampleGraph();
+    const state = settled(createTreemapState(graph, OPTIONS));
+    const grown = {
+      ...graph,
+      nodes: [
+        ...graph.nodes,
+        {
+          id: "src/alpha/new.ts",
+          kind: "file" as const,
+          label: "new.ts",
+          metrics: { loc: 60 },
+        },
+      ],
+    };
+    const next = settled(applyTreemapChanges(state, grown, OPTIONS));
+    const layout = next.leafLayouts.get("src/alpha")!;
+    expect(layout.cells.map((c) => c.id)).toContain("src/alpha/new.ts");
+    const groupCell = next.levels[0]!.cells.get("src/alpha")!;
+    for (const cell of layout.cells) {
+      expect(containsPoint(groupCell.polygon, cell.site)).toBe(true);
+    }
+  });
+
+  it("re-solves intermediate boundary levels inside their new parents", () => {
+    const file = (id: string, loc: number) => ({
+      id,
+      kind: "file" as const,
+      label: id.split("/").pop()!,
+      metrics: { loc },
+    });
+    const graph = {
+      nodes: [
+        file("src/alpha/core/a.ts", 100),
+        file("src/alpha/util/b.ts", 50),
+        file("src/beta/core/c.ts", 120),
+      ],
+      edges: [],
+    };
+    const boundaries = [moduleGrouping(), directoryGrouping(3)];
+    const state = settled(
+      createTreemapState(graph, { ...OPTIONS, boundaries }),
+    );
+    const mutated = {
+      ...graph,
+      nodes: graph.nodes.map((n) =>
+        n.id === "src/alpha/core/a.ts"
+          ? { ...n, metrics: { loc: 180 } }
+          : n,
+      ),
+    };
+    const next = applyTreemapChanges(state, mutated, { ...OPTIONS, boundaries });
+    expect(next.levels.map((l) => l.kind)).toEqual(["module", "directory"]);
+    for (const [dirId, dirCell] of next.levels[1]!.cells) {
+      const moduleCell = next.levels[0]!.cells.get(next.parentOf.get(dirId)!)!;
+      expect(containsPoint(moduleCell.polygon, dirCell.site)).toBe(true);
     }
   });
 });
