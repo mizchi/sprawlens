@@ -11,6 +11,7 @@ import {
   districtLabelFill,
   districtStroke,
   DOWNSTREAM_COLOR,
+  ClassOverlayLayer,
   ExitPreviewsLayer,
   EXPORTED_LABEL,
   FILE_LABEL_INK,
@@ -65,6 +66,10 @@ type Props = {
   exportedIds?: Set<string>;
   /** Symbol declaration kind per id, for the zoomed-in classification icons. */
   symbolKindOf?: (id: string) => SymbolKind | undefined;
+  /** Owning class id for a member/class-decl symbol, else null (overlay). */
+  classIdOf?: (id: string) => string | null;
+  /** Draw the class membership overlay (tinted hull around member cells). */
+  showClassOverlay?: boolean;
   /** Symbol id → parent file id, for label gating. */
   parentFileOf?: (id: string) => string;
   /** Dependency-path extraction: members stay lit, everything else dims. */
@@ -501,6 +506,16 @@ export function TreemapSvg(props: Props) {
             );
           })}
         </g>
+      ) : null}
+      {props.classIdOf && props.showClassOverlay ? (
+        <ClassOverlayLayer
+          cells={
+            props.leafKind === "symbol" ? visibleFileCells : visibleInnerCells
+          }
+          classIdOf={props.classIdOf}
+          zoom={zoom}
+          visible={leafVisible}
+        />
       ) : null}
       <CfgLayer
         entries={props.cfgEntries ?? []}

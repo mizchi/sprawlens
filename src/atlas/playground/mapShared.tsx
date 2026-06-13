@@ -1,6 +1,8 @@
 import type { AtlasEdge } from "../contracts/graph.js";
+import { classNameOf } from "../contracts/hierarchy.js";
 import { bundlePath, hierarchyControlPoints } from "../kernel/bundling.js";
 import type { CellResult } from "../kernel/capacityLayout.js";
+import { centroid, convexHull, signedArea } from "../kernel/polygon.js";
 import type { Vec2 } from "../kernel/vec.js";
 import { symbolNameOf } from "./cfgClient.ts";
 import type { CfgAnchor } from "./CfgLayer.tsx";
@@ -418,6 +420,80 @@ export function InnerLevelsLayer(props: {
         )}
       </g>
     </>
+  );
+}
+
+/* -------------------------------------------------------- class overlay */
+
+/**
+ * Class membership drawn WITHOUT touching the layout: symbols lay out flat
+ * (loose ones and members side by side), and each class gets a tinted convex
+ * hull around wherever its member cells landed. Nothing is displaced — the
+ * hull is pure annotation — at the cost of a non-contiguous outline when a
+ * class' members scatter. Deep-zoom gated like the old district outline so
+ * the macro view stays clean.
+ */
+export function ClassOverlayLayer(props: {
+  /** Leaf symbol cells to scan (any granularity; non-members are ignored). */
+  cells: readonly CellResult[];
+  classIdOf: (id: string) => string | null;
+  zoom: number;
+  visible: boolean;
+}) {
+  if (!props.visible) return null;
+  const groups = new Map<string, Vec2[]>();
+  for (const cell of props.cells) {
+    if (cell.polygon.length < 3) continue;
+    const classId = props.classIdOf(cell.id);
+    if (classId === null) continue;
+    let points = groups.get(classId);
+    if (!points) {
+      points = [];
+      groups.set(classId, points);
+    }
+    for (const p of cell.polygon) points.push(p);
+  }
+  return (
+    <g style={{ pointerEvents: "none" }}>
+      {[...groups].map(([classId, points]) => {
+        if (points.length < 3) return null;
+        const hull = convexHull(points);
+        if (hull.length < 3) return null;
+        const center = centroid(hull);
+        // grow the hull a touch so the outline clears the cells it wraps
+        const ring = hull.map((p) => ({
+          x: center.x + (p.x - center.x) * 1.06,
+          y: center.y + (p.y - center.y) * 1.06,
+        }));
+        const span = Math.sqrt(Math.abs(signedArea(ring)));
+        if (span * props.zoom < CLASS_BORDER_MIN_PX) return null;
+        const fontSize = Math.min(span * 0.1, 16 / props.zoom + 4);
+        return (
+          <g key={classId}>
+            <polygon
+              points={ring.map((p) => `${p.x},${p.y}`).join(" ")}
+              fill={CLASS_BOUNDARY}
+              fill-opacity={0.06}
+              stroke={CLASS_BOUNDARY}
+              stroke-opacity={0.9}
+              stroke-width={2.5}
+              stroke-linejoin="round"
+            />
+            <text
+              x={center.x}
+              y={center.y}
+              text-anchor="middle"
+              font-size={fontSize}
+              font-weight="700"
+              fill={CLASS_BOUNDARY}
+              fill-opacity={0.85}
+            >
+              {classNameOf(classId)}
+            </text>
+          </g>
+        );
+      })}
+    </g>
   );
 }
 

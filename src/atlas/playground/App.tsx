@@ -57,7 +57,7 @@ import {
 } from "./synthetic.ts";
 import type { AtlasEdge } from "../contracts/graph.js";
 import {
-  classGrouping,
+  classIdOf,
   directoryGrouping,
   moduleGrouping,
   parentFileOf as contractParentFileOf,
@@ -377,18 +377,19 @@ export function App() {
   /** Subdivision rings above the leaf (module ⊃ directory); the leaf and
    * file outlines live on the display axis, not here. */
   const boundariesOf = (p: PlaygroundParams): Grouping[] => {
-    // the class level groups symbol leaves by their class; it only applies
-    // when symbols are the leaves (no file boundary nesting them per file)
-    const symbolLeaves =
-      granularityOf(p.boundaries, p.displayLevels) === "symbol";
+    // "class" is NOT a layout boundary: nesting members under a class district
+    // froze them into a solved-once partition that marginalised the
+    // surrounding symbols (low-loc groups pushed to the rim). Class membership
+    // is now a non-displacing overlay (ClassOverlayLayer) instead.
     const groupings = p.boundaries.flatMap((level): Grouping[] => {
       if (level === "module") return [moduleGrouping()];
       if (level === "directory") return [directoryGrouping(DIRECTORY_DEPTH)];
-      if (level === "class" && symbolLeaves) return [classGrouping()];
       return [];
     });
     return groupings.length > 0 ? groupings : [moduleGrouping()];
   };
+  /** The class overlay is driven by the (now layout-free) "class" toggle. */
+  const showClassOverlay = params.boundaries.includes("class");
 
   const ringsOptions = (p: PlaygroundParams) => ({
     width: WIDTH,
@@ -1952,6 +1953,8 @@ export function App() {
             labels={labels}
             exportedIds={exportedIds}
             symbolKindOf={symbolKindOf}
+            classIdOf={classIdOf}
+            showClassOverlay={showClassOverlay}
             focus={focusView}
             testFileIds={testFileIds}
             hiddenLayers={new Set(hiddenLayersOf(params.omit))}
@@ -1978,6 +1981,8 @@ export function App() {
             exportedIds={exportedIds}
             symbolKindOf={symbolKindOf}
             parentFileOf={parentFileOf}
+            classIdOf={classIdOf}
+            showClassOverlay={showClassOverlay}
             fileEdges={
               granularity === "symbol"
                 ? displayGraphRef.current.edges

@@ -3,6 +3,7 @@ import type { AtlasGraph } from "./graph.js";
 import {
   ancestorAt,
   classGrouping,
+  classIdOf,
   deriveLevels,
   directoryGrouping,
   fileGrouping,
@@ -293,12 +294,26 @@ describe("classGrouping", () => {
     expect(g.groupOf(staticProp)).toBe("class:src/a.ts:Widget");
     expect(g.labelOf!(g.groupOf(cls))).toBe("Widget");
   });
-  it("buckets a non-class top-level symbol by its parent file", () => {
-    // a shared file bucket (not a per-symbol singleton) keeps loose symbols
-    // in a melting leaf layout instead of a frozen intermediate district
+  it("leaves a non-class top-level symbol in its own group", () => {
     const fn = "symbol:src/a.ts:function:helper:1";
-    const other = "symbol:src/a.ts:variable:CONST:9";
-    expect(g.groupOf(fn)).toBe("src/a.ts");
-    expect(g.groupOf(other)).toBe("src/a.ts");
+    expect(g.groupOf(fn)).toBe(fn);
+  });
+});
+
+describe("classIdOf", () => {
+  it("returns the class id for a member or class declaration", () => {
+    expect(classIdOf("symbol:src/a.ts:class:Widget:5")).toBe(
+      "class:src/a.ts:Widget",
+    );
+    expect(classIdOf("symbol:src/a.ts:method:Widget.render:7")).toBe(
+      "class:src/a.ts:Widget",
+    );
+    expect(classIdOf("symbol:src/a.ts:static-property:Widget.count:6")).toBe(
+      "class:src/a.ts:Widget",
+    );
+  });
+  it("returns null for a loose symbol or non-symbol id", () => {
+    expect(classIdOf("symbol:src/a.ts:function:helper:1")).toBeNull();
+    expect(classIdOf("src/a.ts")).toBeNull();
   });
 });
