@@ -294,9 +294,15 @@ describe("classGrouping", () => {
     expect(g.groupOf(staticProp)).toBe("class:src/a.ts:Widget");
     expect(g.labelOf!(g.groupOf(cls))).toBe("Widget");
   });
-  it("leaves a non-class top-level symbol in its own group", () => {
+  it("puts every non-class symbol in one shared per-module rest bucket", () => {
     const fn = "symbol:src/a.ts:function:helper:1";
-    expect(g.groupOf(fn)).toBe(fn);
+    const other = "symbol:src/a.ts:variable:CONST:9";
+    const gid = g.groupOf(fn);
+    expect(gid.startsWith("(rest):")).toBe(true);
+    // loose symbols of the same module share the bucket (not per-symbol, not
+    // per-file), so the melt distributes them together
+    expect(g.groupOf(other)).toBe(gid);
+    expect(gid).not.toBe(fn);
   });
 });
 

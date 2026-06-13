@@ -11,7 +11,6 @@ import {
   CIRCLE_CYCLE_FILL,
   CIRCLE_FILL,
   CIRCLE_STROKE,
-  ClassOverlayLayer,
   DIM,
   DOWNSTREAM_COLOR,
   DOWNSTREAM_FILL,
@@ -104,10 +103,6 @@ type Props = {
   selectedId: string | null;
   /** Symbol declaration kind per id, for the zoomed-in classification icons. */
   symbolKindOf?: (id: string) => SymbolKind | undefined;
-  /** Owning class id for a member/class-decl symbol, else null (overlay). */
-  classIdOf?: (id: string) => string | null;
-  /** Draw the class membership overlay (tinted hull around member cells). */
-  showClassOverlay?: boolean;
   /** Full multi-selection (shift+click); selectedId is its primary. */
   selectedIds?: Set<string>;
   /** Picked dependency edges (proximity click); raised above the map. */
@@ -789,14 +784,6 @@ export function RingsMapSvg(props: Props) {
             ) : null,
           )}
         </g>
-      ) : null}
-      {props.classIdOf && props.showClassOverlay ? (
-        <ClassOverlayLayer
-          cells={symbolMode ? visibleFileCells : visibleInnerCells}
-          classIdOf={props.classIdOf}
-          zoom={zoom}
-          visible={sourceVisible}
-        />
       ) : null}
       <CfgLayer
         entries={props.cfgEntries ?? []}

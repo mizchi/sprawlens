@@ -57,7 +57,7 @@ import {
 } from "./synthetic.ts";
 import type { AtlasEdge } from "../contracts/graph.js";
 import {
-  classIdOf,
+  classGrouping,
   directoryGrouping,
   moduleGrouping,
   parentFileOf as contractParentFileOf,
@@ -377,19 +377,18 @@ export function App() {
   /** Subdivision rings above the leaf (module ⊃ directory); the leaf and
    * file outlines live on the display axis, not here. */
   const boundariesOf = (p: PlaygroundParams): Grouping[] => {
-    // "class" is NOT a layout boundary: nesting members under a class district
-    // froze them into a solved-once partition that marginalised the
-    // surrounding symbols (low-loc groups pushed to the rim). Class membership
-    // is now a non-displacing overlay (ClassOverlayLayer) instead.
+    // the class level groups symbol leaves by their class; it only applies
+    // when symbols are the leaves (no file boundary nesting them per file)
+    const symbolLeaves =
+      granularityOf(p.boundaries, p.displayLevels) === "symbol";
     const groupings = p.boundaries.flatMap((level): Grouping[] => {
       if (level === "module") return [moduleGrouping()];
       if (level === "directory") return [directoryGrouping(DIRECTORY_DEPTH)];
+      if (level === "class" && symbolLeaves) return [classGrouping()];
       return [];
     });
     return groupings.length > 0 ? groupings : [moduleGrouping()];
   };
-  /** The class overlay is driven by the (now layout-free) "class" toggle. */
-  const showClassOverlay = params.boundaries.includes("class");
 
   const ringsOptions = (p: PlaygroundParams) => ({
     width: WIDTH,
@@ -1532,7 +1531,12 @@ export function App() {
         (c) => c.polygon.length >= 3 && containsPoint(c.polygon, p),
       );
       if (!hit) break;
-      parts.push({ id: hit.id, label: hit.id.split("/").pop()! });
+      // the per-module "(rest):<module>" bucket is an implementation detail
+      // (it holds every non-class symbol) — show it as the module scope
+      const label = hit.id.startsWith("(rest):")
+        ? "(module scope)"
+        : hit.id.split("/").pop()!;
+      parts.push({ id: hit.id, label });
       leafGroupId = hit.id;
     }
     const layout = rings
@@ -1953,8 +1957,6 @@ export function App() {
             labels={labels}
             exportedIds={exportedIds}
             symbolKindOf={symbolKindOf}
-            classIdOf={classIdOf}
-            showClassOverlay={showClassOverlay}
             focus={focusView}
             testFileIds={testFileIds}
             hiddenLayers={new Set(hiddenLayersOf(params.omit))}
@@ -1981,8 +1983,6 @@ export function App() {
             exportedIds={exportedIds}
             symbolKindOf={symbolKindOf}
             parentFileOf={parentFileOf}
-            classIdOf={classIdOf}
-            showClassOverlay={showClassOverlay}
             fileEdges={
               granularity === "symbol"
                 ? displayGraphRef.current.edges
