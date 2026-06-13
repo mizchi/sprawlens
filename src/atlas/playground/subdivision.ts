@@ -73,23 +73,36 @@ export function insetRing(ring: Ring, factor: number): Ring {
   }));
 }
 
+/** Above this many total leaves the global O(n²) force pass alone blocks
+ * the build for hundreds of ms; skip it and let each region's own melt
+ * arrange its leaves over the budgeted ticks. The cross-boundary
+ * pre-arrangement it provides is invisible at monorepo zoom-out anyway. */
+const FORCE_SKIP_ABOVE = 700;
+
 /**
  * The constrained leaf force is O(n²) per iteration; give it more budget
  * than plain seeding (it carries the cross-boundary structure) but keep
- * monorepo-scale graphs from blocking the build for seconds.
+ * monorepo-scale graphs from blocking the build for seconds — above
+ * {@link FORCE_SKIP_ABOVE} leaves it is dropped entirely.
  */
 export function constrainedForceIterations(nodeCount: number): number {
   if (nodeCount === 0) return 0;
+  if (nodeCount > FORCE_SKIP_ABOVE) return 0;
   return Math.max(
     8,
     Math.min(60, Math.floor(8_000_000 / (nodeCount * nodeCount))),
   );
 }
 
-/** Above this the O(n³) assignment dominates the build; fall back to
- * placing nodes directly at their similarity positions. */
-const ASSIGN_NODE_CAP = 320;
+/** Above this the O(n³) Kuhn-Munkres assignment dominates the build; large
+ * groups skip it and seed from their similarity positions. Kept low enough
+ * that one big district can never block the build by itself (128³ ≈ 2M). */
+const ASSIGN_NODE_CAP = 128;
 const CVT_MAX_STEPS = 80;
+/** Per-group CVT work budget: steps ≈ budget / n², so a big district gets
+ * few relaxation steps and a small one the full count. Bounds the seeding
+ * cost per group without a flat quality cut on small graphs. */
+const CVT_STEP_BUDGET = 2_000_000;
 const CVT_CONVERGENCE = 0.05;
 
 /**
@@ -115,7 +128,11 @@ export function assignedSlotHints(
     clip,
     { seed },
   );
-  for (let i = 0; i < CVT_MAX_STEPS && !isConverged(cvt, CVT_CONVERGENCE); i++) {
+  const cvtSteps = Math.max(
+    12,
+    Math.min(CVT_MAX_STEPS, Math.floor(CVT_STEP_BUDGET / (n * n))),
+  );
+  for (let i = 0; i < cvtSteps && !isConverged(cvt, CVT_CONVERGENCE); i++) {
     cvt = capacityStep(cvt);
   }
   const slots = cvt.cells;

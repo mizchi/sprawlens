@@ -4,25 +4,32 @@ import type { CellResult } from "../kernel/capacityLayout.js";
 import type { Vec2 } from "../kernel/vec.js";
 import { CfgLayer, cfgAnchorsOf, type CfgEntry } from "./CfgLayer.tsx";
 import {
+  ACTIVE_EDGE,
   BUNDLE_STRENGTH,
+  districtFill,
+  districtLabelFill,
+  districtStroke,
   DOWNSTREAM_COLOR,
   ExitPreviewsLayer,
   EXPORTED_LABEL,
+  FILE_LABEL_INK,
   INTERNAL_LABEL,
+  LEAF_STROKE,
   makeEdgeBundler,
   SYMBOL_DOMINANT_FRACTION,
+  SYMBOL_STROKE,
   selectionDirections,
   focusDimOf,
   InnerLevelsLayer,
   isWatermarkSized,
   leafFillOf,
   makeTopAncestorOf,
-  moduleHue,
   SELECT_STROKE,
   UPSTREAM_COLOR,
   WatermarkLabelsLayer,
 } from "./mapShared.tsx";
 import { symbolNameOf } from "./cfgClient.ts";
+import { cellInView, segmentInView } from "./viewCulling.ts";
 import type { TreemapState } from "./treemapController.js";
 import {
   useMapViewport,
@@ -128,13 +135,26 @@ export function TreemapSvg(props: Props) {
     [state.parentOf, positionOf, bundleStrength, cfgAnchors, width, height],
   );
 
+  // viewport culling, shared with rings: at monorepo scale most of the
+  // cost is cells and edges that sit entirely off-screen. The committed
+  // view rect (post zoom/pan) decides visibility; slack keeps partially
+  // visible geometry alive so panning never reveals an empty margin.
+  const edgeSlack = committedView.w * 0.1;
+  const edgeInView = (edge: AtlasEdge): boolean => {
+    const a = positionOf.get(edge.source);
+    const b = positionOf.get(edge.target);
+    return a != null && b != null && segmentInView(a, b, committedView, edgeSlack);
+  };
+
   const bundled = useMemo(() => {
     if (!props.showEdges || focus) return [];
     return props.fileEdges.flatMap((edge) => {
+      if (!edgeInView(edge)) return [];
       const b = bundleOf(edge);
       return b ? [b] : [];
     });
-  }, [props.fileEdges, props.showEdges, focus, state, positionOf, bundleStrength, cfgAnchors]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [props.fileEdges, props.showEdges, focus, state, positionOf, bundleStrength, cfgAnchors, committedView]);
 
   // extraction mode: only the focused paths render, in direction colors
   const focusBundles = useMemo(() => {
@@ -190,8 +210,9 @@ export function TreemapSvg(props: Props) {
     ? innerCells.filter(
         (c) =>
           c.polygon.length >= 3 &&
-          (Math.sqrt(c.actualArea) * zoom >= MIN_CELL_PX ||
-            isSelected(c.id)),
+          (isSelected(c.id) ||
+            (Math.sqrt(c.actualArea) * zoom >= MIN_CELL_PX &&
+              cellInView(c.site, Math.sqrt(c.actualArea), committedView))),
       )
     : [];
 
@@ -208,9 +229,10 @@ export function TreemapSvg(props: Props) {
   const visibleFileCells = fileCells.filter(
     (c) =>
       c.polygon.length >= 3 &&
-      (Math.sqrt(c.actualArea) * zoom >= MIN_CELL_PX ||
-        isSelected(c.id) ||
-        props.changedFiles?.has(c.id)),
+      (isSelected(c.id) ||
+        props.changedFiles?.has(c.id) ||
+        (Math.sqrt(c.actualArea) * zoom >= MIN_CELL_PX &&
+          cellInView(c.site, Math.sqrt(c.actualArea), committedView))),
   );
   const labelOf = (id: string): string =>
     props.labels?.get(id) ?? symbolNameOf(id) ?? id.split("/").pop() ?? id;
@@ -235,12 +257,12 @@ export function TreemapSvg(props: Props) {
             <polygon
               key={cell.id}
               points={cell.polygon.map((p) => `${p.x},${p.y}`).join(" ")}
-              fill={`hsl(${moduleHue(cell.id)} 30% 97%)`}
+              fill={districtFill(cell.id)}
               fill-opacity={moduleOpacity(cell.id)}
               stroke={
                 isSelected(cell.id)
                   ? SELECT_STROKE
-                  : `hsl(${moduleHue(cell.id)} 45% 55%)`
+                  : districtStroke(cell.id)
               }
               stroke-opacity={moduleOpacity(cell.id)}
               stroke-width={isSelected(cell.id) ? 3 : 1.6}
@@ -271,7 +293,7 @@ export function TreemapSvg(props: Props) {
             points={cell.polygon.map((p) => `${p.x},${p.y}`).join(" ")}
             fill={fillOf(cell)}
             fill-opacity={fileOpacity(cell.id)}
-            stroke={isSelected(cell.id) ? SELECT_STROKE : "#94a3b8"}
+            stroke={isSelected(cell.id) ? SELECT_STROKE : LEAF_STROKE}
             stroke-opacity={fileOpacity(cell.id)}
             stroke-width={isSelected(cell.id) ? 2.5 : 0.6}
             onClick={(event) => {
@@ -292,7 +314,7 @@ export function TreemapSvg(props: Props) {
       ) : null}
       {/* nested symbols inside file cells (same rules as rings) */}
       {showInner ? (
-        <g stroke="#64748b" stroke-width={0.4} stroke-opacity={0.8}>
+        <g stroke={SYMBOL_STROKE} stroke-width={0.4} stroke-opacity={0.8}>
           {visibleInnerCells.map((cell) =>
             cell.id.endsWith("#rest") ? null : (
               <polygon
@@ -368,7 +390,7 @@ export function TreemapSvg(props: Props) {
               <path
                 key={`${edge.source} ${edge.target}`}
                 d={edge.d}
-                stroke={active ? "#c2410c" : "#0891b2"}
+                stroke={active ? ACTIVE_EDGE : UPSTREAM_COLOR}
                 stroke-opacity={active ? 0.9 : selectedId ? 0.08 : 0.22}
                 stroke-width={active ? 1.8 : 1}
                 style={{ pointerEvents: "none" }}
@@ -443,7 +465,7 @@ export function TreemapSvg(props: Props) {
               y={cell.site.y}
               font-size={fontSize}
               font-weight="700"
-              fill={`hsl(${moduleHue(cell.id)} 50% 32%)`}
+              fill={districtLabelFill(cell.id)}
               fill-opacity={0.85 * moduleOpacity(cell.id)}
             >
               {labelOf(cell.id)}
@@ -454,7 +476,7 @@ export function TreemapSvg(props: Props) {
       {/* file labels appear once their cell is readable, and hand off to
           the background watermark past the shared threshold */}
       <g
-        fill="#334155"
+        fill={FILE_LABEL_INK}
         text-anchor="middle"
         style={{
           pointerEvents: "none",

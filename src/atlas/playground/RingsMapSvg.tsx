@@ -6,13 +6,28 @@ import type { RingsState } from "./ringsController.ts";
 
 import { CfgLayer, cfgAnchorsOf, type CfgEntry } from "./CfgLayer.tsx";
 import {
+  ACTIVE_EDGE,
+  CIRCLE_CYCLE_FILL,
+  CIRCLE_FILL,
+  CIRCLE_STROKE,
   DIM,
   DOWNSTREAM_COLOR,
   DOWNSTREAM_FILL,
   ExitPreviewsLayer,
+  EXPORTED_DOT,
+  EXPORTED_LABEL,
+  FILE_LABEL_INK,
   focusDimOf,
+  INTERNAL_LABEL,
+  LEAF_STROKE,
+  MACRO_EDGE,
+  MODULE_LABEL_INK,
+  PORT_FILL,
   SYMBOL_DOMINANT_FRACTION,
+  SYMBOL_EDGE,
+  SYMBOL_STROKE,
   SYMBOL_ZOOM,
+  TEST_LABEL_INK,
   InnerLevelsLayer,
   isWatermarkSized,
   leafFillOf,
@@ -25,6 +40,7 @@ import {
   WatermarkLabelsLayer,
 } from "./mapShared.tsx";
 import { symbolNameOf } from "./cfgClient.ts";
+import { segmentInView } from "./viewCulling.ts";
 import {
   useMapViewport,
   type FocusRequest,
@@ -33,8 +49,6 @@ import {
 
 export type { FocusRequest, FocusView } from "./useMapViewport.ts";
 
-/** Public API marker: the site dot, not the cell area, carries the signal. */
-const EXPORTED_DOT = "#059669";
 
 type Props = {
   rings: RingsState;
@@ -430,7 +444,7 @@ export function RingsMapSvg(props: Props) {
       </style>
       {/* aggregated module dependencies: the macro structure, always on */}
       {!focus ? (
-        <g stroke="#475569" fill="none">
+        <g stroke={MACRO_EDGE} fill="none">
           {rings.topEdges.map((edge) => {
             const a = rings.circles.get(edge.source);
             const b = rings.circles.get(edge.target);
@@ -470,10 +484,10 @@ export function RingsMapSvg(props: Props) {
                 : dependentIds.has(id)
                   ? UPSTREAM_FILL
                   : cyclicModuleIds.has(id)
-                    ? "hsl(0 65% 92%)"
-                    : "#eef2f7"
+                    ? CIRCLE_CYCLE_FILL
+                    : CIRCLE_FILL
             }
-            stroke={isSelected(id) ? "#1d4ed8" : "#334155"}
+            stroke={isSelected(id) ? SELECT_STROKE : CIRCLE_STROKE}
             stroke-width={isSelected(id) ? 2.4 : 1.2}
             opacity={moduleOpacity(id)}
             onClick={(event) => {
@@ -508,7 +522,7 @@ export function RingsMapSvg(props: Props) {
                 dependentIds,
                 topAncestorOf,
               })}
-              stroke={isSelected(cell.id) ? SELECT_STROKE : "#94a3b8"}
+              stroke={isSelected(cell.id) ? SELECT_STROKE : LEAF_STROKE}
               stroke-width={isSelected(cell.id) ? 2 : 0.8}
               opacity={fileOpacity(cell.id)}
               onClick={(event) => {
@@ -530,7 +544,7 @@ export function RingsMapSvg(props: Props) {
       ) : null}
       {showInner ? (
         <g
-          stroke="#64748b"
+          stroke={SYMBOL_STROKE}
           stroke-width={0.4}
           stroke-opacity={0.8}
          
@@ -547,7 +561,7 @@ export function RingsMapSvg(props: Props) {
                       ? UPSTREAM_FILL
                       : "transparent"
                 }
-                stroke={isSelected(cell.id) ? "#1d4ed8" : undefined}
+                stroke={isSelected(cell.id) ? SELECT_STROKE : undefined}
                 stroke-width={isSelected(cell.id) ? 1.6 : undefined}
                 opacity={symbolOpacity(cell.id)}
                 onClick={(event) => {
@@ -567,19 +581,30 @@ export function RingsMapSvg(props: Props) {
       {showEdges && sourceVisible && !focus && !symbolMode ? (
         <g fill="none">
           {fileEdges.map((edge) => {
-            const bundle = bundleOf(edge);
-            if (!bundle) return null;
             const active =
               isSelected(edge.source) ||
               isSelected(edge.target) ||
               isSelected(rings.parentOf.get(edge.source) ?? "") ||
               isSelected(rings.parentOf.get(edge.target) ?? "");
+            // off-screen ambient edges are pure overdraw; the selection's
+            // own edges stay regardless so they read at any pan
+            if (!active) {
+              const ends = edgeEndpoints(edge);
+              if (
+                !ends ||
+                !segmentInView(ends[0], ends[1], committedView, committedView.w * 0.1)
+              ) {
+                return null;
+              }
+            }
+            const bundle = bundleOf(edge);
+            if (!bundle) return null;
             if (!active && bundle.chord * zoom < MIN_EDGE_PX) return null;
             return (
               <path
                 key={`${edge.source}-${edge.target}`}
                 d={bundle.d}
-                stroke={active ? "#c2410c" : UPSTREAM_COLOR}
+                stroke={active ? ACTIVE_EDGE : UPSTREAM_COLOR}
                 stroke-opacity={active ? 0.9 : selectedId ? 0.08 : 0.22}
                 stroke-width={active ? 1.8 : 1}
                 style={{ pointerEvents: "none" }}
@@ -589,7 +614,7 @@ export function RingsMapSvg(props: Props) {
         </g>
       ) : null}
       {showEdges && !focus && symbolMode ? (
-        <g stroke="#7c3aed" stroke-opacity={0.45} fill="none">
+        <g stroke={SYMBOL_EDGE} stroke-opacity={0.45} fill="none">
           {symbolEdges.map((edge) => {
             const ends = edgeEndpoints(edge);
             if (!ends) return null;
@@ -743,8 +768,8 @@ export function RingsMapSvg(props: Props) {
                   cx={port.x}
                   cy={port.y}
                   r={screenRadius(isSelected(port.id) ? 5 : 3.6)}
-                  fill="#ffffff"
-                  stroke={isSelected(port.id) ? "#1d4ed8" : EXPORTED_DOT}
+                  fill={PORT_FILL}
+                  stroke={isSelected(port.id) ? SELECT_STROKE : EXPORTED_DOT}
                   stroke-width={isSelected(port.id) ? 2.4 : 1.8}
                   onClick={(event) => {
                     event.stopPropagation();
@@ -757,7 +782,7 @@ export function RingsMapSvg(props: Props) {
                   font-size={11 / zoom}
                   text-anchor="middle"
                   font-weight="600"
-                  fill="#047857"
+                  fill={EXPORTED_LABEL}
                   style={{ pointerEvents: "none", userSelect: "none" }}
                 >
                   {port.label}
@@ -803,7 +828,7 @@ export function RingsMapSvg(props: Props) {
                 }
                 font-size={fontSize}
                 font-weight="600"
-                fill="#0f172a"
+                fill={MODULE_LABEL_INK}
                 opacity={moduleOpacity(id)}
               >
                 {segments.map((segment, i) => (
@@ -825,7 +850,7 @@ export function RingsMapSvg(props: Props) {
               y={circle.cy - circle.r - fontSize * 0.4}
               font-size={fontSize}
               font-weight="600"
-              fill="#0f172a"
+              fill={MODULE_LABEL_INK}
               opacity={moduleOpacity(id)}
             >
               {compactModuleLabels
@@ -854,7 +879,9 @@ export function RingsMapSvg(props: Props) {
                   x={cell.site.x}
                   y={cell.site.y + fontSize * 0.35}
                   font-size={fontSize}
-                  fill={testFileIds.has(cell.id) ? "#7a8699" : "#334155"}
+                  fill={
+                    testFileIds.has(cell.id) ? TEST_LABEL_INK : FILE_LABEL_INK
+                  }
                   opacity={fileOpacity(cell.id)}
                 >
                   {labels.get(cell.id) ?? fallbackLabel(cell.id)}
@@ -898,7 +925,7 @@ export function RingsMapSvg(props: Props) {
                   x={cell.site.x}
                   y={cell.site.y - screenRadius(4)}
                   font-size={fontSize}
-                  fill={exported ? "#047857" : "#5b21b6"}
+                  fill={exported ? EXPORTED_LABEL : INTERNAL_LABEL}
                   opacity={symbolOpacity(cell.id)}
                 >
                   {labels.get(cell.id) ?? fallbackLabel(cell.id)}
