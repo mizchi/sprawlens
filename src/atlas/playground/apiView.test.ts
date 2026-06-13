@@ -1,6 +1,12 @@
 import { describe, expect, it } from "vitest";
 import type { AtlasEdge, AtlasGraph, AtlasNode } from "../contracts/graph.js";
-import { apiModuleIdOf, buildApiGraph, splitApiBoundary } from "./apiView.js";
+import {
+  apiModuleIdOf,
+  applySymbolBudget,
+  buildApiGraph,
+  moduleScopeId,
+  splitApiBoundary,
+} from "./apiView.js";
 
 const fileGraph: AtlasGraph = {
   nodes: [
@@ -178,5 +184,65 @@ describe("apiModuleIdOf", () => {
       "src/core",
     );
     expect(apiModuleIdOf("packages/x/f.ts#s1")).toBe("packages/x");
+  });
+});
+
+describe("applySymbolBudget", () => {
+  const big: AtlasGraph = {
+    nodes: Array.from({ length: 10 }, (_, i) => ({
+      id: `symbol:src/core/a.ts:function:f${i}:${i}`,
+      kind: "symbol" as const,
+      label: `f${i}`,
+      metrics: { loc: i + 1 }, // f9 heaviest
+    })),
+    edges: [
+      {
+        source: "symbol:src/core/a.ts:function:f9:9",
+        target: "symbol:src/core/a.ts:function:f8:8",
+      },
+      {
+        source: "symbol:src/core/a.ts:function:f0:0",
+        target: "symbol:src/core/a.ts:function:f1:1",
+      },
+    ],
+  };
+
+  it("returns the graph unchanged when under budget", () => {
+    expect(applySymbolBudget(big, { budget: 10 })).toBe(big);
+    expect(applySymbolBudget(big, { budget: 99 })).toBe(big);
+  });
+
+  it("keeps the top-weight symbols and folds the rest into a module filler", () => {
+    const out = applySymbolBudget(big, { budget: 3 });
+    const ids = out.nodes.map((n) => n.id);
+    // f9, f8, f7 are heaviest; the rest collapse into one filler
+    expect(ids).toContain("symbol:src/core/a.ts:function:f9:9");
+    expect(ids).toContain("symbol:src/core/a.ts:function:f7:7");
+    expect(ids).not.toContain("symbol:src/core/a.ts:function:f0:0");
+    const filler = out.nodes.find((n) => n.id === moduleScopeId("src/core"));
+    expect(filler).toBeDefined();
+    expect(filler!.label).toBe("(module scope)");
+    // dropped f0..f6 area (1+2+..+7 = 28) preserved in the filler
+    expect(filler!.metrics.loc).toBe(28);
+    expect(out.nodes).toHaveLength(4); // 3 kept + 1 filler
+  });
+
+  it("honors a custom priority (focus weighting overrides size)", () => {
+    // prioritize the lightest symbols
+    const out = applySymbolBudget(big, {
+      budget: 2,
+      priorityOf: (_, w) => -w,
+    });
+    const ids = out.nodes.map((n) => n.id);
+    expect(ids).toContain("symbol:src/core/a.ts:function:f0:0");
+    expect(ids).toContain("symbol:src/core/a.ts:function:f1:1");
+    expect(ids).not.toContain("symbol:src/core/a.ts:function:f9:9");
+  });
+
+  it("drops edges that touch a budgeted-out symbol", () => {
+    const out = applySymbolBudget(big, { budget: 3 });
+    // f9->f8 survives (both kept); f0->f1 is gone (both dropped)
+    expect(out.edges).toHaveLength(1);
+    expect(out.edges[0]!.source).toBe("symbol:src/core/a.ts:function:f9:9");
   });
 });

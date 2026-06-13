@@ -82,6 +82,11 @@ export type ApiGraphOptions = {
   weight?: "complexity" | "loc";
 };
 
+/** Filler node id holding a module's budgeted-out symbols' total area. */
+export function moduleScopeId(moduleId: string): string {
+  return `${moduleId}#scope`;
+}
+
 export function buildApiGraph(
   fileGraph: AtlasGraph,
   symbolsOf: (fileId: string) => AtlasNode[],
@@ -138,4 +143,48 @@ export function buildApiGraph(
     }
   }
   return { nodes, edges };
+}
+
+export type SymbolBudget = {
+  /** Lay out at most this many symbol cells. */
+  budget: number;
+  /** Ranks symbols (higher = keep); gets the id and its area weight. */
+  priorityOf?: (id: string, weight: number) => number;
+};
+
+/**
+ * Budget LOD over a built api graph: keep the top-priority symbols, fold
+ * the rest into one "(module scope)" filler per module so each district's
+ * dropped area is preserved without thousands of sub-pixel leaves. Pure
+ * and cheap (sort + filter) — the expensive weight computation stays in
+ * {@link buildApiGraph}, so re-budgeting as the focus moves is fast.
+ */
+export function applySymbolBudget(
+  graph: AtlasGraph,
+  { budget, priorityOf = (_, w) => w }: SymbolBudget,
+): AtlasGraph {
+  if (graph.nodes.length <= budget) return graph;
+  const ranked = graph.nodes
+    .map((node) => ({ node, score: priorityOf(node.id, node.metrics.loc) }))
+    .sort((a, b) => b.score - a.score);
+  const kept = ranked.slice(0, budget).map((r) => r.node);
+  const keptIds = new Set(kept.map((n) => n.id));
+  const fillerLoc = new Map<string, number>();
+  for (const { node } of ranked.slice(budget)) {
+    const moduleId = apiModuleIdOf(node.id);
+    fillerLoc.set(moduleId, (fillerLoc.get(moduleId) ?? 0) + node.metrics.loc);
+  }
+  const fillers: AtlasNode[] = [...fillerLoc].map(([moduleId, loc]) => ({
+    id: moduleScopeId(moduleId),
+    kind: "symbol",
+    label: "(module scope)",
+    metrics: { loc },
+    exported: false,
+  }));
+  return {
+    nodes: [...kept, ...fillers],
+    edges: graph.edges.filter(
+      (e) => keptIds.has(e.source) && keptIds.has(e.target),
+    ),
+  };
 }

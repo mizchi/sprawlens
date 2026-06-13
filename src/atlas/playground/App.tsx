@@ -65,7 +65,12 @@ import {
 } from "../contracts/hierarchy.js";
 import { defaultLayerOf, matchTestTargets } from "../contracts/layers.js";
 import { defaultModuleIdOf } from "../contracts/modules.js";
-import { apiModuleIdOf, buildApiGraph, splitApiBoundary } from "./apiView.ts";
+import {
+  apiModuleIdOf,
+  applySymbolBudget,
+  buildApiGraph,
+  splitApiBoundary,
+} from "./apiView.ts";
 import {
   granularityOf,
   hiddenLayersOf,
@@ -85,6 +90,10 @@ import {
 
 const WIDTH = 960;
 const HEIGHT = 640;
+/** Module⊃symbol view lays out at most this many symbol cells; the rest
+ * fold into per-module "(module scope)" fillers. A monorepo has thousands
+ * of symbols — laying them all out is slow to converge and heavy to draw. */
+const SYMBOL_BUDGET = 600;
 /** The selected symbol's CFG draws once its cell fills this many px. */
 const CFG_MIN_PX = 64;
 const CONVERGENCE_TOLERANCE = 0.02;
@@ -195,6 +204,8 @@ export function App() {
     y: HEIGHT / 2,
     zoom: 1,
   });
+  const viewInfoRef = useRef(viewInfo);
+  viewInfoRef.current = viewInfo;
   const [, setFrame] = useState(0);
   // DevTools-style panel docking: auto follows the window aspect ratio
   const [panelPos, setPanelPos] = useState<PanelPosition>("auto");
@@ -306,6 +317,9 @@ export function App() {
   const locOfRef = useRef(new Map<string, number>());
   /** What the layout currently displays (file graph or API projection). */
   const displayGraphRef = useRef<AtlasGraph>({ nodes: [], edges: [] });
+  /** Full weighted symbol graph (pre-budget), cached so focus re-budgeting
+   * skips the transitive-weight recompute. */
+  const apiFullRef = useRef<AtlasGraph>({ nodes: [], edges: [] });
   /** API view: module id → boundary ports, and port id → consumer modules. */
   const apiBoundaryRef = useRef(new Map<string, AtlasNode[]>());
   const apiPortPartnersRef = useRef(new Map<string, Set<string>>());
@@ -374,6 +388,58 @@ export function App() {
     return loc === undefined ? [] : synthesizeSymbols(fileId, loc, 1);
   };
 
+  /**
+   * Budget priority for a symbol in the module⊃symbol view: its area
+   * weight scaled by how close its module sits to the focus center. The
+   * proximity radius shrinks with zoom, so zooming into a district pulls
+   * its symbols into the budget (semantic zoom) while distant ones fold
+   * into fillers. Module centers come from the current layout; with none
+   * yet (cold) it falls back to pure area.
+   */
+  const symbolPriorityOf = (symbolId: string, weight: number): number => {
+    const rings = ringsRef.current;
+    if (!rings) return weight;
+    const circle = rings.circles.get(apiModuleIdOf(symbolId));
+    if (!circle) return weight;
+    const view = viewInfoRef.current;
+    const dx = circle.cx - view.x;
+    const dy = circle.cy - view.y;
+    const radius = (WIDTH / Math.max(view.zoom, 0.2)) * 0.6;
+    const proximity = 1 / (1 + (dx * dx + dy * dy) / (radius * radius));
+    return weight * proximity;
+  };
+
+  /**
+   * Apply the focus-weighted symbol budget to the cached full api graph
+   * and wire the resulting network up (labels, boundary ports). Returns
+   * the internal symbols the layout subdivides. Cheap — no transitive
+   * weights — so it runs on every focus change.
+   */
+  const budgetedApiGraph = (full: AtlasGraph): AtlasGraph => {
+    const api = applySymbolBudget(full, {
+      budget: SYMBOL_BUDGET,
+      priorityOf: symbolPriorityOf,
+    });
+    for (const node of api.nodes) labelsRef.current.set(node.id, node.label);
+    displayGraphRef.current = api;
+    const split = splitApiBoundary(api, apiModuleIdOf, symbolEdgesRef.current);
+    apiBoundaryRef.current = split.boundaryByModule;
+    const partners = new Map<string, Set<string>>();
+    for (const edge of api.edges) {
+      const sourceModule = apiModuleIdOf(edge.source);
+      if (sourceModule === apiModuleIdOf(edge.target)) continue;
+      let set = partners.get(edge.target);
+      if (!set) {
+        set = new Set();
+        partners.set(edge.target, set);
+      }
+      set.add(sourceModule);
+    }
+    apiPortPartnersRef.current = partners;
+    // ports leave the cell layout; only internals get areas
+    return split.internal;
+  };
+
   /** Graph minus hidden display levels — what the layout subdivides. */
   const effectiveGraph = (p: PlaygroundParams): AtlasGraph => {
     let graph = graphRef.current;
@@ -394,33 +460,15 @@ export function App() {
       };
     }
     if (granularityOf(p.displayLevels) === "symbol") {
-      const api = buildApiGraph(graph, symbolsForFile, symbolEdgesRef.current, {
+      // the full weighted symbol graph is focus-independent: build it once
+      // (transitive weights over thousands of symbols is the costly part)
+      // and cache it, so re-budgeting as the camera moves is just a sort
+      const full = buildApiGraph(graph, symbolsForFile, symbolEdgesRef.current, {
         includePrivate: !p.omit.includes("local"),
         weight: p.weight,
       });
-      // the network's labels come from the projected symbols
-      for (const node of api.nodes) labelsRef.current.set(node.id, node.label);
-      displayGraphRef.current = api;
-      const split = splitApiBoundary(
-        api,
-        apiModuleIdOf,
-        symbolEdgesRef.current,
-      );
-      apiBoundaryRef.current = split.boundaryByModule;
-      const partners = new Map<string, Set<string>>();
-      for (const edge of api.edges) {
-        const sourceModule = apiModuleIdOf(edge.source);
-        if (sourceModule === apiModuleIdOf(edge.target)) continue;
-        let set = partners.get(edge.target);
-        if (!set) {
-          set = new Set();
-          partners.set(edge.target, set);
-        }
-        set.add(sourceModule);
-      }
-      apiPortPartnersRef.current = partners;
-      // ports leave the cell layout; only internals get areas
-      return split.internal;
+      apiFullRef.current = full;
+      return budgetedApiGraph(full);
     }
     // file/module granularity: weight swaps in place — PageRank areas
     // follow how depended-upon a file is instead of its size
@@ -661,6 +709,24 @@ export function App() {
       }
     }
   }, [structuralKey, flowKey]);
+
+  // Dynamic symbol LOD: when the camera settles in the module⊃symbol view,
+  // re-rank symbols against the new focus center and warm-start the layout
+  // so the focused district's symbols melt in and distant ones fold into
+  // their "(module scope)" fillers. The set, not just the labels, changes.
+  useEffect(() => {
+    if (granularityOf(paramsRef.current.displayLevels) !== "symbol") return;
+    if (!ringsRef.current || apiFullRef.current.nodes.length === 0) return;
+    // re-budget against the new focus from the cached full graph (cheap),
+    // then warm-start so the set melts to the refocused selection
+    ringsRef.current = applyRingsChanges(
+      ringsRef.current,
+      budgetedApiGraph(apiFullRef.current),
+      ringsOptions(paramsRef.current),
+    );
+    setFrame((f) => f + 1);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [viewInfo]);
 
   useEffect(() => {
     let raf = 0;
