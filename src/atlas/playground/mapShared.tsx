@@ -634,7 +634,7 @@ export function RaisedEdgePath(props: {
     <path
       d={props.d}
       fill="none"
-      stroke={props.color ?? ACTIVE_EDGE}
+      stroke={props.color ?? SELECT_STROKE}
       stroke-width={props.width ?? 2.4}
       stroke-opacity={props.opacity ?? 0.95}
       stroke-linecap="round"

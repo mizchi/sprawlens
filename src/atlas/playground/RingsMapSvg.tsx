@@ -944,7 +944,7 @@ export function RingsMapSvg(props: Props) {
                     y1={y1}
                     x2={x2}
                     y2={y2}
-                    stroke={ACTIVE_EDGE}
+                    stroke={SELECT_STROKE}
                     stroke-width={8}
                     stroke-opacity={0.2}
                     stroke-linecap="round"
@@ -954,7 +954,7 @@ export function RingsMapSvg(props: Props) {
                     y1={y1}
                     x2={x2}
                     y2={y2}
-                    stroke={ACTIVE_EDGE}
+                    stroke={SELECT_STROKE}
                     stroke-width={2.5}
                     stroke-opacity={0.85}
                   />
@@ -1007,13 +1007,13 @@ export function RingsMapSvg(props: Props) {
                     y1={a.cy}
                     x2={b.cx}
                     y2={b.cy}
-                    stroke={ACTIVE_EDGE}
+                    stroke={SELECT_STROKE}
                     stroke-width={1.5 + Math.log2(1 + (top?.weight ?? 1))}
                     stroke-opacity={0.95}
                   />
                   <polygon
                     points={`${ax},${ay} ${hx + -uy * w},${hy + ux * w} ${hx - -uy * w},${hy - ux * w}`}
-                    fill={ACTIVE_EDGE}
+                    fill={SELECT_STROKE}
                   />
                   {[a, b].map((c, i) => (
                     <circle
@@ -1032,7 +1032,7 @@ export function RingsMapSvg(props: Props) {
                       y={(a.cy + b.cy) / 2}
                       font-size={fs}
                       text-anchor="middle"
-                      fill={ACTIVE_EDGE}
+                      fill={SELECT_STROKE}
                     >
                       {lines.map((name) => (
                         <tspan
