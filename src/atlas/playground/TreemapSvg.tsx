@@ -1,4 +1,4 @@
-import { useMemo } from "preact/hooks";
+import { useMemo, useRef } from "preact/hooks";
 import type { AtlasEdge } from "../contracts/graph.js";
 import type { CellResult } from "../kernel/capacityLayout.js";
 import type { Vec2 } from "../kernel/vec.js";
@@ -25,11 +25,17 @@ import {
   isWatermarkSized,
   leafFillOf,
   makeTopAncestorOf,
+  RaisedEdgePath,
   SELECT_STROKE,
   UPSTREAM_COLOR,
   WatermarkLabelsLayer,
 } from "./mapShared.tsx";
 import { symbolNameOf } from "./cfgClient.ts";
+import {
+  EDGE_PICK_PX,
+  pickEdgeAtPoint,
+  type EdgePickCandidate,
+} from "./edgePick.ts";
 import { cellInView, segmentInView } from "./viewCulling.ts";
 import type { TreemapState } from "./treemapController.js";
 import {
@@ -67,7 +73,11 @@ type Props = {
   height: number;
   selectedId: string | null;
   selectedIds?: Set<string>;
+  /** The picked dependency edge (proximity click); raised above the map. */
+  selectedEdge?: { source: string; target: string } | null;
   onSelect: (id: string | null, additive?: boolean) => void;
+  /** Pick the dependency edge nearest a background click. */
+  onSelectEdge?: (source: string, target: string) => void;
   focusRequest?: FocusRequest | null;
   /** Fired when a view settles (LOD commit); world center + zoom. */
   onViewSettle?: (center: Vec2, zoom: number) => void;
@@ -90,12 +100,17 @@ export function TreemapSvg(props: Props) {
   const levelVisible = (kind: string): boolean =>
     props.visibleLevels?.has(kind) ?? true;
   const leafVisible = levelVisible(props.leafKind ?? "file");
-  const { svgProps, zoom, committedView } = useMapViewport({
-    width,
-    height,
-    focusRequest: props.focusRequest,
-    onViewSettle: props.onViewSettle,
-  });
+  const onSelectEdge = props.onSelectEdge;
+  const selectedEdge = props.selectedEdge ?? null;
+  const pickEdgeRef = useRef<(x: number, y: number) => boolean>(() => false);
+  const { svgProps, zoom, committedView, clientToWorld, toViewScale } =
+    useMapViewport({
+      width,
+      height,
+      focusRequest: props.focusRequest,
+      onViewSettle: props.onViewSettle,
+      onPickEdge: (x, y) => pickEdgeRef.current(x, y),
+    });
 
   const topCells = state.levels[0]!.cells;
   const innerLevels = state.levels.slice(1);
@@ -156,6 +171,28 @@ export function TreemapSvg(props: Props) {
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [props.fileEdges, props.showEdges, focus, state, positionOf, bundleStrength, cfgAnchors, committedView]);
+
+  // proximity edge picking: a background click selects the nearest visible
+  // dependency edge, resolving overlaps by distance, not paint order (shared
+  // with the rings layout via edgePick)
+  pickEdgeRef.current = (clientX: number, clientY: number): boolean => {
+    if (!onSelectEdge) return false;
+    const candidates: EdgePickCandidate[] = bundled.map((b) => ({
+      source: b.source,
+      target: b.target,
+      points: b.points,
+    }));
+    const hit = pickEdgeAtPoint(
+      clientToWorld,
+      clientX,
+      clientY,
+      candidates,
+      EDGE_PICK_PX * toViewScale(),
+    );
+    if (!hit) return false;
+    onSelectEdge(hit.source, hit.target);
+    return true;
+  };
 
   // extraction mode: only the focused paths render, in direction colors
   const focusBundles = useMemo(() => {
@@ -456,6 +493,37 @@ export function TreemapSvg(props: Props) {
           ))}
         </g>
       ) : null}
+      {/* picked edge, raised above the districts: bold accented stroke with
+          its endpoint districts outlined (pointer-through so cells stay
+          clickable) */}
+      {selectedEdge
+        ? (() => {
+            const bundle = bundleOf({
+              source: selectedEdge.source,
+              target: selectedEdge.target,
+            });
+            if (!bundle) return null;
+            return (
+              <g style={{ pointerEvents: "none" }}>
+                <RaisedEdgePath d={bundle.d} />
+                {[selectedEdge.source, selectedEdge.target].map((id) => {
+                  const top = topAncestorOf(id);
+                  const cell = top ? topCells.get(top) : null;
+                  if (!cell || cell.polygon.length < 3) return null;
+                  return (
+                    <polygon
+                      key={id}
+                      points={cell.polygon.map((p) => `${p.x},${p.y}`).join(" ")}
+                      fill="none"
+                      stroke={SELECT_STROKE}
+                      stroke-width={3}
+                    />
+                  );
+                })}
+              </g>
+            );
+          })()
+        : null}
       {/* top-level labels */}
       <g
         text-anchor="middle"

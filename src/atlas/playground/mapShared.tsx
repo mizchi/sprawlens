@@ -616,6 +616,26 @@ export function smoothPathD(points: readonly Vec2[]): string {
   return d;
 }
 
+/** A picked edge, raised above the map: a bold accented stroke that both
+ * layouts draw for the current selection. Endpoint emphasis (circle rings,
+ * cell outlines) stays layout-specific; the stroke itself is shared. */
+export function RaisedEdgePath(props: {
+  d: string;
+  color?: string;
+  width?: number;
+}) {
+  return (
+    <path
+      d={props.d}
+      fill="none"
+      stroke={props.color ?? ACTIVE_EDGE}
+      stroke-width={props.width ?? 2.4}
+      stroke-opacity={0.95}
+      style={{ pointerEvents: "none" }}
+    />
+  );
+}
+
 /** Bundling pull toward the hierarchy route. With only a couple of
  * control points per edge, textbook-strong β reads as wild S-curves;
  * a mild pull keeps the trunk grouping without the swerves. */
@@ -632,6 +652,9 @@ export type EdgeBundle = {
   d: string;
   /** Straight-line endpoint distance, for screen-size culling. */
   chord: number;
+  /** The bundled control polyline `d` curves through — proximity picking
+   * measures against these segments (close enough to the smooth curve). */
+  points: Vec2[];
 };
 
 /**
@@ -693,11 +716,13 @@ export function makeEdgeBundler(options: {
       strength *
       lengthRamp *
       Math.min(1, BUNDLE_MAX_DETOUR / Math.max(detour, 1e-6));
+    const bundled = bundlePath(path, effective);
     return {
       source: edge.source,
       target: edge.target,
-      d: smoothPathD(bundlePath(path, effective)),
+      d: smoothPathD(bundled),
       chord,
+      points: bundled,
     };
   };
 }

@@ -51,8 +51,14 @@ export function useMapViewport(options: {
   focusRequest?: FocusRequest | null;
   /** Fired when a view settles (LOD commit); world center + zoom. */
   onViewSettle?: (center: Vec2, zoom: number) => void;
+  /** Edge proximity pick, run in the click capture phase before any node or
+   * background handler. Returns true when it consumed the click (an edge was
+   * near), so overlapping edges win over the filled shape beneath them. */
+  onPickEdge?: (clientX: number, clientY: number) => boolean;
 }) {
   const { width, height, focusRequest, onViewSettle } = options;
+  const onPickEdgeRef = useRef(options.onPickEdge);
+  onPickEdgeRef.current = options.onPickEdge;
   const viewRef = useRef<ViewBox>({ x: 0, y: 0, w: width, h: height });
   const [committedView, setCommittedView] = useState<ViewBox>(viewRef.current);
   const commitTimer = useRef(0);
@@ -135,9 +141,24 @@ export function useMapViewport(options: {
     return cancelFlight;
   }, [focusRequest?.token]);
 
+  /** World units per screen pixel. The CTM accounts for the viewBox and
+   * preserveAspectRatio letterboxing; the rect ratio is a fallback. */
   const toViewScale = () => {
+    const ctm = svgRef.current?.getScreenCTM();
+    if (ctm && ctm.a !== 0) return 1 / ctm.a;
     const rect = svgRef.current?.getBoundingClientRect();
     return rect ? viewRef.current.w / rect.width : 1;
+  };
+
+  /** Screen (client) coordinates → world coordinates under the live view.
+   * Uses the SVG CTM so letterboxing (xMidYMid meet) doesn't skew the
+   * mapping — essential for proximity hit-testing against edge geometry. */
+  const clientToWorld = (clientX: number, clientY: number): Vec2 | null => {
+    const svg = svgRef.current;
+    const ctm = svg?.getScreenCTM();
+    if (!svg || !ctm) return null;
+    const p = new DOMPoint(clientX, clientY).matrixTransform(ctm.inverse());
+    return { x: p.x, y: p.y };
   };
 
   const onWheel = (event: WheelEvent) => {
@@ -170,6 +191,12 @@ export function useMapViewport(options: {
         suppressClickRef.current = false;
         e.stopPropagation();
         e.preventDefault();
+        return;
+      }
+      // edge picking runs first: a click within range of an edge selects it
+      // and stops here, so it beats the filled district/circle underneath
+      if (onPickEdgeRef.current?.(e.clientX, e.clientY)) {
+        e.stopPropagation();
       }
     },
     onWheel,
@@ -214,5 +241,7 @@ export function useMapViewport(options: {
     zoom: width / committedView.w,
     viewRef,
     cancelFlight,
+    clientToWorld,
+    toViewScale,
   };
 }

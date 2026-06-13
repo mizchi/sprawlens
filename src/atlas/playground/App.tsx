@@ -193,9 +193,17 @@ export function App() {
   // multi-select: ordered ids, last one is the primary (drives the detail
   // panel, breadcrumb, and labels); shift+click toggles membership
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
+  // edge selection is exclusive with node selection: picking one clears the
+  // other (see selectNode / selectEdge)
+  const [selectedEdge, setSelectedEdge] = useState<{
+    source: string;
+    target: string;
+  } | null>(null);
   const selectedId = selectedIds[selectedIds.length - 1] ?? null;
-  const setSelectedId = (id: string | null) =>
+  const setSelectedId = (id: string | null) => {
+    setSelectedEdge(null);
     setSelectedIds(id === null ? [] : [id]);
+  };
   const [focusId, setFocusId] = useState<string | null>(null);
   const [focusRequest, setFocusRequest] = useState<FocusRequest | null>(null);
   const [viewInfo, setViewInfo] = useState({
@@ -1518,6 +1526,7 @@ export function App() {
   }, [leafGraph]);
 
   const selectNode = (id: string | null, additive = false) => {
+    setSelectedEdge(null);
     if (id === null) {
       setSelectedIds([]);
       // the dependency-path focus always tracks the selection — a stale
@@ -1537,11 +1546,19 @@ export function App() {
     }
   };
 
+  /** Pick an edge: exclusive with node selection. */
+  const selectEdge = (source: string, target: string) => {
+    setSelectedIds([]);
+    setFocusId(null);
+    setSelectedEdge({ source, target });
+  };
+
   // Esc drops the explicit selection (zoom focus takes over again)
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if (e.key === "Escape") {
         setSelectedIds([]);
+        setSelectedEdge(null);
         setFocusId(null);
       }
     };
@@ -1847,7 +1864,9 @@ export function App() {
             height={HEIGHT}
             selectedId={activeId}
             selectedIds={selectedIdSet}
+            selectedEdge={selectedEdge}
             onSelect={selectNode}
+            onSelectEdge={selectEdge}
             focusRequest={focusRequest}
             onViewSettle={(center, zoom) =>
               setViewInfo({ x: center.x, y: center.y, zoom })
@@ -1877,7 +1896,9 @@ export function App() {
             height={mapSize.height}
             selectedId={activeId}
             selectedIds={selectedIdSet}
+            selectedEdge={selectedEdge}
             onSelect={selectNode}
+            onSelectEdge={selectEdge}
             focusRequest={focusRequest}
             onViewSettle={(center, zoom) =>
               setViewInfo({ x: center.x, y: center.y, zoom })
