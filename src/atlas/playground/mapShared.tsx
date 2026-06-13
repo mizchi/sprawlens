@@ -491,9 +491,13 @@ export function ExitPreviewsLayer(props: {
   endpointsOf: (edge: AtlasEdge) => [Vec2, Vec2] | null;
   labelOf: (id: string) => string;
   onSelect: (id: string, additive?: boolean) => void;
+  /** Clicking a docked name flies the camera to that off-screen target;
+   * falls back to plain selection when not provided. */
+  onFocus?: (id: string) => void;
   zoom: number;
 }) {
   const { view, zoom, labelOf, onSelect } = props;
+  const onFocus = props.onFocus;
   const x0 = view.x;
   const x1 = view.x + view.w;
   const y0 = view.y;
@@ -583,7 +587,8 @@ export function ExitPreviewsLayer(props: {
           style={{ cursor: "pointer" }}
           onClick={(event) => {
             event.stopPropagation();
-            onSelect(preview.id, event.shiftKey);
+            if (onFocus) onFocus(preview.id);
+            else onSelect(preview.id, event.shiftKey);
           }}
         >
           {labelOf(preview.id)}

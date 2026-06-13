@@ -1056,11 +1056,13 @@ export function App() {
     return { x0, x1, y0, y1 };
   };
 
-  /** Fly the camera to a view rect framing the target's bounding box. */
-  const jumpTo = (id: string, padding = 2.5) => {
-    setSelectedId(id);
-    const bounds = geometryBoundsOf(id);
-    if (!bounds) return;
+  type Bounds = { x0: number; x1: number; y0: number; y1: number };
+
+  /** Fly the camera to a view rect framing a world-space bbox. The generic
+   * primitive every "focus on something" path goes through: a single id, an
+   * edge's two endpoints, any set of elements — all reduce to their union
+   * bbox and frame it here. */
+  const focusBounds = (bounds: Bounds, padding = 2.5) => {
     // point geometry (ports) gets a fixed frame; padding then scales it
     const w = bounds.x1 - bounds.x0 || 60;
     const h = bounds.y1 - bounds.y0 || 60;
@@ -1073,6 +1075,36 @@ export function App() {
       viewW,
       token: (focusRequest?.token ?? 0) + 1,
     });
+  };
+
+  /** Union bbox of several elements' geometry; null if none resolve. */
+  const boundsOfIds = (ids: readonly string[]): Bounds | null => {
+    let acc: Bounds | null = null;
+    for (const id of ids) {
+      const b = geometryBoundsOf(id);
+      if (!b) continue;
+      acc = acc
+        ? {
+            x0: Math.min(acc.x0, b.x0),
+            x1: Math.max(acc.x1, b.x1),
+            y0: Math.min(acc.y0, b.y0),
+            y1: Math.max(acc.y1, b.y1),
+          }
+        : b;
+    }
+    return acc;
+  };
+
+  /** Frame the combined bbox of a set of elements (zoom to fit them all). */
+  const focusOnIds = (ids: readonly string[], padding = 2.5) => {
+    const bounds = boundsOfIds(ids);
+    if (bounds) focusBounds(bounds, padding);
+  };
+
+  /** Fly the camera to a view rect framing the target, and select it. */
+  const jumpTo = (id: string, padding = 2.5) => {
+    setSelectedId(id);
+    focusOnIds([id], padding);
   };
 
   const mutateWeight = () => {
@@ -1546,11 +1578,13 @@ export function App() {
     }
   };
 
-  /** Pick an edge: exclusive with node selection. */
+  /** Pick an edge: exclusive with node selection, and frame both endpoints. */
   const selectEdge = (source: string, target: string) => {
     setSelectedIds([]);
     setFocusId(null);
     setSelectedEdge({ source, target });
+    // zoom to the bbox spanning the two endpoints (generic multi-element fit)
+    focusOnIds([source, target], 1.4);
   };
 
   // Esc drops the explicit selection (zoom focus takes over again)
@@ -1867,6 +1901,7 @@ export function App() {
             selectedEdge={selectedEdge}
             onSelect={selectNode}
             onSelectEdge={selectEdge}
+            onFocusId={jumpTo}
             focusRequest={focusRequest}
             onViewSettle={(center, zoom) =>
               setViewInfo({ x: center.x, y: center.y, zoom })
@@ -1899,6 +1934,7 @@ export function App() {
             selectedEdge={selectedEdge}
             onSelect={selectNode}
             onSelectEdge={selectEdge}
+            onFocusId={jumpTo}
             focusRequest={focusRequest}
             onViewSettle={(center, zoom) =>
               setViewInfo({ x: center.x, y: center.y, zoom })

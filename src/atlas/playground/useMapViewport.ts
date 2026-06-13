@@ -55,10 +55,15 @@ export function useMapViewport(options: {
    * background handler. Returns true when it consumed the click (an edge was
    * near), so overlapping edges win over the filled shape beneath them. */
   onPickEdge?: (clientX: number, clientY: number) => boolean;
+  /** Pointer hover (no button), for edge-proximity preview. Not fired while
+   * panning. */
+  onHover?: (clientX: number, clientY: number) => void;
 }) {
   const { width, height, focusRequest, onViewSettle } = options;
   const onPickEdgeRef = useRef(options.onPickEdge);
   onPickEdgeRef.current = options.onPickEdge;
+  const onHoverRef = useRef(options.onHover);
+  onHoverRef.current = options.onHover;
   const viewRef = useRef<ViewBox>({ x: 0, y: 0, w: width, h: height });
   const [committedView, setCommittedView] = useState<ViewBox>(viewRef.current);
   const commitTimer = useRef(0);
@@ -211,7 +216,11 @@ export function useMapViewport(options: {
     },
     onPointerMove: (e: PointerEvent) => {
       const drag = dragRef.current;
-      if (!drag || drag.pointerId !== e.pointerId) return;
+      if (!drag || drag.pointerId !== e.pointerId) {
+        // hovering (no active pan): surface what an edge click would pick
+        onHoverRef.current?.(e.clientX, e.clientY);
+        return;
+      }
       const dx = e.clientX - drag.last.x;
       const dy = e.clientY - drag.last.y;
       drag.moved += Math.abs(dx) + Math.abs(dy);

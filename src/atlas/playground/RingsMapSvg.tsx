@@ -1,4 +1,4 @@
-import { useMemo, useRef } from "preact/hooks";
+import { useMemo, useRef, useState } from "preact/hooks";
 import type { AtlasEdge } from "../contracts/graph.js";
 import type { CellResult } from "../kernel/capacityLayout.js";
 import type { Vec2 } from "../kernel/vec.js";
@@ -104,6 +104,8 @@ type Props = {
   onSelect: (id: string | null, additive?: boolean) => void;
   /** Pick the dependency edge nearest a background click. */
   onSelectEdge?: (source: string, target: string) => void;
+  /** Fly the camera to an element (off-screen dependency name click). */
+  onFocusId?: (id: string) => void;
   focusRequest: FocusRequest | null;
   /** Fired when a view settles (LOD commit); world center + zoom. */
   onViewSettle?: (center: Vec2, zoom: number) => void;
@@ -171,9 +173,10 @@ export function RingsMapSvg(props: Props) {
   const cyclicModuleIds = props.cyclicModuleIds ?? new Set<string>();
   const onSelectEdge = props.onSelectEdge;
   const selectedEdge = props.selectedEdge ?? null;
-  // assigned below once geometry is in scope; the hook calls it in the click
-  // capture phase so edges win over the shapes beneath them
+  // assigned below once geometry is in scope; the hook calls them in the
+  // click capture / hover phases so edges win over the shapes beneath them
   const pickEdgeRef = useRef<(x: number, y: number) => boolean>(() => false);
+  const hoverEdgeRef = useRef<(x: number, y: number) => void>(() => {});
   const { svgProps, committedView, zoom, clientToWorld, toViewScale } =
     useMapViewport({
       width,
@@ -181,7 +184,13 @@ export function RingsMapSvg(props: Props) {
       focusRequest,
       onViewSettle,
       onPickEdge: (x, y) => pickEdgeRef.current(x, y),
+      onHover: (x, y) => hoverEdgeRef.current(x, y),
     });
+  const [hoveredEdge, setHoveredEdge] = useState<{
+    source: string;
+    target: string;
+  } | null>(null);
+  const hoveredEdgeRef = useRef<{ source: string; target: string } | null>(null);
 
   // rings keeps its identity once converged, innerCells once settled — these
   // memos stop per-commit Map/array rebuilds (a major GC-pressure source)
@@ -306,34 +315,27 @@ export function RingsMapSvg(props: Props) {
   const cellVisible = (cell: CellResult) =>
     inView(cell.site, Math.sqrt(cell.actualArea) * 1.5);
 
-  // proximity edge picking: a background click selects the nearest dependency
-  // edge, so edges overlapping in a tight spot resolve by distance to the
-  // cursor — not by which shape happens to sit on top. Module edges rank
-  // first so the macro structure wins ties.
-  pickEdgeRef.current = (clientX: number, clientY: number): boolean => {
-    if (!onSelectEdge) return false;
-    const world = clientToWorld(clientX, clientY);
-    if (!world) return false;
-    // a click inside a module circle belongs to that module — edges only win
-    // in the open space between circles (where they are actually visible)
-    for (const c of rings.circles.values()) {
-      if (Math.hypot(world.x - c.cx, world.y - c.cy) <= c.r) return false;
-    }
-    const candidates: EdgePickCandidate[] = [];
+  // proximity edge picking: a click (or hover) resolves to the nearest
+  // dependency edge by distance, not paint order, so edges overlapping in a
+  // tight spot can still be told apart. Candidates are memoized so hover
+  // doesn't rebuild them per mouse move. Module edges rank first (ties go to
+  // the macro structure); their geometry is trimmed to the visible rim-to-rim
+  // segment so a click inside a circle still selects that module.
+  const edgeSlack = committedView.w * 0.1;
+  const pickCandidates = useMemo<EdgePickCandidate[]>(() => {
+    const out: EdgePickCandidate[] = [];
     if (!focus) {
       for (const edge of rings.topEdges) {
         const a = rings.circles.get(edge.source);
         const b = rings.circles.get(edge.target);
         if (!a || !b) continue;
-        // trim to the visible rim-to-rim segment so a click inside a circle
-        // still selects that module — only the edge between circles picks it
         const dx = b.cx - a.cx;
         const dy = b.cy - a.cy;
         const len = Math.hypot(dx, dy);
         if (len <= a.r + b.r) continue; // overlapping circles: no visible edge
         const ux = dx / len;
         const uy = dy / len;
-        candidates.push({
+        out.push({
           source: edge.source,
           target: edge.target,
           points: [
@@ -349,19 +351,67 @@ export function RingsMapSvg(props: Props) {
         ? fileEdges
         : [];
     for (const edge of ambient) {
+      const ends = edgeEndpoints(edge);
+      if (!ends || !segmentInView(ends[0], ends[1], committedView, edgeSlack)) {
+        continue;
+      }
       const bundle = bundleOf(edge);
       if (bundle) {
-        candidates.push({
+        out.push({
           source: edge.source,
           target: edge.target,
           points: bundle.points,
         });
       }
     }
-    const hit = pickNearestEdge(world, candidates, EDGE_PICK_PX * toViewScale());
+    return out;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [
+    rings,
+    focus,
+    symbolMode,
+    showEdges,
+    sourceVisible,
+    fileEdges,
+    symbolEdges,
+    bundleOf,
+    committedView,
+  ]);
+
+  const resolveEdgeAt = (
+    clientX: number,
+    clientY: number,
+  ): { source: string; target: string } | null => {
+    const world = clientToWorld(clientX, clientY);
+    if (!world) return null;
+    // a click inside a module circle belongs to that module — edges only win
+    // in the open space between circles (where they are actually visible)
+    for (const c of rings.circles.values()) {
+      if (Math.hypot(world.x - c.cx, world.y - c.cy) <= c.r) return null;
+    }
+    const hit = pickNearestEdge(
+      world,
+      pickCandidates,
+      EDGE_PICK_PX * toViewScale(),
+    );
+    return hit ? { source: hit.source, target: hit.target } : null;
+  };
+  pickEdgeRef.current = (clientX, clientY) => {
+    if (!onSelectEdge) return false;
+    const hit = resolveEdgeAt(clientX, clientY);
     if (!hit) return false;
     onSelectEdge(hit.source, hit.target);
     return true;
+  };
+  // hover preview: surface the edge a click would pick (and a pointer cursor).
+  // only flip state when the hovered edge changes, to avoid per-move churn
+  hoverEdgeRef.current = (clientX, clientY) => {
+    const next = onSelectEdge ? resolveEdgeAt(clientX, clientY) : null;
+    const cur = hoveredEdgeRef.current;
+    if (cur?.source !== next?.source || cur?.target !== next?.target) {
+      hoveredEdgeRef.current = next;
+      setHoveredEdge(next);
+    }
   };
 
   // Dynamic nested-symbol LOD: instead of fixed zoom thresholds, budget the
@@ -521,7 +571,7 @@ export function RingsMapSvg(props: Props) {
         height: "100%",
         display: "block",
         touchAction: "none",
-        cursor: "grab",
+        cursor: hoveredEdge ? "pointer" : "grab",
       }}
       onClick={() => onSelect(null)}
     >
@@ -874,6 +924,39 @@ export function RingsMapSvg(props: Props) {
           </g>
         ) : null,
       )}
+      {/* hover preview: a faint accent over the edge a click would pick */}
+      {hoveredEdge &&
+      (!selectedEdge ||
+        hoveredEdge.source !== selectedEdge.source ||
+        hoveredEdge.target !== selectedEdge.target)
+        ? (() => {
+            const a = rings.circles.get(hoveredEdge.source);
+            const b = rings.circles.get(hoveredEdge.target);
+            if (a && b) {
+              const dx = b.cx - a.cx;
+              const dy = b.cy - a.cy;
+              const len = Math.hypot(dx, dy) || 1;
+              const ux = dx / len;
+              const uy = dy / len;
+              return (
+                <line
+                  x1={a.cx + ux * a.r}
+                  y1={a.cy + uy * a.r}
+                  x2={b.cx - ux * b.r}
+                  y2={b.cy - uy * b.r}
+                  stroke={ACTIVE_EDGE}
+                  stroke-width={2}
+                  stroke-opacity={0.5}
+                  style={{ pointerEvents: "none" }}
+                />
+              );
+            }
+            const bundle = bundleOf(hoveredEdge);
+            return bundle ? (
+              <RaisedEdgePath d={bundle.d} width={1.6} />
+            ) : null;
+          })()
+        : null}
       {/* picked edge, raised above unrelated modules: bold, arrowed, with its
           referenced symbols always shown (pointer-through so the endpoints
           underneath stay clickable) */}
@@ -988,6 +1071,7 @@ export function RingsMapSvg(props: Props) {
           endpointsOf={edgeEndpoints}
           labelOf={(id) => labels.get(id) ?? fallbackLabel(id)}
           onSelect={onSelect}
+          onFocus={props.onFocusId}
           zoom={zoom}
         />
       ))}
