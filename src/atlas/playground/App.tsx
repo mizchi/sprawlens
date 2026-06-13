@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "preact/hooks";
-import type { AtlasGraph, AtlasNode } from "../contracts/graph.js";
+import type { AtlasGraph, AtlasNode, SymbolKind } from "../contracts/graph.js";
 import {
   applyGraphChanges,
   capacityStep,
@@ -89,6 +89,14 @@ import {
 
 const WIDTH = 960;
 const HEIGHT = 640;
+const SYMBOL_KIND_SET: ReadonlySet<string> = new Set([
+  "function",
+  "class",
+  "variable",
+  "type",
+  "interface",
+  "enum",
+]);
 /** Module⊃symbol view lays out at most this many symbol cells; the rest
  * fold into per-module "(module scope)" fillers. A monorepo has thousands
  * of symbols — laying them all out is slow to converge and heavy to draw. */
@@ -305,7 +313,10 @@ export function App() {
   const symbolEdgesRef = useRef<AtlasEdge[]>([]);
   /** Per-symbol metadata accumulated as nested layouts materialize. */
   const symbolMetaRef = useRef(
-    new Map<string, { exported: boolean; fileId: string }>(),
+    new Map<
+      string,
+      { exported: boolean; fileId: string; kind?: SymbolKind }
+    >(),
   );
   /** Lazily fetched large fixture (served from public-atlas/). */
   const playwrightSnapRef = useRef<SnapshotLike | null>(null);
@@ -535,6 +546,7 @@ export function App() {
           symbolMetaRef.current.set(symbol.id, {
             exported: symbol.exported === true,
             fileId: cell.id,
+            kind: symbol.symbolKind,
           });
           labelsRef.current.set(symbol.id, symbol.label);
           if (symbol.exported === true) exportedIdsRef.current.add(symbol.id);
@@ -1337,6 +1349,18 @@ export function App() {
       )
     : null;
   const exportedIds = exportedIdsRef.current;
+  // symbol ids encode the declaration kind: symbol:<path>:<kind>:<name>:<line>
+  // (the path may contain ':', so read kind as 3rd-from-last). Works for every
+  // symbol-id source; symbolMeta only covers the file-nested layout path.
+  const symbolKindOf = (id: string): SymbolKind | undefined => {
+    const meta = symbolMetaRef.current.get(id)?.kind;
+    if (meta) return meta;
+    if (!id.startsWith("symbol:")) return undefined;
+    const parts = id.split(":");
+    if (parts.length < 5) return undefined;
+    const k = parts[parts.length - 3]!;
+    return SYMBOL_KIND_SET.has(k) ? (k as SymbolKind) : undefined;
+  };
 
   /** API view: adapter ports placed on the rim, facing their consumers. */
   const portNodes = (() => {
@@ -1906,6 +1930,7 @@ export function App() {
             cyclicModuleIds={cyclicModuleIds}
             labels={labels}
             exportedIds={exportedIds}
+            symbolKindOf={symbolKindOf}
             focus={focusView}
             testFileIds={testFileIds}
             hiddenLayers={new Set(hiddenLayersOf(params.omit))}
@@ -1930,6 +1955,7 @@ export function App() {
             state={treemapRef.current}
             innerCells={granularity === "file" ? innerCells : []}
             exportedIds={exportedIds}
+            symbolKindOf={symbolKindOf}
             parentFileOf={parentFileOf}
             fileEdges={
               granularity === "symbol"

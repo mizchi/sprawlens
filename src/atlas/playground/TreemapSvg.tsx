@@ -1,5 +1,6 @@
 import { useMemo, useRef, useState } from "preact/hooks";
-import type { AtlasEdge } from "../contracts/graph.js";
+import type { AtlasEdge, SymbolKind } from "../contracts/graph.js";
+import { SymbolIcon, symbolGlyphOf } from "./symbolIcons.tsx";
 import type { CellResult } from "../kernel/capacityLayout.js";
 import type { Vec2 } from "../kernel/vec.js";
 import { CfgLayer, cfgAnchorsOf, type CfgEntry } from "./CfgLayer.tsx";
@@ -19,6 +20,7 @@ import {
   makeEdgeBundler,
   SYMBOL_DOMINANT_FRACTION,
   SYMBOL_STROKE,
+  SYMBOL_ZOOM,
   selectionDirections,
   focusDimOf,
   InnerLevelsLayer,
@@ -60,6 +62,8 @@ type Props = {
   /** Nested symbol layouts inside the file cells (file granularity). */
   innerCells?: CellResult[];
   exportedIds?: Set<string>;
+  /** Symbol declaration kind per id, for the zoomed-in classification icons. */
+  symbolKindOf?: (id: string) => SymbolKind | undefined;
   /** Symbol id → parent file id, for label gating. */
   parentFileOf?: (id: string) => string;
   /** Dependency-path extraction: members stay lit, everything else dims. */
@@ -685,6 +689,40 @@ export function TreemapSvg(props: Props) {
           zoom={zoom}
         />
       ))}
+      {/* classification icons: appear in the symbol layer on cells with room,
+          marking function/component/class/variable/type/... */}
+      {zoom >= SYMBOL_ZOOM
+        ? [
+            ...(props.leafKind === "symbol" ? visibleFileCells : []),
+            ...visibleInnerCells,
+          ].map((cell) => {
+            if (cell.id.endsWith("#rest")) return null;
+            const screen = Math.sqrt(cell.actualArea) * zoom;
+            if (screen < 26) return null;
+            const glyph = symbolGlyphOf(
+              props.symbolKindOf?.(cell.id),
+              labelOf(cell.id),
+            );
+            if (!glyph) return null;
+            const size = Math.min(22, Math.max(12, screen * 0.2)) / zoom;
+            const cy =
+              cell.site.y - Math.min(Math.sqrt(cell.actualArea) * 0.4, 40 / zoom);
+            return (
+              <SymbolIcon
+                key={cell.id}
+                glyph={glyph}
+                cx={cell.site.x}
+                cy={cy}
+                size={size}
+                color={
+                  props.exportedIds?.has(cell.id)
+                    ? EXPORTED_LABEL
+                    : INTERNAL_LABEL
+                }
+              />
+            );
+          })
+        : null}
     </svg>
   );
 }

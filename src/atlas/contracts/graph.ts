@@ -24,6 +24,16 @@ export type AtlasNodeMetrics = {
   complexity?: number;
 };
 
+/** Producer-reported symbol classification (declaration form), for icons.
+ * const/let are not distinguished yet (both "variable"), nor async/static. */
+export type SymbolKind =
+  | "function"
+  | "class"
+  | "variable"
+  | "type"
+  | "interface"
+  | "enum";
+
 export type AtlasNode = {
   id: string;
   kind: AtlasNodeKind;
@@ -31,6 +41,8 @@ export type AtlasNode = {
   metrics: AtlasNodeMetrics;
   /** Public surface marker (exported symbol / public API file). */
   exported?: boolean;
+  /** Symbol declaration kind (function/class/...), when the node is a symbol. */
+  symbolKind?: SymbolKind;
 };
 
 /**

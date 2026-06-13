@@ -1,4 +1,21 @@
-import type { AtlasEdge, AtlasGraph, AtlasNode } from "../contracts/graph.js";
+import type {
+  AtlasEdge,
+  AtlasGraph,
+  AtlasNode,
+  SymbolKind,
+} from "../contracts/graph.js";
+
+const SYMBOL_KINDS: ReadonlySet<string> = new Set([
+  "function",
+  "class",
+  "variable",
+  "type",
+  "interface",
+  "enum",
+]);
+function isSymbolKind(kind: string | undefined): kind is SymbolKind {
+  return kind !== undefined && SYMBOL_KINDS.has(kind);
+}
 
 /**
  * Minimal structural view of a `.codesprawl` snapshot JSON. Deliberately
@@ -146,6 +163,7 @@ export function snapshotSymbols(
           : {}),
       },
       exported: symbol.exported === true,
+      ...(isSymbolKind(symbol.kind) ? { symbolKind: symbol.kind } : {}),
     }));
     const covered = symbols.reduce((sum, s) => sum + s.metrics.loc, 0);
     const remainder = fileLoc - covered;

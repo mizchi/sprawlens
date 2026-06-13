@@ -1,5 +1,6 @@
 import { useMemo, useRef, useState } from "preact/hooks";
-import type { AtlasEdge } from "../contracts/graph.js";
+import type { AtlasEdge, SymbolKind } from "../contracts/graph.js";
+import { SymbolIcon, symbolGlyphOf } from "./symbolIcons.tsx";
 import type { CellResult } from "../kernel/capacityLayout.js";
 import type { Vec2 } from "../kernel/vec.js";
 import type { RingsState } from "./ringsController.ts";
@@ -99,6 +100,8 @@ type Props = {
   width: number;
   height: number;
   selectedId: string | null;
+  /** Symbol declaration kind per id, for the zoomed-in classification icons. */
+  symbolKindOf?: (id: string) => SymbolKind | undefined;
   /** Full multi-selection (shift+click); selectedId is its primary. */
   selectedIds?: Set<string>;
   /** Picked dependency edges (proximity click); raised above the map. */
@@ -129,6 +132,9 @@ function fallbackLabel(id: string): string {
 const MIN_CELL_PX = 2.5;
 /** Edges shorter than this on screen are sub-pixel noise. */
 const MIN_EDGE_PX = 6;
+/** Symbol cells smaller than this on screen don't get a classification icon
+ * (no room); icons only appear in the symbol layer (zoom >= SYMBOL_ZOOM). */
+const SYMBOL_ICON_MIN_PX = 26;
 /** Macro module-edge decorations, all in screen pixels. */
 const MACRO_ARROW_PX = 8;
 const MACRO_LABEL_PX = 10.5;
@@ -1270,6 +1276,38 @@ export function RingsMapSvg(props: Props) {
                 >
                   {labels.get(cell.id) ?? fallbackLabel(cell.id)}
                 </text>
+              );
+            })
+          : null}
+        {/* classification icons: appear in the symbol layer on cells with
+            room, marking function/component/class/variable/type/... */}
+        {symbolMode
+          ? visibleInnerCells.map((cell) => {
+              if (cell.id.endsWith("#rest")) return null;
+              const screen = Math.sqrt(cell.actualArea) * zoom;
+              if (screen < SYMBOL_ICON_MIN_PX) return null;
+              const glyph = symbolGlyphOf(
+                props.symbolKindOf?.(cell.id),
+                labels.get(cell.id) ?? fallbackLabel(cell.id),
+              );
+              if (!glyph) return null;
+              // screen-constant size, a little larger for bigger cells
+              const size = Math.min(22, Math.max(12, screen * 0.2)) / zoom;
+              // sit above the (centered) label so the two don't collide
+              const cy =
+                cell.site.y - Math.min(Math.sqrt(cell.actualArea) * 0.4, 40 / zoom);
+              return (
+                <g key={cell.id} opacity={symbolOpacity(cell.id)}>
+                  <SymbolIcon
+                    glyph={glyph}
+                    cx={cell.site.x}
+                    cy={cy}
+                    size={size}
+                    color={
+                      exportedIds.has(cell.id) ? EXPORTED_LABEL : INTERNAL_LABEL
+                    }
+                  />
+                </g>
               );
             })
           : null}
