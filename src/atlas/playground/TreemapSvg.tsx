@@ -99,6 +99,8 @@ const MIN_CELL_PX = 2.5;
 const MIN_EDGE_PX = 6;
 /** Symbol cells at least this big on screen show their classification tag. */
 const SYMBOL_ICON_MIN_PX = 26;
+/** Class members stay collapsed until their cell is this big on screen. */
+const MEMBER_TAG_MIN_PX = 55;
 
 export function TreemapSvg(props: Props) {
   const { state, width, height, selectedId, onSelect } = props;
@@ -461,19 +463,23 @@ export function TreemapSvg(props: Props) {
             const dominant =
               Math.sqrt(cell.actualArea) * zoom >=
               Math.min(width, height) * SYMBOL_DOMINANT_FRACTION;
+            const name = labelOf(cell.id);
+            const kind = props.symbolKindOf?.(cell.id);
+            const glyph = symbolGlyphOf(kind, name);
+            // members stay collapsed until a deep zoom enlarges their cell
+            const isMember = glyph === "method" || glyph === "property";
+            const onScreen = Math.sqrt(cell.actualArea) * zoom;
             const roomy =
               zoom >= SYMBOL_ZOOM &&
-              Math.sqrt(cell.actualArea) * zoom >= SYMBOL_ICON_MIN_PX;
-            if (!fileSelected && !dominant && !roomy && !isSelected(cell.id)) {
-              return null;
-            }
+              onScreen >= (isMember ? MEMBER_TAG_MIN_PX : SYMBOL_ICON_MIN_PX);
+            const passes = isMember
+              ? roomy || isSelected(cell.id)
+              : fileSelected || dominant || roomy || isSelected(cell.id);
+            if (!passes) return null;
             const fontSize = Math.min(
               Math.max(Math.sqrt(cell.actualArea) * 0.3, 9 / zoom),
               13 / zoom,
             );
-            const name = labelOf(cell.id);
-            const kind = props.symbolKindOf?.(cell.id);
-            const glyph = symbolGlyphOf(kind, name);
             return (
               <SymbolTag
                 key={cell.id}
@@ -658,17 +664,22 @@ export function TreemapSvg(props: Props) {
         {visibleFileCells.map((cell) => {
           if (isWatermarkSized(cell, zoom)) return null;
           const px = Math.sqrt(cell.actualArea) * zoom;
-          if (px < 28 && !isSelected(cell.id)) return null;
+          const name = labelOf(cell.id);
+          // symbol leaves get their kind icon + matching ink; files stay plain
+          const kind =
+            props.leafKind === "symbol" ? props.symbolKindOf?.(cell.id) : undefined;
+          // members stay collapsed until their cell is large on screen
+          const isMember = kind === "method" || kind === "property" ||
+            kind === "static-method" || kind === "static-property";
+          if (px < (isMember ? MEMBER_TAG_MIN_PX : 28) && !isSelected(cell.id)) {
+            return null;
+          }
           // screen-px cap (like rings): the name stays modest while
           // zooming until the watermark copy takes over
           const fontSize = Math.min(
             Math.max(Math.sqrt(cell.actualArea) * 0.14, 9 / zoom),
             18 / zoom,
           );
-          const name = labelOf(cell.id);
-          // symbol leaves get their kind icon + matching ink; files stay plain
-          const kind =
-            props.leafKind === "symbol" ? props.symbolKindOf?.(cell.id) : undefined;
           const glyph = symbolGlyphOf(kind, name);
           return (
             <SymbolTag

@@ -136,6 +136,9 @@ const MIN_EDGE_PX = 6;
 /** Symbol cells smaller than this on screen don't get a classification icon
  * (no room); icons only appear in the symbol layer (zoom >= SYMBOL_ZOOM). */
 const SYMBOL_ICON_MIN_PX = 26;
+/** Class members (method/property) only tag once their cell is this big — far
+ * past plain symbols — so the overview shows classes, not their innards. */
+const MEMBER_TAG_MIN_PX = 55;
 /** Macro module-edge decorations, all in screen pixels. */
 const MACRO_ARROW_PX = 8;
 const MACRO_LABEL_PX = 10.5;
@@ -1251,19 +1254,21 @@ export function RingsMapSvg(props: Props) {
               const dominant =
                 Math.sqrt(cell.actualArea) * zoom >=
                 Math.min(width, height) * SYMBOL_DOMINANT_FRACTION;
-              // in the symbol layer, any cell with room shows its tag so the
-              // classification reads across the view, not just on the focus
+              const name = labels.get(cell.id) ?? fallbackLabel(cell.id);
+              const kind = props.symbolKindOf?.(cell.id);
+              const glyph = symbolGlyphOf(kind, name);
+              // class members are detail: keep them hidden until a deep zoom
+              // makes their cell large, so the overview shows classes/functions
+              const isMember = glyph === "method" || glyph === "property";
+              const onScreen = Math.sqrt(cell.actualArea) * zoom;
               const roomy =
                 symbolMode &&
-                Math.sqrt(cell.actualArea) * zoom >= SYMBOL_ICON_MIN_PX;
-              if (
-                !linked &&
-                !fileSelected &&
-                !dominant &&
-                !roomy &&
-                cell.id !== selectedId
-              )
-                return null;
+                onScreen >= (isMember ? MEMBER_TAG_MIN_PX : SYMBOL_ICON_MIN_PX);
+              // members never ride the dominant/linked shortcut — only room
+              const passes = isMember
+                ? roomy || cell.id === selectedId
+                : linked || fileSelected || dominant || roomy || cell.id === selectedId;
+              if (!passes) return null;
               const fontSize = screenFont(
                 Math.sqrt(cell.actualArea) * 0.3,
                 exported ? 7 : 13,
@@ -1272,9 +1277,6 @@ export function RingsMapSvg(props: Props) {
                 200,
               );
               if (fontSize === null) return null;
-              const name = labels.get(cell.id) ?? fallbackLabel(cell.id);
-              const kind = props.symbolKindOf?.(cell.id);
-              const glyph = symbolGlyphOf(kind, name);
               return (
                 <SymbolTag
                   key={cell.id}
