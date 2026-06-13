@@ -63,7 +63,6 @@ const row: Record<string, string> = {
 const LEVEL_LABELS: Record<DisplayLevel, string> = {
   module: "module",
   directory: "directory",
-  file: "file",
   symbol: "symbol",
   ast: "AST",
   cfg: "CFG",
@@ -80,7 +79,7 @@ export function Controls(props: Props) {
     key: K,
     value: PlaygroundParams[K],
   ) => onChange({ ...params, [key]: value });
-  const granularity = granularityOf(params.displayLevels);
+  const granularity = granularityOf(params.boundaries, params.displayLevels);
   const viewConfig: ViewConfig = {
     boundaries: params.boundaries,
     displayLevels: params.displayLevels,
@@ -159,8 +158,6 @@ export function Controls(props: Props) {
         <span style={{ width: "110px" }}>boundaries</span>
         <div style={{ display: "flex", gap: "10px", flexWrap: "wrap" }}>
           {BOUNDARY_LEVELS.map((level) => {
-            // a file boundary around file leaves is the leaf itself
-            const disabled = level === "file" && granularity !== "symbol";
             return (
               <label
                 key={level}
@@ -168,12 +165,10 @@ export function Controls(props: Props) {
                   display: "flex",
                   alignItems: "center",
                   gap: "4px",
-                  opacity: disabled ? 0.4 : 1,
                 }}
               >
                 <input
                   type="checkbox"
-                  disabled={disabled}
                   checked={params.boundaries.includes(level)}
                   onInput={(e) => {
                     const on = (e.target as HTMLInputElement).checked;

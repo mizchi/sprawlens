@@ -58,7 +58,6 @@ import {
 import type { AtlasEdge } from "../contracts/graph.js";
 import {
   directoryGrouping,
-  fileGrouping,
   moduleGrouping,
   parentFileOf as contractParentFileOf,
   type Grouping,
@@ -178,11 +177,11 @@ export function App() {
   const [params, setParams] = useState<PlaygroundParams>({
     source: "sprawlens",
     layout: "rings",
-    boundaries: ["module"],
+    boundaries: ["module", "file"],
     dark:
       typeof matchMedia !== "undefined" &&
       matchMedia("(prefers-color-scheme: dark)").matches,
-    displayLevels: ["module", "file", "symbol"],
+    displayLevels: ["module", "symbol"],
     omit: [],
     omitModules: [],
     weight: "loc",
@@ -286,7 +285,7 @@ export function App() {
   // swap the live-binding palette before any child reads it this render
   setMapTheme(params.dark);
   /** Leaf unit, derived from the checked display levels. */
-  const granularity = granularityOf(params.displayLevels);
+  const granularity = granularityOf(params.boundaries, params.displayLevels);
   const mutationRng = useRef<Rng>(createRng(0xc0ffee));
   const nextNodeId = useRef(0);
   const innerLayoutsRef = useRef(new Map<string, CapacityLayoutState>());
@@ -347,18 +346,14 @@ export function App() {
     for (const node of graph.nodes) labels.set(node.id, node.label);
   };
 
-  /** Display boundary chain from the view config (leaf-independent). */
+  /** Subdivision rings above the leaf (module ⊃ directory); the leaf and
+   * file outlines live on the display axis, not here. */
   const boundariesOf = (p: PlaygroundParams): Grouping[] => {
-    const groupings = p.boundaries.flatMap(
-      (level): Grouping[] => {
+    const groupings = p.boundaries.flatMap((level): Grouping[] => {
       if (level === "module") return [moduleGrouping()];
       if (level === "directory") return [directoryGrouping(DIRECTORY_DEPTH)];
-      // file boundaries only make sense around sub-file leaves
-      if (level === "file" && granularityOf(p.displayLevels) === "symbol")
-        return [fileGrouping()];
       return [];
-      },
-    );
+    });
     return groupings.length > 0 ? groupings : [moduleGrouping()];
   };
 
@@ -459,7 +454,7 @@ export function App() {
         ),
       };
     }
-    if (granularityOf(p.displayLevels) === "symbol") {
+    if (granularityOf(p.boundaries, p.displayLevels) === "symbol") {
       // the full weighted symbol graph is focus-independent: build it once
       // (transitive weights over thousands of symbols is the costly part)
       // and cache it, so re-budgeting as the camera moves is just a sort
@@ -715,7 +710,13 @@ export function App() {
   // so the focused district's symbols melt in and distant ones fold into
   // their "(module scope)" fillers. The set, not just the labels, changes.
   useEffect(() => {
-    if (granularityOf(paramsRef.current.displayLevels) !== "symbol") return;
+    if (
+      granularityOf(
+        paramsRef.current.boundaries,
+        paramsRef.current.displayLevels,
+      ) !== "symbol"
+    )
+      return;
     if (!ringsRef.current || apiFullRef.current.nodes.length === 0) return;
     // re-budget against the new focus from the cached full graph (cheap),
     // then warm-start so the set melts to the refocused selection
@@ -793,7 +794,10 @@ export function App() {
       if (
         (showsSymbolLevels(paramsRef.current.displayLevels) ||
           paramsRef.current.displayLevels.includes("cfg")) &&
-        granularityOf(paramsRef.current.displayLevels) === "file"
+        granularityOf(
+          paramsRef.current.boundaries,
+          paramsRef.current.displayLevels,
+        ) === "file"
       ) {
         syncInnerLayouts(outerCells, outerActive, innerBudget);
         for (const layout of innerLayoutsRef.current.values()) {
@@ -1469,8 +1473,10 @@ export function App() {
   const selectedIdSet = useMemo(() => new Set(selectedIds), [selectedIds]);
   /** Strata visibility set fed to the map components (level kinds). */
   const visibleLevels = useMemo(
-    () => new Set<string>(params.displayLevels),
-    [params.displayLevels],
+    // the leaf always draws even though "file" lives on the boundary axis,
+    // not the display axis (its outline is zoom-gated, not toggled)
+    () => new Set<string>([...params.displayLevels, granularity]),
+    [params.displayLevels, granularity],
   );
   // --- dynamic CFG detail: fetched per symbol once it fills enough of the
   // screen, cached for the session; failures (no server) cache as null ---
@@ -1649,7 +1655,10 @@ export function App() {
   const selectedRefs = useMemo(() => {
     if (!activeId) return { incoming: [], outgoing: [] };
     const edges = [
-      ...(granularityOf(paramsRef.current.displayLevels) === "symbol"
+      ...(granularityOf(
+        paramsRef.current.boundaries,
+        paramsRef.current.displayLevels,
+      ) === "symbol"
         ? displayGraphRef.current.edges
         : symbolEdgesRef.current),
       // display-only LSP overlay of the active root
@@ -1820,12 +1829,7 @@ export function App() {
             }
             lspEdges={lspOverlayEdges}
             showEdges={params.showEdges || granularity === "symbol"}
-            showFiles={
-              granularity !== "module" &&
-              params.displayLevels.includes(
-                granularity === "symbol" ? "symbol" : "file",
-              )
-            }
+            showFiles={granularity !== "module" && visibleLevels.has(granularity)}
             visibleLevels={visibleLevels}
             cfgEntries={cfgEntries}
             compactModuleLabels={granularity === "symbol"}

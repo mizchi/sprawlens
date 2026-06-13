@@ -8,23 +8,25 @@ import { transitiveWeights } from "../kernel/transitiveWeight.js";
  * "custom".
  */
 
-/** What unit becomes a layout leaf (and what edges connect). Derived
- * from the display levels — the finest partitioning level wins: files
- * nest symbols when both show; symbols without files form the network. */
+/** What unit becomes a layout leaf (and what edges connect). The boundary
+ * axis owns it: a file boundary makes files the leaf (symbols nest inside);
+ * without it, displaying symbols forms the network; otherwise modules. */
 export type Granularity = "module" | "file" | "symbol";
 
 export function granularityOf(
-  levels: readonly DisplayLevel[],
+  boundaries: readonly BoundaryLevel[],
+  displayLevels: readonly DisplayLevel[],
 ): Granularity {
-  if (levels.includes("file")) return "file";
-  if (levels.includes("symbol")) return "symbol";
+  if (boundaries.includes("file")) return "file";
+  if (displayLevels.includes("symbol")) return "symbol";
   return "module";
 }
 /**
- * Boundary levels partition the space: each checked level becomes a ring
- * of nested districts (module ⊃ directory ⊃ file, canonical order). This
- * is the *structure* axis — independent of which elements are displayed.
- * A file boundary only makes sense around sub-file leaves.
+ * Boundary levels are the partition axis: each checked level subdivides
+ * the space (module ⊃ directory ⊃ file). The innermost decides the leaf —
+ * a file boundary makes files the leaf cells (symbols nest inside them);
+ * without it the leaf is a module-grouped symbol network or bare modules.
+ * Changing this re-solves the layout; the display axis never does.
  */
 export type BoundaryLevel = "module" | "directory" | "file";
 export const BOUNDARY_LEVELS: readonly BoundaryLevel[] = [
@@ -34,26 +36,22 @@ export const BOUNDARY_LEVELS: readonly BoundaryLevel[] = [
 ];
 
 /**
- * Display levels select which strata are *drawn*. Crucially this is not
- * the partition: a level can be used as a subdivision unit (boundaries,
- * leaf placement) while its rendering is switched off — e.g. partition by
- * directory but hide the directory outlines, or place symbols by their
- * file regions without drawing file borders. AST and CFG are planned
- * dynamic levels: fetched on demand (an LSP/analyzer round-trip like call
- * hierarchy) and rendered only past a zoom threshold, never part of the
- * static graph.
+ * Display levels select which strata are *drawn*, never the partition: a
+ * level can be a subdivision unit (boundaries) while its outline is hidden
+ * — partition by directory but hide directory outlines, say. "file" is not
+ * here: it is a boundary, and its leaf cells always draw (zoom-gated). AST
+ * and CFG are planned dynamic levels: fetched on demand and rendered only
+ * past a zoom threshold, never part of the static graph.
  */
 export type DisplayLevel =
   | "module"
   | "directory"
-  | "file"
   | "symbol"
   | "ast"
   | "cfg";
 export const DISPLAY_LEVELS: readonly DisplayLevel[] = [
   "module",
   "directory",
-  "file",
   "symbol",
   "ast",
   "cfg",
@@ -100,8 +98,8 @@ export const VIEW_PRESETS: ViewPreset[] = [
     id: "files",
     label: "files (LOC area)",
     config: {
-      boundaries: ["module"],
-      displayLevels: ["module", "file", "symbol"],
+      boundaries: ["module", "file"],
+      displayLevels: ["module", "symbol"],
       omit: [],
       weight: "loc",
     },

@@ -17,8 +17,8 @@ describe("presets", () => {
 
   it("falls back to custom for unlisted combinations", () => {
     const config: ViewConfig = {
-      boundaries: ["module"],
-      displayLevels: ["module", "file"],
+      boundaries: ["module", "file"],
+      displayLevels: ["module"],
       omit: [],
       weight: "complexity",
     };
