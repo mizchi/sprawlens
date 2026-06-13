@@ -1,8 +1,10 @@
 // Convert a .codesprawl snapshot to the atlas SnapshotLike fixture.
-// Usage: node scripts/snapshot-to-fixture.mjs <snapshot.json> <exportName> > out.ts
+// Usage: node scripts/snapshot-to-fixture.mjs <snapshot.json> <exportName> [json] > out
+//   default emits a TS module; pass "json" as the 3rd arg for raw JSON.
 import { readFileSync } from "node:fs";
 
-const [snapPath, exportName = "sprawlensSnapshot"] = process.argv.slice(2);
+const [snapPath, exportName = "sprawlensSnapshot", format = "ts"] =
+  process.argv.slice(2);
 const snap = JSON.parse(readFileSync(snapPath, "utf8"));
 
 const MEMBER = /^(static-)?(method|property)$/;
@@ -60,11 +62,16 @@ for (const e of snap.edges) {
 }
 
 const fixture = { nodes, edges };
-const header = `// Generated from .codesprawl snapshot (commit ${snap.commit?.shortHash ?? "?"}).
+if (format === "json") {
+  process.stdout.write(JSON.stringify(fixture));
+} else {
+  process.stdout.write(
+    `// Generated from .codesprawl snapshot (commit ${snap.commit?.shortHash ?? "?"}).
 // Regenerate: npx tsx src/cli/index.ts collect . --commits 1, then
 //   node scripts/snapshot-to-fixture.mjs <snapshot.json> ${exportName} > <out>
 import type { SnapshotLike } from "../fixtureAdapter.js";
 
 export const ${exportName}: SnapshotLike = ${JSON.stringify(fixture, null, 1)};
-`;
-process.stdout.write(header);
+`,
+  );
+}
