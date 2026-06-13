@@ -377,6 +377,9 @@ function extractTopLevelSymbols(content: string, fileName: string): CodeSymbol[]
 function symbolsFromTopLevelStatement(statement: ts.Statement, sourceFile: ts.SourceFile, fileName: string, exported: boolean): CodeSymbol[] {
   const direct = symbolFromStatement(statement, sourceFile, fileName, exported);
   if (direct) {
+    if (ts.isClassDeclaration(statement) && statement.name) {
+      return [direct, ...classMemberSymbols(statement, sourceFile, fileName, statement.name.text, direct.id, exported)];
+    }
     return [direct];
   }
   if (!ts.isVariableStatement(statement)) {
@@ -386,6 +389,65 @@ function symbolsFromTopLevelStatement(statement: ts.Statement, sourceFile: ts.So
     const variableSymbol = symbolFromVariableDeclaration(declaration, statement, sourceFile, fileName, exported);
     return variableSymbol ? [variableSymbol] : [];
   });
+}
+
+function hasModifier(node: ts.Node, kind: ts.SyntaxKind): boolean {
+  return Boolean(ts.canHaveModifiers(node) && ts.getModifiers(node)?.some((m) => m.kind === kind));
+}
+
+/** Methods, accessors and properties of a class, as symbols whose ids encode
+ * the owning class (`symbol:path:<kind>:Class.member:line`). Static members
+ * take the `static-` kind variant; private (`private`/`#`) members are kept
+ * but not flagged exported. */
+function classMemberSymbols(
+  cls: ts.ClassDeclaration,
+  sourceFile: ts.SourceFile,
+  fileName: string,
+  className: string,
+  classId: string,
+  classExported: boolean,
+): CodeSymbol[] {
+  const out: CodeSymbol[] = [];
+  for (const member of cls.members) {
+    let base: "method" | "property" | undefined;
+    let name: string | undefined;
+    if (ts.isConstructorDeclaration(member)) {
+      base = "method";
+      name = "constructor";
+    } else if (ts.isMethodDeclaration(member)) {
+      base = "method";
+      name = memberName(member.name, sourceFile);
+    } else if (ts.isGetAccessor(member) || ts.isSetAccessor(member) || ts.isPropertyDeclaration(member)) {
+      base = "property";
+      name = memberName(member.name, sourceFile);
+    }
+    if (!base || !name) continue;
+    const isStatic = hasModifier(member, ts.SyntaxKind.StaticKeyword);
+    const isPrivate =
+      hasModifier(member, ts.SyntaxKind.PrivateKeyword) || name.startsWith("#");
+    const kind = (isStatic ? `static-${base}` : base) as CodeSymbolKind;
+    const start = sourceFile.getLineAndCharacterOfPosition(member.getStart(sourceFile)).line + 1;
+    const end = sourceFile.getLineAndCharacterOfPosition(member.getEnd()).line + 1;
+    out.push({
+      id: `symbol:${fileName}:${kind}:${className}.${name}:${start}`,
+      kind,
+      name,
+      startLine: start,
+      endLine: end,
+      loc: Math.max(1, end - start + 1),
+      complexity: cyclomaticComplexity(member),
+      exported: classExported && !isPrivate,
+      parentClass: classId,
+    });
+  }
+  return out;
+}
+
+function memberName(name: ts.PropertyName | undefined, sourceFile: ts.SourceFile): string | undefined {
+  if (!name) return undefined;
+  if (ts.isIdentifier(name) || ts.isPrivateIdentifier(name)) return name.text;
+  if (ts.isStringLiteral(name) || ts.isNumericLiteral(name)) return name.text;
+  return name.getText(sourceFile);
 }
 
 function symbolFromStatement(statement: ts.Statement, sourceFile: ts.SourceFile, fileName: string, exported: boolean): CodeSymbol | undefined {

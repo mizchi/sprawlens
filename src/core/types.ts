@@ -56,7 +56,18 @@ export type FileNode = {
 
 export type CodeNode = RepoNode | DirNode | FileNode;
 
-export type CodeSymbolKind = "function" | "class" | "interface" | "enum" | "type" | "variable";
+export type CodeSymbolKind =
+  | "function"
+  | "class"
+  | "interface"
+  | "enum"
+  | "type"
+  | "variable"
+  // class members; static- variants are the static counterparts
+  | "method"
+  | "property"
+  | "static-method"
+  | "static-property";
 
 export type CodeSymbol = {
   id: string;
@@ -68,6 +79,8 @@ export type CodeSymbol = {
   /** Cyclomatic complexity: 1 + branch points in the declaration. */
   complexity: number;
   exported: boolean;
+  /** For class members: the parent class's symbol id. */
+  parentClass?: string;
 };
 
 export type CodeImportBindingKind = "named" | "default" | "namespace" | "side-effect" | "reexport-named" | "reexport-all" | "require" | "dynamic";

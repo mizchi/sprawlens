@@ -166,9 +166,48 @@ describe("createSnapshotFromWorkingTree", () => {
           symbols: [
             expect.objectContaining({ name: "createService", kind: "function", startLine: 1, endLine: 3, exported: true }),
             expect.objectContaining({ name: "Service", kind: "class", startLine: 5, endLine: 9, exported: false }),
+            expect.objectContaining({
+              name: "run",
+              kind: "method",
+              startLine: 6,
+              parentClass: "symbol:src/service.ts:class:Service:5",
+            }),
             expect.objectContaining({ name: "helper", kind: "function", startLine: 11, endLine: 11, exported: false }),
           ],
         });
+      },
+    );
+  });
+
+  it("distinguishes static members, instance members, and properties", async () => {
+    await withFixture(
+      {
+        "src/widget.ts": [
+          "export class Widget {",
+          "  static create() { return new Widget(); }",
+          "  count = 0;",
+          "  render() { return this.count; }",
+          "  static label = 'w';",
+          "}",
+        ].join("\n"),
+      },
+      async (root) => {
+        const snapshot = await createSnapshotFromWorkingTree(root, {
+          hash: "h",
+          shortHash: "h",
+          timestamp: "2026-06-09T00:00:00.000Z",
+          authorName: "Test",
+          message: "fixture",
+          aiIndicators: [],
+        });
+        const file = snapshot.nodes.find((n) => n.id === "file:src/widget.ts");
+        const kinds = new Map(
+          (file?.type === "file" ? file.symbols ?? [] : []).map((s) => [s.name, s.kind]),
+        );
+        expect(kinds.get("create")).toBe("static-method");
+        expect(kinds.get("render")).toBe("method");
+        expect(kinds.get("count")).toBe("property");
+        expect(kinds.get("label")).toBe("static-property");
       },
     );
   });
