@@ -1,3 +1,4 @@
+import { diffGraphs as deltaDiff } from "../contracts/delta.js";
 import type { AtlasGraph } from "../contracts/graph.js";
 import type { SnapshotLike } from "./fixtureAdapter.js";
 
@@ -66,23 +67,20 @@ function snapshotToGraph(snapshot: SnapshotLike): AtlasGraph {
   };
 }
 
-/** File-level diff between two displayed commits, for highlighting. */
+/**
+ * File-level diff between two displayed commits, for highlighting. A thin
+ * adapter over the shared {@link deltaDiff} contract: added + modified fold
+ * into one `changed` map, and prev=null highlights nothing (the first
+ * commit has no parent to contrast against).
+ */
 export function diffGraphs(
   prev: AtlasGraph | null,
   next: AtlasGraph,
 ): GraphDiff {
   const changed = new Map<string, "added" | "modified">();
-  const removed: string[] = [];
-  if (!prev) return { changed, removed };
-  const prevLoc = new Map(prev.nodes.map((n) => [n.id, n.metrics.loc]));
-  const nextIds = new Set(next.nodes.map((n) => n.id));
-  for (const node of next.nodes) {
-    const before = prevLoc.get(node.id);
-    if (before === undefined) changed.set(node.id, "added");
-    else if (before !== node.metrics.loc) changed.set(node.id, "modified");
-  }
-  for (const id of prevLoc.keys()) {
-    if (!nextIds.has(id)) removed.push(id);
-  }
-  return { changed, removed };
+  if (!prev) return { changed, removed: [] };
+  const delta = deltaDiff(prev, next);
+  for (const node of delta.added) changed.set(node.id, "added");
+  for (const node of delta.modified) changed.set(node.id, "modified");
+  return { changed, removed: delta.removed };
 }

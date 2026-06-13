@@ -1,10 +1,26 @@
 import { describe, expect, it } from "vitest";
 import {
+  countLines,
   isIgnoredPath,
   isSafeRef,
   parseGitStatus,
   parseNameStatus,
 } from "./workingDiff.js";
+
+describe("countLines", () => {
+  it("counts a trailing-newline file by its lines, not its breaks", () => {
+    expect(countLines("a\nb\nc\n")).toBe(3);
+  });
+  it("counts a file with no trailing newline", () => {
+    expect(countLines("a\nb\nc")).toBe(3);
+  });
+  it("treats empty content as zero", () => {
+    expect(countLines("")).toBe(0);
+  });
+  it("counts a single non-empty line", () => {
+    expect(countLines("solo")).toBe(1);
+  });
+});
 
 describe("parseGitStatus", () => {
   it("maps porcelain codes to the history-diff shape", () => {

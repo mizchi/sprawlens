@@ -1,15 +1,51 @@
 import { execFile } from "node:child_process";
 import { watch } from "node:fs";
+import { readFile } from "node:fs/promises";
+import { join } from "node:path";
 import { promisify } from "node:util";
 
 /**
  * Uncommitted working-tree changes in the same shape as a history diff,
  * so the map highlights them with the existing changed-file strokes.
+ * `loc` carries the current line count of each changed/added file so the
+ * client can re-target that cell's area without a full re-parse — the
+ * file-level unit of incremental recompute.
  */
 export type WorkingDiff = {
   changed: Record<string, "added" | "modified">;
   removed: string[];
+  loc?: Record<string, number>;
 };
+
+/** Line count of a file's content (a trailing newline does not add one). */
+export function countLines(content: string): number {
+  if (content.length === 0) return 0;
+  const breaks = content.split("\n").length;
+  return content.endsWith("\n") ? breaks - 1 : breaks;
+}
+
+/**
+ * Attach the current line count of every changed/added file. Reads are
+ * best-effort: a file deleted between the diff and the read (or binary,
+ * unreadable) is simply omitted from `loc`, and the cell keeps its prior
+ * area. Removed files are not read.
+ */
+export async function enrichWithLoc(
+  root: string,
+  diff: WorkingDiff,
+): Promise<WorkingDiff> {
+  const loc: Record<string, number> = {};
+  await Promise.all(
+    Object.keys(diff.changed).map(async (path) => {
+      try {
+        loc[path] = countLines(await readFile(join(root, path), "utf8"));
+      } catch {
+        // unreadable mid-operation: leave the cell at its prior area
+      }
+    }),
+  );
+  return { ...diff, loc };
+}
 
 export function parseGitStatus(porcelain: string): WorkingDiff {
   const changed: Record<string, "added" | "modified"> = {};
