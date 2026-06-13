@@ -176,13 +176,13 @@ type PanelPosition = "auto" | "right" | "bottom";
 export function App() {
   const [params, setParams] = useState<PlaygroundParams>({
     source: "sprawlens",
-    layout: "rings",
-    boundaries: ["module", "file"],
+    layout: "treemap",
+    boundaries: ["module"],
     dark:
       typeof matchMedia !== "undefined" &&
       matchMedia("(prefers-color-scheme: dark)").matches,
     displayLevels: ["module", "symbol"],
-    omit: [],
+    omit: ["local"],
     omitModules: [],
     weight: "loc",
     followChanges: true,
