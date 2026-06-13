@@ -15,6 +15,7 @@ import {
   FILE_LABEL_INK,
   INTERNAL_LABEL,
   LEAF_STROKE,
+  LEAF_BORDER_MIN_PX,
   makeEdgeBundler,
   SYMBOL_DOMINANT_FRACTION,
   SYMBOL_STROKE,
@@ -287,21 +288,34 @@ export function TreemapSvg(props: Props) {
       />
       {/* file cells */}
       <g style={{ display: leafVisible ? "" : "none" }}>
-        {visibleFileCells.map((cell) => (
-          <polygon
-            key={cell.id}
-            points={cell.polygon.map((p) => `${p.x},${p.y}`).join(" ")}
-            fill={fillOf(cell)}
-            fill-opacity={fileOpacity(cell.id)}
-            stroke={isSelected(cell.id) ? SELECT_STROKE : LEAF_STROKE}
-            stroke-opacity={fileOpacity(cell.id)}
-            stroke-width={isSelected(cell.id) ? 2.5 : 0.6}
-            onClick={(event) => {
-              event.stopPropagation();
-              onSelect(cell.id, event.shiftKey);
-            }}
-          />
-        ))}
+        {visibleFileCells.map((cell) => {
+          // outline zoom-gated like rings: macro views read as filled
+          // regions, borders fade in as cells grow on screen
+          const border =
+            isSelected(cell.id) ||
+            Math.sqrt(cell.actualArea) * zoom >= LEAF_BORDER_MIN_PX;
+          return (
+            <polygon
+              key={cell.id}
+              points={cell.polygon.map((p) => `${p.x},${p.y}`).join(" ")}
+              fill={fillOf(cell)}
+              fill-opacity={fileOpacity(cell.id)}
+              stroke={
+                isSelected(cell.id)
+                  ? SELECT_STROKE
+                  : border
+                    ? LEAF_STROKE
+                    : "none"
+              }
+              stroke-opacity={fileOpacity(cell.id)}
+              stroke-width={isSelected(cell.id) ? 2.5 : 0.6}
+              onClick={(event) => {
+                event.stopPropagation();
+                onSelect(cell.id, event.shiftKey);
+              }}
+            />
+          );
+        })}
       </g>
       {leafVisible ? (
         <WatermarkLabelsLayer

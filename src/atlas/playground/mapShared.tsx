@@ -168,6 +168,13 @@ export function setMapTheme(dark: boolean): void {
  * label fighting them for attention. */
 export const WATERMARK_PX = 140;
 
+/** On-screen px below which a boundary cell's outline is suppressed: the
+ * fill texture still reads at macro zoom, but drawing every leaf/district
+ * border there is noise (and overdraw). The border fades in as the cell
+ * grows past this on screen. Districts use a larger gate than leaves. */
+export const LEAF_BORDER_MIN_PX = 14;
+export const DISTRICT_BORDER_MIN_PX = 44;
+
 /** Zoom level at which individual symbols become interactive nodes. */
 export const SYMBOL_ZOOM = 2.2;
 /** A symbol's name appears once its cell fills this share of the
@@ -276,6 +283,14 @@ export function InnerLevelsLayer(props: {
         >
           {[...level.cells.values()].map((cell) => {
             if (cell.polygon.length < 3) return null;
+            // zoom-gate: a district outline only draws once its cell is big
+            // enough on screen — macro views stay free of nested borders
+            if (
+              !isSelected(cell.id) &&
+              Math.sqrt(cell.actualArea) * zoom < DISTRICT_BORDER_MIN_PX
+            ) {
+              return null;
+            }
             const top = topAncestorOf(cell.id) ?? "";
             return (
               <polygon

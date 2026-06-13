@@ -20,6 +20,7 @@ import {
   focusDimOf,
   INTERNAL_LABEL,
   LEAF_STROKE,
+  LEAF_BORDER_MIN_PX,
   MACRO_EDGE,
   MODULE_LABEL_INK,
   PORT_FILL,
@@ -509,8 +510,13 @@ export function RingsMapSvg(props: Props) {
         visibleLevels={props.visibleLevels}
       />
       <g style={{ display: sourceVisible ? "" : "none" }}>
-        {visibleFileCells.map((cell) =>
-          true ? (
+        {visibleFileCells.map((cell) => {
+          // the fill texture always reads; the outline is zoom-gated so a
+          // macro view shows colored regions, not a mesh of borders
+          const border =
+            isSelected(cell.id) ||
+            Math.sqrt(cell.actualArea) * zoom >= LEAF_BORDER_MIN_PX;
+          return (
             <polygon
               key={cell.id}
               points={pointsOf(cell)}
@@ -522,7 +528,13 @@ export function RingsMapSvg(props: Props) {
                 dependentIds,
                 topAncestorOf,
               })}
-              stroke={isSelected(cell.id) ? SELECT_STROKE : LEAF_STROKE}
+              stroke={
+                isSelected(cell.id)
+                  ? SELECT_STROKE
+                  : border
+                    ? LEAF_STROKE
+                    : "none"
+              }
               stroke-width={isSelected(cell.id) ? 2 : 0.8}
               opacity={fileOpacity(cell.id)}
               onClick={(event) => {
@@ -530,8 +542,8 @@ export function RingsMapSvg(props: Props) {
                 onSelect(cell.id, event.shiftKey);
               }}
             />
-          ) : null,
-        )}
+          );
+        })}
       </g>
       {sourceVisible ? (
         <WatermarkLabelsLayer
