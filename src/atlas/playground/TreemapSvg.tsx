@@ -33,6 +33,7 @@ import {
 import { symbolNameOf } from "./cfgClient.ts";
 import {
   EDGE_PICK_DOMINANCE,
+  EDGE_PICK_NODE_PX,
   EDGE_PICK_PX,
   pickEdgeAtPoint,
   type EdgePickCandidate,
@@ -185,45 +186,6 @@ export function TreemapSvg(props: Props) {
   // proximity edge picking: a background click selects the nearest visible
   // dependency edge, resolving overlaps by distance, not paint order (shared
   // with the rings layout via edgePick)
-  const candidates: EdgePickCandidate[] = useMemo(
-    () =>
-      bundled.map((b) => ({
-        source: b.source,
-        target: b.target,
-        points: b.points,
-      })),
-    [bundled],
-  );
-  const resolveEdgeAt = (
-    clientX: number,
-    clientY: number,
-  ): { source: string; target: string } | null => {
-    const hit = pickEdgeAtPoint(
-      clientToWorld,
-      clientX,
-      clientY,
-      candidates,
-      EDGE_PICK_PX * toViewScale(),
-      EDGE_PICK_DOMINANCE,
-    );
-    return hit ? { source: hit.source, target: hit.target } : null;
-  };
-  pickEdgeRef.current = (clientX, clientY) => {
-    if (!onSelectEdge) return false;
-    const hit = resolveEdgeAt(clientX, clientY);
-    if (!hit) return false;
-    onSelectEdge(hit.source, hit.target);
-    return true;
-  };
-  // hover preview: surface the edge a click would pick (and a pointer cursor)
-  hoverEdgeRef.current = (clientX, clientY) => {
-    const next = onSelectEdge ? resolveEdgeAt(clientX, clientY) : null;
-    const cur = hoveredEdgeRef.current;
-    if (cur?.source !== next?.source || cur?.target !== next?.target) {
-      hoveredEdgeRef.current = next;
-      setHoveredEdge(next);
-    }
-  };
 
   // extraction mode: only the focused paths render, in direction colors
   const focusBundles = useMemo(() => {
@@ -257,6 +219,67 @@ export function TreemapSvg(props: Props) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [props.fileEdges, selectedId, multiSelected, noSelection, focus],
   );
+
+  // grabbable edges are the *prominent* ones — the lit selection/focus
+  // dependencies — not the faint ambient mesh, which would steal clicks from
+  // the cells beneath it.
+  const candidates: EdgePickCandidate[] = useMemo(() => {
+    const out: EdgePickCandidate[] = [];
+    if (focus) {
+      for (const fb of focusBundles) {
+        out.push({ source: fb.source, target: fb.target, points: fb.points });
+      }
+    } else {
+      for (const edge of [...directions.outgoing, ...directions.incoming]) {
+        const bundle = bundleOf(edge);
+        if (bundle) {
+          out.push({
+            source: edge.source,
+            target: edge.target,
+            points: bundle.points,
+          });
+        }
+      }
+    }
+    return out;
+  }, [focus, focusBundles, directions, bundleOf]);
+  const resolveEdgeAt = (
+    clientX: number,
+    clientY: number,
+  ): { source: string; target: string } | null => {
+    // tighter radius when the cursor is over a node shape (districts tile the
+    // plane), wider over empty canvas — keeps cells selectable while edges
+    // crossing them stay catchable right on the line
+    const el = document.elementFromPoint(clientX, clientY);
+    const tag = el?.tagName?.toLowerCase();
+    const px =
+      tag === "circle" || tag === "polygon" ? EDGE_PICK_NODE_PX : EDGE_PICK_PX;
+    const hit = pickEdgeAtPoint(
+      clientToWorld,
+      clientX,
+      clientY,
+      candidates,
+      px * toViewScale(),
+      EDGE_PICK_DOMINANCE,
+    );
+    return hit ? { source: hit.source, target: hit.target } : null;
+  };
+  pickEdgeRef.current = (clientX, clientY) => {
+    if (!onSelectEdge) return false;
+    const hit = resolveEdgeAt(clientX, clientY);
+    if (!hit) return false;
+    onSelectEdge(hit.source, hit.target);
+    return true;
+  };
+  // hover preview: surface the edge a click would pick (and a pointer cursor)
+  hoverEdgeRef.current = (clientX, clientY) => {
+    const next = onSelectEdge ? resolveEdgeAt(clientX, clientY) : null;
+    const cur = hoveredEdgeRef.current;
+    if (cur?.source !== next?.source || cur?.target !== next?.target) {
+      hoveredEdgeRef.current = next;
+      setHoveredEdge(next);
+    }
+  };
 
   const edgeEndpoints = (edge: AtlasEdge): [Vec2, Vec2] | null => {
     let a = positionOf.get(edge.source);

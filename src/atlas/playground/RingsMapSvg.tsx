@@ -44,6 +44,7 @@ import {
 import { symbolNameOf } from "./cfgClient.ts";
 import {
   EDGE_PICK_DOMINANCE,
+  EDGE_PICK_NODE_PX,
   EDGE_PICK_PX,
   pickNearestEdge,
   type EdgePickCandidate,
@@ -317,12 +318,12 @@ export function RingsMapSvg(props: Props) {
     inView(cell.site, Math.sqrt(cell.actualArea) * 1.5);
 
   // proximity edge picking: a click (or hover) resolves to the nearest
-  // dependency edge by distance, not paint order, so edges overlapping in a
-  // tight spot can still be told apart. Candidates are memoized so hover
-  // doesn't rebuild them per mouse move. Module edges rank first (ties go to
-  // the macro structure); their geometry is trimmed to the visible rim-to-rim
-  // segment so a click inside a circle still selects that module.
-  const edgeSlack = committedView.w * 0.1;
+  // *prominent* edge by distance, not paint order. Only the macro module
+  // structure and the lit dependency edges (selection / focus / lsp, added in
+  // resolveEdgeAt) are grabbable — the faint ambient mesh is context, and
+  // grabbing it would steal clicks meant for the nodes beneath. Module edges
+  // are trimmed to the visible rim-to-rim segment so they don't intrude on a
+  // circle's interior.
   const pickCandidates = useMemo<EdgePickCandidate[]>(() => {
     const out: EdgePickCandidate[] = [];
     if (!focus) {
@@ -346,75 +347,8 @@ export function RingsMapSvg(props: Props) {
         });
       }
     }
-    const ambient = symbolMode
-      ? symbolEdges
-      : !focus && showEdges && sourceVisible
-        ? fileEdges
-        : [];
-    for (const edge of ambient) {
-      const ends = edgeEndpoints(edge);
-      if (!ends || !segmentInView(ends[0], ends[1], committedView, edgeSlack)) {
-        continue;
-      }
-      const bundle = bundleOf(edge);
-      if (bundle) {
-        out.push({
-          source: edge.source,
-          target: edge.target,
-          points: bundle.points,
-        });
-      }
-    }
     return out;
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [
-    rings,
-    focus,
-    symbolMode,
-    showEdges,
-    sourceVisible,
-    fileEdges,
-    symbolEdges,
-    bundleOf,
-    committedView,
-  ]);
-
-  const resolveEdgeAt = (
-    clientX: number,
-    clientY: number,
-  ): { source: string; target: string } | null => {
-    const world = clientToWorld(clientX, clientY);
-    if (!world) return null;
-    // a click inside a module circle belongs to that module — edges only win
-    // in the open space between circles (where they are actually visible)
-    for (const c of rings.circles.values()) {
-      if (Math.hypot(world.x - c.cx, world.y - c.cy) <= c.r) return null;
-    }
-    const hit = pickNearestEdge(
-      world,
-      pickCandidates,
-      EDGE_PICK_PX * toViewScale(),
-      EDGE_PICK_DOMINANCE,
-    );
-    return hit ? { source: hit.source, target: hit.target } : null;
-  };
-  pickEdgeRef.current = (clientX, clientY) => {
-    if (!onSelectEdge) return false;
-    const hit = resolveEdgeAt(clientX, clientY);
-    if (!hit) return false;
-    onSelectEdge(hit.source, hit.target);
-    return true;
-  };
-  // hover preview: surface the edge a click would pick (and a pointer cursor).
-  // only flip state when the hovered edge changes, to avoid per-move churn
-  hoverEdgeRef.current = (clientX, clientY) => {
-    const next = onSelectEdge ? resolveEdgeAt(clientX, clientY) : null;
-    const cur = hoveredEdgeRef.current;
-    if (cur?.source !== next?.source || cur?.target !== next?.target) {
-      hoveredEdgeRef.current = next;
-      setHoveredEdge(next);
-    }
-  };
+  }, [rings, focus]);
 
   // Dynamic nested-symbol LOD: instead of fixed zoom thresholds, budget the
   // on-screen element count. Visible file cells get their internals in
@@ -525,6 +459,63 @@ export function RingsMapSvg(props: Props) {
   const selectedIncoming = directions.incoming;
   const lspOutgoing = lspDirections.outgoing;
   const lspIncoming = lspDirections.incoming;
+
+  // The lit dependency edges (selection / focus / lsp) are drawn dashed and
+  // must be grabbable too — they are the lines you actually want to catch
+  // around a selection. Few in number, so build them every render (no memo)
+  // and rank them first so they win ties over the ambient mesh.
+  const litEdges = focus
+    ? [...focus.downstreamEdges, ...focus.upstreamEdges]
+    : [...selectedOutgoing, ...selectedIncoming, ...lspOutgoing, ...lspIncoming];
+  const resolveEdgeAt = (
+    clientX: number,
+    clientY: number,
+  ): { source: string; target: string } | null => {
+    const world = clientToWorld(clientX, clientY);
+    if (!world) return null;
+    // edges are paint-through, so elementFromPoint reports the node/background
+    // beneath the cursor: over a node shape the radius tightens so the node
+    // stays selectable; over empty canvas it stays wide.
+    const el = document.elementFromPoint(clientX, clientY);
+    const tag = el?.tagName?.toLowerCase();
+    const px =
+      tag === "circle" || tag === "polygon" ? EDGE_PICK_NODE_PX : EDGE_PICK_PX;
+    const lit: EdgePickCandidate[] = [];
+    for (const edge of litEdges) {
+      const bundle = bundleOf(edge);
+      if (bundle) {
+        lit.push({
+          source: edge.source,
+          target: edge.target,
+          points: bundle.points,
+        });
+      }
+    }
+    const hit = pickNearestEdge(
+      world,
+      [...lit, ...pickCandidates],
+      px * toViewScale(),
+      EDGE_PICK_DOMINANCE,
+    );
+    return hit ? { source: hit.source, target: hit.target } : null;
+  };
+  pickEdgeRef.current = (clientX, clientY) => {
+    if (!onSelectEdge) return false;
+    const hit = resolveEdgeAt(clientX, clientY);
+    if (!hit) return false;
+    onSelectEdge(hit.source, hit.target);
+    return true;
+  };
+  // hover preview: surface the edge a click would pick (and a pointer cursor).
+  // only flip state when the hovered edge changes, to avoid per-move churn
+  hoverEdgeRef.current = (clientX, clientY) => {
+    const next = onSelectEdge ? resolveEdgeAt(clientX, clientY) : null;
+    const cur = hoveredEdgeRef.current;
+    if (cur?.source !== next?.source || cur?.target !== next?.target) {
+      hoveredEdgeRef.current = next;
+      setHoveredEdge(next);
+    }
+  };
   // nodes one reference away from the selection, keyed by direction —
   // their backgrounds take the matching edge color
   const dependencyIds = new Set([

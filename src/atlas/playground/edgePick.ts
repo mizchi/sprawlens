@@ -37,9 +37,14 @@ export type EdgePickCandidate = {
 
 export type EdgePick = { source: string; target: string; distance: number };
 
-/** A click/hover within this screen distance of an edge grabs it — the hit
- * target is far wider than the hairline stroke so edges are easy to catch. */
+/** A click/hover over empty canvas grabs an edge within this screen distance
+ * — the hit target is far wider than the hairline stroke so edges in the open
+ * are easy to catch. */
 export const EDGE_PICK_PX = 16;
+/** Over a node shape (circle / cell), the edge must be this much closer to
+ * win, so the node stays selectable while edges crossing it remain catchable
+ * when the cursor is right on them. */
+export const EDGE_PICK_NODE_PX = 7;
 /**
  * Dominance: the nearest edge is grabbed only when it is at least this much
  * closer than the runner-up (d1 ≤ d2 · dominance). The wide hit radius then
