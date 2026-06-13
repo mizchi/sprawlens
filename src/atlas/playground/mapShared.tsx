@@ -52,16 +52,18 @@ export let PORT_FILL = "#ffffff";
  * glance (à la an editor's outline). Theme-switched below. Keyed by the
  * SymbolGlyph strings from symbolIcons.ts. */
 export let SYMBOL_KIND_COLORS: Record<string, string> = {
-  function: "#7c3aed",
+  function: "#334155", // neutral: the common case recedes, kinds pop
   component: "#0d9488",
   class: "#d97706",
   variable: "#2563eb",
   type: "#db2777",
   interface: "#0891b2",
   enum: "#4d7c0f",
-  method: "#7c3aed",
-  property: "#2563eb",
+  method: "#16a34a", // class members get their own hue, distinct from fns
+  property: "#ea580c",
 };
+/** Strong outline for class-boundary districts (request: easy to spot). */
+export let CLASS_BOUNDARY = "#d97706";
 export let EXPORTED_DOT = "#059669";
 /** Panel / page chrome, consumed by the App shell. */
 export let PAGE_BG = "#e2e8f0";
@@ -118,16 +120,17 @@ export function setMapTheme(dark: boolean): void {
     WATERMARK_INK = "#cbd5e1";
     PORT_FILL = "#0f172a";
     SYMBOL_KIND_COLORS = {
-      function: "#a78bfa",
+      function: "#e2e8f0", // near-white: readable default on the dark map
       component: "#2dd4bf",
       class: "#fbbf24",
-      variable: "#60a5fa",
-      type: "#f472b6",
-      interface: "#22d3ee",
-      enum: "#a3e635",
-      method: "#a78bfa",
-      property: "#60a5fa",
+      variable: "#93c5fd",
+      type: "#f9a8d4",
+      interface: "#67e8f9",
+      enum: "#bef264",
+      method: "#86efac", // members: green, clearly not a plain function
+      property: "#fdba74",
     };
+    CLASS_BOUNDARY = "#fbbf24";
     EXPORTED_DOT = "#34d399";
     EXPORTED_LABEL = "#34d399";
     INTERNAL_LABEL = "#c4b5fd";
@@ -164,16 +167,17 @@ export function setMapTheme(dark: boolean): void {
     CIRCLE_STROKE = "#334155";
     CIRCLE_CYCLE_FILL = "hsl(0 65% 92%)";
     SYMBOL_KIND_COLORS = {
-      function: "#7c3aed",
+      function: "#334155",
       component: "#0d9488",
       class: "#d97706",
       variable: "#2563eb",
       type: "#db2777",
       interface: "#0891b2",
       enum: "#4d7c0f",
-      method: "#7c3aed",
-      property: "#2563eb",
+      method: "#16a34a",
+      property: "#ea580c",
     };
+    CLASS_BOUNDARY = "#d97706";
     MODULE_LABEL_INK = "#0f172a";
     FILE_LABEL_INK = "#334155";
     TEST_LABEL_INK = "#7a8699";
@@ -210,6 +214,10 @@ export const WATERMARK_PX = 140;
  * grows past this on screen. Districts use a larger gate than leaves. */
 export const LEAF_BORDER_MIN_PX = 14;
 export const DISTRICT_BORDER_MIN_PX = 44;
+/** Class boundaries are deferred far past other districts: only a deep zoom
+ * into the class shows the outline, so the overview isn't carved into class
+ * regions. */
+export const CLASS_BORDER_MIN_PX = 170;
 
 /** Zoom level at which individual symbols become interactive nodes. */
 export const SYMBOL_ZOOM = 2.2;
@@ -319,11 +327,22 @@ export function InnerLevelsLayer(props: {
         >
           {[...level.cells.values()].map((cell) => {
             if (cell.polygon.length < 3) return null;
+            // real class districts (a `class:` group, not a singleton wrapping
+            // one non-class symbol) read as a strong solid outline; singleton
+            // class-level groups draw nothing, other levels stay faint+dashed
+            const isClass =
+              level.kind === "class" && cell.id.startsWith("class:");
+            if (level.kind === "class" && !isClass) return null;
             // zoom-gate: a district outline only draws once its cell is big
-            // enough on screen — macro views stay free of nested borders
+            // enough on screen — macro views stay free of nested borders.
+            // class boundaries are deferred until you zoom right in, so they
+            // don't dominate the overview as filled regions
+            const gate = isClass
+              ? CLASS_BORDER_MIN_PX
+              : DISTRICT_BORDER_MIN_PX;
             if (
               !isSelected(cell.id) &&
-              Math.sqrt(cell.actualArea) * zoom < DISTRICT_BORDER_MIN_PX
+              Math.sqrt(cell.actualArea) * zoom < gate
             ) {
               return null;
             }
@@ -332,12 +351,21 @@ export function InnerLevelsLayer(props: {
               <polygon
                 key={cell.id}
                 points={cell.polygon.map((p) => `${p.x},${p.y}`).join(" ")}
+                fill="none"
                 stroke={
-                  isSelected(cell.id) ? SELECT_STROKE : innerDistrictStroke(top)
+                  isSelected(cell.id)
+                    ? SELECT_STROKE
+                    : isClass
+                      ? CLASS_BOUNDARY
+                      : innerDistrictStroke(top)
                 }
-                stroke-opacity={dim.group(cell.id, top)}
-                stroke-width={isSelected(cell.id) ? 2.5 : 1}
-                stroke-dasharray={isSelected(cell.id) ? undefined : "5 3"}
+                stroke-opacity={
+                  isClass ? Math.max(0.9, dim.group(cell.id, top)) : dim.group(cell.id, top)
+                }
+                stroke-width={isSelected(cell.id) ? 2.5 : isClass ? 3 : 1}
+                stroke-dasharray={
+                  isSelected(cell.id) || isClass ? undefined : "5 3"
+                }
                 onClick={(event) => {
                   event.stopPropagation();
                   onSelect(cell.id, event.shiftKey);
@@ -356,13 +384,23 @@ export function InnerLevelsLayer(props: {
           [...level.cells.values()].map((cell) => {
             if (!visible(level.kind)) return null;
             if (cell.polygon.length < 3) return null;
+            // only real class groups carry a class label (skip singletons)
+            const isClassGroup = cell.id.startsWith("class:");
+            if (level.kind === "class" && !isClassGroup) return null;
             const px = Math.sqrt(cell.actualArea) * zoom;
-            if (px < 80 && !isSelected(cell.id)) return null;
+            // class labels track their (deep-zoom) outline; others at 80px
+            const labelGate = isClassGroup ? CLASS_BORDER_MIN_PX : 80;
+            if (px < labelGate && !isSelected(cell.id)) return null;
             const top = topAncestorOf(cell.id) ?? "";
             const fontSize = Math.min(
               Math.sqrt(cell.actualArea) * 0.12,
               16 / zoom + 4,
             );
+            const label =
+              props.labels?.get(cell.id) ??
+              (isClassGroup
+                ? cell.id.slice(cell.id.lastIndexOf(":") + 1)
+                : cell.id.split("/").pop()!);
             return (
               <text
                 key={cell.id}
@@ -370,10 +408,10 @@ export function InnerLevelsLayer(props: {
                 y={cell.site.y}
                 font-size={fontSize}
                 font-weight="600"
-                fill={innerDistrictLabelFill(top)}
+                fill={isClassGroup ? CLASS_BOUNDARY : innerDistrictLabelFill(top)}
                 fill-opacity={0.7 * dim.group(cell.id, top)}
               >
-                {props.labels?.get(cell.id) ?? cell.id.split("/").pop()!}
+                {label}
               </text>
             );
           }),
