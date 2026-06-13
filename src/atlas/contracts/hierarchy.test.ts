@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import type { AtlasGraph } from "./graph.js";
 import {
   ancestorAt,
+  classGrouping,
   deriveLevels,
   directoryGrouping,
   fileGrouping,
@@ -278,5 +279,22 @@ describe("ancestorAt", () => {
   it("returns null for unknown ids or missing levels", () => {
     expect(ancestorAt(tree, "nope.ts", "module")).toBeNull();
     expect(ancestorAt(tree, "src/alpha/core/a.ts", "service")).toBeNull();
+  });
+});
+
+describe("classGrouping", () => {
+  const g = classGrouping();
+  it("groups a class declaration and its members together", () => {
+    const cls = "symbol:src/a.ts:class:Widget:5";
+    const method = "symbol:src/a.ts:method:Widget.render:7";
+    const staticProp = "symbol:src/a.ts:static-property:Widget.count:6";
+    expect(g.groupOf(cls)).toBe("class:src/a.ts:Widget");
+    expect(g.groupOf(method)).toBe("class:src/a.ts:Widget");
+    expect(g.groupOf(staticProp)).toBe("class:src/a.ts:Widget");
+    expect(g.labelOf!(g.groupOf(cls))).toBe("Widget");
+  });
+  it("leaves a non-class top-level symbol in its own group", () => {
+    const fn = "symbol:src/a.ts:function:helper:1";
+    expect(g.groupOf(fn)).toBe(fn);
   });
 });

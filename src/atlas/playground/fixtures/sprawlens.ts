@@ -1,4 +1,4 @@
-// Generated from .codesprawl snapshot (commit 48d490d).
+// Generated from .codesprawl snapshot (commit 83341b4).
 // Regenerate: npx tsx src/cli/index.ts collect . --commits 1, then
 //   node scripts/snapshot-to-fixture.mjs <snapshot.json> sprawlensSnapshot > <out>
 import type { SnapshotLike } from "../fixtureAdapter.js";
@@ -13,6 +13,11 @@ export const sprawlensSnapshot: SnapshotLike = {
    "id": "dir:e2e",
    "type": "dir",
    "path": "e2e"
+  },
+  {
+   "id": "dir:scripts",
+   "type": "dir",
+   "path": "scripts"
   },
   {
    "id": "dir:src",
@@ -81,6 +86,12 @@ export const sprawlensSnapshot: SnapshotLike = {
    "type": "file",
    "path": "playwright.atlas.config.ts",
    "loc": 28
+  },
+  {
+   "id": "file:scripts/snapshot-to-fixture.mjs",
+   "type": "file",
+   "path": "scripts/snapshot-to-fixture.mjs",
+   "loc": 70
   },
   {
    "id": "file:src/atlas/contracts/delta.test.ts",
@@ -208,7 +219,7 @@ export const sprawlensSnapshot: SnapshotLike = {
    "id": "file:src/atlas/contracts/graph.ts",
    "type": "file",
    "path": "src/atlas/contracts/graph.ts",
-   "loc": 79,
+   "loc": 84,
    "symbols": [
     {
      "id": "symbol:src/atlas/contracts/graph.ts:type:AtlasNodeKind:11",
@@ -230,12 +241,12 @@ export const sprawlensSnapshot: SnapshotLike = {
      "id": "symbol:src/atlas/contracts/graph.ts:type:SymbolKind:29",
      "name": "SymbolKind",
      "kind": "type",
-     "loc": 7,
+     "loc": 12,
      "complexity": 1,
      "exported": true
     },
     {
-     "id": "symbol:src/atlas/contracts/graph.ts:type:AtlasNode:37",
+     "id": "symbol:src/atlas/contracts/graph.ts:type:AtlasNode:42",
      "name": "AtlasNode",
      "kind": "type",
      "loc": 10,
@@ -243,7 +254,7 @@ export const sprawlensSnapshot: SnapshotLike = {
      "exported": true
     },
     {
-     "id": "symbol:src/atlas/contracts/graph.ts:type:AtlasEdgeKind:54",
+     "id": "symbol:src/atlas/contracts/graph.ts:type:AtlasEdgeKind:59",
      "name": "AtlasEdgeKind",
      "kind": "type",
      "loc": 1,
@@ -251,7 +262,7 @@ export const sprawlensSnapshot: SnapshotLike = {
      "exported": true
     },
     {
-     "id": "symbol:src/atlas/contracts/graph.ts:type:AtlasEdge:56",
+     "id": "symbol:src/atlas/contracts/graph.ts:type:AtlasEdge:61",
      "name": "AtlasEdge",
      "kind": "type",
      "loc": 10,
@@ -259,7 +270,7 @@ export const sprawlensSnapshot: SnapshotLike = {
      "exported": true
     },
     {
-     "id": "symbol:src/atlas/contracts/graph.ts:type:AtlasGraph:67",
+     "id": "symbol:src/atlas/contracts/graph.ts:type:AtlasGraph:72",
      "name": "AtlasGraph",
      "kind": "type",
      "loc": 4,
@@ -267,7 +278,7 @@ export const sprawlensSnapshot: SnapshotLike = {
      "exported": true
     },
     {
-     "id": "symbol:src/atlas/contracts/graph.ts:type:WeightScorer:76",
+     "id": "symbol:src/atlas/contracts/graph.ts:type:WeightScorer:81",
      "name": "WeightScorer",
      "kind": "type",
      "loc": 1,
@@ -275,7 +286,7 @@ export const sprawlensSnapshot: SnapshotLike = {
      "exported": true
     },
     {
-     "id": "symbol:src/atlas/contracts/graph.ts:function:locScorer:78",
+     "id": "symbol:src/atlas/contracts/graph.ts:function:locScorer:83",
      "name": "locScorer",
      "kind": "function",
      "loc": 2,
@@ -2012,38 +2023,38 @@ export const sprawlensSnapshot: SnapshotLike = {
    "id": "file:src/atlas/playground/App.tsx",
    "type": "file",
    "path": "src/atlas/playground/App.tsx",
-   "loc": 2398,
+   "loc": 2402,
    "symbols": [
     {
-     "id": "symbol:src/atlas/playground/App.tsx:function:scopeOf:122",
+     "id": "symbol:src/atlas/playground/App.tsx:function:scopeOf:126",
      "name": "scopeOf",
      "kind": "function",
      "loc": 5,
      "complexity": 2
     },
     {
-     "id": "symbol:src/atlas/playground/App.tsx:function:insetRing:134",
+     "id": "symbol:src/atlas/playground/App.tsx:function:insetRing:138",
      "name": "insetRing",
      "kind": "function",
      "loc": 7,
      "complexity": 1
     },
     {
-     "id": "symbol:src/atlas/playground/App.tsx:function:Section:143",
+     "id": "symbol:src/atlas/playground/App.tsx:function:Section:147",
      "name": "Section",
      "kind": "function",
      "loc": 38,
      "complexity": 2
     },
     {
-     "id": "symbol:src/atlas/playground/App.tsx:type:PanelPosition:182",
+     "id": "symbol:src/atlas/playground/App.tsx:type:PanelPosition:186",
      "name": "PanelPosition",
      "kind": "type",
      "loc": 1,
      "complexity": 1
     },
     {
-     "id": "symbol:src/atlas/playground/App.tsx:function:App:184",
+     "id": "symbol:src/atlas/playground/App.tsx:function:App:188",
      "name": "App",
      "kind": "function",
      "loc": 2215,
@@ -2223,7 +2234,7 @@ export const sprawlensSnapshot: SnapshotLike = {
    "id": "file:src/atlas/playground/RingsMapSvg.tsx",
    "type": "file",
    "path": "src/atlas/playground/RingsMapSvg.tsx",
-   "loc": 1300,
+   "loc": 1302,
    "symbols": [
     {
      "id": "symbol:src/atlas/playground/RingsMapSvg.tsx:type:Props:64",
@@ -2243,7 +2254,7 @@ export const sprawlensSnapshot: SnapshotLike = {
      "id": "symbol:src/atlas/playground/RingsMapSvg.tsx:function:RingsMapSvg:152",
      "name": "RingsMapSvg",
      "kind": "function",
-     "loc": 1149,
+     "loc": 1151,
      "complexity": 222,
      "exported": true
     }
@@ -2253,7 +2264,7 @@ export const sprawlensSnapshot: SnapshotLike = {
    "id": "file:src/atlas/playground/TreemapSvg.tsx",
    "type": "file",
    "path": "src/atlas/playground/TreemapSvg.tsx",
-   "loc": 710,
+   "loc": 712,
    "symbols": [
     {
      "id": "symbol:src/atlas/playground/TreemapSvg.tsx:type:Props:52",
@@ -2266,7 +2277,7 @@ export const sprawlensSnapshot: SnapshotLike = {
      "id": "symbol:src/atlas/playground/TreemapSvg.tsx:function:TreemapSvg:103",
      "name": "TreemapSvg",
      "kind": "function",
-     "loc": 608,
+     "loc": 610,
      "complexity": 115,
      "exported": true
     }
@@ -2753,7 +2764,7 @@ export const sprawlensSnapshot: SnapshotLike = {
    "id": "file:src/atlas/playground/mapShared.tsx",
    "type": "file",
    "path": "src/atlas/playground/mapShared.tsx",
-   "loc": 765,
+   "loc": 771,
    "symbols": [
     {
      "id": "symbol:src/atlas/playground/mapShared.tsx:variable:DIM:22",
@@ -2943,12 +2954,12 @@ export const sprawlensSnapshot: SnapshotLike = {
      "id": "symbol:src/atlas/playground/mapShared.tsx:variable:SYMBOL_KIND_COLORS:54",
      "name": "SYMBOL_KIND_COLORS",
      "kind": "variable",
-     "loc": 9,
+     "loc": 11,
      "complexity": 1,
      "exported": true
     },
     {
-     "id": "symbol:src/atlas/playground/mapShared.tsx:variable:EXPORTED_DOT:63",
+     "id": "symbol:src/atlas/playground/mapShared.tsx:variable:EXPORTED_DOT:65",
      "name": "EXPORTED_DOT",
      "kind": "variable",
      "loc": 1,
@@ -2956,7 +2967,7 @@ export const sprawlensSnapshot: SnapshotLike = {
      "exported": true
     },
     {
-     "id": "symbol:src/atlas/playground/mapShared.tsx:variable:PAGE_BG:65",
+     "id": "symbol:src/atlas/playground/mapShared.tsx:variable:PAGE_BG:67",
      "name": "PAGE_BG",
      "kind": "variable",
      "loc": 1,
@@ -2964,7 +2975,7 @@ export const sprawlensSnapshot: SnapshotLike = {
      "exported": true
     },
     {
-     "id": "symbol:src/atlas/playground/mapShared.tsx:variable:MAP_BG:66",
+     "id": "symbol:src/atlas/playground/mapShared.tsx:variable:MAP_BG:68",
      "name": "MAP_BG",
      "kind": "variable",
      "loc": 1,
@@ -2972,7 +2983,7 @@ export const sprawlensSnapshot: SnapshotLike = {
      "exported": true
     },
     {
-     "id": "symbol:src/atlas/playground/mapShared.tsx:variable:PANEL_BG:67",
+     "id": "symbol:src/atlas/playground/mapShared.tsx:variable:PANEL_BG:69",
      "name": "PANEL_BG",
      "kind": "variable",
      "loc": 1,
@@ -2980,7 +2991,7 @@ export const sprawlensSnapshot: SnapshotLike = {
      "exported": true
     },
     {
-     "id": "symbol:src/atlas/playground/mapShared.tsx:variable:PANEL_BORDER:68",
+     "id": "symbol:src/atlas/playground/mapShared.tsx:variable:PANEL_BORDER:70",
      "name": "PANEL_BORDER",
      "kind": "variable",
      "loc": 1,
@@ -2988,7 +2999,7 @@ export const sprawlensSnapshot: SnapshotLike = {
      "exported": true
     },
     {
-     "id": "symbol:src/atlas/playground/mapShared.tsx:variable:INK:69",
+     "id": "symbol:src/atlas/playground/mapShared.tsx:variable:INK:71",
      "name": "INK",
      "kind": "variable",
      "loc": 1,
@@ -2996,7 +3007,7 @@ export const sprawlensSnapshot: SnapshotLike = {
      "exported": true
     },
     {
-     "id": "symbol:src/atlas/playground/mapShared.tsx:variable:MUTED_INK:70",
+     "id": "symbol:src/atlas/playground/mapShared.tsx:variable:MUTED_INK:72",
      "name": "MUTED_INK",
      "kind": "variable",
      "loc": 1,
@@ -3004,7 +3015,7 @@ export const sprawlensSnapshot: SnapshotLike = {
      "exported": true
     },
     {
-     "id": "symbol:src/atlas/playground/mapShared.tsx:function:districtFill:81",
+     "id": "symbol:src/atlas/playground/mapShared.tsx:function:districtFill:83",
      "name": "districtFill",
      "kind": "function",
      "loc": 2,
@@ -3012,7 +3023,7 @@ export const sprawlensSnapshot: SnapshotLike = {
      "exported": true
     },
     {
-     "id": "symbol:src/atlas/playground/mapShared.tsx:function:districtStroke:83",
+     "id": "symbol:src/atlas/playground/mapShared.tsx:function:districtStroke:85",
      "name": "districtStroke",
      "kind": "function",
      "loc": 2,
@@ -3020,7 +3031,7 @@ export const sprawlensSnapshot: SnapshotLike = {
      "exported": true
     },
     {
-     "id": "symbol:src/atlas/playground/mapShared.tsx:function:districtLabelFill:85",
+     "id": "symbol:src/atlas/playground/mapShared.tsx:function:districtLabelFill:87",
      "name": "districtLabelFill",
      "kind": "function",
      "loc": 2,
@@ -3028,7 +3039,7 @@ export const sprawlensSnapshot: SnapshotLike = {
      "exported": true
     },
     {
-     "id": "symbol:src/atlas/playground/mapShared.tsx:function:innerDistrictStroke:87",
+     "id": "symbol:src/atlas/playground/mapShared.tsx:function:innerDistrictStroke:89",
      "name": "innerDistrictStroke",
      "kind": "function",
      "loc": 2,
@@ -3036,7 +3047,7 @@ export const sprawlensSnapshot: SnapshotLike = {
      "exported": true
     },
     {
-     "id": "symbol:src/atlas/playground/mapShared.tsx:function:innerDistrictLabelFill:89",
+     "id": "symbol:src/atlas/playground/mapShared.tsx:function:innerDistrictLabelFill:91",
      "name": "innerDistrictLabelFill",
      "kind": "function",
      "loc": 2,
@@ -3044,7 +3055,7 @@ export const sprawlensSnapshot: SnapshotLike = {
      "exported": true
     },
     {
-     "id": "symbol:src/atlas/playground/mapShared.tsx:function:leafTint:91",
+     "id": "symbol:src/atlas/playground/mapShared.tsx:function:leafTint:93",
      "name": "leafTint",
      "kind": "function",
      "loc": 2,
@@ -3052,15 +3063,15 @@ export const sprawlensSnapshot: SnapshotLike = {
      "exported": true
     },
     {
-     "id": "symbol:src/atlas/playground/mapShared.tsx:function:setMapTheme:94",
+     "id": "symbol:src/atlas/playground/mapShared.tsx:function:setMapTheme:96",
      "name": "setMapTheme",
      "kind": "function",
-     "loc": 101,
+     "loc": 105,
      "complexity": 2,
      "exported": true
     },
     {
-     "id": "symbol:src/atlas/playground/mapShared.tsx:variable:WATERMARK_PX:199",
+     "id": "symbol:src/atlas/playground/mapShared.tsx:variable:WATERMARK_PX:205",
      "name": "WATERMARK_PX",
      "kind": "variable",
      "loc": 1,
@@ -3068,7 +3079,7 @@ export const sprawlensSnapshot: SnapshotLike = {
      "exported": true
     },
     {
-     "id": "symbol:src/atlas/playground/mapShared.tsx:variable:LEAF_BORDER_MIN_PX:205",
+     "id": "symbol:src/atlas/playground/mapShared.tsx:variable:LEAF_BORDER_MIN_PX:211",
      "name": "LEAF_BORDER_MIN_PX",
      "kind": "variable",
      "loc": 1,
@@ -3076,7 +3087,7 @@ export const sprawlensSnapshot: SnapshotLike = {
      "exported": true
     },
     {
-     "id": "symbol:src/atlas/playground/mapShared.tsx:variable:DISTRICT_BORDER_MIN_PX:206",
+     "id": "symbol:src/atlas/playground/mapShared.tsx:variable:DISTRICT_BORDER_MIN_PX:212",
      "name": "DISTRICT_BORDER_MIN_PX",
      "kind": "variable",
      "loc": 1,
@@ -3084,7 +3095,7 @@ export const sprawlensSnapshot: SnapshotLike = {
      "exported": true
     },
     {
-     "id": "symbol:src/atlas/playground/mapShared.tsx:variable:SYMBOL_ZOOM:209",
+     "id": "symbol:src/atlas/playground/mapShared.tsx:variable:SYMBOL_ZOOM:215",
      "name": "SYMBOL_ZOOM",
      "kind": "variable",
      "loc": 1,
@@ -3092,7 +3103,7 @@ export const sprawlensSnapshot: SnapshotLike = {
      "exported": true
     },
     {
-     "id": "symbol:src/atlas/playground/mapShared.tsx:variable:SYMBOL_DOMINANT_FRACTION:212",
+     "id": "symbol:src/atlas/playground/mapShared.tsx:variable:SYMBOL_DOMINANT_FRACTION:218",
      "name": "SYMBOL_DOMINANT_FRACTION",
      "kind": "variable",
      "loc": 1,
@@ -3100,7 +3111,7 @@ export const sprawlensSnapshot: SnapshotLike = {
      "exported": true
     },
     {
-     "id": "symbol:src/atlas/playground/mapShared.tsx:variable:EXPORTED_LABEL:214",
+     "id": "symbol:src/atlas/playground/mapShared.tsx:variable:EXPORTED_LABEL:220",
      "name": "EXPORTED_LABEL",
      "kind": "variable",
      "loc": 1,
@@ -3108,7 +3119,7 @@ export const sprawlensSnapshot: SnapshotLike = {
      "exported": true
     },
     {
-     "id": "symbol:src/atlas/playground/mapShared.tsx:variable:INTERNAL_LABEL:215",
+     "id": "symbol:src/atlas/playground/mapShared.tsx:variable:INTERNAL_LABEL:221",
      "name": "INTERNAL_LABEL",
      "kind": "variable",
      "loc": 1,
@@ -3116,7 +3127,7 @@ export const sprawlensSnapshot: SnapshotLike = {
      "exported": true
     },
     {
-     "id": "symbol:src/atlas/playground/mapShared.tsx:function:moduleHue:218",
+     "id": "symbol:src/atlas/playground/mapShared.tsx:function:moduleHue:224",
      "name": "moduleHue",
      "kind": "function",
      "loc": 7,
@@ -3124,7 +3135,7 @@ export const sprawlensSnapshot: SnapshotLike = {
      "exported": true
     },
     {
-     "id": "symbol:src/atlas/playground/mapShared.tsx:function:makeTopAncestorOf:229",
+     "id": "symbol:src/atlas/playground/mapShared.tsx:function:makeTopAncestorOf:235",
      "name": "makeTopAncestorOf",
      "kind": "function",
      "loc": 12,
@@ -3132,7 +3143,7 @@ export const sprawlensSnapshot: SnapshotLike = {
      "exported": true
     },
     {
-     "id": "symbol:src/atlas/playground/mapShared.tsx:type:FocusDim:244",
+     "id": "symbol:src/atlas/playground/mapShared.tsx:type:FocusDim:250",
      "name": "FocusDim",
      "kind": "type",
      "loc": 8,
@@ -3140,7 +3151,7 @@ export const sprawlensSnapshot: SnapshotLike = {
      "exported": true
     },
     {
-     "id": "symbol:src/atlas/playground/mapShared.tsx:function:focusDimOf:253",
+     "id": "symbol:src/atlas/playground/mapShared.tsx:function:focusDimOf:259",
      "name": "focusDimOf",
      "kind": "function",
      "loc": 13,
@@ -3148,7 +3159,7 @@ export const sprawlensSnapshot: SnapshotLike = {
      "exported": true
     },
     {
-     "id": "symbol:src/atlas/playground/mapShared.tsx:type:LeafFillContext:269",
+     "id": "symbol:src/atlas/playground/mapShared.tsx:type:LeafFillContext:275",
      "name": "LeafFillContext",
      "kind": "type",
      "loc": 9,
@@ -3156,7 +3167,7 @@ export const sprawlensSnapshot: SnapshotLike = {
      "exported": true
     },
     {
-     "id": "symbol:src/atlas/playground/mapShared.tsx:function:leafFillOf:281",
+     "id": "symbol:src/atlas/playground/mapShared.tsx:function:leafFillOf:287",
      "name": "leafFillOf",
      "kind": "function",
      "loc": 10,
@@ -3164,7 +3175,7 @@ export const sprawlensSnapshot: SnapshotLike = {
      "exported": true
     },
     {
-     "id": "symbol:src/atlas/playground/mapShared.tsx:function:InnerLevelsLayer:294",
+     "id": "symbol:src/atlas/playground/mapShared.tsx:function:InnerLevelsLayer:300",
      "name": "InnerLevelsLayer",
      "kind": "function",
      "loc": 85,
@@ -3172,7 +3183,7 @@ export const sprawlensSnapshot: SnapshotLike = {
      "exported": true
     },
     {
-     "id": "symbol:src/atlas/playground/mapShared.tsx:function:WatermarkLabelsLayer:385",
+     "id": "symbol:src/atlas/playground/mapShared.tsx:function:WatermarkLabelsLayer:391",
      "name": "WatermarkLabelsLayer",
      "kind": "function",
      "loc": 63,
@@ -3180,7 +3191,7 @@ export const sprawlensSnapshot: SnapshotLike = {
      "exported": true
     },
     {
-     "id": "symbol:src/atlas/playground/mapShared.tsx:function:isWatermarkSized:450",
+     "id": "symbol:src/atlas/playground/mapShared.tsx:function:isWatermarkSized:456",
      "name": "isWatermarkSized",
      "kind": "function",
      "loc": 3,
@@ -3188,7 +3199,7 @@ export const sprawlensSnapshot: SnapshotLike = {
      "exported": true
     },
     {
-     "id": "symbol:src/atlas/playground/mapShared.tsx:type:SelectionDirections:456",
+     "id": "symbol:src/atlas/playground/mapShared.tsx:type:SelectionDirections:462",
      "name": "SelectionDirections",
      "kind": "type",
      "loc": 9,
@@ -3196,7 +3207,7 @@ export const sprawlensSnapshot: SnapshotLike = {
      "exported": true
     },
     {
-     "id": "symbol:src/atlas/playground/mapShared.tsx:function:selectionDirections:473",
+     "id": "symbol:src/atlas/playground/mapShared.tsx:function:selectionDirections:479",
      "name": "selectionDirections",
      "kind": "function",
      "loc": 30,
@@ -3204,14 +3215,14 @@ export const sprawlensSnapshot: SnapshotLike = {
      "exported": true
     },
     {
-     "id": "symbol:src/atlas/playground/mapShared.tsx:type:ExitPreview:506",
+     "id": "symbol:src/atlas/playground/mapShared.tsx:type:ExitPreview:512",
      "name": "ExitPreview",
      "kind": "type",
      "loc": 6,
      "complexity": 1
     },
     {
-     "id": "symbol:src/atlas/playground/mapShared.tsx:function:ExitPreviewsLayer:517",
+     "id": "symbol:src/atlas/playground/mapShared.tsx:function:ExitPreviewsLayer:523",
      "name": "ExitPreviewsLayer",
      "kind": "function",
      "loc": 113,
@@ -3219,7 +3230,7 @@ export const sprawlensSnapshot: SnapshotLike = {
      "exported": true
     },
     {
-     "id": "symbol:src/atlas/playground/mapShared.tsx:function:smoothPathD:634",
+     "id": "symbol:src/atlas/playground/mapShared.tsx:function:smoothPathD:640",
      "name": "smoothPathD",
      "kind": "function",
      "loc": 19,
@@ -3227,7 +3238,7 @@ export const sprawlensSnapshot: SnapshotLike = {
      "exported": true
     },
     {
-     "id": "symbol:src/atlas/playground/mapShared.tsx:function:RaisedEdgePath:657",
+     "id": "symbol:src/atlas/playground/mapShared.tsx:function:RaisedEdgePath:663",
      "name": "RaisedEdgePath",
      "kind": "function",
      "loc": 18,
@@ -3235,7 +3246,7 @@ export const sprawlensSnapshot: SnapshotLike = {
      "exported": true
     },
     {
-     "id": "symbol:src/atlas/playground/mapShared.tsx:variable:BUNDLE_STRENGTH:679",
+     "id": "symbol:src/atlas/playground/mapShared.tsx:variable:BUNDLE_STRENGTH:685",
      "name": "BUNDLE_STRENGTH",
      "kind": "variable",
      "loc": 1,
@@ -3243,7 +3254,7 @@ export const sprawlensSnapshot: SnapshotLike = {
      "exported": true
     },
     {
-     "id": "symbol:src/atlas/playground/mapShared.tsx:type:EdgeBundle:686",
+     "id": "symbol:src/atlas/playground/mapShared.tsx:type:EdgeBundle:692",
      "name": "EdgeBundle",
      "kind": "type",
      "loc": 10,
@@ -3251,7 +3262,7 @@ export const sprawlensSnapshot: SnapshotLike = {
      "exported": true
     },
     {
-     "id": "symbol:src/atlas/playground/mapShared.tsx:function:makeEdgeBundler:704",
+     "id": "symbol:src/atlas/playground/mapShared.tsx:function:makeEdgeBundler:710",
      "name": "makeEdgeBundler",
      "kind": "function",
      "loc": 62,
@@ -3457,38 +3468,46 @@ export const sprawlensSnapshot: SnapshotLike = {
    "id": "file:src/atlas/playground/symbolIcons.tsx",
    "type": "file",
    "path": "src/atlas/playground/symbolIcons.tsx",
-   "loc": 136,
+   "loc": 165,
    "symbols": [
     {
      "id": "symbol:src/atlas/playground/symbolIcons.tsx:type:SymbolGlyph:9",
      "name": "SymbolGlyph",
      "kind": "type",
-     "loc": 8,
+     "loc": 10,
      "complexity": 1,
      "exported": true
     },
     {
-     "id": "symbol:src/atlas/playground/symbolIcons.tsx:function:symbolGlyphOf:20",
+     "id": "symbol:src/atlas/playground/symbolIcons.tsx:function:symbolGlyphOf:23",
      "name": "symbolGlyphOf",
      "kind": "function",
-     "loc": 9,
-     "complexity": 5,
+     "loc": 11,
+     "complexity": 9,
      "exported": true
     },
     {
-     "id": "symbol:src/atlas/playground/symbolIcons.tsx:function:SymbolTag:61",
+     "id": "symbol:src/atlas/playground/symbolIcons.tsx:function:isStaticKind:36",
+     "name": "isStaticKind",
+     "kind": "function",
+     "loc": 3,
+     "complexity": 2,
+     "exported": true
+    },
+    {
+     "id": "symbol:src/atlas/playground/symbolIcons.tsx:function:SymbolTag:78",
      "name": "SymbolTag",
      "kind": "function",
-     "loc": 39,
+     "loc": 41,
      "complexity": 5,
      "exported": true
     },
     {
-     "id": "symbol:src/atlas/playground/symbolIcons.tsx:function:SymbolIcon:102",
+     "id": "symbol:src/atlas/playground/symbolIcons.tsx:function:SymbolIcon:121",
      "name": "SymbolIcon",
      "kind": "function",
-     "loc": 35,
-     "complexity": 2,
+     "loc": 45,
+     "complexity": 3,
      "exported": true
     }
    ]
@@ -4016,7 +4035,7 @@ export const sprawlensSnapshot: SnapshotLike = {
      "id": "symbol:src/atlas/server/cfgProvider.ts:class:CfgBuilder:87",
      "name": "CfgBuilder",
      "kind": "class",
-     "loc": 455,
+     "loc": 28,
      "complexity": 76
     },
     {
@@ -4257,7 +4276,7 @@ export const sprawlensSnapshot: SnapshotLike = {
      "id": "symbol:src/atlas/server/jsonRpc.ts:class:JsonRpcReader:16",
      "name": "JsonRpcReader",
      "kind": "class",
-     "loc": 26,
+     "loc": 4,
      "complexity": 5,
      "exported": true
     },
@@ -4296,7 +4315,7 @@ export const sprawlensSnapshot: SnapshotLike = {
      "id": "symbol:src/atlas/server/lspClient.ts:class:LspClient:13",
      "name": "LspClient",
      "kind": "class",
-     "loc": 116,
+     "loc": 10,
      "complexity": 12,
      "exported": true
     },
@@ -5387,7 +5406,7 @@ export const sprawlensSnapshot: SnapshotLike = {
    "resolved": true,
    "symbolImports": [
     {
-     "toSymbolId": "symbol:src/atlas/contracts/graph.ts:type:AtlasGraph:67"
+     "toSymbolId": "symbol:src/atlas/contracts/graph.ts:type:AtlasGraph:72"
     }
    ]
   },
@@ -5398,13 +5417,13 @@ export const sprawlensSnapshot: SnapshotLike = {
    "resolved": true,
    "symbolImports": [
     {
-     "toSymbolId": "symbol:src/atlas/contracts/graph.ts:type:AtlasEdge:56"
+     "toSymbolId": "symbol:src/atlas/contracts/graph.ts:type:AtlasEdge:61"
     },
     {
-     "toSymbolId": "symbol:src/atlas/contracts/graph.ts:type:AtlasGraph:67"
+     "toSymbolId": "symbol:src/atlas/contracts/graph.ts:type:AtlasGraph:72"
     },
     {
-     "toSymbolId": "symbol:src/atlas/contracts/graph.ts:type:AtlasNode:37"
+     "toSymbolId": "symbol:src/atlas/contracts/graph.ts:type:AtlasNode:42"
     }
    ]
   },
@@ -5415,7 +5434,7 @@ export const sprawlensSnapshot: SnapshotLike = {
    "resolved": true,
    "symbolImports": [
     {
-     "toSymbolId": "symbol:src/atlas/contracts/graph.ts:type:AtlasGraph:67"
+     "toSymbolId": "symbol:src/atlas/contracts/graph.ts:type:AtlasGraph:72"
     }
    ]
   },
@@ -5426,10 +5445,10 @@ export const sprawlensSnapshot: SnapshotLike = {
    "resolved": true,
    "symbolImports": [
     {
-     "toSymbolId": "symbol:src/atlas/contracts/graph.ts:function:locScorer:78"
+     "toSymbolId": "symbol:src/atlas/contracts/graph.ts:function:locScorer:83"
     },
     {
-     "toSymbolId": "symbol:src/atlas/contracts/graph.ts:type:AtlasGraph:67"
+     "toSymbolId": "symbol:src/atlas/contracts/graph.ts:type:AtlasGraph:72"
     }
    ]
   },
@@ -5440,7 +5459,7 @@ export const sprawlensSnapshot: SnapshotLike = {
    "resolved": true,
    "symbolImports": [
     {
-     "toSymbolId": "symbol:src/atlas/contracts/graph.ts:type:AtlasGraph:67"
+     "toSymbolId": "symbol:src/atlas/contracts/graph.ts:type:AtlasGraph:72"
     }
    ]
   },
@@ -5480,13 +5499,13 @@ export const sprawlensSnapshot: SnapshotLike = {
    "resolved": true,
    "symbolImports": [
     {
-     "toSymbolId": "symbol:src/atlas/contracts/graph.ts:type:AtlasEdge:56"
+     "toSymbolId": "symbol:src/atlas/contracts/graph.ts:type:AtlasEdge:61"
     },
     {
-     "toSymbolId": "symbol:src/atlas/contracts/graph.ts:type:AtlasGraph:67"
+     "toSymbolId": "symbol:src/atlas/contracts/graph.ts:type:AtlasGraph:72"
     },
     {
-     "toSymbolId": "symbol:src/atlas/contracts/graph.ts:type:AtlasNode:37"
+     "toSymbolId": "symbol:src/atlas/contracts/graph.ts:type:AtlasNode:42"
     },
     {
      "toSymbolId": "symbol:src/atlas/contracts/graph.ts:type:AtlasNodeKind:11"
@@ -5514,7 +5533,7 @@ export const sprawlensSnapshot: SnapshotLike = {
    "resolved": true,
    "symbolImports": [
     {
-     "toSymbolId": "symbol:src/atlas/contracts/graph.ts:type:AtlasGraph:67"
+     "toSymbolId": "symbol:src/atlas/contracts/graph.ts:type:AtlasGraph:72"
     }
    ]
   },
@@ -5542,10 +5561,10 @@ export const sprawlensSnapshot: SnapshotLike = {
    "resolved": true,
    "symbolImports": [
     {
-     "toSymbolId": "symbol:src/atlas/contracts/graph.ts:type:AtlasGraph:67"
+     "toSymbolId": "symbol:src/atlas/contracts/graph.ts:type:AtlasGraph:72"
     },
     {
-     "toSymbolId": "symbol:src/atlas/contracts/graph.ts:type:AtlasNode:37"
+     "toSymbolId": "symbol:src/atlas/contracts/graph.ts:type:AtlasNode:42"
     }
    ]
   },
@@ -5556,7 +5575,7 @@ export const sprawlensSnapshot: SnapshotLike = {
    "resolved": true,
    "symbolImports": [
     {
-     "toSymbolId": "symbol:src/atlas/contracts/graph.ts:type:AtlasGraph:67"
+     "toSymbolId": "symbol:src/atlas/contracts/graph.ts:type:AtlasGraph:72"
     }
    ]
   },
@@ -5581,13 +5600,13 @@ export const sprawlensSnapshot: SnapshotLike = {
    "resolved": true,
    "symbolImports": [
     {
-     "toSymbolId": "symbol:src/atlas/contracts/graph.ts:type:AtlasEdge:56"
+     "toSymbolId": "symbol:src/atlas/contracts/graph.ts:type:AtlasEdge:61"
     },
     {
-     "toSymbolId": "symbol:src/atlas/contracts/graph.ts:type:AtlasGraph:67"
+     "toSymbolId": "symbol:src/atlas/contracts/graph.ts:type:AtlasGraph:72"
     },
     {
-     "toSymbolId": "symbol:src/atlas/contracts/graph.ts:type:AtlasNode:37"
+     "toSymbolId": "symbol:src/atlas/contracts/graph.ts:type:AtlasNode:42"
     }
    ]
   },
@@ -5648,7 +5667,7 @@ export const sprawlensSnapshot: SnapshotLike = {
    "resolved": true,
    "symbolImports": [
     {
-     "toSymbolId": "symbol:src/atlas/contracts/graph.ts:type:AtlasEdge:56"
+     "toSymbolId": "symbol:src/atlas/contracts/graph.ts:type:AtlasEdge:61"
     }
    ]
   },
@@ -5822,7 +5841,7 @@ export const sprawlensSnapshot: SnapshotLike = {
    "resolved": true,
    "symbolImports": [
     {
-     "toSymbolId": "symbol:src/atlas/contracts/graph.ts:type:AtlasEdge:56"
+     "toSymbolId": "symbol:src/atlas/contracts/graph.ts:type:AtlasEdge:61"
     }
    ]
   },
@@ -5844,10 +5863,10 @@ export const sprawlensSnapshot: SnapshotLike = {
    "resolved": true,
    "symbolImports": [
     {
-     "toSymbolId": "symbol:src/atlas/contracts/graph.ts:type:AtlasEdge:56"
+     "toSymbolId": "symbol:src/atlas/contracts/graph.ts:type:AtlasEdge:61"
     },
     {
-     "toSymbolId": "symbol:src/atlas/contracts/graph.ts:type:AtlasNode:37"
+     "toSymbolId": "symbol:src/atlas/contracts/graph.ts:type:AtlasNode:42"
     }
    ]
   },
@@ -5869,10 +5888,10 @@ export const sprawlensSnapshot: SnapshotLike = {
    "resolved": true,
    "symbolImports": [
     {
-     "toSymbolId": "symbol:src/atlas/contracts/graph.ts:type:AtlasEdge:56"
+     "toSymbolId": "symbol:src/atlas/contracts/graph.ts:type:AtlasEdge:61"
     },
     {
-     "toSymbolId": "symbol:src/atlas/contracts/graph.ts:type:AtlasNode:37"
+     "toSymbolId": "symbol:src/atlas/contracts/graph.ts:type:AtlasNode:42"
     }
    ]
   },
@@ -6186,7 +6205,7 @@ export const sprawlensSnapshot: SnapshotLike = {
    "resolved": true,
    "symbolImports": [
     {
-     "toSymbolId": "symbol:src/atlas/contracts/graph.ts:type:AtlasEdge:56"
+     "toSymbolId": "symbol:src/atlas/contracts/graph.ts:type:AtlasEdge:61"
     }
    ]
   },
@@ -6208,7 +6227,7 @@ export const sprawlensSnapshot: SnapshotLike = {
    "resolved": true,
    "symbolImports": [
     {
-     "toSymbolId": "symbol:src/atlas/contracts/graph.ts:type:AtlasGraph:67"
+     "toSymbolId": "symbol:src/atlas/contracts/graph.ts:type:AtlasGraph:72"
     }
    ]
   },
@@ -6247,13 +6266,13 @@ export const sprawlensSnapshot: SnapshotLike = {
    "resolved": true,
    "symbolImports": [
     {
-     "toSymbolId": "symbol:src/atlas/contracts/graph.ts:function:locScorer:78"
+     "toSymbolId": "symbol:src/atlas/contracts/graph.ts:function:locScorer:83"
     },
     {
-     "toSymbolId": "symbol:src/atlas/contracts/graph.ts:type:AtlasGraph:67"
+     "toSymbolId": "symbol:src/atlas/contracts/graph.ts:type:AtlasGraph:72"
     },
     {
-     "toSymbolId": "symbol:src/atlas/contracts/graph.ts:type:WeightScorer:76"
+     "toSymbolId": "symbol:src/atlas/contracts/graph.ts:type:WeightScorer:81"
     }
    ]
   },
@@ -6610,7 +6629,7 @@ export const sprawlensSnapshot: SnapshotLike = {
    "resolved": true,
    "symbolImports": [
     {
-     "toSymbolId": "symbol:src/atlas/contracts/graph.ts:type:AtlasEdge:56"
+     "toSymbolId": "symbol:src/atlas/contracts/graph.ts:type:AtlasEdge:61"
     }
    ]
   },
@@ -6658,13 +6677,13 @@ export const sprawlensSnapshot: SnapshotLike = {
    "resolved": true,
    "symbolImports": [
     {
-     "toSymbolId": "symbol:src/atlas/contracts/graph.ts:type:AtlasEdge:56"
+     "toSymbolId": "symbol:src/atlas/contracts/graph.ts:type:AtlasEdge:61"
     },
     {
-     "toSymbolId": "symbol:src/atlas/contracts/graph.ts:type:AtlasGraph:67"
+     "toSymbolId": "symbol:src/atlas/contracts/graph.ts:type:AtlasGraph:72"
     },
     {
-     "toSymbolId": "symbol:src/atlas/contracts/graph.ts:type:AtlasNode:37"
+     "toSymbolId": "symbol:src/atlas/contracts/graph.ts:type:AtlasNode:42"
     }
    ]
   },
@@ -6698,13 +6717,13 @@ export const sprawlensSnapshot: SnapshotLike = {
    "resolved": true,
    "symbolImports": [
     {
-     "toSymbolId": "symbol:src/atlas/contracts/graph.ts:type:AtlasEdge:56"
+     "toSymbolId": "symbol:src/atlas/contracts/graph.ts:type:AtlasEdge:61"
     },
     {
-     "toSymbolId": "symbol:src/atlas/contracts/graph.ts:type:AtlasGraph:67"
+     "toSymbolId": "symbol:src/atlas/contracts/graph.ts:type:AtlasGraph:72"
     },
     {
-     "toSymbolId": "symbol:src/atlas/contracts/graph.ts:type:AtlasNode:37"
+     "toSymbolId": "symbol:src/atlas/contracts/graph.ts:type:AtlasNode:42"
     }
    ]
   },
@@ -6784,7 +6803,7 @@ export const sprawlensSnapshot: SnapshotLike = {
    "resolved": true,
    "symbolImports": [
     {
-     "toSymbolId": "symbol:src/atlas/contracts/graph.ts:type:AtlasEdge:56"
+     "toSymbolId": "symbol:src/atlas/contracts/graph.ts:type:AtlasEdge:61"
     }
    ]
   },
@@ -7029,31 +7048,31 @@ export const sprawlensSnapshot: SnapshotLike = {
    "resolved": true,
    "symbolImports": [
     {
-     "toSymbolId": "symbol:src/atlas/playground/mapShared.tsx:variable:INK:69"
+     "toSymbolId": "symbol:src/atlas/playground/mapShared.tsx:variable:INK:71"
     },
     {
-     "toSymbolId": "symbol:src/atlas/playground/mapShared.tsx:function:makeTopAncestorOf:229"
+     "toSymbolId": "symbol:src/atlas/playground/mapShared.tsx:function:makeTopAncestorOf:235"
     },
     {
-     "toSymbolId": "symbol:src/atlas/playground/mapShared.tsx:variable:MAP_BG:66"
+     "toSymbolId": "symbol:src/atlas/playground/mapShared.tsx:variable:MAP_BG:68"
     },
     {
-     "toSymbolId": "symbol:src/atlas/playground/mapShared.tsx:variable:MUTED_INK:70"
+     "toSymbolId": "symbol:src/atlas/playground/mapShared.tsx:variable:MUTED_INK:72"
     },
     {
-     "toSymbolId": "symbol:src/atlas/playground/mapShared.tsx:variable:PAGE_BG:65"
+     "toSymbolId": "symbol:src/atlas/playground/mapShared.tsx:variable:PAGE_BG:67"
     },
     {
-     "toSymbolId": "symbol:src/atlas/playground/mapShared.tsx:variable:PANEL_BG:67"
+     "toSymbolId": "symbol:src/atlas/playground/mapShared.tsx:variable:PANEL_BG:69"
     },
     {
-     "toSymbolId": "symbol:src/atlas/playground/mapShared.tsx:variable:PANEL_BORDER:68"
+     "toSymbolId": "symbol:src/atlas/playground/mapShared.tsx:variable:PANEL_BORDER:70"
     },
     {
      "toSymbolId": "symbol:src/atlas/playground/mapShared.tsx:variable:SELECT_STROKE:36"
     },
     {
-     "toSymbolId": "symbol:src/atlas/playground/mapShared.tsx:function:setMapTheme:94"
+     "toSymbolId": "symbol:src/atlas/playground/mapShared.tsx:function:setMapTheme:96"
     }
    ]
   },
@@ -7169,7 +7188,7 @@ export const sprawlensSnapshot: SnapshotLike = {
    "resolved": true,
    "symbolImports": [
     {
-     "toSymbolId": "symbol:src/atlas/contracts/graph.ts:type:AtlasGraph:67"
+     "toSymbolId": "symbol:src/atlas/contracts/graph.ts:type:AtlasGraph:72"
     }
    ]
   },
@@ -7216,7 +7235,7 @@ export const sprawlensSnapshot: SnapshotLike = {
    "resolved": true,
    "symbolImports": [
     {
-     "toSymbolId": "symbol:src/atlas/contracts/graph.ts:type:AtlasNode:37"
+     "toSymbolId": "symbol:src/atlas/contracts/graph.ts:type:AtlasNode:42"
     }
    ]
   },
@@ -7241,10 +7260,10 @@ export const sprawlensSnapshot: SnapshotLike = {
    "resolved": true,
    "symbolImports": [
     {
-     "toSymbolId": "symbol:src/atlas/contracts/graph.ts:type:AtlasEdge:56"
+     "toSymbolId": "symbol:src/atlas/contracts/graph.ts:type:AtlasEdge:61"
     },
     {
-     "toSymbolId": "symbol:src/atlas/contracts/graph.ts:type:AtlasNode:37"
+     "toSymbolId": "symbol:src/atlas/contracts/graph.ts:type:AtlasNode:42"
     }
    ]
   },
@@ -7277,7 +7296,7 @@ export const sprawlensSnapshot: SnapshotLike = {
    "resolved": true,
    "symbolImports": [
     {
-     "toSymbolId": "symbol:src/atlas/contracts/graph.ts:type:AtlasNode:37"
+     "toSymbolId": "symbol:src/atlas/contracts/graph.ts:type:AtlasNode:42"
     }
    ]
   },
@@ -7422,13 +7441,13 @@ export const sprawlensSnapshot: SnapshotLike = {
    "resolved": true,
    "symbolImports": [
     {
-     "toSymbolId": "symbol:src/atlas/contracts/graph.ts:type:AtlasEdge:56"
+     "toSymbolId": "symbol:src/atlas/contracts/graph.ts:type:AtlasEdge:61"
     },
     {
-     "toSymbolId": "symbol:src/atlas/contracts/graph.ts:type:AtlasGraph:67"
+     "toSymbolId": "symbol:src/atlas/contracts/graph.ts:type:AtlasGraph:72"
     },
     {
-     "toSymbolId": "symbol:src/atlas/contracts/graph.ts:type:AtlasNode:37"
+     "toSymbolId": "symbol:src/atlas/contracts/graph.ts:type:AtlasNode:42"
     },
     {
      "toSymbolId": "symbol:src/atlas/contracts/graph.ts:type:SymbolKind:29"
@@ -7442,7 +7461,7 @@ export const sprawlensSnapshot: SnapshotLike = {
    "resolved": true,
    "symbolImports": [
     {
-     "toSymbolId": "symbol:src/atlas/contracts/graph.ts:type:AtlasGraph:67"
+     "toSymbolId": "symbol:src/atlas/contracts/graph.ts:type:AtlasGraph:72"
     }
    ]
   },
@@ -7481,7 +7500,7 @@ export const sprawlensSnapshot: SnapshotLike = {
    "resolved": true,
    "symbolImports": [
     {
-     "toSymbolId": "symbol:src/atlas/contracts/graph.ts:type:AtlasGraph:67"
+     "toSymbolId": "symbol:src/atlas/contracts/graph.ts:type:AtlasGraph:72"
     }
    ]
   },
@@ -7525,7 +7544,7 @@ export const sprawlensSnapshot: SnapshotLike = {
    "resolved": true,
    "symbolImports": [
     {
-     "toSymbolId": "symbol:src/atlas/playground/App.tsx:function:App:184"
+     "toSymbolId": "symbol:src/atlas/playground/App.tsx:function:App:188"
     }
    ]
   },
@@ -7536,7 +7555,7 @@ export const sprawlensSnapshot: SnapshotLike = {
    "resolved": true,
    "symbolImports": [
     {
-     "toSymbolId": "symbol:src/atlas/contracts/graph.ts:type:AtlasEdge:56"
+     "toSymbolId": "symbol:src/atlas/contracts/graph.ts:type:AtlasEdge:61"
     }
    ]
   },
@@ -7680,10 +7699,10 @@ export const sprawlensSnapshot: SnapshotLike = {
    "resolved": true,
    "symbolImports": [
     {
-     "toSymbolId": "symbol:src/atlas/contracts/graph.ts:type:AtlasEdge:56"
+     "toSymbolId": "symbol:src/atlas/contracts/graph.ts:type:AtlasEdge:61"
     },
     {
-     "toSymbolId": "symbol:src/atlas/contracts/graph.ts:type:AtlasGraph:67"
+     "toSymbolId": "symbol:src/atlas/contracts/graph.ts:type:AtlasGraph:72"
     },
     {
      "toSymbolId": "symbol:src/atlas/contracts/graph.ts:type:AtlasNodeKind:11"
@@ -7816,7 +7835,7 @@ export const sprawlensSnapshot: SnapshotLike = {
    "resolved": true,
    "symbolImports": [
     {
-     "toSymbolId": "symbol:src/atlas/contracts/graph.ts:type:AtlasEdge:56"
+     "toSymbolId": "symbol:src/atlas/contracts/graph.ts:type:AtlasEdge:61"
     },
     {
      "toSymbolId": "symbol:src/atlas/contracts/graph.ts:type:SymbolKind:29"
@@ -7924,28 +7943,28 @@ export const sprawlensSnapshot: SnapshotLike = {
      "toSymbolId": "symbol:src/atlas/playground/mapShared.tsx:variable:DOWNSTREAM_FILL:33"
     },
     {
-     "toSymbolId": "symbol:src/atlas/playground/mapShared.tsx:function:ExitPreviewsLayer:517"
+     "toSymbolId": "symbol:src/atlas/playground/mapShared.tsx:function:ExitPreviewsLayer:523"
     },
     {
-     "toSymbolId": "symbol:src/atlas/playground/mapShared.tsx:variable:EXPORTED_DOT:63"
+     "toSymbolId": "symbol:src/atlas/playground/mapShared.tsx:variable:EXPORTED_DOT:65"
     },
     {
-     "toSymbolId": "symbol:src/atlas/playground/mapShared.tsx:variable:EXPORTED_LABEL:214"
+     "toSymbolId": "symbol:src/atlas/playground/mapShared.tsx:variable:EXPORTED_LABEL:220"
     },
     {
      "toSymbolId": "symbol:src/atlas/playground/mapShared.tsx:variable:FILE_LABEL_INK:47"
     },
     {
-     "toSymbolId": "symbol:src/atlas/playground/mapShared.tsx:function:focusDimOf:253"
+     "toSymbolId": "symbol:src/atlas/playground/mapShared.tsx:function:focusDimOf:259"
     },
     {
-     "toSymbolId": "symbol:src/atlas/playground/mapShared.tsx:variable:INTERNAL_LABEL:215"
+     "toSymbolId": "symbol:src/atlas/playground/mapShared.tsx:variable:INTERNAL_LABEL:221"
     },
     {
      "toSymbolId": "symbol:src/atlas/playground/mapShared.tsx:variable:LEAF_STROKE:38"
     },
     {
-     "toSymbolId": "symbol:src/atlas/playground/mapShared.tsx:variable:LEAF_BORDER_MIN_PX:205"
+     "toSymbolId": "symbol:src/atlas/playground/mapShared.tsx:variable:LEAF_BORDER_MIN_PX:211"
     },
     {
      "toSymbolId": "symbol:src/atlas/playground/mapShared.tsx:variable:MACRO_EDGE:41"
@@ -7957,7 +7976,7 @@ export const sprawlensSnapshot: SnapshotLike = {
      "toSymbolId": "symbol:src/atlas/playground/mapShared.tsx:variable:PORT_FILL:50"
     },
     {
-     "toSymbolId": "symbol:src/atlas/playground/mapShared.tsx:variable:SYMBOL_DOMINANT_FRACTION:212"
+     "toSymbolId": "symbol:src/atlas/playground/mapShared.tsx:variable:SYMBOL_DOMINANT_FRACTION:218"
     },
     {
      "toSymbolId": "symbol:src/atlas/playground/mapShared.tsx:variable:SYMBOL_KIND_COLORS:54"
@@ -7969,31 +7988,31 @@ export const sprawlensSnapshot: SnapshotLike = {
      "toSymbolId": "symbol:src/atlas/playground/mapShared.tsx:variable:SYMBOL_STROKE:39"
     },
     {
-     "toSymbolId": "symbol:src/atlas/playground/mapShared.tsx:variable:SYMBOL_ZOOM:209"
+     "toSymbolId": "symbol:src/atlas/playground/mapShared.tsx:variable:SYMBOL_ZOOM:215"
     },
     {
      "toSymbolId": "symbol:src/atlas/playground/mapShared.tsx:variable:TEST_LABEL_INK:48"
     },
     {
-     "toSymbolId": "symbol:src/atlas/playground/mapShared.tsx:function:InnerLevelsLayer:294"
+     "toSymbolId": "symbol:src/atlas/playground/mapShared.tsx:function:InnerLevelsLayer:300"
     },
     {
-     "toSymbolId": "symbol:src/atlas/playground/mapShared.tsx:function:isWatermarkSized:450"
+     "toSymbolId": "symbol:src/atlas/playground/mapShared.tsx:function:isWatermarkSized:456"
     },
     {
-     "toSymbolId": "symbol:src/atlas/playground/mapShared.tsx:function:leafFillOf:281"
+     "toSymbolId": "symbol:src/atlas/playground/mapShared.tsx:function:leafFillOf:287"
     },
     {
-     "toSymbolId": "symbol:src/atlas/playground/mapShared.tsx:function:makeEdgeBundler:704"
+     "toSymbolId": "symbol:src/atlas/playground/mapShared.tsx:function:makeEdgeBundler:710"
     },
     {
-     "toSymbolId": "symbol:src/atlas/playground/mapShared.tsx:function:makeTopAncestorOf:229"
+     "toSymbolId": "symbol:src/atlas/playground/mapShared.tsx:function:makeTopAncestorOf:235"
     },
     {
-     "toSymbolId": "symbol:src/atlas/playground/mapShared.tsx:function:RaisedEdgePath:657"
+     "toSymbolId": "symbol:src/atlas/playground/mapShared.tsx:function:RaisedEdgePath:663"
     },
     {
-     "toSymbolId": "symbol:src/atlas/playground/mapShared.tsx:function:selectionDirections:473"
+     "toSymbolId": "symbol:src/atlas/playground/mapShared.tsx:function:selectionDirections:479"
     },
     {
      "toSymbolId": "symbol:src/atlas/playground/mapShared.tsx:variable:SELECT_STROKE:36"
@@ -8005,7 +8024,7 @@ export const sprawlensSnapshot: SnapshotLike = {
      "toSymbolId": "symbol:src/atlas/playground/mapShared.tsx:variable:UPSTREAM_FILL:34"
     },
     {
-     "toSymbolId": "symbol:src/atlas/playground/mapShared.tsx:function:WatermarkLabelsLayer:385"
+     "toSymbolId": "symbol:src/atlas/playground/mapShared.tsx:function:WatermarkLabelsLayer:391"
     }
    ]
   },
@@ -8027,10 +8046,13 @@ export const sprawlensSnapshot: SnapshotLike = {
    "resolved": true,
    "symbolImports": [
     {
-     "toSymbolId": "symbol:src/atlas/playground/symbolIcons.tsx:function:SymbolTag:61"
+     "toSymbolId": "symbol:src/atlas/playground/symbolIcons.tsx:function:isStaticKind:36"
     },
     {
-     "toSymbolId": "symbol:src/atlas/playground/symbolIcons.tsx:function:symbolGlyphOf:20"
+     "toSymbolId": "symbol:src/atlas/playground/symbolIcons.tsx:function:SymbolTag:78"
+    },
+    {
+     "toSymbolId": "symbol:src/atlas/playground/symbolIcons.tsx:function:symbolGlyphOf:23"
     }
    ]
   },
@@ -8066,13 +8088,13 @@ export const sprawlensSnapshot: SnapshotLike = {
    "resolved": true,
    "symbolImports": [
     {
-     "toSymbolId": "symbol:src/atlas/contracts/graph.ts:type:AtlasEdge:56"
+     "toSymbolId": "symbol:src/atlas/contracts/graph.ts:type:AtlasEdge:61"
     },
     {
-     "toSymbolId": "symbol:src/atlas/contracts/graph.ts:type:AtlasGraph:67"
+     "toSymbolId": "symbol:src/atlas/contracts/graph.ts:type:AtlasGraph:72"
     },
     {
-     "toSymbolId": "symbol:src/atlas/contracts/graph.ts:type:AtlasNode:37"
+     "toSymbolId": "symbol:src/atlas/contracts/graph.ts:type:AtlasNode:42"
     },
     {
      "toSymbolId": "symbol:src/atlas/contracts/graph.ts:type:AtlasNodeKind:11"
@@ -8237,13 +8259,13 @@ export const sprawlensSnapshot: SnapshotLike = {
    "resolved": true,
    "symbolImports": [
     {
-     "toSymbolId": "symbol:src/atlas/contracts/graph.ts:type:AtlasEdge:56"
+     "toSymbolId": "symbol:src/atlas/contracts/graph.ts:type:AtlasEdge:61"
     },
     {
-     "toSymbolId": "symbol:src/atlas/contracts/graph.ts:type:AtlasGraph:67"
+     "toSymbolId": "symbol:src/atlas/contracts/graph.ts:type:AtlasGraph:72"
     },
     {
-     "toSymbolId": "symbol:src/atlas/contracts/graph.ts:type:AtlasNode:37"
+     "toSymbolId": "symbol:src/atlas/contracts/graph.ts:type:AtlasNode:42"
     }
    ]
   },
@@ -8265,7 +8287,7 @@ export const sprawlensSnapshot: SnapshotLike = {
    "resolved": true,
    "symbolImports": [
     {
-     "toSymbolId": "symbol:src/atlas/contracts/graph.ts:type:AtlasGraph:67"
+     "toSymbolId": "symbol:src/atlas/contracts/graph.ts:type:AtlasGraph:72"
     }
    ]
   },
@@ -8335,10 +8357,10 @@ export const sprawlensSnapshot: SnapshotLike = {
    "resolved": true,
    "symbolImports": [
     {
-     "toSymbolId": "symbol:src/atlas/contracts/graph.ts:type:AtlasEdge:56"
+     "toSymbolId": "symbol:src/atlas/contracts/graph.ts:type:AtlasEdge:61"
     },
     {
-     "toSymbolId": "symbol:src/atlas/contracts/graph.ts:type:AtlasGraph:67"
+     "toSymbolId": "symbol:src/atlas/contracts/graph.ts:type:AtlasGraph:72"
     },
     {
      "toSymbolId": "symbol:src/atlas/contracts/graph.ts:type:AtlasNodeKind:11"
@@ -8466,7 +8488,7 @@ export const sprawlensSnapshot: SnapshotLike = {
    "resolved": true,
    "symbolImports": [
     {
-     "toSymbolId": "symbol:src/atlas/contracts/graph.ts:type:AtlasEdge:56"
+     "toSymbolId": "symbol:src/atlas/contracts/graph.ts:type:AtlasEdge:61"
     },
     {
      "toSymbolId": "symbol:src/atlas/contracts/graph.ts:type:SymbolKind:29"
@@ -8556,43 +8578,43 @@ export const sprawlensSnapshot: SnapshotLike = {
      "toSymbolId": "symbol:src/atlas/playground/mapShared.tsx:variable:ACTIVE_EDGE:42"
     },
     {
-     "toSymbolId": "symbol:src/atlas/playground/mapShared.tsx:variable:BUNDLE_STRENGTH:679"
+     "toSymbolId": "symbol:src/atlas/playground/mapShared.tsx:variable:BUNDLE_STRENGTH:685"
     },
     {
-     "toSymbolId": "symbol:src/atlas/playground/mapShared.tsx:function:districtFill:81"
+     "toSymbolId": "symbol:src/atlas/playground/mapShared.tsx:function:districtFill:83"
     },
     {
-     "toSymbolId": "symbol:src/atlas/playground/mapShared.tsx:function:districtLabelFill:85"
+     "toSymbolId": "symbol:src/atlas/playground/mapShared.tsx:function:districtLabelFill:87"
     },
     {
-     "toSymbolId": "symbol:src/atlas/playground/mapShared.tsx:function:districtStroke:83"
+     "toSymbolId": "symbol:src/atlas/playground/mapShared.tsx:function:districtStroke:85"
     },
     {
      "toSymbolId": "symbol:src/atlas/playground/mapShared.tsx:variable:DOWNSTREAM_COLOR:31"
     },
     {
-     "toSymbolId": "symbol:src/atlas/playground/mapShared.tsx:function:ExitPreviewsLayer:517"
+     "toSymbolId": "symbol:src/atlas/playground/mapShared.tsx:function:ExitPreviewsLayer:523"
     },
     {
-     "toSymbolId": "symbol:src/atlas/playground/mapShared.tsx:variable:EXPORTED_LABEL:214"
+     "toSymbolId": "symbol:src/atlas/playground/mapShared.tsx:variable:EXPORTED_LABEL:220"
     },
     {
      "toSymbolId": "symbol:src/atlas/playground/mapShared.tsx:variable:FILE_LABEL_INK:47"
     },
     {
-     "toSymbolId": "symbol:src/atlas/playground/mapShared.tsx:variable:INTERNAL_LABEL:215"
+     "toSymbolId": "symbol:src/atlas/playground/mapShared.tsx:variable:INTERNAL_LABEL:221"
     },
     {
      "toSymbolId": "symbol:src/atlas/playground/mapShared.tsx:variable:LEAF_STROKE:38"
     },
     {
-     "toSymbolId": "symbol:src/atlas/playground/mapShared.tsx:variable:LEAF_BORDER_MIN_PX:205"
+     "toSymbolId": "symbol:src/atlas/playground/mapShared.tsx:variable:LEAF_BORDER_MIN_PX:211"
     },
     {
-     "toSymbolId": "symbol:src/atlas/playground/mapShared.tsx:function:makeEdgeBundler:704"
+     "toSymbolId": "symbol:src/atlas/playground/mapShared.tsx:function:makeEdgeBundler:710"
     },
     {
-     "toSymbolId": "symbol:src/atlas/playground/mapShared.tsx:variable:SYMBOL_DOMINANT_FRACTION:212"
+     "toSymbolId": "symbol:src/atlas/playground/mapShared.tsx:variable:SYMBOL_DOMINANT_FRACTION:218"
     },
     {
      "toSymbolId": "symbol:src/atlas/playground/mapShared.tsx:variable:SYMBOL_KIND_COLORS:54"
@@ -8601,28 +8623,28 @@ export const sprawlensSnapshot: SnapshotLike = {
      "toSymbolId": "symbol:src/atlas/playground/mapShared.tsx:variable:SYMBOL_STROKE:39"
     },
     {
-     "toSymbolId": "symbol:src/atlas/playground/mapShared.tsx:variable:SYMBOL_ZOOM:209"
+     "toSymbolId": "symbol:src/atlas/playground/mapShared.tsx:variable:SYMBOL_ZOOM:215"
     },
     {
-     "toSymbolId": "symbol:src/atlas/playground/mapShared.tsx:function:selectionDirections:473"
+     "toSymbolId": "symbol:src/atlas/playground/mapShared.tsx:function:selectionDirections:479"
     },
     {
-     "toSymbolId": "symbol:src/atlas/playground/mapShared.tsx:function:focusDimOf:253"
+     "toSymbolId": "symbol:src/atlas/playground/mapShared.tsx:function:focusDimOf:259"
     },
     {
-     "toSymbolId": "symbol:src/atlas/playground/mapShared.tsx:function:InnerLevelsLayer:294"
+     "toSymbolId": "symbol:src/atlas/playground/mapShared.tsx:function:InnerLevelsLayer:300"
     },
     {
-     "toSymbolId": "symbol:src/atlas/playground/mapShared.tsx:function:isWatermarkSized:450"
+     "toSymbolId": "symbol:src/atlas/playground/mapShared.tsx:function:isWatermarkSized:456"
     },
     {
-     "toSymbolId": "symbol:src/atlas/playground/mapShared.tsx:function:leafFillOf:281"
+     "toSymbolId": "symbol:src/atlas/playground/mapShared.tsx:function:leafFillOf:287"
     },
     {
-     "toSymbolId": "symbol:src/atlas/playground/mapShared.tsx:function:makeTopAncestorOf:229"
+     "toSymbolId": "symbol:src/atlas/playground/mapShared.tsx:function:makeTopAncestorOf:235"
     },
     {
-     "toSymbolId": "symbol:src/atlas/playground/mapShared.tsx:function:RaisedEdgePath:657"
+     "toSymbolId": "symbol:src/atlas/playground/mapShared.tsx:function:RaisedEdgePath:663"
     },
     {
      "toSymbolId": "symbol:src/atlas/playground/mapShared.tsx:variable:SELECT_STROKE:36"
@@ -8631,7 +8653,7 @@ export const sprawlensSnapshot: SnapshotLike = {
      "toSymbolId": "symbol:src/atlas/playground/mapShared.tsx:variable:UPSTREAM_COLOR:32"
     },
     {
-     "toSymbolId": "symbol:src/atlas/playground/mapShared.tsx:function:WatermarkLabelsLayer:385"
+     "toSymbolId": "symbol:src/atlas/playground/mapShared.tsx:function:WatermarkLabelsLayer:391"
     }
    ]
   },
@@ -8642,10 +8664,13 @@ export const sprawlensSnapshot: SnapshotLike = {
    "resolved": true,
    "symbolImports": [
     {
-     "toSymbolId": "symbol:src/atlas/playground/symbolIcons.tsx:function:SymbolTag:61"
+     "toSymbolId": "symbol:src/atlas/playground/symbolIcons.tsx:function:isStaticKind:36"
     },
     {
-     "toSymbolId": "symbol:src/atlas/playground/symbolIcons.tsx:function:symbolGlyphOf:20"
+     "toSymbolId": "symbol:src/atlas/playground/symbolIcons.tsx:function:SymbolTag:78"
+    },
+    {
+     "toSymbolId": "symbol:src/atlas/playground/symbolIcons.tsx:function:symbolGlyphOf:23"
     }
    ]
   },
@@ -8698,7 +8723,7 @@ export const sprawlensSnapshot: SnapshotLike = {
    "resolved": true,
    "symbolImports": [
     {
-     "toSymbolId": "symbol:src/atlas/contracts/graph.ts:type:AtlasEdge:56"
+     "toSymbolId": "symbol:src/atlas/contracts/graph.ts:type:AtlasEdge:61"
     }
    ]
   },
@@ -8720,7 +8745,7 @@ export const sprawlensSnapshot: SnapshotLike = {
    "resolved": true,
    "symbolImports": [
     {
-     "toSymbolId": "symbol:src/atlas/contracts/graph.ts:type:AtlasGraph:67"
+     "toSymbolId": "symbol:src/atlas/contracts/graph.ts:type:AtlasGraph:72"
     }
    ]
   },
@@ -8754,10 +8779,10 @@ export const sprawlensSnapshot: SnapshotLike = {
    "resolved": true,
    "symbolImports": [
     {
-     "toSymbolId": "symbol:src/atlas/contracts/graph.ts:type:AtlasGraph:67"
+     "toSymbolId": "symbol:src/atlas/contracts/graph.ts:type:AtlasGraph:72"
     },
     {
-     "toSymbolId": "symbol:src/atlas/contracts/graph.ts:type:AtlasNode:37"
+     "toSymbolId": "symbol:src/atlas/contracts/graph.ts:type:AtlasNode:42"
     }
    ]
   },
@@ -8862,10 +8887,10 @@ export const sprawlensSnapshot: SnapshotLike = {
    "resolved": true,
    "symbolImports": [
     {
-     "toSymbolId": "symbol:src/atlas/contracts/graph.ts:type:AtlasEdge:56"
+     "toSymbolId": "symbol:src/atlas/contracts/graph.ts:type:AtlasEdge:61"
     },
     {
-     "toSymbolId": "symbol:src/atlas/contracts/graph.ts:type:AtlasNode:37"
+     "toSymbolId": "symbol:src/atlas/contracts/graph.ts:type:AtlasNode:42"
     }
    ]
   },

@@ -63,6 +63,7 @@ const row: Record<string, string> = {
 const LEVEL_LABELS: Record<DisplayLevel, string> = {
   module: "module",
   directory: "directory",
+  class: "class",
   symbol: "symbol",
   ast: "AST",
   cfg: "CFG",

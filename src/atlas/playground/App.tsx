@@ -57,6 +57,7 @@ import {
 } from "./synthetic.ts";
 import type { AtlasEdge } from "../contracts/graph.js";
 import {
+  classGrouping,
   directoryGrouping,
   moduleGrouping,
   parentFileOf as contractParentFileOf,
@@ -374,9 +375,14 @@ export function App() {
   /** Subdivision rings above the leaf (module ⊃ directory); the leaf and
    * file outlines live on the display axis, not here. */
   const boundariesOf = (p: PlaygroundParams): Grouping[] => {
+    // the class level groups symbol leaves by their class; it only applies
+    // when symbols are the leaves (no file boundary nesting them per file)
+    const symbolLeaves =
+      granularityOf(p.boundaries, p.displayLevels) === "symbol";
     const groupings = p.boundaries.flatMap((level): Grouping[] => {
       if (level === "module") return [moduleGrouping()];
       if (level === "directory") return [directoryGrouping(DIRECTORY_DEPTH)];
+      if (level === "class" && symbolLeaves) return [classGrouping()];
       return [];
     });
     return groupings.length > 0 ? groupings : [moduleGrouping()];

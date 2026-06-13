@@ -378,7 +378,12 @@ function symbolsFromTopLevelStatement(statement: ts.Statement, sourceFile: ts.So
   const direct = symbolFromStatement(statement, sourceFile, fileName, exported);
   if (direct) {
     if (ts.isClassDeclaration(statement) && statement.name) {
-      return [direct, ...classMemberSymbols(statement, sourceFile, fileName, statement.name.text, direct.id, exported)];
+      const members = classMemberSymbols(statement, sourceFile, fileName, statement.name.text, direct.id, exported);
+      // the class keeps only its own (non-member) lines so class + members
+      // sum to the declaration's span — no double counting when both show
+      const memberLoc = members.reduce((sum, m) => sum + m.loc, 0);
+      const own = { ...direct, loc: Math.max(1, direct.loc - memberLoc) };
+      return [own, ...members];
     }
     return [direct];
   }

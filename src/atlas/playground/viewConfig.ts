@@ -28,11 +28,12 @@ export function granularityOf(
  * without it the leaf is a module-grouped symbol network or bare modules.
  * Changing this re-solves the layout; the display axis never does.
  */
-export type BoundaryLevel = "module" | "directory" | "file";
+export type BoundaryLevel = "module" | "directory" | "file" | "class";
 export const BOUNDARY_LEVELS: readonly BoundaryLevel[] = [
   "module",
   "directory",
   "file",
+  "class",
 ];
 
 /**
@@ -46,12 +47,14 @@ export const BOUNDARY_LEVELS: readonly BoundaryLevel[] = [
 export type DisplayLevel =
   | "module"
   | "directory"
+  | "class"
   | "symbol"
   | "ast"
   | "cfg";
 export const DISPLAY_LEVELS: readonly DisplayLevel[] = [
   "module",
   "directory",
+  "class",
   "symbol",
   "ast",
   "cfg",
