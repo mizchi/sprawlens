@@ -12,7 +12,17 @@ import {
 import { centroid, containsPoint, type Ring } from "../kernel/polygon.js";
 import { createRng, type Rng } from "../kernel/rng.js";
 import { Controls, type PlaygroundParams } from "./Controls.tsx";
-import { makeTopAncestorOf } from "./mapShared.tsx";
+import {
+  INK,
+  makeTopAncestorOf,
+  MAP_BG,
+  MUTED_INK,
+  PAGE_BG,
+  PANEL_BG,
+  PANEL_BORDER,
+  SELECT_STROKE,
+  setMapTheme,
+} from "./mapShared.tsx";
 import {
   snapshotSymbolEdges,
   snapshotSymbols,
@@ -27,6 +37,7 @@ import {
   type RingsState,
 } from "./ringsController.ts";
 import {
+  applyTreemapChanges,
   createTreemapState,
   stepTreemapState,
   type TreemapState,
@@ -65,9 +76,9 @@ import { fetchCallHierarchy, refsToEdges } from "./callHierarchyClient.ts";
 import { cfgRequestOf, fetchCfg } from "./cfgClient.ts";
 import type { CfgEntry } from "./CfgLayer.tsx";
 import type { DetailGraph } from "../contracts/detail.js";
+import { diffGraphs, isEmptyDelta } from "../contracts/delta.js";
 import {
   buildHistoryIndex,
-  diffGraphs,
   type HistoryEntry,
   type HistoryIndex,
 } from "./history.ts";
@@ -125,9 +136,10 @@ function Section(props: {
       open={open}
       onToggle={(e) => setOpen((e.target as HTMLDetailsElement).open)}
       style={{
-        background: "#f8fafc",
+        background: MAP_BG,
+        color: INK,
         borderRadius: "6px",
-        border: "1px solid #cbd5e1",
+        border: `1px solid ${PANEL_BORDER}`,
         padding: "6px 8px",
         minWidth: "0",
         maxHeight: "100%",
@@ -158,6 +170,9 @@ export function App() {
     source: "sprawlens",
     layout: "rings",
     boundaries: ["module"],
+    dark:
+      typeof matchMedia !== "undefined" &&
+      matchMedia("(prefers-color-scheme: dark)").matches,
     displayLevels: ["module", "file", "symbol"],
     omit: [],
     omitModules: [],
@@ -234,6 +249,8 @@ export function App() {
       clearTimeout(timer);
     };
   }, []);
+  // swap the live-binding palette before any child reads it this render
+  setMapTheme(params.dark);
   /** Leaf unit, derived from the checked display levels. */
   const granularity = granularityOf(params.displayLevels);
   const mutationRng = useRef<Rng>(createRng(0xc0ffee));
@@ -609,6 +626,12 @@ export function App() {
           effectiveGraph(paramsRef.current),
           ringsOptions(paramsRef.current),
         );
+      } else if (treemapRef.current) {
+        treemapRef.current = applyTreemapChanges(
+          treemapRef.current,
+          effectiveGraph(paramsRef.current),
+          treemapOptions(paramsRef.current),
+        );
       } else {
         rebuild(paramsRef.current);
         return;
@@ -704,8 +727,14 @@ export function App() {
       // frame, the melt animation just interpolates visually coarser.
       if (outerActive || innerActive) {
         repaintSkipRef.current++;
-        const big = outerCells.length > 600;
-        if (!big || repaintSkipRef.current >= 3 || !outerActive) {
+        // information-scaled repaint cadence: a full SVG re-render costs in
+        // proportion to the live element count, so the denser the map the
+        // fewer frames we actually commit while solving. The solver still
+        // advances every tick — only the visual melt interpolates coarser.
+        const cells = outerCells.length + innerCellsRef.current.length;
+        const repaintEvery =
+          cells > 4000 ? 6 : cells > 1500 ? 4 : cells > 600 ? 3 : 1;
+        if (repaintSkipRef.current >= repaintEvery || !outerActive) {
           repaintSkipRef.current = 0;
           setFrame((f) => f + 1);
         }
@@ -734,8 +763,8 @@ export function App() {
       );
     }
     if (treemapRef.current) {
-      // no warm path yet: module cells move anyway when weights shift
-      treemapRef.current = createTreemapState(
+      treemapRef.current = applyTreemapChanges(
+        treemapRef.current,
         effectiveGraph(paramsRef.current),
         treemapOptions(paramsRef.current),
       );
@@ -751,6 +780,72 @@ export function App() {
    * Display another commit of the loaded history: the commit's own diff
    * drives the highlight, and the warm-started re-flow IS the animation.
    */
+  /**
+   * Fold a working-tree diff into the displayed graph and warm-apply it:
+   * modified files re-target their cell area by new LOC, added files slot
+   * into their module, removed files (and their edges) drop. Edges are not
+   * re-derived here (file-level scaffold); the diff contract drives both
+   * the inner-layout invalidation and the warm re-flow.
+   */
+  const applyWorkingTreeDiff = (diff: {
+    changed: Record<string, "added" | "modified">;
+    removed: string[];
+    loc?: Record<string, number>;
+  }) => {
+    const prev = graphRef.current;
+    const byId = new Map(prev.nodes.map((n) => [n.id, n]));
+    const loc = diff.loc ?? {};
+    const removed = new Set(diff.removed.filter((id) => byId.has(id)));
+    const nodes: AtlasNode[] = [];
+    for (const node of prev.nodes) {
+      if (removed.has(node.id)) continue;
+      const next = loc[node.id];
+      if (next != null && Math.max(next, 1) !== node.metrics.loc) {
+        nodes.push({ ...node, metrics: { ...node.metrics, loc: Math.max(next, 1) } });
+      } else {
+        nodes.push(node);
+      }
+    }
+    for (const [path, kind] of Object.entries(diff.changed)) {
+      if (kind === "added" && !byId.has(path) && loc[path] != null) {
+        nodes.push({
+          id: path,
+          kind: "file",
+          label: path.split("/").pop() ?? path,
+          metrics: { loc: Math.max(loc[path], 1) },
+        });
+      }
+    }
+    const nextGraph: AtlasGraph = {
+      nodes,
+      edges: prev.edges.filter(
+        (e) => !removed.has(e.source) && !removed.has(e.target),
+      ),
+    };
+    const delta = diffGraphs(prev, nextGraph);
+    if (isEmptyDelta(delta)) return;
+    for (const node of delta.added) innerLayoutsRef.current.delete(node.id);
+    for (const node of delta.modified) innerLayoutsRef.current.delete(node.id);
+    for (const id of delta.removed) innerLayoutsRef.current.delete(id);
+    innerDirtyRef.current = true;
+    graphRef.current = nextGraph;
+    refreshGraphLookups();
+    if (ringsRef.current) {
+      ringsRef.current = applyRingsChanges(
+        ringsRef.current,
+        effectiveGraph(paramsRef.current),
+        ringsOptions(paramsRef.current),
+      );
+    } else if (treemapRef.current) {
+      treemapRef.current = applyTreemapChanges(
+        treemapRef.current,
+        effectiveGraph(paramsRef.current),
+        treemapOptions(paramsRef.current),
+      );
+    }
+    setFrame((f) => f + 1);
+  };
+
   const goToCommit = (index: number) => {
     const history = commitsRef.current;
     if (!history || index < 0 || index >= history.length) return;
@@ -760,7 +855,8 @@ export function App() {
     // invalidation must compare displayed vs next (symbol ids carry line
     // numbers); the highlight uses the commit-vs-parent diff instead
     const scrub = diffGraphs(graphRef.current, nextGraph);
-    for (const [id] of scrub.changed) innerLayoutsRef.current.delete(id);
+    for (const node of scrub.added) innerLayoutsRef.current.delete(node.id);
+    for (const node of scrub.modified) innerLayoutsRef.current.delete(node.id);
     for (const id of scrub.removed) innerLayoutsRef.current.delete(id);
     innerDirtyRef.current = true;
     applyCommitDiff(index);
@@ -778,7 +874,8 @@ export function App() {
         ringsOptions(paramsRef.current),
       );
     } else if (treemapRef.current) {
-      treemapRef.current = createTreemapState(
+      treemapRef.current = applyTreemapChanges(
+        treemapRef.current,
         effectiveGraph(paramsRef.current),
         treemapOptions(paramsRef.current),
       );
@@ -1383,7 +1480,15 @@ export function App() {
       const diff = JSON.parse(event.data) as {
         changed: Record<string, "added" | "modified">;
         removed: string[];
+        loc?: Record<string, number>;
       };
+      // incremental recompute: turn the working-tree diff into a graph
+      // delta and warm-apply it so edited files re-flow in place. Gated by
+      // followChanges — off keeps the highlight-only behavior. The camera
+      // jump below stays gated the same way.
+      if (paramsRef.current.followChanges) {
+        applyWorkingTreeDiff(diff);
+      }
       const known = new Set(graphRef.current.nodes.map((n) => n.id));
       const next = new Map(
         Object.entries(diff.changed).filter(([id]) => known.has(id)),
@@ -1595,16 +1700,18 @@ export function App() {
         padding: "12px",
         boxSizing: "border-box",
         fontFamily: "Monaco, ui-monospace, Menlo, monospace",
-        background: "#e2e8f0",
+        background: PAGE_BG,
+        color: INK,
+        colorScheme: params.dark ? "dark" : "light",
       }}
     >
       <div
         ref={mapContainerRef}
         style={{
-          background: "#f8fafc",
+          background: MAP_BG,
           borderRadius: "8px",
           overflow: "hidden",
-          border: "1px solid #cbd5e1",
+          border: `1px solid ${PANEL_BORDER}`,
           position: "relative",
         }}
       >
@@ -1695,8 +1802,8 @@ export function App() {
               alignItems: "center",
               gap: "4px",
               padding: "4px 8px",
-              background: "rgba(248, 250, 252, 0.92)",
-              border: "1px solid #cbd5e1",
+              background: PANEL_BG,
+              border: `1px solid ${PANEL_BORDER}`,
               borderRadius: "6px",
               fontSize: "12px",
               maxWidth: "70%",
@@ -1757,8 +1864,8 @@ export function App() {
               alignItems: "center",
               gap: "8px",
               padding: "6px 10px",
-              background: "rgba(248, 250, 252, 0.92)",
-              border: "1px solid #cbd5e1",
+              background: PANEL_BG,
+              border: `1px solid ${PANEL_BORDER}`,
               borderRadius: "6px",
               fontSize: "12px",
             }}
@@ -1800,7 +1907,7 @@ export function App() {
                 "\n",
               )[0] ?? ""}
             </span>
-            <span style={{ color: "#64748b", whiteSpace: "nowrap" }}>
+            <span style={{ color: MUTED_INK, whiteSpace: "nowrap" }}>
               +{lastDiffRef.current.added} ~{lastDiffRef.current.modified} −
               {lastDiffRef.current.removed}
             </span>
@@ -1836,10 +1943,10 @@ export function App() {
                 padding: "2px 8px",
                 fontSize: "11px",
                 cursor: "pointer",
-                border: "1px solid #cbd5e1",
+                border: `1px solid ${PANEL_BORDER}`,
                 borderRadius: "4px",
-                background: panelPos === pos ? "#1d4ed8" : "#f8fafc",
-                color: panelPos === pos ? "#fff" : "#0f172a",
+                background: panelPos === pos ? SELECT_STROKE : MAP_BG,
+                color: panelPos === pos ? "#fff" : INK,
               }}
             >
               {pos}
@@ -1906,13 +2013,13 @@ export function App() {
                         : ""}
             </div>
             {granularity !== "symbol" ? (
-              <div style={{ color: "#64748b", wordBreak: "break-all" }}>
+              <div style={{ color: MUTED_INK, wordBreak: "break-all" }}>
                 {activeId}
               </div>
             ) : null}
             {selectedIds.length > 1 ? (
               <div style={{ marginTop: "4px" }}>
-                <div style={{ color: "#64748b" }}>
+                <div style={{ color: MUTED_INK }}>
                   選択中 {selectedIds.length} 件 (shift+クリックで増減):
                 </div>
                 {selectedIds.map((id) => (
@@ -2022,7 +2129,7 @@ export function App() {
                         }}
                       >
                         <span style={{ color: marker[1] }}>{marker[0]}</span>{" "}
-                        <span style={{ color: "#64748b" }}>
+                        <span style={{ color: MUTED_INK }}>
                           {commit.shortHash}
                         </span>{" "}
                         {commit.message.split("\n")[0]}
