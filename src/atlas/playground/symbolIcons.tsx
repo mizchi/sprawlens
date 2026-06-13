@@ -52,6 +52,52 @@ const GLYPH_PATHS: Record<Exclude<SymbolGlyph, "component">, string[]> = {
   ],
 };
 
+/**
+ * A symbol's label with its kind icon to the left, both in the kind color,
+ * centered horizontally at `cx` (the cell site) and vertically on `cy`. The
+ * unit is laid out left-anchored, then shifted so it reads centered — text
+ * width is estimated from the name length (no DOM measuring on the map).
+ */
+export function SymbolTag(props: {
+  cx: number;
+  cy: number;
+  name: string;
+  glyph: SymbolGlyph | null;
+  /** Font size in world units. */
+  fontSize: number;
+  color: string;
+  opacity?: number;
+}) {
+  const { cx, cy, name, glyph, fontSize, color, opacity } = props;
+  const iconSize = fontSize * 1.1;
+  const gap = fontSize * 0.28;
+  const textW = name.length * fontSize * 0.55; // rough proportional-font width
+  const total = (glyph ? iconSize + gap : 0) + textW;
+  const left = cx - total / 2;
+  return (
+    <g opacity={opacity ?? 1} style={{ pointerEvents: "none" }}>
+      {glyph ? (
+        <SymbolIcon
+          glyph={glyph}
+          cx={left + iconSize / 2}
+          cy={cy}
+          size={iconSize}
+          color={color}
+        />
+      ) : null}
+      <text
+        x={glyph ? left + iconSize + gap : left}
+        y={cy + fontSize * 0.34}
+        font-size={fontSize}
+        text-anchor="start"
+        fill={color}
+      >
+        {name}
+      </text>
+    </g>
+  );
+}
+
 /** Render a glyph as a screen-constant icon centered at (cx, cy) (world). */
 export function SymbolIcon(props: {
   glyph: SymbolGlyph;

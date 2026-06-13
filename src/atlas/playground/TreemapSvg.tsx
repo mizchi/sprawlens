@@ -1,6 +1,6 @@
 import { useMemo, useRef, useState } from "preact/hooks";
 import type { AtlasEdge, SymbolKind } from "../contracts/graph.js";
-import { SymbolIcon, symbolGlyphOf } from "./symbolIcons.tsx";
+import { SymbolTag, symbolGlyphOf } from "./symbolIcons.tsx";
 import type { CellResult } from "../kernel/capacityLayout.js";
 import type { Vec2 } from "../kernel/vec.js";
 import { CfgLayer, cfgAnchorsOf, type CfgEntry } from "./CfgLayer.tsx";
@@ -97,6 +97,8 @@ type Props = {
 const MIN_CELL_PX = 2.5;
 /** Edges shorter than this on screen are sub-pixel noise. */
 const MIN_EDGE_PX = 6;
+/** Symbol cells at least this big on screen show their classification tag. */
+const SYMBOL_ICON_MIN_PX = 26;
 
 export function TreemapSvg(props: Props) {
   const { state, width, height, selectedId, onSelect } = props;
@@ -459,28 +461,35 @@ export function TreemapSvg(props: Props) {
             const dominant =
               Math.sqrt(cell.actualArea) * zoom >=
               Math.min(width, height) * SYMBOL_DOMINANT_FRACTION;
-            if (!fileSelected && !dominant && !isSelected(cell.id)) {
+            const roomy =
+              zoom >= SYMBOL_ZOOM &&
+              Math.sqrt(cell.actualArea) * zoom >= SYMBOL_ICON_MIN_PX;
+            if (!fileSelected && !dominant && !roomy && !isSelected(cell.id)) {
               return null;
             }
             const fontSize = Math.min(
               Math.max(Math.sqrt(cell.actualArea) * 0.3, 9 / zoom),
               13 / zoom,
             );
+            const name = labelOf(cell.id);
+            const glyph = symbolGlyphOf(props.symbolKindOf?.(cell.id), name);
             return (
-              <text
+              <SymbolTag
                 key={cell.id}
-                x={cell.site.x}
-                y={cell.site.y - 4 / zoom}
-                font-size={fontSize}
-                fill={
-                  props.exportedIds?.has(cell.id)
-                    ? EXPORTED_LABEL
-                    : INTERNAL_LABEL
+                cx={cell.site.x}
+                cy={cell.site.y - 4 / zoom}
+                name={name}
+                glyph={glyph}
+                fontSize={fontSize}
+                color={
+                  glyph
+                    ? SYMBOL_KIND_COLORS[glyph]!
+                    : props.exportedIds?.has(cell.id)
+                      ? EXPORTED_LABEL
+                      : INTERNAL_LABEL
                 }
                 opacity={dim.symbol(cell.id)}
-              >
-                {labelOf(cell.id)}
-              </text>
+              />
             );
           })}
         </g>
@@ -654,17 +663,23 @@ export function TreemapSvg(props: Props) {
             Math.max(Math.sqrt(cell.actualArea) * 0.14, 9 / zoom),
             18 / zoom,
           );
+          const name = labelOf(cell.id);
+          // symbol leaves get their kind icon + matching ink; files stay plain
+          const glyph =
+            props.leafKind === "symbol"
+              ? symbolGlyphOf(props.symbolKindOf?.(cell.id), name)
+              : null;
           return (
-            <text
+            <SymbolTag
               key={cell.id}
-              x={cell.site.x}
-              y={cell.site.y}
-              font-size={fontSize}
-              font-weight={isSelected(cell.id) ? "700" : "400"}
-              fill-opacity={fileOpacity(cell.id)}
-            >
-              {labelOf(cell.id)}
-            </text>
+              cx={cell.site.x}
+              cy={cell.site.y}
+              name={name}
+              glyph={glyph}
+              fontSize={fontSize}
+              color={glyph ? SYMBOL_KIND_COLORS[glyph]! : FILE_LABEL_INK}
+              opacity={fileOpacity(cell.id)}
+            />
           );
         })}
       </g>
@@ -690,36 +705,6 @@ export function TreemapSvg(props: Props) {
           zoom={zoom}
         />
       ))}
-      {/* classification icons: appear in the symbol layer on cells with room,
-          marking function/component/class/variable/type/... */}
-      {zoom >= SYMBOL_ZOOM
-        ? [
-            ...(props.leafKind === "symbol" ? visibleFileCells : []),
-            ...visibleInnerCells,
-          ].map((cell) => {
-            if (cell.id.endsWith("#rest")) return null;
-            const screen = Math.sqrt(cell.actualArea) * zoom;
-            if (screen < 26) return null;
-            const glyph = symbolGlyphOf(
-              props.symbolKindOf?.(cell.id),
-              labelOf(cell.id),
-            );
-            if (!glyph) return null;
-            const size = Math.min(22, Math.max(12, screen * 0.2)) / zoom;
-            const cy =
-              cell.site.y - Math.min(Math.sqrt(cell.actualArea) * 0.4, 40 / zoom);
-            return (
-              <SymbolIcon
-                key={cell.id}
-                glyph={glyph}
-                cx={cell.site.x}
-                cy={cy}
-                size={size}
-                color={SYMBOL_KIND_COLORS[glyph]!}
-              />
-            );
-          })
-        : null}
     </svg>
   );
 }

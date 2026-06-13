@@ -1,6 +1,6 @@
 import { useMemo, useRef, useState } from "preact/hooks";
 import type { AtlasEdge, SymbolKind } from "../contracts/graph.js";
-import { SymbolIcon, symbolGlyphOf } from "./symbolIcons.tsx";
+import { SymbolTag, symbolGlyphOf } from "./symbolIcons.tsx";
 import type { CellResult } from "../kernel/capacityLayout.js";
 import type { Vec2 } from "../kernel/vec.js";
 import type { RingsState } from "./ringsController.ts";
@@ -1251,10 +1251,16 @@ export function RingsMapSvg(props: Props) {
               const dominant =
                 Math.sqrt(cell.actualArea) * zoom >=
                 Math.min(width, height) * SYMBOL_DOMINANT_FRACTION;
+              // in the symbol layer, any cell with room shows its tag so the
+              // classification reads across the view, not just on the focus
+              const roomy =
+                symbolMode &&
+                Math.sqrt(cell.actualArea) * zoom >= SYMBOL_ICON_MIN_PX;
               if (
                 !linked &&
                 !fileSelected &&
                 !dominant &&
+                !roomy &&
                 cell.id !== selectedId
               )
                 return null;
@@ -1266,47 +1272,25 @@ export function RingsMapSvg(props: Props) {
                 200,
               );
               if (fontSize === null) return null;
+              const name = labels.get(cell.id) ?? fallbackLabel(cell.id);
+              const glyph = symbolGlyphOf(props.symbolKindOf?.(cell.id), name);
               return (
-                <text
+                <SymbolTag
                   key={cell.id}
-                  x={cell.site.x}
-                  y={cell.site.y - screenRadius(4)}
-                  font-size={fontSize}
-                  fill={exported ? EXPORTED_LABEL : INTERNAL_LABEL}
+                  cx={cell.site.x}
+                  cy={cell.site.y - screenRadius(4)}
+                  name={name}
+                  glyph={glyph}
+                  fontSize={fontSize}
+                  color={
+                    glyph
+                      ? SYMBOL_KIND_COLORS[glyph]!
+                      : exported
+                        ? EXPORTED_LABEL
+                        : INTERNAL_LABEL
+                  }
                   opacity={symbolOpacity(cell.id)}
-                >
-                  {labels.get(cell.id) ?? fallbackLabel(cell.id)}
-                </text>
-              );
-            })
-          : null}
-        {/* classification icons: appear in the symbol layer on cells with
-            room, marking function/component/class/variable/type/... */}
-        {symbolMode
-          ? visibleInnerCells.map((cell) => {
-              if (cell.id.endsWith("#rest")) return null;
-              const screen = Math.sqrt(cell.actualArea) * zoom;
-              if (screen < SYMBOL_ICON_MIN_PX) return null;
-              const glyph = symbolGlyphOf(
-                props.symbolKindOf?.(cell.id),
-                labels.get(cell.id) ?? fallbackLabel(cell.id),
-              );
-              if (!glyph) return null;
-              // screen-constant size, a little larger for bigger cells
-              const size = Math.min(22, Math.max(12, screen * 0.2)) / zoom;
-              // sit above the (centered) label so the two don't collide
-              const cy =
-                cell.site.y - Math.min(Math.sqrt(cell.actualArea) * 0.4, 40 / zoom);
-              return (
-                <g key={cell.id} opacity={symbolOpacity(cell.id)}>
-                  <SymbolIcon
-                    glyph={glyph}
-                    cx={cell.site.x}
-                    cy={cy}
-                    size={size}
-                    color={SYMBOL_KIND_COLORS[glyph]!}
-                  />
-                </g>
+                />
               );
             })
           : null}
