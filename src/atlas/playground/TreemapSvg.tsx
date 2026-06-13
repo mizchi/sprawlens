@@ -75,11 +75,12 @@ type Props = {
   height: number;
   selectedId: string | null;
   selectedIds?: Set<string>;
-  /** The picked dependency edge (proximity click); raised above the map. */
-  selectedEdge?: { source: string; target: string } | null;
+  /** Picked dependency edges (proximity click); raised above the map. */
+  selectedEdges?: { source: string; target: string }[];
   onSelect: (id: string | null, additive?: boolean) => void;
-  /** Pick the dependency edge nearest a background click. */
-  onSelectEdge?: (source: string, target: string) => void;
+  /** Pick the dependency edge nearest a background click; shift adds it to
+   * the multi-selection. */
+  onSelectEdge?: (source: string, target: string, additive?: boolean) => void;
   /** Fly the camera to an element (off-screen dependency name click). */
   onFocusId?: (id: string) => void;
   focusRequest?: FocusRequest | null;
@@ -105,8 +106,12 @@ export function TreemapSvg(props: Props) {
     props.visibleLevels?.has(kind) ?? true;
   const leafVisible = levelVisible(props.leafKind ?? "file");
   const onSelectEdge = props.onSelectEdge;
-  const selectedEdge = props.selectedEdge ?? null;
-  const pickEdgeRef = useRef<(x: number, y: number) => boolean>(() => false);
+  const selectedEdges = props.selectedEdges ?? [];
+  const isSelectedEdge = (s: string, t: string) =>
+    selectedEdges.some((e) => e.source === s && e.target === t);
+  const pickEdgeRef = useRef<(x: number, y: number, shift: boolean) => boolean>(
+    () => false,
+  );
   const hoverEdgeRef = useRef<(x: number, y: number) => void>(() => {});
   const { svgProps, zoom, committedView, clientToWorld, toViewScale } =
     useMapViewport({
@@ -114,7 +119,7 @@ export function TreemapSvg(props: Props) {
       height,
       focusRequest: props.focusRequest,
       onViewSettle: props.onViewSettle,
-      onPickEdge: (x, y) => pickEdgeRef.current(x, y),
+      onPickEdge: (x, y, shift) => pickEdgeRef.current(x, y, shift),
       onHover: (x, y) => hoverEdgeRef.current(x, y),
     });
   const [hoveredEdge, setHoveredEdge] = useState<{
@@ -264,11 +269,11 @@ export function TreemapSvg(props: Props) {
     );
     return hit ? { source: hit.source, target: hit.target } : null;
   };
-  pickEdgeRef.current = (clientX, clientY) => {
+  pickEdgeRef.current = (clientX, clientY, shift) => {
     if (!onSelectEdge) return false;
     const hit = resolveEdgeAt(clientX, clientY);
     if (!hit) return false;
-    onSelectEdge(hit.source, hit.target);
+    onSelectEdge(hit.source, hit.target, shift);
     return true;
   };
   // hover preview: surface the edge a click would pick (and a pointer cursor)
@@ -548,10 +553,7 @@ export function TreemapSvg(props: Props) {
         </g>
       ) : null}
       {/* hover preview: a faint accent over the edge a click would pick */}
-      {hoveredEdge &&
-      (!selectedEdge ||
-        hoveredEdge.source !== selectedEdge.source ||
-        hoveredEdge.target !== selectedEdge.target)
+      {hoveredEdge && !isSelectedEdge(hoveredEdge.source, hoveredEdge.target)
         ? (() => {
             const bundle = bundleOf({
               source: hoveredEdge.source,
@@ -568,34 +570,33 @@ export function TreemapSvg(props: Props) {
       {/* picked edge, raised above the districts: bold accented stroke with
           its endpoint districts outlined (pointer-through so cells stay
           clickable) */}
-      {selectedEdge
-        ? (() => {
-            const bundle = bundleOf({
-              source: selectedEdge.source,
-              target: selectedEdge.target,
-            });
-            if (!bundle) return null;
-            return (
-              <g style={{ pointerEvents: "none" }}>
-                <RaisedEdgePath d={bundle.d} />
-                {[selectedEdge.source, selectedEdge.target].map((id) => {
-                  const top = topAncestorOf(id);
-                  const cell = top ? topCells.get(top) : null;
-                  if (!cell || cell.polygon.length < 3) return null;
-                  return (
-                    <polygon
-                      key={id}
-                      points={cell.polygon.map((p) => `${p.x},${p.y}`).join(" ")}
-                      fill="none"
-                      stroke={SELECT_STROKE}
-                      stroke-width={3}
-                    />
-                  );
-                })}
-              </g>
-            );
-          })()
-        : null}
+      {selectedEdges.map((selectedEdge) => {
+        const key = `${selectedEdge.source}->${selectedEdge.target}`;
+        const bundle = bundleOf({
+          source: selectedEdge.source,
+          target: selectedEdge.target,
+        });
+        if (!bundle) return null;
+        return (
+          <g key={key} style={{ pointerEvents: "none" }}>
+            <RaisedEdgePath d={bundle.d} />
+            {[selectedEdge.source, selectedEdge.target].map((id) => {
+              const top = topAncestorOf(id);
+              const cell = top ? topCells.get(top) : null;
+              if (!cell || cell.polygon.length < 3) return null;
+              return (
+                <polygon
+                  key={id}
+                  points={cell.polygon.map((p) => `${p.x},${p.y}`).join(" ")}
+                  fill="none"
+                  stroke={SELECT_STROKE}
+                  stroke-width={3}
+                />
+              );
+            })}
+          </g>
+        );
+      })}
       {/* top-level labels */}
       <g
         text-anchor="middle"

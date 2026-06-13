@@ -101,11 +101,12 @@ type Props = {
   selectedId: string | null;
   /** Full multi-selection (shift+click); selectedId is its primary. */
   selectedIds?: Set<string>;
-  /** The picked dependency edge (proximity click); raised above the map. */
-  selectedEdge?: { source: string; target: string } | null;
+  /** Picked dependency edges (proximity click); raised above the map. */
+  selectedEdges?: { source: string; target: string }[];
   onSelect: (id: string | null, additive?: boolean) => void;
-  /** Pick the dependency edge nearest a background click. */
-  onSelectEdge?: (source: string, target: string) => void;
+  /** Pick the dependency edge nearest a background click; shift adds it to
+   * the multi-selection. */
+  onSelectEdge?: (source: string, target: string, additive?: boolean) => void;
   /** Fly the camera to an element (off-screen dependency name click). */
   onFocusId?: (id: string) => void;
   focusRequest: FocusRequest | null;
@@ -174,10 +175,14 @@ export function RingsMapSvg(props: Props) {
   const cyclicIds = props.cyclicIds ?? new Set<string>();
   const cyclicModuleIds = props.cyclicModuleIds ?? new Set<string>();
   const onSelectEdge = props.onSelectEdge;
-  const selectedEdge = props.selectedEdge ?? null;
+  const selectedEdges = props.selectedEdges ?? [];
+  const isSelectedEdge = (s: string, t: string) =>
+    selectedEdges.some((e) => e.source === s && e.target === t);
   // assigned below once geometry is in scope; the hook calls them in the
   // click capture / hover phases so edges win over the shapes beneath them
-  const pickEdgeRef = useRef<(x: number, y: number) => boolean>(() => false);
+  const pickEdgeRef = useRef<(x: number, y: number, shift: boolean) => boolean>(
+    () => false,
+  );
   const hoverEdgeRef = useRef<(x: number, y: number) => void>(() => {});
   const { svgProps, committedView, zoom, clientToWorld, toViewScale } =
     useMapViewport({
@@ -185,7 +190,7 @@ export function RingsMapSvg(props: Props) {
       height,
       focusRequest,
       onViewSettle,
-      onPickEdge: (x, y) => pickEdgeRef.current(x, y),
+      onPickEdge: (x, y, shift) => pickEdgeRef.current(x, y, shift),
       onHover: (x, y) => hoverEdgeRef.current(x, y),
     });
   const [hoveredEdge, setHoveredEdge] = useState<{
@@ -499,11 +504,11 @@ export function RingsMapSvg(props: Props) {
     );
     return hit ? { source: hit.source, target: hit.target } : null;
   };
-  pickEdgeRef.current = (clientX, clientY) => {
+  pickEdgeRef.current = (clientX, clientY, shift) => {
     if (!onSelectEdge) return false;
     const hit = resolveEdgeAt(clientX, clientY);
     if (!hit) return false;
-    onSelectEdge(hit.source, hit.target);
+    onSelectEdge(hit.source, hit.target, shift);
     return true;
   };
   // hover preview: surface the edge a click would pick (and a pointer cursor).
@@ -918,10 +923,7 @@ export function RingsMapSvg(props: Props) {
         ) : null,
       )}
       {/* hover preview: a faint accent over the edge a click would pick */}
-      {hoveredEdge &&
-      (!selectedEdge ||
-        hoveredEdge.source !== selectedEdge.source ||
-        hoveredEdge.target !== selectedEdge.target)
+      {hoveredEdge && !isSelectedEdge(hoveredEdge.source, hoveredEdge.target)
         ? (() => {
             const a = rings.circles.get(hoveredEdge.source);
             const b = rings.circles.get(hoveredEdge.target);
@@ -973,8 +975,9 @@ export function RingsMapSvg(props: Props) {
       {/* picked edge, raised above unrelated modules: bold, arrowed, with its
           referenced symbols always shown (pointer-through so the endpoints
           underneath stay clickable) */}
-      {selectedEdge
-        ? (() => {
+      {selectedEdges.map((selectedEdge) => {
+        const key = `${selectedEdge.source}->${selectedEdge.target}`;
+        return (() => {
             const a = rings.circles.get(selectedEdge.source);
             const b = rings.circles.get(selectedEdge.target);
             if (a && b) {
@@ -1001,7 +1004,7 @@ export function RingsMapSvg(props: Props) {
               const fs = MACRO_LABEL_PX / zoom;
               const lines = extra > 0 ? [...shown, `+${extra} more`] : shown;
               return (
-                <g style={{ pointerEvents: "none" }}>
+                <g key={key} style={{ pointerEvents: "none" }}>
                   <line
                     x1={a.cx}
                     y1={a.cy}
@@ -1053,9 +1056,9 @@ export function RingsMapSvg(props: Props) {
               target: selectedEdge.target,
             });
             if (!bundle) return null;
-            return <RaisedEdgePath d={bundle.d} />;
-          })()
-        : null}
+            return <RaisedEdgePath key={key} d={bundle.d} />;
+          })();
+      })}
       {/* names of reference targets that left the screen, docked where
           their edge crosses the viewport border */}
       {(focus

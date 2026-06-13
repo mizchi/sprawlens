@@ -54,7 +54,11 @@ export function useMapViewport(options: {
   /** Edge proximity pick, run in the click capture phase before any node or
    * background handler. Returns true when it consumed the click (an edge was
    * near), so overlapping edges win over the filled shape beneath them. */
-  onPickEdge?: (clientX: number, clientY: number) => boolean;
+  onPickEdge?: (
+    clientX: number,
+    clientY: number,
+    shiftKey: boolean,
+  ) => boolean;
   /** Pointer hover (no button), for edge-proximity preview. Not fired while
    * panning. */
   onHover?: (clientX: number, clientY: number) => void;
@@ -200,7 +204,7 @@ export function useMapViewport(options: {
       }
       // edge picking runs first: a click within range of an edge selects it
       // and stops here, so it beats the filled district/circle underneath
-      if (onPickEdgeRef.current?.(e.clientX, e.clientY)) {
+      if (onPickEdgeRef.current?.(e.clientX, e.clientY, e.shiftKey)) {
         e.stopPropagation();
       }
     },

@@ -193,15 +193,17 @@ export function App() {
   // multi-select: ordered ids, last one is the primary (drives the detail
   // panel, breadcrumb, and labels); shift+click toggles membership
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
-  // edge selection is exclusive with node selection: picking one clears the
-  // other (see selectNode / selectEdge)
-  const [selectedEdge, setSelectedEdge] = useState<{
-    source: string;
-    target: string;
-  } | null>(null);
+  // edges are selectable elements alongside nodes; a selection can hold both.
+  // shift+click toggles membership (see selectNode / selectEdge), a plain
+  // click on either replaces the whole selection.
+  const [selectedEdges, setSelectedEdges] = useState<
+    { source: string; target: string }[]
+  >([]);
+  const edgeKey = (e: { source: string; target: string }) =>
+    `${e.source} ${e.target}`;
   const selectedId = selectedIds[selectedIds.length - 1] ?? null;
   const setSelectedId = (id: string | null) => {
-    setSelectedEdge(null);
+    setSelectedEdges([]);
     setSelectedIds(id === null ? [] : [id]);
   };
   const [focusId, setFocusId] = useState<string | null>(null);
@@ -1558,31 +1560,47 @@ export function App() {
   }, [leafGraph]);
 
   const selectNode = (id: string | null, additive = false) => {
-    setSelectedEdge(null);
     if (id === null) {
       setSelectedIds([]);
+      setSelectedEdges([]);
       // the dependency-path focus always tracks the selection — a stale
       // path over a different selection reads as a broken state
       setFocusId(null);
       return;
     }
     const resolved = id;
-    const next = !additive
-      ? [resolved]
-      : selectedIds.includes(resolved)
-        ? selectedIds.filter((x) => x !== resolved)
-        : [...selectedIds, resolved];
-    setSelectedIds(next);
-    if (focusId !== null) {
-      setFocusId(next[next.length - 1] ?? null);
+    if (additive) {
+      // toggle this node, keep any selected edges
+      setSelectedIds(
+        selectedIds.includes(resolved)
+          ? selectedIds.filter((x) => x !== resolved)
+          : [...selectedIds, resolved],
+      );
+      if (focusId !== null) setFocusId(resolved);
+      return;
     }
+    // plain click replaces the whole selection with this node
+    setSelectedEdges([]);
+    setSelectedIds([resolved]);
+    if (focusId !== null) setFocusId(resolved);
   };
 
-  /** Pick an edge: exclusive with node selection, and frame both endpoints. */
-  const selectEdge = (source: string, target: string) => {
+  /** Pick an edge as a selectable element. Shift+click toggles it into the
+   * mixed selection; a plain click replaces the selection and frames the
+   * edge's endpoints. */
+  const selectEdge = (source: string, target: string, additive = false) => {
+    const edge = { source, target };
+    if (additive) {
+      setSelectedEdges(
+        selectedEdges.some((e) => edgeKey(e) === edgeKey(edge))
+          ? selectedEdges.filter((e) => edgeKey(e) !== edgeKey(edge))
+          : [...selectedEdges, edge],
+      );
+      return;
+    }
     setSelectedIds([]);
     setFocusId(null);
-    setSelectedEdge({ source, target });
+    setSelectedEdges([edge]);
     // zoom to the bbox spanning the two endpoints (generic multi-element fit)
     focusOnIds([source, target], 1.4);
   };
@@ -1592,7 +1610,7 @@ export function App() {
     const onKey = (e: KeyboardEvent) => {
       if (e.key === "Escape") {
         setSelectedIds([]);
-        setSelectedEdge(null);
+        setSelectedEdges([]);
         setFocusId(null);
       }
     };
@@ -1898,7 +1916,7 @@ export function App() {
             height={HEIGHT}
             selectedId={activeId}
             selectedIds={selectedIdSet}
-            selectedEdge={selectedEdge}
+            selectedEdges={selectedEdges}
             onSelect={selectNode}
             onSelectEdge={selectEdge}
             onFocusId={jumpTo}
@@ -1931,7 +1949,7 @@ export function App() {
             height={mapSize.height}
             selectedId={activeId}
             selectedIds={selectedIdSet}
-            selectedEdge={selectedEdge}
+            selectedEdges={selectedEdges}
             onSelect={selectNode}
             onSelectEdge={selectEdge}
             onFocusId={jumpTo}
