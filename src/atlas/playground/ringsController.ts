@@ -22,8 +22,12 @@ import {
   embedSeedHints,
   forceIterationsFor,
 } from "../kernel/pipeline.js";
+import {
+  centralityRings,
+  dependentWeights,
+  importanceScore,
+} from "../kernel/centrality.js";
 import { ringLayout, type PlacedCircle } from "../kernel/ringLayout.js";
-import { topoRank } from "../kernel/topoRank.js";
 import {
   DECLUMP_ITERATIONS,
   seedLeafLayout,
@@ -108,9 +112,20 @@ function placeCircles(
     nativeEdges: options.nativeEdges,
   });
   const top = tree.levels[0]!;
-  const ranks = topoRank(
+  // importance = transitive dependents scaled by √area (importanceScore):
+  // the foundation everything leans on wins the center, the rest fall into
+  // rings of decreasing importance
+  const dependents = dependentWeights(
     top.nodes.map((m) => m.id),
     top.edges,
+    () => 1,
+  );
+  const ranks = centralityRings(
+    top.nodes.map((m) => ({
+      id: m.id,
+      area: m.metrics.loc,
+      centrality: importanceScore(dependents.get(m.id) ?? 1, m.metrics.loc),
+    })),
   );
   const placed = ringLayout(
     top.nodes.map((m) => ({

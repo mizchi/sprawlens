@@ -13,6 +13,8 @@ export type RingOptions = {
   gapRatio?: number;
 };
 
+import { barycentricRingOrder } from "./ringOrder.js";
+
 export type PlacedCircle = { cx: number; cy: number; r: number; rank: number };
 
 export type RingLayoutResult = {
@@ -50,6 +52,13 @@ export function ringLayout(
     if (ring) ring.push(module);
     else rings.set(index, [module]);
   }
+
+  // crossing-reduced angular order per ring (iterated radial barycenter)
+  const byId = new Map(modules.map((m) => [m.id, m]));
+  const ordering = barycentricRingOrder(
+    new Map([...rings].map(([i, ms]) => [i, ms.map((m) => m.id)])),
+    edges,
+  );
 
   const neighborAngles = new Map<string, number[]>();
   const noteNeighbor = (id: string, angle: number) => {
@@ -99,14 +108,7 @@ export function ringLayout(
       return Math.atan2(sy, sx);
     };
 
-    const ordered = [...ring].sort((a, b) => {
-      const pa = placedEdgeAngle(a.id);
-      const pb = placedEdgeAngle(b.id);
-      if (pa === null && pb === null) return a.id < b.id ? -1 : 1;
-      if (pa === null) return 1;
-      if (pb === null) return -1;
-      return pa - pb;
-    });
+    const ordered = ordering.get(ringIndex)!.map((id) => byId.get(id)!);
 
     // angular slot width proportional to diameter + gap
     const widths = ordered.map((m) => 2 * radii.get(m.id)! + gap);
