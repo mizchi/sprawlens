@@ -228,4 +228,74 @@ describe("grid-pruned path equals brute force", () => {
       return area / 2;
     }
   });
+
+  // the early-stop bound uses the global max weight; a wide weight spread is
+  // the worst case for it, so check several seeds and spreads against an
+  // order-independent reference for both area and neighbor labels
+  for (const [seed, spread] of [
+    [1, 0],
+    [2, 5],
+    [3, 60],
+    [4, 200],
+  ] as const) {
+    it(`matches brute force on areas and neighbors (seed=${seed}, spread=${spread})`, () => {
+      const rng = createRng(seed);
+      const sites: PowerSite[] = Array.from({ length: 150 }, (_, i) => ({
+        id: `s${i}`,
+        x: rng() * 100,
+        y: rng() * 100,
+        weight: (rng() - 0.5) * spread,
+      }));
+      const clip: Ring = [
+        { x: 0, y: 0 },
+        { x: 100, y: 0 },
+        { x: 100, y: 100 },
+        { x: 0, y: 100 },
+      ];
+      const fast = computePowerDiagram(sites, clip);
+      const halfPlane = (cell: Vec2[], nx: number, ny: number, c: number) => {
+        const out: Vec2[] = [];
+        for (let i = 0; i < cell.length; i++) {
+          const cur = cell[i]!;
+          const next = cell[(i + 1) % cell.length]!;
+          const curD = nx * cur.x + ny * cur.y - c;
+          const nextD = nx * next.x + ny * next.y - c;
+          if (curD <= 0) out.push(cur);
+          if ((curD <= 0) !== (nextD <= 0)) {
+            const t = curD / (curD - nextD);
+            out.push({
+              x: cur.x + (next.x - cur.x) * t,
+              y: cur.y + (next.y - cur.y) * t,
+            });
+          }
+        }
+        return out.length < 3 ? [] : out;
+      };
+      const area = (ring: Vec2[]): number => {
+        let a = 0;
+        for (let i = 0; i < ring.length; i++) {
+          const p = ring[i]!;
+          const q = ring[(i + 1) % ring.length]!;
+          a += p.x * q.y - q.x * p.y;
+        }
+        return Math.abs(a / 2);
+      };
+      for (let i = 0; i < sites.length; i++) {
+        const a = sites[i]!;
+        let cell: Vec2[] = clip.map((p) => ({ ...p }));
+        for (let j = 0; j < sites.length && cell.length > 0; j++) {
+          if (j === i) continue;
+          const b = sites[j]!;
+          cell = halfPlane(
+            cell,
+            2 * (b.x - a.x),
+            2 * (b.y - a.y),
+            b.x * b.x + b.y * b.y - (a.x * a.x + a.y * a.y) + a.weight - b.weight,
+          );
+        }
+        const expected = cell.length >= 3 ? area(cell) : 0;
+        expect(fast[i]!.area).toBeCloseTo(expected, 5);
+      }
+    });
+  }
 });
