@@ -293,8 +293,12 @@ describe("classGrouping", () => {
     expect(g.groupOf(staticProp)).toBe("class:src/a.ts:Widget");
     expect(g.labelOf!(g.groupOf(cls))).toBe("Widget");
   });
-  it("leaves a non-class top-level symbol in its own group", () => {
+  it("buckets a non-class top-level symbol by its parent file", () => {
+    // a shared file bucket (not a per-symbol singleton) keeps loose symbols
+    // in a melting leaf layout instead of a frozen intermediate district
     const fn = "symbol:src/a.ts:function:helper:1";
-    expect(g.groupOf(fn)).toBe(fn);
+    const other = "symbol:src/a.ts:variable:CONST:9";
+    expect(g.groupOf(fn)).toBe("src/a.ts");
+    expect(g.groupOf(other)).toBe("src/a.ts");
   });
 });
