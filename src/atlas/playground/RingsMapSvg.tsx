@@ -43,6 +43,7 @@ import {
 } from "./mapShared.tsx";
 import { symbolNameOf } from "./cfgClient.ts";
 import {
+  EDGE_PICK_DOMINANCE,
   EDGE_PICK_PX,
   pickNearestEdge,
   type EdgePickCandidate,
@@ -393,6 +394,7 @@ export function RingsMapSvg(props: Props) {
       world,
       pickCandidates,
       EDGE_PICK_PX * toViewScale(),
+      EDGE_PICK_DOMINANCE,
     );
     return hit ? { source: hit.source, target: hit.target } : null;
   };
@@ -938,22 +940,42 @@ export function RingsMapSvg(props: Props) {
               const len = Math.hypot(dx, dy) || 1;
               const ux = dx / len;
               const uy = dy / len;
+              const x1 = a.cx + ux * a.r;
+              const y1 = a.cy + uy * a.r;
+              const x2 = b.cx - ux * b.r;
+              const y2 = b.cy - uy * b.r;
+              // a wide translucent halo signals the fat grab zone, a crisp
+              // core says exactly which edge a click would take
               return (
-                <line
-                  x1={a.cx + ux * a.r}
-                  y1={a.cy + uy * a.r}
-                  x2={b.cx - ux * b.r}
-                  y2={b.cy - uy * b.r}
-                  stroke={ACTIVE_EDGE}
-                  stroke-width={2}
-                  stroke-opacity={0.5}
-                  style={{ pointerEvents: "none" }}
-                />
+                <g style={{ pointerEvents: "none" }}>
+                  <line
+                    x1={x1}
+                    y1={y1}
+                    x2={x2}
+                    y2={y2}
+                    stroke={ACTIVE_EDGE}
+                    stroke-width={8}
+                    stroke-opacity={0.2}
+                    stroke-linecap="round"
+                  />
+                  <line
+                    x1={x1}
+                    y1={y1}
+                    x2={x2}
+                    y2={y2}
+                    stroke={ACTIVE_EDGE}
+                    stroke-width={2.5}
+                    stroke-opacity={0.85}
+                  />
+                </g>
               );
             }
             const bundle = bundleOf(hoveredEdge);
             return bundle ? (
-              <RaisedEdgePath d={bundle.d} width={1.6} />
+              <g style={{ pointerEvents: "none" }}>
+                <RaisedEdgePath d={bundle.d} width={8} opacity={0.2} />
+                <RaisedEdgePath d={bundle.d} width={2} opacity={0.85} />
+              </g>
             ) : null;
           })()
         : null}

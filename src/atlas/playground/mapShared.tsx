@@ -628,6 +628,7 @@ export function RaisedEdgePath(props: {
   d: string;
   color?: string;
   width?: number;
+  opacity?: number;
 }) {
   return (
     <path
@@ -635,7 +636,8 @@ export function RaisedEdgePath(props: {
       fill="none"
       stroke={props.color ?? ACTIVE_EDGE}
       stroke-width={props.width ?? 2.4}
-      stroke-opacity={0.95}
+      stroke-opacity={props.opacity ?? 0.95}
+      stroke-linecap="round"
       style={{ pointerEvents: "none" }}
     />
   );

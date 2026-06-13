@@ -81,4 +81,18 @@ describe("pickNearestEdge", () => {
     ];
     expect(pickNearestEdge({ x: 5, y: 1 }, tied, 8)!.source).toBe("x");
   });
+
+  it("with dominance, grabs a clearly-nearest edge but not a contested one", () => {
+    // two parallel edges 10 apart; the wide radius (20) reaches both
+    const pair: EdgePickCandidate[] = [
+      { source: "a", target: "b", points: [{ x: 0, y: 0 }, { x: 100, y: 0 }] },
+      { source: "c", target: "d", points: [{ x: 0, y: 10 }, { x: 100, y: 10 }] },
+    ];
+    // clearly closer to a→b (2 vs 8): grabbed
+    expect(pickNearestEdge({ x: 50, y: 2 }, pair, 20, 0.8)!.source).toBe("a");
+    // near the midline (4.5 vs 5.5): contested → nothing grabbed
+    expect(pickNearestEdge({ x: 50, y: 4.5 }, pair, 20, 0.8)).toBeNull();
+    // same point with dominance off resolves to the nearest anyway
+    expect(pickNearestEdge({ x: 50, y: 4.5 }, pair, 20)!.source).toBe("a");
+  });
 });

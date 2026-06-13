@@ -32,6 +32,7 @@ import {
 } from "./mapShared.tsx";
 import { symbolNameOf } from "./cfgClient.ts";
 import {
+  EDGE_PICK_DOMINANCE,
   EDGE_PICK_PX,
   pickEdgeAtPoint,
   type EdgePickCandidate,
@@ -203,6 +204,7 @@ export function TreemapSvg(props: Props) {
       clientY,
       candidates,
       EDGE_PICK_PX * toViewScale(),
+      EDGE_PICK_DOMINANCE,
     );
     return hit ? { source: hit.source, target: hit.target } : null;
   };
@@ -532,7 +534,12 @@ export function TreemapSvg(props: Props) {
               source: hoveredEdge.source,
               target: hoveredEdge.target,
             });
-            return bundle ? <RaisedEdgePath d={bundle.d} width={1.6} /> : null;
+            return bundle ? (
+              <g style={{ pointerEvents: "none" }}>
+                <RaisedEdgePath d={bundle.d} width={8} opacity={0.2} />
+                <RaisedEdgePath d={bundle.d} width={2} opacity={0.85} />
+              </g>
+            ) : null;
           })()
         : null}
       {/* picked edge, raised above the districts: bold accented stroke with
