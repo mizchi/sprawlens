@@ -61,18 +61,39 @@ export function snapshotToAtlasGraph(snapshot: SnapshotLike): AtlasGraph {
       },
     });
   }
-  const edges: AtlasGraph["edges"] = [];
-  const seen = new Set<string>();
+  // imported symbol id → its name, so edges can carry reference labels
+  const symbolName = new Map<string, string>();
+  for (const node of snapshot.nodes) {
+    for (const symbol of node.symbols ?? []) symbolName.set(symbol.id, symbol.name);
+  }
+
+  // accumulate refs per file-pair: one pair can appear across several import
+  // edges, and each edge names the symbols it pulled from the target
+  const refsByPair = new Map<string, Set<string>>();
+  const order: { source: string; target: string; key: string }[] = [];
   for (const edge of snapshot.edges) {
     if (edge.type !== "imports" || edge.resolved !== true) continue;
     const source = pathByNodeId.get(edge.from);
     const target = pathByNodeId.get(edge.to);
     if (!source || !target) continue;
     const key = `${source}->${target}`;
-    if (seen.has(key)) continue;
-    seen.add(key);
-    edges.push({ source, target });
+    let refs = refsByPair.get(key);
+    if (!refs) {
+      refs = new Set();
+      refsByPair.set(key, refs);
+      order.push({ source, target, key });
+    }
+    for (const symbolImport of edge.symbolImports ?? []) {
+      const name = symbolName.get(symbolImport.toSymbolId);
+      if (name) refs.add(name);
+    }
   }
+  const edges: AtlasGraph["edges"] = order.map(({ source, target, key }) => {
+    const refs = refsByPair.get(key)!;
+    return refs.size > 0
+      ? { source, target, refs: [...refs] }
+      : { source, target };
+  });
   return { nodes, edges };
 }
 

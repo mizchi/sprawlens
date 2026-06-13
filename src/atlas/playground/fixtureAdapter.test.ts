@@ -68,7 +68,23 @@ describe("snapshotToAtlasGraph", () => {
 
   it("keeps only resolved import edges between known files", () => {
     const graph = snapshotToAtlasGraph(snapshot);
-    expect(graph.edges).toEqual([{ source: "src/b.ts", target: "src/a.ts" }]);
+    // the edge carries the imported symbol names (deduped: foo appears twice)
+    expect(graph.edges).toEqual([
+      { source: "src/b.ts", target: "src/a.ts", refs: ["foo", "Bar"] },
+    ]);
+  });
+
+  it("omits refs when an import names no symbols", () => {
+    const graph = snapshotToAtlasGraph({
+      nodes: [
+        { id: "file:p.ts", type: "file", path: "p.ts", loc: 5, symbols: [] },
+        { id: "file:q.ts", type: "file", path: "q.ts", loc: 5, symbols: [] },
+      ],
+      edges: [
+        { type: "imports", from: "file:p.ts", to: "file:q.ts", resolved: true },
+      ],
+    });
+    expect(graph.edges).toEqual([{ source: "p.ts", target: "q.ts" }]);
   });
 
   it("guards against zero-LOC files with a floor of 1", () => {

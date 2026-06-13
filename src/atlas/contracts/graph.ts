@@ -46,6 +46,10 @@ export type AtlasEdge = {
   target: string;
   weight?: number;
   kind?: AtlasEdgeKind;
+  /** Names referenced across this edge — the imported symbols, for edge
+   * labels. Lifted aggregates union their contributors' refs, so a bundled
+   * module→module edge carries every symbol name behind it. */
+  refs?: string[];
 };
 
 export type AtlasGraph = {

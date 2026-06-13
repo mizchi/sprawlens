@@ -108,6 +108,34 @@ describe("deriveLevels — single boundary", () => {
   });
 });
 
+describe("deriveLevels — edge refs", () => {
+  const graph: AtlasGraph = {
+    nodes: [
+      { id: "src/a/x.ts", kind: "file", label: "x", metrics: { loc: 10 } },
+      { id: "src/a/y.ts", kind: "file", label: "y", metrics: { loc: 10 } },
+      { id: "src/b/z.ts", kind: "file", label: "z", metrics: { loc: 10 } },
+    ],
+    edges: [
+      { source: "src/a/x.ts", target: "src/b/z.ts", refs: ["foo", "bar"] },
+      { source: "src/a/y.ts", target: "src/b/z.ts", refs: ["bar", "baz"] },
+    ],
+  };
+
+  it("unions the refs of every edge folded into a lifted edge", () => {
+    const tree = deriveLevels(graph, [moduleGrouping()]);
+    const lifted = tree.levels[0]!.edges[0]!;
+    expect(lifted.source).toBe("src/a");
+    expect(lifted.target).toBe("src/b");
+    expect(lifted.weight).toBe(2);
+    expect([...lifted.refs!].sort()).toEqual(["bar", "baz", "foo"]);
+  });
+
+  it("omits refs when no contributing edge carries any", () => {
+    const tree = deriveLevels(fileGraph(), [moduleGrouping()]);
+    expect(tree.levels[0]!.edges[0]!.refs).toBeUndefined();
+  });
+});
+
 describe("deriveLevels — module + directory", () => {
   const tree = deriveLevels(fileGraph(), [moduleGrouping(), directoryGrouping(3)]);
 

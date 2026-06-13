@@ -114,6 +114,18 @@ function fallbackLabel(id: string): string {
 const MIN_CELL_PX = 2.5;
 /** Edges shorter than this on screen are sub-pixel noise. */
 const MIN_EDGE_PX = 6;
+/** Macro module-edge decorations, all in screen pixels. */
+const MACRO_ARROW_PX = 8;
+const MACRO_LABEL_PX = 10.5;
+/** Reference labels are a semantic-zoom detail: the macro overview shows
+ * direction (arrows) and bundle thickness only, and names appear once the
+ * user zooms past this scale into a region. */
+const MACRO_LABEL_MIN_ZOOM = 1.5;
+/** Even when zoomed in, suppress names on edges too short on screen to host
+ * them, so a dense cluster doesn't pile labels. */
+const MACRO_LABEL_MIN_PX = 100;
+/** Reference names listed before collapsing the rest into "+N more". */
+const MACRO_REF_MAX = 4;
 
 export function RingsMapSvg(props: Props) {
   const {
@@ -443,23 +455,78 @@ export function RingsMapSvg(props: Props) {
       <style>
         {"polygon, line, circle, path { vector-effect: non-scaling-stroke; }"}
       </style>
-      {/* aggregated module dependencies: the macro structure, always on */}
+      {/* aggregated module dependencies: the macro structure, always on.
+          a→b reads "a imports b": the arrow points at the target, and the
+          imported symbol names are listed under the edge (zoom-gated). */}
       {!focus ? (
         <g stroke={MACRO_EDGE} fill="none">
           {rings.topEdges.map((edge) => {
             const a = rings.circles.get(edge.source);
             const b = rings.circles.get(edge.target);
             if (!a || !b) return null;
+            const dx = b.cx - a.cx;
+            const dy = b.cy - a.cy;
+            const len = Math.hypot(dx, dy) || 1;
+            const ux = dx / len;
+            const uy = dy / len;
+            // arrowhead just outside the target circle, pointing inward
+            const head = MACRO_ARROW_PX / zoom;
+            const tip = b.r + 2 / zoom; // apex distance from b center, a-side
+            const ax = b.cx - ux * tip;
+            const ay = b.cy - uy * tip;
+            const cx = b.cx - ux * (tip + head);
+            const cy = b.cy - uy * (tip + head);
+            const w = head * 0.5;
+            const refs = edge.refs ?? [];
+            // labels need room: gate on the edge's on-screen length
+            const mx = (a.cx + b.cx) / 2;
+            const my = (a.cy + b.cy) / 2;
+            const labelled =
+              refs.length > 0 &&
+              zoom > MACRO_LABEL_MIN_ZOOM &&
+              len * zoom > MACRO_LABEL_MIN_PX &&
+              inView({ x: mx, y: my }, 0);
+            const shown = refs.slice(0, MACRO_REF_MAX);
+            const extra = refs.length - shown.length;
+            const fs = MACRO_LABEL_PX / zoom;
+            const lines = extra > 0 ? [...shown, `+${extra} more`] : shown;
             return (
-              <line
-                key={`${edge.source}->${edge.target}`}
-                x1={a.cx}
-                y1={a.cy}
-                x2={b.cx}
-                y2={b.cy}
-                stroke-width={1 + Math.log2(1 + (edge.weight ?? 1))}
-                stroke-opacity={0.35}
-              />
+              <g key={`${edge.source}->${edge.target}`}>
+                <line
+                  x1={a.cx}
+                  y1={a.cy}
+                  x2={b.cx}
+                  y2={b.cy}
+                  stroke-width={1 + Math.log2(1 + (edge.weight ?? 1))}
+                  stroke-opacity={0.35}
+                />
+                {len > b.r + tip + head ? (
+                  <polygon
+                    points={`${ax},${ay} ${cx + -uy * w},${cy + ux * w} ${cx - -uy * w},${cy - ux * w}`}
+                    fill={MACRO_EDGE}
+                    stroke="none"
+                    fill-opacity={0.55}
+                  />
+                ) : null}
+                {labelled ? (
+                  <text
+                    x={mx}
+                    y={my}
+                    font-size={fs}
+                    text-anchor="middle"
+                    fill={MODULE_LABEL_INK}
+                    fill-opacity={0.85}
+                    stroke="none"
+                    style={{ pointerEvents: "none" }}
+                  >
+                    {lines.map((name) => (
+                      <tspan key={name} x={mx} dy={fs * 1.1}>
+                        {name}
+                      </tspan>
+                    ))}
+                  </text>
+                ) : null}
+              </g>
             );
           })}
         </g>
