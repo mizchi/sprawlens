@@ -5,11 +5,13 @@ import { existsSync } from "node:fs";
 import { basename, dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { analyzeRepository, collectRepository, tsProvider } from "@sprawlens/analyzer-ts";
+import { goProvider } from "@sprawlens/analyzer-go";
 import { selectProvider } from "@sprawlens/schema";
 import { createAtlasServer } from "@sprawlens/server";
 
-/** Registered language providers, in match order. */
-const PROVIDERS = [tsProvider];
+// match order: language-specific signals (go.mod, ...) before the broad TS
+// fallback (which also claims any package.json).
+const PROVIDERS = [goProvider, tsProvider];
 
 const program = new Command();
 

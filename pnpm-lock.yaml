@@ -35,6 +35,9 @@ importers:
       three:
         specifier: ^0.184.0
         version: 0.184.0
+      tree-sitter-wasms:
+        specifier: ^0.1.13
+        version: 0.1.13
       typescript:
         specifier: ^5.7.2
         version: 5.9.3
@@ -47,6 +50,9 @@ importers:
       vis-util:
         specifier: ^6.0.0
         version: 6.0.0(@egjs/hammerjs@2.0.17)(component-emitter@2.0.0)
+      web-tree-sitter:
+        specifier: 0.22.6
+        version: 0.22.6
     devDependencies:
       '@playwright/test':
         specifier: ^1.60.0
@@ -73,6 +79,21 @@ importers:
         specifier: ^2.1.8
         version: 2.1.9(@types/node@22.19.20)
 
+  packages/analyzer-go:
+    dependencies:
+      '@sprawlens/schema':
+        specifier: workspace:*
+        version: link:../schema
+      fast-glob:
+        specifier: ^3.3.3
+        version: 3.3.3
+      tree-sitter-wasms:
+        specifier: ^0.1.13
+        version: 0.1.13
+      web-tree-sitter:
+        specifier: ^0.22.6
+        version: 0.22.6
+
   packages/analyzer-ts:
     dependencies:
       '@sprawlens/schema':
@@ -81,6 +102,9 @@ importers:
 
   packages/cli:
     dependencies:
+      '@sprawlens/analyzer-go':
+        specifier: workspace:*
+        version: link:../analyzer-go
       '@sprawlens/analyzer-ts':
         specifier: workspace:*
         version: link:../analyzer-ts
@@ -1434,6 +1458,9 @@ packages:
     resolution: {integrity: sha512-65P7iz6X5yEr1cwcgvQxbbIw7Uk3gOy5dIdtZ4rDveLqhrdJP+Li/Hx6tyK0NEb+2GCyneCMJiGqrADCSNk8sQ==}
     engines: {node: '>=8.0'}
 
+  tree-sitter-wasms@0.1.13:
+    resolution: {integrity: sha512-wT+cR6DwaIz80/vho3AvSF0N4txuNx/5bcRKoXouOfClpxh/qqrF4URNLQXbbt8MaAxeksZcZd1j8gcGjc+QxQ==}
+
   tslib@2.8.1:
     resolution: {integrity: sha512-oJFu94HQb+KVduSUQL7wnpmqnfmLsOA/nAh6b6EH0wCEoK0/mPeXU6c3wKDV83MkOuHPRHtSXKKU99IBazS/2w==}
 
@@ -1604,6 +1631,9 @@ packages:
 
   vscode-languageserver-types@3.18.0:
     resolution: {integrity: sha512-8TsGPNMIMiiBdkORgRSvLjuiEIiAFtO+KssmYWxQ+uSVvlf7RjK8YKCOjPzZ+YA04jXEV7+7LvkSmHkhpNS99g==}
+
+  web-tree-sitter@0.22.6:
+    resolution: {integrity: sha512-hS87TH71Zd6mGAmYCvlgxeGDjqd9GTeqXNqTT+u0Gs51uIozNIaaq/kUAbV/Zf56jb2ZOyG8BxZs2GG9wbLi6Q==}
 
   why-is-node-running@2.3.0:
     resolution: {integrity: sha512-hUrmaWBdVDcxvYqnyh09zunKzROWjbZTiNy8dBEjkS7ehEDQibXJ7XvlmtbwuTclUiIyN+CyXQD4Vmko8fNm8w==}
@@ -2805,6 +2835,8 @@ snapshots:
     dependencies:
       is-number: 7.0.0
 
+  tree-sitter-wasms@0.1.13: {}
+
   tslib@2.8.1: {}
 
   tsx@4.22.4:
@@ -2939,6 +2971,8 @@ snapshots:
       vscode-languageserver-types: 3.18.0
 
   vscode-languageserver-types@3.18.0: {}
+
+  web-tree-sitter@0.22.6: {}
 
   why-is-node-running@2.3.0:
     dependencies:

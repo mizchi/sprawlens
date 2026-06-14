@@ -11,7 +11,8 @@
   "dependencies": {
     "@sprawlens/schema": "workspace:*",
     "@sprawlens/analyzer-ts": "workspace:*",
-    "@sprawlens/server": "workspace:*"
+    "@sprawlens/server": "workspace:*",
+    "@sprawlens/analyzer-go": "workspace:*"
   },
   "scripts": {
     "dev": "tsx src/index.ts"
