@@ -36,14 +36,18 @@ import {
   leafFillOf,
   makeTopAncestorOf,
   DEPS_INK,
+  PlaneLayerView,
   RaisedEdgePath,
-  SatellitePlaneLayer,
   SELECT_STROKE,
   TEST_LABEL_INK,
-  type SatelliteItem,
   UPSTREAM_COLOR,
   WatermarkLabelsLayer,
 } from "./mapShared.tsx";
+import {
+  capacityPlane,
+  ringPlane,
+  type LayerNode,
+} from "./planeLayers.ts";
 import { symbolNameOf } from "./cfgClient.ts";
 import {
   EDGE_PICK_DOMINANCE,
@@ -75,6 +79,8 @@ type Props = {
   testTargets?: Map<string, string>;
   /** Source file × external package pairs, for the Deps plane drops. */
   externalDeps?: { source: string; specifier: string }[];
+  /** LOC per id, weighting the test plane's capacity layout. */
+  locOf?: (id: string) => number;
   /** Nested symbol layouts inside the file cells (file granularity). */
   innerCells?: CellResult[];
   exportedIds?: Set<string>;
@@ -414,15 +420,20 @@ export function TreemapSvg(props: Props) {
   const labelOf = (id: string): string =>
     props.labels?.get(id) ?? symbolNameOf(id) ?? id.split("/").pop() ?? id;
 
-  // satellite items: tests cover one source each; deps group all importers
-  const testItems: SatelliteItem[] = testsPlane && props.testTargets
-    ? [...props.testTargets].map(([t, s]) => ({
-        id: t,
-        label: labelOf(t),
-        sourceIds: [s],
-      }))
+  // tests plane: capacity Voronoi of test files weighted by LOC, like source
+  const testPlaced = testsPlane && props.testTargets
+    ? capacityPlane(
+        [...props.testTargets].map(([t, s]): LayerNode => ({
+          id: t,
+          label: labelOf(t),
+          weight: props.locOf?.(t) ?? 1,
+          sourceIds: [s],
+        })),
+        { w: width, h: height },
+      )
     : [];
-  const depItems: SatelliteItem[] = (() => {
+  // deps plane: packages on rings, rank by number of importing source files
+  const depPlaced = (() => {
     if (!depsPlane || !props.externalDeps) return [];
     const byPkg = new Map<string, string[]>();
     for (const { source, specifier } of props.externalDeps) {
@@ -430,11 +441,13 @@ export function TreemapSvg(props: Props) {
       if (list) list.push(source);
       else byPkg.set(specifier, [source]);
     }
-    return [...byPkg].map(([spec, srcs]) => ({
+    const nodes: LayerNode[] = [...byPkg].map(([spec, srcs]) => ({
       id: `external:${spec}`,
       label: spec,
+      weight: srcs.length,
       sourceIds: srcs,
     }));
+    return ringPlane(nodes, { w: width, h: height });
   })();
 
   return (
@@ -818,13 +831,13 @@ export function TreemapSvg(props: Props) {
         />
       ))}
       </g>
-      {testsPlane && tiltAffine && testItems.length ? (
-        <SatellitePlaneLayer
+      {testsPlane && tiltAffine && testPlaced.length ? (
+        <PlaneLayerView
           tilt0={tiltAffine}
           tilt1={testsPlane}
           extent={{ w: width, h: height }}
           sourceSiteOf={sourceSiteOf}
-          items={testItems}
+          placed={testPlaced}
           color={TEST_LABEL_INK}
           withSourceFrame
           zoom={zoom}
@@ -832,13 +845,13 @@ export function TreemapSvg(props: Props) {
           selectedId={selectedId}
         />
       ) : null}
-      {depsPlane && tiltAffine && depItems.length ? (
-        <SatellitePlaneLayer
+      {depsPlane && tiltAffine && depPlaced.length ? (
+        <PlaneLayerView
           tilt0={tiltAffine}
           tilt1={depsPlane}
           extent={{ w: width, h: height }}
           sourceSiteOf={sourceSiteOf}
-          items={depItems}
+          placed={depPlaced}
           color={DEPS_INK}
           withSourceFrame={!testsPlane}
           zoom={zoom}

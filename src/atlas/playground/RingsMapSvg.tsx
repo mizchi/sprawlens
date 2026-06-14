@@ -46,13 +46,17 @@ import {
   RaisedEdgePath,
   selectionDirections,
   DEPS_INK,
-  SatellitePlaneLayer,
+  PlaneLayerView,
   SELECT_STROKE,
-  type SatelliteItem,
   UPSTREAM_COLOR,
   UPSTREAM_FILL,
   WatermarkLabelsLayer,
 } from "./mapShared.tsx";
+import {
+  capacityPlane,
+  ringPlane,
+  type LayerNode,
+} from "./planeLayers.ts";
 import { symbolNameOf } from "./cfgClient.ts";
 import {
   EDGE_PICK_DOMINANCE,
@@ -89,6 +93,8 @@ type Props = {
   testTargets?: Map<string, string>;
   /** Source file × external package pairs, for the Deps plane drops. */
   externalDeps?: { source: string; specifier: string }[];
+  /** LOC per id, weighting the test plane's capacity layout. */
+  locOf?: (id: string) => number;
   /** Layer ids switched off; "source" hides the file/symbol map itself. */
   hiddenLayers: Set<string>;
   /** Symbol id → parent file id (precomputed; string parsing here was hot). */
@@ -278,19 +284,21 @@ export function RingsMapSvg(props: Props) {
     for (const [f, e] of acc) m.set(f, { x: e.x / e.n, y: e.y / e.n });
     return m;
   }, [rings, parentFileOf, satellitesOn]);
-  // satellite items: tests cover one source each; deps group all importers
-  const testItems: SatelliteItem[] = useMemo(
-    () =>
-      testsPlane && props.testTargets
-        ? [...props.testTargets].map(([t, s]) => ({
-            id: t,
-            label: labels.get(t) ?? fallbackLabel(t),
-            sourceIds: [s],
-          }))
-        : [],
-    [testsPlane, props.testTargets, labels],
-  );
-  const depItems: SatelliteItem[] = useMemo(() => {
+  // tests plane: capacity Voronoi of test files weighted by LOC, like source
+  const locOf = props.locOf;
+  const testPlaced = useMemo(() => {
+    if (!testsPlane || !props.testTargets) return [];
+    const nodes: LayerNode[] = [...props.testTargets].map(([t, s]) => ({
+      id: t,
+      label: labels.get(t) ?? fallbackLabel(t),
+      weight: locOf?.(t) ?? 1,
+      sourceIds: [s],
+    }));
+    return capacityPlane(nodes, { w: width, h: height });
+  }, [testsPlane, props.testTargets, labels, locOf, width, height]);
+  // deps plane: packages on concentric rings, rank by how depended-upon (the
+  // number of importing source files)
+  const depPlaced = useMemo(() => {
     if (!depsPlane || !props.externalDeps) return [];
     const byPkg = new Map<string, string[]>();
     for (const { source, specifier } of props.externalDeps) {
@@ -298,12 +306,14 @@ export function RingsMapSvg(props: Props) {
       if (list) list.push(source);
       else byPkg.set(specifier, [source]);
     }
-    return [...byPkg].map(([spec, srcs]) => ({
+    const nodes: LayerNode[] = [...byPkg].map(([spec, srcs]) => ({
       id: `external:${spec}`,
       label: spec,
+      weight: srcs.length,
       sourceIds: srcs,
     }));
-  }, [depsPlane, props.externalDeps]);
+    return ringPlane(nodes, { w: width, h: height });
+  }, [depsPlane, props.externalDeps, width, height]);
   const [hoveredEdge, setHoveredEdge] = useState<{
     source: string;
     target: string;
@@ -1406,13 +1416,13 @@ export function RingsMapSvg(props: Props) {
           : null}
       </g>
       </g>
-      {testsPlane && tiltAffine && testItems.length ? (
-        <SatellitePlaneLayer
+      {testsPlane && tiltAffine && testPlaced.length ? (
+        <PlaneLayerView
           tilt0={tiltAffine}
           tilt1={testsPlane}
           extent={{ w: width, h: height }}
           sourceSiteOf={sourceSiteOf}
-          items={testItems}
+          placed={testPlaced}
           color={TEST_LABEL_INK}
           withSourceFrame
           zoom={zoom}
@@ -1420,13 +1430,13 @@ export function RingsMapSvg(props: Props) {
           selectedId={selectedId}
         />
       ) : null}
-      {depsPlane && tiltAffine && depItems.length ? (
-        <SatellitePlaneLayer
+      {depsPlane && tiltAffine && depPlaced.length ? (
+        <PlaneLayerView
           tilt0={tiltAffine}
           tilt1={depsPlane}
           extent={{ w: width, h: height }}
           sourceSiteOf={sourceSiteOf}
-          items={depItems}
+          placed={depPlaced}
           color={DEPS_INK}
           withSourceFrame={!testsPlane}
           zoom={zoom}

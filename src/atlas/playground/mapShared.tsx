@@ -8,6 +8,7 @@ import {
   uprightAt,
   type Affine,
 } from "../kernel/affine.js";
+import type { PlacedNode } from "./planeLayers.js";
 import { symbolNameOf } from "./cfgClient.ts";
 import type { CfgAnchor } from "./CfgLayer.tsx";
 import type { SubdivisionLevel } from "./subdivision.js";
@@ -691,11 +692,6 @@ export function ExitPreviewsLayer(props: {
 /** Stroke for the faint stacked-plane outlines. */
 export let PLANE_OUTLINE = "#475569";
 
-/** A node for a satellite plane (a test file, an external package, ...) and
- * the source files it relates to. The node is dropped beneath the centroid of
- * those sources, with a line rising to each. */
-export type SatelliteItem = { id: string; label: string; sourceIds: string[] };
-
 const planePolyOf = (m: Affine, w: number, h: number) =>
   [
     { x: 0, y: 0 },
@@ -708,62 +704,34 @@ const planePolyOf = (m: Affine, w: number, h: number) =>
     .join(" ");
 
 /**
- * A stacked plane below the source map (Tests, Deps, ...). Each item is a node
- * dropped onto `tilt1` beneath the centroid of its related source files, with
- * a correspondence line rising to each source on the `tilt0` plane. Markers and
- * labels stay upright via `uprightAt`; only the plane frame and lines tilt.
- *
- * Tests pass one source per item (the covered file); Deps pass every importer
- * of a package, so a popular package sits under its importers' centroid with
- * lines fanning up to each.
+ * A stacked plane below the source map (Tests, Deps, ...). Its nodes are
+ * already laid out by a `PlaneLayout` strategy (capacity Voronoi, rings, ...)
+ * in the plane's own coordinates; this view tilts that geometry onto `tilt1`,
+ * keeps the labels upright via `uprightAt`, and draws correspondence lines from
+ * each node up to its related source files on the `tilt0` plane.
  */
-export function SatellitePlaneLayer(props: {
+export function PlaneLayerView(props: {
   tilt0: Affine;
   tilt1: Affine;
   /** World extent of the map viewport, for the plane outline. */
   extent: { w: number; h: number };
   /** Upper-plane representative point per source file id. */
   sourceSiteOf: Map<string, Vec2>;
-  items: readonly SatelliteItem[];
-  /** Node fill / label / line tint. */
+  placed: readonly PlacedNode[];
+  /** Cell stroke / label / line tint. */
   color: string;
-  /** Also draw the source-plane frame (only one satellite need do this). */
+  /** Also draw the source-plane frame (only one layer need do this). */
   withSourceFrame?: boolean;
-  /** Cap correspondence lines per item so popular packages don't hairball. */
+  /** Cap correspondence lines per node so popular packages don't hairball. */
   edgeCap?: number;
   zoom: number;
   onSelect: (id: string, additive?: boolean) => void;
   selectedId?: string | null;
 }) {
-  const { tilt0, tilt1, extent, sourceSiteOf, items, color, zoom } = props;
-  const spread = 16 / zoom;
+  const { tilt0, tilt1, extent, sourceSiteOf, placed, color, zoom } = props;
   const fontSize = 11 / zoom;
-  const dotR = 3.2 / zoom;
-  const edgeCap = props.edgeCap ?? 24;
-  // resolve each item to the source sites it knows, and a base centroid
-  type Drop = { id: string; label: string; sources: Vec2[]; node: Vec2 };
-  const placed: Drop[] = [];
-  for (const item of items) {
-    const sources = item.sourceIds
-      .map((s) => sourceSiteOf.get(s))
-      .filter((v): v is Vec2 => !!v);
-    if (sources.length === 0) continue;
-    const cx = sources.reduce((s, p) => s + p.x, 0) / sources.length;
-    const cy = sources.reduce((s, p) => s + p.y, 0) / sources.length;
-    placed.push({ id: item.id, label: item.label, sources, node: { x: cx, y: cy } });
-  }
-  // items sharing a centroid (several tests on one file) fan out horizontally
-  const byCell = new Map<string, Drop[]>();
-  for (const d of placed) {
-    const k = `${Math.round(d.node.x / spread)}:${Math.round(d.node.y / spread)}`;
-    const list = byCell.get(k);
-    if (list) list.push(d);
-    else byCell.set(k, [d]);
-  }
-  for (const group of byCell.values())
-    group.forEach((d, i) => {
-      d.node = { x: d.node.x + (i - (group.length - 1) / 2) * spread, y: d.node.y };
-    });
+  const edgeCap = props.edgeCap ?? 16;
+  const tilt1Matrix = toMatrixString(tilt1);
   return (
     <>
       {/* plane frames */}
@@ -773,56 +741,82 @@ export function SatellitePlaneLayer(props: {
         ) : null}
         <polygon points={planePolyOf(tilt1, extent.w, extent.h)} stroke-opacity={0.5} stroke-width={1.5} />
       </g>
-      {/* correspondence: each source (top) ↓ the item node (bottom) */}
+      {/* correspondence: each related source (top) ↓ the node (bottom) */}
       <g fill="none" stroke={color} style={{ pointerEvents: "none" }}>
         {placed.flatMap((d) => {
-          const bot = apply(tilt1, d.node);
-          return d.sources.slice(0, edgeCap).map((src, i) => {
-            const top = apply(tilt0, src);
-            return (
-              <line
-                key={`${d.id}:${i}`}
-                x1={top.x}
-                y1={top.y}
-                x2={bot.x}
-                y2={bot.y}
-                stroke-width={1}
-                stroke-opacity={0.4}
-              />
-            );
-          });
+          const bot = apply(tilt1, d.site);
+          return d.sourceIds
+            .map((s) => sourceSiteOf.get(s))
+            .filter((v): v is Vec2 => !!v)
+            .slice(0, edgeCap)
+            .map((src, i) => {
+              const top = apply(tilt0, src);
+              return (
+                <line
+                  key={`${d.id}:${i}`}
+                  x1={top.x}
+                  y1={top.y}
+                  x2={bot.x}
+                  y2={bot.y}
+                  stroke-width={1}
+                  stroke-opacity={0.35}
+                />
+              );
+            });
         })}
       </g>
-      {/* item nodes on the lower plane, upright */}
+      {/* in-plane layout geometry (cells / rings), tilted with the plane */}
+      <g
+        transform={tilt1Matrix}
+        fill="none"
+        stroke={color}
+        style={{ pointerEvents: "none" }}
+      >
+        {placed.map((d) =>
+          d.polygon ? (
+            <polygon
+              key={d.id}
+              points={d.polygon.map((p) => `${p.x},${p.y}`).join(" ")}
+              fill={color}
+              fill-opacity={0.08}
+              stroke-opacity={0.5}
+              stroke-width={1}
+            />
+          ) : d.r !== undefined ? (
+            <circle
+              key={d.id}
+              cx={d.site.x}
+              cy={d.site.y}
+              r={d.r}
+              fill={color}
+              fill-opacity={0.12}
+              stroke-opacity={0.6}
+              stroke-width={1}
+            />
+          ) : null,
+        )}
+      </g>
+      {/* node labels, kept upright on the plane */}
       <g style={{ userSelect: "none" }}>
         {placed.map((d) => (
-          <g
+          <text
             key={d.id}
-            transform={uprightAt(tilt1, d.node)}
+            transform={uprightAt(tilt1, d.site)}
+            y={fontSize * 0.34}
+            font-size={fontSize}
+            font-weight="600"
+            text-anchor="middle"
+            fill={color}
+            stroke={d.id === props.selectedId ? SELECT_STROKE : "none"}
+            stroke-width={d.id === props.selectedId ? 0.6 / zoom : 0}
             style={{ cursor: "pointer" }}
             onClick={(event) => {
               event.stopPropagation();
               props.onSelect(d.id, event.shiftKey);
             }}
           >
-            <circle
-              cx={0}
-              cy={0}
-              r={dotR}
-              fill={color}
-              stroke={d.id === props.selectedId ? SELECT_STROKE : color}
-              stroke-width={d.id === props.selectedId ? 2 : 0.8}
-            />
-            <text
-              x={dotR * 1.8}
-              y={fontSize * 0.34}
-              font-size={fontSize}
-              font-weight="600"
-              fill={color}
-            >
-              {d.label}
-            </text>
-          </g>
+            {d.label}
+          </text>
         ))}
       </g>
     </>

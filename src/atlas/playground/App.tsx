@@ -2003,6 +2003,7 @@ export function App() {
             testFileIds={testFileIds}
             testTargets={testTargets}
             externalDeps={externalDeps}
+            locOf={(id) => locOfRef.current.get(id) ?? 1}
             hiddenLayers={new Set(hiddenLayersOf(params.omit))}
             parentFileOf={parentFileOf}
             changedFiles={changedFilesRef.current}
@@ -2044,6 +2045,7 @@ export function App() {
             testFileIds={testFileIds}
             testTargets={testTargets}
             externalDeps={externalDeps}
+            locOf={(id) => locOfRef.current.get(id) ?? 1}
             focus={focusView}
             width={mapSize.width}
             height={mapSize.height}
