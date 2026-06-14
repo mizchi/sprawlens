@@ -6,7 +6,19 @@ import type { AtlasGraph, AtlasNode } from "./graph.js";
  */
 export type LayerOf = (fileId: string) => "source" | "test";
 
-const TEST_PATTERN = /(\.(test|spec)\.[cm]?[jt]sx?$)|(^|\/)(__tests__|tests?)\//;
+// Test conventions across languages: JS/TS `*.test.*`/`*.spec.*`, Go `*_test.go`,
+// MoonBit blackbox `*_test.mbt` / whitebox `*_wbtest.mbt`, plus the shared
+// `__tests__/` and `test(s)/` directory conventions (Rust integration tests, ...).
+const TEST_PATTERN =
+  /(\.(test|spec)\.[cm]?[jt]sx?$)|(_test\.go$)|(_(test|wbtest)\.mbt$)|((^|\/)(__tests__|tests?)\/)/;
+
+/** Strip a test-file suffix back to its subject file name (idempotent if none). */
+function testSubject(fileId: string): string {
+  return fileId
+    .replace(/\.(test|spec)(\.[cm]?[jt]sx?)$/, "$2")
+    .replace(/_test\.go$/, ".go")
+    .replace(/_(test|wbtest)\.mbt$/, ".mbt");
+}
 
 export const defaultLayerOf: LayerOf = (fileId) =>
   TEST_PATTERN.test(fileId) ? "test" : "source";
@@ -42,8 +54,8 @@ export function splitByLayer(
 
 /**
  * Pairs each test file with the source file it covers, so the overlay can
- * sit on top of its subject: name match (`foo.test.ts` → `foo.ts`) first,
- * then the source file it imports most. Unmatchable tests are omitted.
+ * sit on top of its subject: name match (`foo.test.ts`/`foo_test.go` → `foo.*`)
+ * first, then the source file it imports most. Unmatchable tests are omitted.
  */
 export function matchTestTargets(
   graph: AtlasGraph,
@@ -66,7 +78,7 @@ export function matchTestTargets(
   const result = new Map<string, string>();
   for (const node of graph.nodes) {
     if (layerOf(node.id) !== "test") continue;
-    const nameMatch = node.id.replace(/\.(test|spec)(\.[cm]?[jt]sx?)$/, "$2");
+    const nameMatch = testSubject(node.id);
     if (nameMatch !== node.id && sourceIds.has(nameMatch)) {
       result.set(node.id, nameMatch);
       continue;

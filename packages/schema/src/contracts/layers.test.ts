@@ -14,10 +14,19 @@ describe("defaultLayerOf", () => {
     expect(defaultLayerOf("tests/e2e.ts")).toBe("test");
   });
 
+  it("classifies test files in other languages by their conventions", () => {
+    expect(defaultLayerOf("pkg/store/store_test.go")).toBe("test"); // Go
+    expect(defaultLayerOf("src/lexer/token_test.mbt")).toBe("test"); // MoonBit blackbox
+    expect(defaultLayerOf("src/lexer/token_wbtest.mbt")).toBe("test"); // MoonBit whitebox
+    expect(defaultLayerOf("tests/integration.rs")).toBe("test"); // Rust integration dir
+  });
+
   it("classifies everything else as source", () => {
     expect(defaultLayerOf("src/core/foo.ts")).toBe("source");
     expect(defaultLayerOf("src/testing-utils.ts")).toBe("source");
     expect(defaultLayerOf("contest/entry.ts")).toBe("source");
+    expect(defaultLayerOf("pkg/store/store.go")).toBe("source"); // not _test.go
+    expect(defaultLayerOf("src/protest/main.go")).toBe("source"); // 'test' inside a word
   });
 });
 
@@ -73,5 +82,23 @@ describe("matchTestTargets", () => {
   it("leaves unmatchable tests out", () => {
     const targets = matchTestTargets(graph);
     expect(targets.has("src/core/orphan.test.ts")).toBe(false);
+  });
+
+  it("name-matches other languages' test conventions to their subject", () => {
+    const multi: AtlasGraph = {
+      nodes: [
+        fileNode("pkg/store/store.go"),
+        fileNode("pkg/store/store_test.go"),
+        fileNode("src/lexer/token.mbt"),
+        fileNode("src/lexer/token_test.mbt"),
+        fileNode("src/lexer/parser.mbt"),
+        fileNode("src/lexer/parser_wbtest.mbt"),
+      ],
+      edges: [],
+    };
+    const targets = matchTestTargets(multi);
+    expect(targets.get("pkg/store/store_test.go")).toBe("pkg/store/store.go");
+    expect(targets.get("src/lexer/token_test.mbt")).toBe("src/lexer/token.mbt");
+    expect(targets.get("src/lexer/parser_wbtest.mbt")).toBe("src/lexer/parser.mbt");
   });
 });
