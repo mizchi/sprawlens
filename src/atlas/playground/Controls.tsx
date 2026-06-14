@@ -1,11 +1,6 @@
 import {
-  BOUNDARY_LEVELS,
-  DISPLAY_LEVELS,
-  granularityOf,
-  OMIT_SCOPES,
   presetConfig,
   presetOf,
-  UNAVAILABLE_LEVELS,
   VIEW_PRESETS,
   type BoundaryLevel,
   type DisplayLevel,
@@ -78,27 +73,12 @@ const row: Record<string, string> = {
   fontSize: "12px",
 };
 
-const LEVEL_LABELS: Record<DisplayLevel, string> = {
-  module: "module",
-  directory: "directory",
-  class: "class",
-  symbol: "symbol",
-  ast: "AST",
-  cfg: "CFG",
-};
-
-const INCLUDE_LABELS: Record<OmitScope, string> = {
-  test: "test",
-  local: "local",
-};
-
 export function Controls(props: Props) {
-  const { params, availableScopes, onChange } = props;
+  const { params, onChange } = props;
   const set = <K extends keyof PlaygroundParams>(
     key: K,
     value: PlaygroundParams[K],
   ) => onChange({ ...params, [key]: value });
-  const granularity = granularityOf(params.boundaries, params.displayLevels);
   const viewConfig: ViewConfig = {
     boundaries: params.boundaries,
     displayLevels: params.displayLevels,
@@ -173,138 +153,6 @@ export function Controls(props: Props) {
           <option value="complexity">complexity (deps)</option>
         </select>
       </label>
-      <div style={row}>
-        <span style={{ width: "110px" }}>boundaries</span>
-        <div style={{ display: "flex", gap: "10px", flexWrap: "wrap" }}>
-          {BOUNDARY_LEVELS.map((level) => {
-            return (
-              <label
-                key={level}
-                style={{
-                  display: "flex",
-                  alignItems: "center",
-                  gap: "4px",
-                }}
-              >
-                <input
-                  type="checkbox"
-                  checked={params.boundaries.includes(level)}
-                  onInput={(e) => {
-                    const on = (e.target as HTMLInputElement).checked;
-                    // chain order stays canonical regardless of click order
-                    const next = BOUNDARY_LEVELS.filter((l) =>
-                      l === level ? on : params.boundaries.includes(l),
-                    );
-                    set("boundaries", next);
-                  }}
-                />
-                {level}
-              </label>
-            );
-          })}
-        </div>
-      </div>
-      <div style={row}>
-        <span style={{ width: "110px" }}>levels</span>
-        <div style={{ display: "flex", gap: "10px", flexWrap: "wrap" }}>
-          {DISPLAY_LEVELS.map((level) => {
-            // the checked set decides the leaf unit (granularityOf):
-            // files nest symbols when both show, symbols alone form the
-            // network. CFG needs symbols to exist somewhere.
-            const disabled =
-              UNAVAILABLE_LEVELS.has(level) ||
-              (level === "directory" &&
-                !params.boundaries.includes("directory")) ||
-              (level === "cfg" && granularity === "module");
-            return (
-              <label
-                key={level}
-                title={
-                  UNAVAILABLE_LEVELS.has(level)
-                    ? "fetched dynamically at deep zoom — provider pending"
-                    : undefined
-                }
-                style={{
-                  display: "flex",
-                  alignItems: "center",
-                  gap: "4px",
-                  opacity: disabled ? 0.4 : 1,
-                }}
-              >
-                <input
-                  type="checkbox"
-                  disabled={disabled}
-                  checked={params.displayLevels.includes(level)}
-                  onInput={(e) => {
-                    const on = (e.target as HTMLInputElement).checked;
-                    const next = DISPLAY_LEVELS.filter((l) =>
-                      l === level ? on : params.displayLevels.includes(l),
-                    );
-                    set("displayLevels", next);
-                  }}
-                />
-                {LEVEL_LABELS[level]}
-              </label>
-            );
-          })}
-        </div>
-      </div>
-      {/* checked = shown; the state stays an exclusion set so new
-          scopes default to included */}
-      <div style={row}>
-        <span style={{ width: "110px", alignSelf: "start" }}>include</span>
-        <div
-          style={{
-            display: "flex",
-            gap: "8px",
-            flexWrap: "wrap",
-            maxHeight: "120px",
-            overflowY: "auto",
-            flex: "1",
-          }}
-        >
-          {OMIT_SCOPES.map((scope) => (
-            <label
-              key={scope}
-              style={{ display: "flex", alignItems: "center", gap: "4px" }}
-            >
-              <input
-                type="checkbox"
-                checked={!params.omit.includes(scope)}
-                onInput={(e) => {
-                  const shown = (e.target as HTMLInputElement).checked;
-                  const next = OMIT_SCOPES.filter((s) =>
-                    s === scope ? !shown : params.omit.includes(s),
-                  );
-                  set("omit", next);
-                }}
-              />
-              {INCLUDE_LABELS[scope]}
-            </label>
-          ))}
-          {availableScopes.map((scope) => (
-            <label
-              key={scope}
-              style={{ display: "flex", alignItems: "center", gap: "4px" }}
-            >
-              <input
-                type="checkbox"
-                checked={!params.omitModules.includes(scope)}
-                onInput={(e) => {
-                  const shown = (e.target as HTMLInputElement).checked;
-                  set(
-                    "omitModules",
-                    shown
-                      ? params.omitModules.filter((m) => m !== scope)
-                      : [...params.omitModules, scope],
-                  );
-                }}
-              />
-              {scope}
-            </label>
-          ))}
-        </div>
-      </div>
       <label style={row}>
         <span style={{ width: "110px" }}>follow changes</span>
         <input
@@ -333,132 +181,6 @@ export function Controls(props: Props) {
           }
         />
       </label>
-      <label style={row}>
-        <span style={{ width: "110px" }}>tilt (planes)</span>
-        <input
-          type="checkbox"
-          checked={params.tilt.enabled}
-          onInput={(e) =>
-            set("tilt", {
-              ...params.tilt,
-              enabled: (e.target as HTMLInputElement).checked,
-            })
-          }
-        />
-      </label>
-      {params.tilt.enabled ? (
-        <>
-          <label style={row}>
-            <span style={{ width: "110px" }}>
-              rotate {Math.round((params.tilt.theta * 180) / Math.PI)}°
-            </span>
-            <input
-              type="range"
-              min={-180}
-              max={180}
-              step={1}
-              value={(params.tilt.theta * 180) / Math.PI}
-              onInput={(e) =>
-                set("tilt", {
-                  ...params.tilt,
-                  theta:
-                    (Number((e.target as HTMLInputElement).value) * Math.PI) /
-                    180,
-                })
-              }
-            />
-          </label>
-          <label style={row}>
-            <span style={{ width: "110px" }}>
-              pitch {Math.round((params.tilt.pitch * 180) / Math.PI)}°
-            </span>
-            <input
-              type="range"
-              min={0}
-              max={80}
-              step={1}
-              value={(params.tilt.pitch * 180) / Math.PI}
-              onInput={(e) =>
-                set("tilt", {
-                  ...params.tilt,
-                  pitch:
-                    (Number((e.target as HTMLInputElement).value) * Math.PI) /
-                    180,
-                })
-              }
-            />
-          </label>
-          <label style={row}>
-            <span style={{ width: "110px" }}>
-              lean {Math.round((params.tilt.skew * 180) / Math.PI)}°
-            </span>
-            <input
-              type="range"
-              min={-60}
-              max={60}
-              step={1}
-              value={(params.tilt.skew * 180) / Math.PI}
-              onInput={(e) =>
-                set("tilt", {
-                  ...params.tilt,
-                  skew:
-                    (Number((e.target as HTMLInputElement).value) * Math.PI) /
-                    180,
-                })
-              }
-            />
-          </label>
-          <label style={row}>
-            <span style={{ width: "110px" }}>tests plane</span>
-            <input
-              type="checkbox"
-              checked={params.tilt.tests}
-              onInput={(e) =>
-                set("tilt", {
-                  ...params.tilt,
-                  tests: (e.target as HTMLInputElement).checked,
-                })
-              }
-            />
-          </label>
-          <label style={row}>
-            <span style={{ width: "110px" }}>deps plane</span>
-            <input
-              type="checkbox"
-              checked={params.tilt.deps}
-              onInput={(e) =>
-                set("tilt", {
-                  ...params.tilt,
-                  deps: (e.target as HTMLInputElement).checked,
-                })
-              }
-            />
-          </label>
-          {params.tilt.tests || params.tilt.deps ? (
-            <label style={row}>
-              <span style={{ width: "110px" }}>
-                gap {Math.round(params.tilt.gap)}
-              </span>
-              <input
-                type="range"
-                min={100}
-                max={1000}
-                step={10}
-                value={params.tilt.gap}
-                onInput={(e) =>
-                  set("tilt", {
-                    ...params.tilt,
-                    gap: Number((e.target as HTMLInputElement).value),
-                  })
-                }
-              />
-            </label>
-          ) : null}
-          <div style={{ ...row, opacity: 0.6, fontSize: "11px" }}>
-            Alt+drag the map to rotate / pitch
-          </div>
-        </>
-      ) : null}
       {props.debug ? (
         <div style={{ display: "flex", gap: "6px", flexWrap: "wrap" }}>
           <button style={button} onClick={props.onRegenerate}>

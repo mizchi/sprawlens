@@ -12,6 +12,7 @@ import {
 import { centroid, containsPoint, type Ring } from "../kernel/polygon.js";
 import { createRng, type Rng } from "../kernel/rng.js";
 import { Controls, type PlaygroundParams } from "./Controls.tsx";
+import { CameraPanel, LayersMenu } from "./OverlayPanels.tsx";
 import {
   INK,
   makeTopAncestorOf,
@@ -2069,7 +2070,8 @@ export function App() {
             style={{
               position: "absolute",
               top: "8px",
-              left: "8px",
+              // clear the layers hamburger button (top-left)
+              left: "48px",
               display: "flex",
               alignItems: "center",
               gap: "4px",
@@ -2185,6 +2187,13 @@ export function App() {
             </span>
           </div>
         ) : null}
+        {/* floating overlays: structural axes (left drawer) + camera (top-right) */}
+        <LayersMenu
+          params={params}
+          availableScopes={availableScopes}
+          onChange={onControlsChange}
+        />
+        <CameraPanel params={params} onChange={onControlsChange} />
       </div>
       <div
         style={{
