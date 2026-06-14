@@ -1,3 +1,4 @@
+import type { ComponentChildren } from "preact";
 import { useState } from "preact/hooks";
 import type { PlaygroundParams } from "./Controls.tsx";
 import {
@@ -70,12 +71,71 @@ function DegSlider(props: {
   );
 }
 
-/** Top-right camera (plane tilt) panel; collapses to a single button. */
+const GITHUB_URL = "https://github.com/mizchi/sprawlens";
+
+function DarkButton(props: { dark: boolean; onToggle: () => void }) {
+  return (
+    <button
+      style={iconButton}
+      title={props.dark ? "switch to light" : "switch to dark"}
+      onClick={props.onToggle}
+    >
+      <svg width="16" height="16" viewBox="0 0 16 16" aria-hidden="true">
+        {props.dark ? (
+          <path
+            d="M11 8a3 3 0 1 1-3.6-2.94A4 4 0 1 0 11 8Z"
+            fill="currentColor"
+          />
+        ) : (
+          <>
+            <circle cx="8" cy="8" r="3" fill="currentColor" />
+            {[0, 45, 90, 135, 180, 225, 270, 315].map((a) => {
+              const r = (a * Math.PI) / 180;
+              return (
+                <line
+                  key={a}
+                  x1={8 + Math.cos(r) * 5}
+                  y1={8 + Math.sin(r) * 5}
+                  x2={8 + Math.cos(r) * 6.5}
+                  y2={8 + Math.sin(r) * 6.5}
+                  stroke="currentColor"
+                  stroke-width="1.3"
+                />
+              );
+            })}
+          </>
+        )}
+      </svg>
+    </button>
+  );
+}
+
+function GithubLink() {
+  return (
+    <a
+      href={GITHUB_URL}
+      target="_blank"
+      rel="noreferrer"
+      title="source on GitHub"
+      style={{ ...iconButton, textDecoration: "none" }}
+    >
+      <svg width="17" height="17" viewBox="0 0 16 16" aria-hidden="true">
+        <path
+          fill="currentColor"
+          d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.01 8.01 0 0 0 16 8c0-4.42-3.58-8-8-8Z"
+        />
+      </svg>
+    </a>
+  );
+}
+
+/** Top-right cluster: camera (tilt) panel — collapsed by default — alongside
+ * the dark-mode toggle and a GitHub link in the far corner. */
 export function CameraPanel(props: {
   params: PlaygroundParams;
   onChange: (params: PlaygroundParams) => void;
 }) {
-  const [open, setOpen] = useState(true);
+  const [open, setOpen] = useState(false);
   const { params } = props;
   const tilt = params.tilt;
   const setTilt = (patch: Partial<PlaygroundParams["tilt"]>) =>
@@ -83,52 +143,56 @@ export function CameraPanel(props: {
   const toRad = (deg: number) => (deg * Math.PI) / 180;
   const toDeg = (rad: number) => (rad * 180) / Math.PI;
 
-  if (!open) {
-    return (
-      <button
-        style={{ ...iconButton, position: "absolute", top: "8px", right: "8px", width: "auto", padding: "0 10px", gap: "8px" }}
-        title="show camera"
-        onClick={() => setOpen(true)}
-      >
-        <span>{Math.round(toDeg(tilt.theta))}°</span>
-        <span style={{ opacity: 0.6 }}>{Math.round(toDeg(tilt.pitch))}°</span>
-      </button>
-    );
-  }
   return (
     <div
       style={{
         position: "absolute",
         top: "8px",
         right: "8px",
-        width: "230px",
-        background: PANEL_BG,
-        color: PANEL_INK,
-        border: `1px solid ${PANEL_BORDER}`,
-        borderRadius: "12px",
-        padding: "10px 12px",
-        fontFamily: PANEL_FONT,
         display: "flex",
         flexDirection: "column",
-        gap: "8px",
+        alignItems: "flex-end",
+        gap: "6px",
       }}
     >
-      <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
-        <strong style={{ fontSize: "12px", letterSpacing: "0.04em" }}>
-          camera
-        </strong>
-        <span style={{ marginLeft: "auto", fontSize: "13px", fontVariantNumeric: "tabular-nums" }}>
-          {Math.round(toDeg(tilt.theta))}° {Math.round(toDeg(tilt.pitch))}°
-        </span>
+      <div style={{ display: "flex", gap: "6px" }}>
         <button
-          style={{ ...iconButton, width: "22px", height: "22px" }}
-          title="hide camera"
-          onClick={() => setOpen(false)}
+          style={{
+            ...iconButton,
+            width: "auto",
+            padding: "0 10px",
+            gap: "6px",
+            fontSize: "12px",
+            fontVariantNumeric: "tabular-nums",
+          }}
+          title={open ? "hide camera" : "camera / tilt"}
+          onClick={() => setOpen((v) => !v)}
         >
-          ×
+          <span>{Math.round(toDeg(tilt.theta))}°</span>
+          <span style={{ opacity: 0.6 }}>{Math.round(toDeg(tilt.pitch))}°</span>
         </button>
+        <DarkButton
+          dark={params.dark}
+          onToggle={() => props.onChange({ ...params, dark: !params.dark })}
+        />
+        <GithubLink />
       </div>
-      {tilt.enabled ? (
+      {open ? (
+        <div
+          style={{
+            width: "230px",
+            background: PANEL_BG,
+            color: PANEL_INK,
+            border: `1px solid ${PANEL_BORDER}`,
+            borderRadius: "12px",
+            padding: "10px 12px",
+            fontFamily: PANEL_FONT,
+            display: "flex",
+            flexDirection: "column",
+            gap: "8px",
+          }}
+        >
+          {tilt.enabled ? (
         <>
           <DegSlider
             label="rotate"
@@ -168,11 +232,13 @@ export function CameraPanel(props: {
             Alt+drag the map to rotate / pitch
           </div>
         </>
-      ) : (
-        <div style={{ opacity: 0.55, fontSize: "11px" }}>
-          enable a layer (tests / deps) on the left to tilt
+          ) : (
+            <div style={{ opacity: 0.55, fontSize: "11px" }}>
+              enable a layer (tests / deps) on the left to tilt
+            </div>
+          )}
         </div>
-      )}
+      ) : null}
     </div>
   );
 }
@@ -221,6 +287,8 @@ export function LayersMenu(props: {
   params: PlaygroundParams;
   availableScopes: string[];
   onChange: (params: PlaygroundParams) => void;
+  /** View options (data / preset / layout / …) rendered as a trailing section. */
+  children?: ComponentChildren;
 }) {
   const [open, setOpen] = useState(false);
   const { params, availableScopes } = props;
@@ -410,6 +478,14 @@ export function LayersMenu(props: {
             ))}
           </div>
         </div>
+        {props.children ? (
+          <div>
+            <div style={{ fontSize: "11px", opacity: 0.6, marginBottom: "6px", letterSpacing: "0.06em" }}>
+              VIEW
+            </div>
+            {props.children}
+          </div>
+        ) : null}
       </div>
     </>
   );

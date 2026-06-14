@@ -33,6 +33,7 @@ import {
   type ExternalDep,
   type SnapshotLike,
 } from "./fixtureAdapter.ts";
+import { apply, layerTransform } from "../kernel/affine.js";
 import { sprawlensSnapshot } from "./fixtures/sprawlens.ts";
 import {
   applyRingsChanges,
@@ -1795,6 +1796,46 @@ export function App() {
     params.layout,
     mapSize,
   ]);
+  // refit the camera to the whole stack whenever the layer set changes (or the
+  // viewport resizes) so a newly added / removed plane is framed full-screen
+  useEffect(() => {
+    const ext =
+      params.layout === "rings" ? { width: WIDTH, height: HEIGHT } : mapSize;
+    if (!params.tilt.enabled || satelliteLayers.length === 0) {
+      focusBounds({ x0: 0, y0: 0, x1: ext.width, y1: ext.height }, 1.04);
+      return;
+    }
+    const center = { x: ext.width / 2, y: ext.height / 2 };
+    const opts = {
+      theta: params.tilt.theta,
+      squash: Math.cos(params.tilt.pitch),
+      skew: -Math.tan(params.tilt.skew),
+      center,
+    };
+    const gap = params.tilt.gap * ext.height;
+    const corners = [
+      { x: 0, y: 0 },
+      { x: ext.width, y: 0 },
+      { x: ext.width, y: ext.height },
+      { x: 0, y: ext.height },
+    ];
+    let x0 = Infinity;
+    let y0 = Infinity;
+    let x1 = -Infinity;
+    let y1 = -Infinity;
+    for (let i = 0; i <= satelliteLayers.length; i++) {
+      const t = layerTransform({ ...opts, gap, index: i });
+      for (const c of corners) {
+        const p = apply(t, c);
+        x0 = Math.min(x0, p.x);
+        y0 = Math.min(y0, p.y);
+        x1 = Math.max(x1, p.x);
+        y1 = Math.max(y1, p.y);
+      }
+    }
+    focusBounds({ x0, y0, x1, y1 }, 1.04);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [satelliteLayers, params.tilt.enabled, params.layout, mapSize]);
   const selected = useMemo(
     () =>
       allCells.find((c) => c.id === activeId) ??
@@ -1977,14 +2018,10 @@ export function App() {
   return (
     <div
       style={{
-        display: "grid",
-        ...(panelSide === "right"
-          ? { gridTemplateColumns: "1fr 300px", gridTemplateRows: "1fr" }
-          : { gridTemplateColumns: "1fr", gridTemplateRows: "1fr 260px" }),
-        gap: "12px",
+        position: "relative",
         height: "100vh",
-        padding: "12px",
-        boxSizing: "border-box",
+        width: "100vw",
+        overflow: "hidden",
         fontFamily: "Monaco, ui-monospace, Menlo, monospace",
         background: PAGE_BG,
         color: INK,
@@ -1994,11 +2031,10 @@ export function App() {
       <div
         ref={mapContainerRef}
         style={{
+          position: "absolute",
+          inset: "0",
           background: MAP_BG,
-          borderRadius: "8px",
           overflow: "hidden",
-          border: `1px solid ${PANEL_BORDER}`,
-          position: "relative",
         }}
       >
         {ringsRef.current ? (
@@ -2209,55 +2245,14 @@ export function App() {
             </span>
           </div>
         ) : null}
-        {/* floating overlays: structural axes (left drawer) + camera (top-right) */}
+        {/* floating overlays: structural axes + view options (left drawer),
+            camera / dark / GitHub (top-right) */}
         <LayersMenu
           params={params}
           availableScopes={availableScopes}
           onChange={onControlsChange}
-        />
-        <CameraPanel params={params} onChange={onControlsChange} />
-      </div>
-      <div
-        style={{
-          display: "flex",
-          flexDirection: panelSide === "right" ? "column" : "row",
-          alignItems: panelSide === "right" ? "stretch" : "flex-start",
-          gap: "12px",
-          fontSize: "12px",
-          color: "#0f172a",
-          minHeight: "0",
-          minWidth: "0",
-          overflow: panelSide === "right" ? "hidden auto" : "auto hidden",
-        }}
-      >
-        <div
-          style={{
-            display: "flex",
-            gap: "4px",
-            flex: "none",
-            flexDirection: panelSide === "right" ? "row" : "column",
-          }}
         >
-          {(["auto", "right", "bottom"] as PanelPosition[]).map((pos) => (
-            <button
-              key={pos}
-              onClick={() => setPanelPos(pos)}
-              style={{
-                padding: "2px 8px",
-                fontSize: "11px",
-                cursor: "pointer",
-                border: `1px solid ${PANEL_BORDER}`,
-                borderRadius: "4px",
-                background: panelPos === pos ? SELECT_STROKE : MAP_BG,
-                color: panelPos === pos ? "#fff" : INK,
-              }}
-            >
-              {pos}
-            </button>
-          ))}
-        </div>
-        <Section title="表示オプション">
-          <Controls /* dark toggles route through onControlsChange */
+          <Controls
             params={params}
             availableScopes={availableScopes}
             debug={DEBUG}
@@ -2267,7 +2262,33 @@ export function App() {
             onAddNode={addNode}
             onRemoveNode={removeNode}
           />
-        </Section>
+        </LayersMenu>
+        <CameraPanel params={params} onChange={onControlsChange} />
+      </div>
+      {/* detail / history overlay: floats over the right of the full-screen
+          map, only when there is a selection or recent change to show */}
+      {recentChangesRef.current.length > 0 || activeId !== null ? (
+      <div
+        style={{
+          position: "absolute",
+          top: "48px",
+          right: "8px",
+          bottom: "8px",
+          width: "300px",
+          maxWidth: "calc(100vw - 16px)",
+          display: "flex",
+          flexDirection: "column",
+          gap: "12px",
+          fontSize: "12px",
+          color: INK,
+          background: PANEL_BG,
+          border: `1px solid ${PANEL_BORDER}`,
+          borderRadius: "10px",
+          padding: "10px 12px",
+          boxSizing: "border-box",
+          overflowY: "auto",
+        }}
+      >
         {recentChangesRef.current.length > 0 ? (
           <Section title="変更履歴">
             <div
@@ -2502,6 +2523,7 @@ export function App() {
           </Section>
         ) : null}
       </div>
+      ) : null}
     </div>
   );
 }

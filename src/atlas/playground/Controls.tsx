@@ -73,6 +73,14 @@ const row: Record<string, string> = {
   fontSize: "12px",
 };
 
+/** The data-source picker is a dev / demo affordance: shown only on localhost
+ * and the GitHub Pages demo, hidden in any embedded / production use. */
+const SHOW_DATA_PICKER =
+  typeof location !== "undefined" &&
+  (location.hostname === "localhost" ||
+    location.hostname === "127.0.0.1" ||
+    location.hostname.endsWith("github.io"));
+
 export function Controls(props: Props) {
   const { params, onChange } = props;
   const set = <K extends keyof PlaygroundParams>(
@@ -97,20 +105,22 @@ export function Controls(props: Props) {
   };
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
-      <label style={row}>
-        <span style={{ width: "110px" }}>data</span>
-        <select
-          value={params.source}
-          onInput={(e) =>
-            set("source", (e.target as HTMLSelectElement).value as DataSource)
-          }
-        >
-          <option value="synthetic">synthetic</option>
-          <option value="sprawlens">sprawlens (this repo)</option>
-          <option value="sprawlens-history">sprawlens (git log)</option>
-          <option value="playwright">playwright (monorepo)</option>
-        </select>
-      </label>
+      {SHOW_DATA_PICKER ? (
+        <label style={row}>
+          <span style={{ width: "110px" }}>data</span>
+          <select
+            value={params.source}
+            onInput={(e) =>
+              set("source", (e.target as HTMLSelectElement).value as DataSource)
+            }
+          >
+            <option value="synthetic">synthetic</option>
+            <option value="sprawlens">sprawlens (this repo)</option>
+            <option value="sprawlens-history">sprawlens (git log)</option>
+            <option value="playwright">playwright (monorepo)</option>
+          </select>
+        </label>
+      ) : null}
       <label style={row}>
         <span style={{ width: "110px" }}>preset</span>
         <select
@@ -161,14 +171,6 @@ export function Controls(props: Props) {
           onInput={(e) =>
             set("followChanges", (e.target as HTMLInputElement).checked)
           }
-        />
-      </label>
-      <label style={row}>
-        <span style={{ width: "110px" }}>dark</span>
-        <input
-          type="checkbox"
-          checked={params.dark}
-          onInput={(e) => set("dark", (e.target as HTMLInputElement).checked)}
         />
       </label>
       <label style={row}>
