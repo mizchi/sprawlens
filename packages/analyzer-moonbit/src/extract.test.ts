@@ -9,7 +9,10 @@ beforeAll(async () => {
   dir = await mkdtemp(join(tmpdir(), "mbt-extract-"));
   await mkdir(join(dir, "lib"), { recursive: true });
   await writeFile(join(dir, "moon.mod.json"), `{"name":"demo"}`);
-  await writeFile(join(dir, "lib/moon.pkg.json"), `{"import":["moonbitlang/core/builtin"]}`);
+  await mkdir(join(dir, "util"), { recursive: true });
+  await writeFile(join(dir, "util/u.mbt"), `pub fn id() -> Int { 1 }\n`);
+  await writeFile(join(dir, "util/moon.pkg.json"), `{}`);
+  await writeFile(join(dir, "lib/moon.pkg.json"), `{"import":["moonbitlang/core/builtin","demo/util"]}`);
   await writeFile(
     join(dir, "lib/g.mbt"),
     `pub struct Greeter {\n  name : String\n}\npub fn Greeter::hello(self : Greeter) -> String {\n  self.name\n}\nenum Mode { On; Off }\nfn helper() -> Int { 42 }\npub let answer : Int = 42\n`,
@@ -30,7 +33,9 @@ describe("snapshotMoonbitWorkingTree", () => {
     expect(by("Mode")?.kind).toBe("enum");
     expect(by("helper")?.exported).toBe(false);
     expect(by("answer")?.kind).toBe("variable");
-    const imports = snap.edges.filter((e) => e.type === "imports").map((e) => e.specifier);
-    expect(imports).toContain("moonbitlang/core/builtin");
+    const imports = snap.edges.filter((e) => e.type === "imports");
+    expect(imports.some((e) => e.specifier === "moonbitlang/core/builtin" && !e.resolved)).toBe(true);
+    // import of the local demo/util package resolves to its file
+    expect(imports.some((e) => e.to === "file:util/u.mbt" && e.resolved)).toBe(true);
   });
 });

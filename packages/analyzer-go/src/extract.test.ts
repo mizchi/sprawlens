@@ -8,9 +8,11 @@ let dir: string;
 beforeAll(async () => {
   dir = await mkdtemp(join(tmpdir(), "go-extract-"));
   await mkdir(join(dir, "sub"), { recursive: true });
+  await writeFile(join(dir, "go.mod"), "module demo\ngo 1.22\n");
+  await writeFile(join(dir, "sub/sub.go"), "package sub\nfunc Default() string { return \"x\" }\n");
   await writeFile(
     join(dir, "main.go"),
-    `package main\nimport "fmt"\ntype Greeter struct{ Name string }\nfunc (g Greeter) Hello() string { if g.Name=="" { return "hi" }; return g.Name }\nfunc main() { fmt.Println("x") }\n`,
+    `package main\nimport ("fmt"; "demo/sub")\nvar _ = sub.Default\ntype Greeter struct{ Name string }\nfunc (g Greeter) Hello() string { if g.Name=="" { return "hi" }; return g.Name }\nfunc main() { fmt.Println("x") }\n`,
   );
   await writeFile(
     join(dir, "sub/sub.go"),
@@ -45,9 +47,13 @@ describe("snapshotGoWorkingTree", () => {
     expect(
       (sub.symbols ?? []).find((s) => s.name === "Config")?.kind,
     ).toBe("interface");
-    const imports = snap.edges
-      .filter((e) => e.type === "imports")
-      .map((e) => e.specifier);
-    expect(imports).toContain("fmt");
+    const imports = snap.edges.filter((e) => e.type === "imports");
+    expect(imports.some((e) => e.specifier === "fmt" && !e.resolved)).toBe(true);
+    // import of the local sub package resolves to its file
+    expect(
+      imports.some(
+        (e) => e.from === "file:main.go" && e.to === "file:sub/sub.go" && e.resolved,
+      ),
+    ).toBe(true);
   });
 });

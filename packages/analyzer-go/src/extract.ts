@@ -1,4 +1,5 @@
 import { createRequire } from "node:module";
+import { existsSync } from "node:fs";
 import { readFile } from "node:fs/promises";
 import { extname, posix } from "node:path";
 import fg from "fast-glob";
@@ -154,10 +155,20 @@ export async function snapshotGoWorkingTree(
   });
   files.sort();
 
+  // go.mod module path lets us resolve imports under it to local packages
+  let modulePath = "";
+  if (existsSync(posix.join(repoPath, "go.mod"))) {
+    const m = (await readFile(posix.join(repoPath, "go.mod"), "utf8")).match(
+      /^\s*module\s+(\S+)/m,
+    );
+    if (m) modulePath = m[1]!;
+  }
+
   const nodes: CodeNode[] = [{ id: "repo", type: "repo", name: repoName }];
   const edges: CodeEdge[] = [];
   const dirs = new Set<string>();
-  const fileById = new Map<string, string>(); // dir-or-package -> not needed
+  /** package dir -> the .go files in it (a Go package is a directory). */
+  const filesByDir = new Map<string, string[]>();
   let totalLoc = 0;
 
   const fileEntries: { rel: string; symbols: CodeSymbol[]; imports: string[]; loc: number; bytes: number }[] = [];
@@ -169,15 +180,24 @@ export async function snapshotGoWorkingTree(
     const loc = source.split("\n").length;
     totalLoc += loc;
     fileEntries.push({ rel, symbols, imports, loc, bytes: Buffer.byteLength(source) });
-    // register dir chain
+    // register dir chain + the package (file's own dir)
     const parts = rel.split("/");
     parts.pop();
+    const pkgDir = parts.join("/");
+    (filesByDir.get(pkgDir) ?? filesByDir.set(pkgDir, []).get(pkgDir)!).push(rel);
     let acc = "";
     for (const part of parts) {
       acc = acc ? `${acc}/${part}` : part;
       dirs.add(acc);
     }
   }
+
+  /** Local package dir for an import path under the module, else null. */
+  const localDirOf = (spec: string): string | null => {
+    if (!modulePath || spec !== modulePath && !spec.startsWith(`${modulePath}/`))
+      return null;
+    return spec === modulePath ? "" : spec.slice(modulePath.length + 1);
+  };
 
   for (const dir of [...dirs].sort())
     nodes.push({ id: `dir:${dir}`, type: "dir", path: dir });
@@ -193,22 +213,37 @@ export async function snapshotGoWorkingTree(
       sizeBytes: f.bytes,
       symbols: f.symbols,
     });
-    fileById.set(f.rel, id);
     // contains edges (repo/dir -> file)
     const dir = f.rel.includes("/") ? f.rel.slice(0, f.rel.lastIndexOf("/")) : "";
     const parent = dir ? `dir:${dir}` : "repo";
     edges.push({ id: `contains:${parent}->${id}`, type: "contains", from: parent, to: id });
-    // external import edges (Go import paths are package paths; treat as external)
     for (const spec of new Set(f.imports)) {
-      edges.push({
-        id: `imports:${id}->external:${spec}:${spec}`,
-        type: "imports",
-        from: id,
-        to: `external:${spec}`,
-        specifier: spec,
-        resolved: false,
-        external: true,
-      });
+      const localDir = localDirOf(spec);
+      const localFiles = localDir !== null ? filesByDir.get(localDir) : undefined;
+      if (localFiles && localFiles.length > 0) {
+        // a Go package is a directory: link the importer to every file in it
+        for (const target of localFiles) {
+          if (target === f.rel) continue;
+          edges.push({
+            id: `imports:${id}->file:${target}:${spec}`,
+            type: "imports",
+            from: id,
+            to: `file:${target}`,
+            specifier: spec,
+            resolved: true,
+          });
+        }
+      } else {
+        edges.push({
+          id: `imports:${id}->external:${spec}:${spec}`,
+          type: "imports",
+          from: id,
+          to: `external:${spec}`,
+          specifier: spec,
+          resolved: false,
+          external: true,
+        });
+      }
     }
   }
   // contains edges for the dir tree (repo/parent-dir -> dir)

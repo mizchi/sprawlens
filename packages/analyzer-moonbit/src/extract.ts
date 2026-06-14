@@ -145,10 +145,22 @@ export async function snapshotMoonbitWorkingTree(
     const dir = pkg.includes("/") ? pkg.slice(0, pkg.lastIndexOf("/")) : "";
     importsByDir.set(dir, pkgImports(await readFile(posix.join(repoPath, pkg), "utf8")));
   }
+  // module name (moon.mod.json) lets us resolve imports under it to local dirs
+  let moduleName = "";
+  try {
+    const mod = JSON.parse(await readFile(posix.join(repoPath, "moon.mod.json"), "utf8")) as {
+      name?: unknown;
+    };
+    if (typeof mod.name === "string") moduleName = mod.name;
+  } catch {
+    // no module file; everything stays external
+  }
 
   const nodes: CodeNode[] = [{ id: "repo", type: "repo", name: repoName }];
   const edges: CodeEdge[] = [];
   const dirs = new Set<string>();
+  /** package dir -> its .mbt files. */
+  const filesByDir = new Map<string, string[]>();
   let totalLoc = 0;
 
   const entries: { rel: string; symbols: CodeSymbol[]; loc: number; bytes: number; dir: string }[] = [];
@@ -158,6 +170,7 @@ export async function snapshotMoonbitWorkingTree(
     totalLoc += loc;
     const dir = rel.includes("/") ? rel.slice(0, rel.lastIndexOf("/")) : "";
     entries.push({ rel, symbols: symbolsOf(source, rel), loc, bytes: Buffer.byteLength(source), dir });
+    (filesByDir.get(dir) ?? filesByDir.set(dir, []).get(dir)!).push(rel);
     const parts = rel.split("/");
     parts.pop();
     let acc = "";
@@ -166,6 +179,13 @@ export async function snapshotMoonbitWorkingTree(
       dirs.add(acc);
     }
   }
+
+  /** Local package dir for an import under the module, else null. */
+  const localDirOf = (spec: string): string | null => {
+    if (!moduleName || (spec !== moduleName && !spec.startsWith(`${moduleName}/`)))
+      return null;
+    return spec === moduleName ? "" : spec.slice(moduleName.length + 1);
+  };
 
   for (const dir of [...dirs].sort())
     nodes.push({ id: `dir:${dir}`, type: "dir", path: dir });
@@ -183,17 +203,33 @@ export async function snapshotMoonbitWorkingTree(
     });
     const parent = f.dir ? `dir:${f.dir}` : "repo";
     edges.push({ id: `contains:${parent}->${id}`, type: "contains", from: parent, to: id });
-    // package imports apply to every file in the package dir
+    // package imports (from moon.pkg.json) apply to every file in the package
     for (const spec of new Set(importsByDir.get(f.dir) ?? [])) {
-      edges.push({
-        id: `imports:${id}->external:${spec}:${spec}`,
-        type: "imports",
-        from: id,
-        to: `external:${spec}`,
-        specifier: spec,
-        resolved: false,
-        external: true,
-      });
+      const localDir = localDirOf(spec);
+      const localFiles = localDir !== null ? filesByDir.get(localDir) : undefined;
+      if (localFiles && localFiles.length > 0) {
+        for (const target of localFiles) {
+          if (target === f.rel) continue;
+          edges.push({
+            id: `imports:${id}->file:${target}:${spec}`,
+            type: "imports",
+            from: id,
+            to: `file:${target}`,
+            specifier: spec,
+            resolved: true,
+          });
+        }
+      } else {
+        edges.push({
+          id: `imports:${id}->external:${spec}:${spec}`,
+          type: "imports",
+          from: id,
+          to: `external:${spec}`,
+          specifier: spec,
+          resolved: false,
+          external: true,
+        });
+      }
     }
   }
   for (const dir of dirs) {
