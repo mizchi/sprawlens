@@ -1,70 +1,77 @@
-# CodeSprawl Lens
+# sprawlens
 
-CodeSprawl Lens collects file-level TypeScript/JavaScript import graph snapshots from Git history, computes structural growth metrics and diffs, and serves a small web UI for timeline, treemap, dependency diff, and hotspot review.
+Visualize the structure of a code repository as a stacked, zoomable map —
+modules as concentric dependency rings (or a bundled treemap), subdivided down
+to files and symbols with capacity-constrained power diagrams, and linked by
+their real import / call graph. Point it at any repo and read how the code is
+laid out and how it depends on itself.
 
-## Commands
+Supports **TypeScript / JavaScript, Go, Rust, and MoonBit**, auto-detected.
+
+## Run it on any repo
+
+```bash
+# from a checkout of this repo (built bin):
+pnpm install && pnpm build
+node packages/cli/dist/index.js <path-to-repo>     # analyze + open the browser
+
+# or during development, without building:
+pnpm cli serve <path-to-repo>
+```
+
+`sprawlens [repo]` (default `.`) snapshots the working tree, starts a local
+server that serves the map + the snapshot + the detail endpoints, and opens the
+browser. `--port <n>`, `--no-open`.
+
+Language detection: `go.mod` → Go, `Cargo.toml` → Rust, `moon.mod.json` →
+MoonBit, otherwise the TypeScript provider (any `package.json` / `tsconfig.json`
+/ `*.ts`).
+
+### What the map shows
+
+- **Modules → directories → files → classes → symbols**, area ∝ code size,
+  position from graph proximity. Toggle boundary levels in the left drawer.
+- **Internal dependency edges** (resolved file→file / symbol→symbol) and
+  **external packages** on the deps plane.
+- **Stacked planes**: source, tests, and external deps, linked by the edges
+  that cross between them — hover a node to light its rope, hold alt for all.
+- **Live working-tree diff** (added / modified files, highlighted) and, for
+  TypeScript, **per-symbol CFG and call hierarchy** on demand.
+
+## Git-history commands (TypeScript)
+
+```bash
+pnpm cli collect <repo> --commits 50   # snapshot N commits into .codesprawl/
+pnpm cli analyze <repo>                # diff consecutive snapshots
+```
+
+## Architecture
+
+A pnpm workspace split by responsibility. The neutral `Snapshot` is the
+contract between language analysis and the view.
+
+| package | responsibility |
+|---|---|
+| `@sprawlens/schema` | language-neutral contracts (`Snapshot`, `AtlasGraph`, hierarchy, `LanguageProvider`) + neutral computation + the snapshot→graph adapter |
+| `@sprawlens/layout` | geometry + graph layout kernel (rings, treemap, power diagram, force, ...) |
+| `@sprawlens/analyzer-ts` | TypeScript/JS provider — TS compiler for structure, LSP for CFG / call hierarchy |
+| `@sprawlens/analyzer-go` | Go provider — tree-sitter |
+| `@sprawlens/analyzer-rust` | Rust provider — tree-sitter |
+| `@sprawlens/analyzer-moonbit` | MoonBit provider — heuristic (until a tree-sitter grammar ships) |
+| `@sprawlens/server` | neutral HTTP shell: static viz, snapshot, working-tree diff (SSE), injected detail |
+| `@sprawlens/viz` | the Preact + SVG map |
+| `@sprawlens/cli` | language detection → analyze → serve → open |
+
+A language provider implements `match` + `analyze(repo) → Snapshot` and an
+optional `detail` (CFG, call hierarchy). Adding a language is one package.
+
+## Develop
 
 ```bash
 pnpm install
-pnpm build
-
-node dist/cli/index.js collect ./some-ts-repo --commits 50
-node dist/cli/index.js analyze ./some-ts-repo
-node dist/cli/index.js serve ./some-ts-repo
-```
-
-During package usage, the binary name is `codesprawl`:
-
-```bash
-codesprawl collect ./some-ts-repo --commits 50
-codesprawl analyze ./some-ts-repo
-codesprawl serve ./some-ts-repo
-```
-
-## Output
-
-```txt
-.codesprawl/
-  config.json
-  commits.json
-  snapshots/<commit>.json
-  diffs/<from>..<to>.json
-  metrics.csv
-```
-
-## MVP Scope
-
-- TypeScript/JavaScript source files only
-- File-level graph only
-- Static import/export, dynamic `import()`, and literal `require()` specifier extraction
-- Relative import resolution with extension and `index.*` fallbacks
-- Git worktree based snapshot collection without checking out the main working tree
-- Heuristic AI-assisted commit markers, never definitive classification
-
-## Atlas (experimental)
-
-A separate Preact + SVG view (`src/atlas/`) that lays modules out on
-concentric dependency rings and subdivides them with capacity-constrained
-power diagrams (module → file → symbol). Independent of the legacy UI.
-
-```bash
-pnpm dev:atlas               # playground at /atlas.html
-ATLAS_HMR=0 pnpm dev:atlas   # heavy maps (e.g. the playwright fixture):
-                             # drops prefresh, whose vnode hooks cause
-                             # GC pauses during zoom on 4k+ symbol maps
-pnpm dev:atlas-server        # LSP call-hierarchy provider (sprawlens/playwright)
-```
-
-Production behaves like the no-HMR dev server:
-
-```bash
-pnpm build:atlas && pnpm exec vite preview -c vite.atlas.config.ts --port 5174
-```
-
-Per-step zoom/pan resource measurement (lightbringer):
-
-```bash
-pnpm exec playwright test -c playwright.atlas.config.ts
-ATLAS_BASE_URL=http://127.0.0.1:5174 PERF_TRACE=1 \
-  pnpm exec playwright test -c playwright.atlas.config.ts   # prod preview
+pnpm test                 # vitest across all packages
+pnpm -r exec tsc --noEmit -p tsconfig.json   # typecheck (per package)
+pnpm --filter @sprawlens/viz dev             # the map dev server
+pnpm dev:server                              # detail/diff server for the viz dev
+pnpm build                                   # build viz + bundle the CLI bin
 ```

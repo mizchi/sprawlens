@@ -1,7 +1,7 @@
 {
   "name": "@sprawlens/cli",
   "version": "0.0.0",
-  "private": true,
+  "private": false,
   "type": "module",
   "main": "./src/index.ts",
   "types": "./src/index.ts",
@@ -9,12 +9,12 @@
     ".": "./src/index.ts"
   },
   "dependencies": {
-    "@sprawlens/schema": "workspace:*",
-    "@sprawlens/analyzer-ts": "workspace:*",
-    "@sprawlens/server": "workspace:*",
-    "@sprawlens/analyzer-go": "workspace:*",
-    "@sprawlens/analyzer-rust": "workspace:*",
-    "@sprawlens/analyzer-moonbit": "workspace:*"
+    "commander": "^14.0.0",
+    "fast-glob": "^3.3.3",
+    "typescript": "^5.7.2",
+    "typescript-language-server": "^5.3.0",
+    "web-tree-sitter": "^0.22.6",
+    "tree-sitter-wasms": "^0.1.13"
   },
   "scripts": {
     "dev": "tsx src/index.ts",
@@ -25,5 +25,15 @@
   },
   "files": [
     "dist"
-  ]
+  ],
+  "devDependencies": {
+    "@sprawlens/schema": "workspace:*",
+    "@sprawlens/analyzer-ts": "workspace:*",
+    "@sprawlens/analyzer-go": "workspace:*",
+    "@sprawlens/analyzer-rust": "workspace:*",
+    "@sprawlens/analyzer-moonbit": "workspace:*",
+    "@sprawlens/server": "workspace:*",
+    "esbuild": "^0.25.0"
+  },
+  "description": "Visualize the structure of any TypeScript, Go, Rust or MoonBit repository"
 }

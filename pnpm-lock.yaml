@@ -129,6 +129,25 @@ importers:
 
   packages/cli:
     dependencies:
+      commander:
+        specifier: ^14.0.0
+        version: 14.0.3
+      fast-glob:
+        specifier: ^3.3.3
+        version: 3.3.3
+      tree-sitter-wasms:
+        specifier: ^0.1.13
+        version: 0.1.13
+      typescript:
+        specifier: ^5.7.2
+        version: 5.9.3
+      typescript-language-server:
+        specifier: ^5.3.0
+        version: 5.3.0
+      web-tree-sitter:
+        specifier: ^0.22.6
+        version: 0.22.6
+    devDependencies:
       '@sprawlens/analyzer-go':
         specifier: workspace:*
         version: link:../analyzer-go
@@ -147,6 +166,9 @@ importers:
       '@sprawlens/server':
         specifier: workspace:*
         version: link:../server
+      esbuild:
+        specifier: ^0.25.0
+        version: 0.25.12
 
   packages/layout:
     dependencies:
