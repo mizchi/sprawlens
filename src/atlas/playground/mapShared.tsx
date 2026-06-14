@@ -751,7 +751,20 @@ export function PlaneLayerView(props: {
     }
     return Math.max(maxX - minX, maxY - minY);
   };
-  const LABEL_MIN_PX = 44;
+  // label budget grows with zoom: few names when zoomed out, more as cells
+  // enlarge. The biggest cells win the budget; hover/selection always show.
+  const LABELS_PER_ZOOM = 7;
+  const LABEL_MIN_PX = 26;
+  const labelledNodes = (() => {
+    const eligible = placed
+      .filter((d) => sizeOf(d) * zoom >= LABEL_MIN_PX)
+      .sort((a, b) => sizeOf(b) - sizeOf(a));
+    const budget = Math.max(2, Math.round(zoom * LABELS_PER_ZOOM));
+    const shown = new Map(eligible.slice(0, budget).map((d) => [d.id, d]));
+    for (const d of placed)
+      if (d.id === hovered || d.id === props.selectedId) shown.set(d.id, d);
+    return [...shown.values()];
+  })();
   return (
     <>
       {/* plane frames */}
@@ -859,40 +872,31 @@ export function PlaneLayerView(props: {
           ) : null;
         })}
       </g>
-      {/* names: shown for cells big enough on screen (like the source map),
-          plus the hovered / selected node. Upright at the node's projected
-          site (plain translate, no tilt parent, so it never rotates/scales). */}
-      {placed
-        .filter(
-          (d) =>
-            d.id === hovered ||
-            d.id === props.selectedId ||
-            sizeOf(d) * zoom >= LABEL_MIN_PX,
-        )
-        .map((d) => {
-          const p = apply(tilt1, d.site);
-          const fontSize = 12 / zoom;
-          return (
-            <g
-              key={d.id}
-              transform={`translate(${p.x},${p.y})`}
-              style={{ pointerEvents: "none", userSelect: "none" }}
+      {/* names: a zoom-scaled budget of the biggest cells gets a label (more
+          as you zoom in, few when zoomed out), plus the hovered / selected
+          node. Upright at the node's projected site (plain translate, no tilt
+          parent, so it never rotates / scales). */}
+      {labelledNodes.map((d) => {
+        const p = apply(tilt1, d.site);
+        const fontSize = 12 / zoom;
+        return (
+          <g
+            key={d.id}
+            transform={`translate(${p.x},${p.y})`}
+            style={{ pointerEvents: "none", userSelect: "none" }}
+          >
+            <text
+              y={fontSize * 0.34}
+              font-size={fontSize}
+              font-weight="600"
+              text-anchor="middle"
+              fill={color}
             >
-              <text
-                y={fontSize * 0.34}
-                font-size={fontSize}
-                font-weight="600"
-                text-anchor="middle"
-                fill={color}
-                stroke={PLANE_OUTLINE}
-                stroke-width={3 / zoom}
-                paint-order="stroke"
-              >
-                {d.label}
-              </text>
-            </g>
-          );
-        })}
+              {d.label}
+            </text>
+          </g>
+        );
+      })}
     </>
   );
 }
