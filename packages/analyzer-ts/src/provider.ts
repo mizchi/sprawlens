@@ -3,6 +3,7 @@ import { basename, join } from "node:path";
 import fg from "fast-glob";
 import type { LanguageProvider } from "@sprawlens/schema";
 import { SOURCE_EXTENSIONS, createSnapshotFromWorkingTree } from "./snapshot.js";
+import { tsDetail } from "./detail.js";
 
 /** TypeScript / JavaScript provider, backed by the TS compiler API. */
 export const tsProvider: LanguageProvider = {
@@ -39,4 +40,5 @@ export const tsProvider: LanguageProvider = {
       repoName: basename(repoPath),
     });
   },
+  detail: tsDetail,
 };

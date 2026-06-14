@@ -1,6 +1,3 @@
-// @sprawlens/server — neutral HTTP shell + TS detail providers
+// @sprawlens/server — neutral HTTP shell (detail is injected by the caller)
 export * from "./serve.js";
 export * from "./workingDiff.js";
-export * from "./cfgProvider.js";
-export * from "./callHierarchyProvider.js";
-export * from "./lspClient.js";

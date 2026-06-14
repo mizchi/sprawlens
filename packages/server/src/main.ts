@@ -1,5 +1,6 @@
 import { existsSync } from "node:fs";
 import { resolve } from "node:path";
+import { tsDetail } from "@sprawlens/analyzer-ts";
 import { createAtlasServer } from "./serve.js";
 
 // usage: tsx src/main.ts [--port N] name=path [name=path...]
@@ -27,7 +28,7 @@ if (repos.size === 0) {
   process.exit(1);
 }
 
-createAtlasServer({ repos }).listen(port, "127.0.0.1", () => {
+createAtlasServer({ repos, detail: tsDetail }).listen(port, "127.0.0.1", () => {
   console.log(
     `atlas server: http://127.0.0.1:${port} (${[...repos.keys()].join(", ")})`,
   );

@@ -1,9 +1,7 @@
 import { createServer, type Server, type ServerResponse } from "node:http";
 import { readFile } from "node:fs/promises";
 import { extname, join, normalize } from "node:path";
-import { callHierarchy } from "./callHierarchyProvider.js";
-import { extractCfg } from "./cfgProvider.js";
-import { LspClient } from "./lspClient.js";
+import type { LanguageDetail } from "@sprawlens/schema";
 import {
   enrichWithLoc,
   isSafeRef,
@@ -13,9 +11,9 @@ import {
 
 /**
  * Atlas server: the language-neutral HTTP shell. Serves the built viz (static),
- * the analyzed snapshot(s), the working-tree diff (poll + SSE), and the
- * TS-specific detail endpoints (CFG, call hierarchy). The CLI runs it for one
- * repo; the dev script runs it for several named repos.
+ * the analyzed snapshot(s), the working-tree diff (poll + SSE), and — when a
+ * `detail` provider is injected — the CFG / call-hierarchy endpoints. The CLI
+ * runs it for one repo; the dev script runs it for several named repos.
  */
 export type AtlasServerOptions = {
   /** name -> absolute repo path (working-tree diff + detail are per repo). */
@@ -24,6 +22,8 @@ export type AtlasServerOptions = {
   snapshots?: Map<string, unknown | (() => unknown | Promise<unknown>)>;
   /** Directory of the built viz to serve as static files (SPA fallback). */
   vizDist?: string;
+  /** Language-specific CFG / call hierarchy; omit to disable those endpoints. */
+  detail?: LanguageDetail;
 };
 
 const MIME: Record<string, string> = {
@@ -38,18 +38,7 @@ const MIME: Record<string, string> = {
 };
 
 export function createAtlasServer(opts: AtlasServerOptions): Server {
-  const { repos, snapshots, vizDist } = opts;
-  const clients = new Map<string, Promise<LspClient>>();
-  const clientFor = (repo: string): Promise<LspClient> => {
-    let client = clients.get(repo);
-    if (!client) {
-      const root = repos.get(repo)!;
-      console.log(`starting language server for ${repo} (${root})`);
-      client = LspClient.start(root);
-      clients.set(repo, client);
-    }
-    return client;
-  };
+  const { repos, snapshots, vizDist, detail } = opts;
 
   type DiffStream = {
     clients: Set<ServerResponse>;
@@ -197,18 +186,19 @@ export function createAtlasServer(opts: AtlasServerOptions): Server {
           line: number;
         };
         const root = repos.get(repoOf(body.repo));
-        if (!root) {
-          res.writeHead(400).end(JSON.stringify({ error: "unknown repo" }));
+        if (!root || !detail) {
+          res.writeHead(root ? 404 : 400).end(
+            JSON.stringify({ error: root ? "no detail provider" : "unknown repo" }),
+          );
           return;
         }
         if (body.file.includes("..") || body.file.startsWith("/")) {
           res.writeHead(400).end(JSON.stringify({ error: "invalid file" }));
           return;
         }
-        const source = await readFile(join(root, body.file), "utf8");
         res
           .writeHead(200, { "content-type": "application/json" })
-          .end(JSON.stringify(extractCfg(source, body.line)));
+          .end(JSON.stringify(await detail.cfg(root, body.file, body.line)));
       } catch (error) {
         console.error(error);
         res.writeHead(500).end(JSON.stringify({ error: "cfg failed" }));
@@ -225,25 +215,20 @@ export function createAtlasServer(opts: AtlasServerOptions): Server {
           file: string;
           symbol: string;
         };
-        const name = repoOf(body.repo);
-        if (!repos.has(name)) {
-          res.writeHead(400).end(JSON.stringify({ error: "unknown repo" }));
+        const root = repos.get(repoOf(body.repo));
+        if (!root || !detail) {
+          res.writeHead(root ? 404 : 400).end(
+            JSON.stringify({ error: root ? "no detail provider" : "unknown repo" }),
+          );
           return;
         }
         if (body.file.includes("..") || body.file.startsWith("/")) {
           res.writeHead(400).end(JSON.stringify({ error: "invalid file" }));
           return;
         }
-        const client = await clientFor(name);
-        const result = await callHierarchy(
-          client,
-          repos.get(name)!,
-          body.file,
-          body.symbol,
-        );
         res
           .writeHead(200, { "content-type": "application/json" })
-          .end(JSON.stringify(result));
+          .end(JSON.stringify(await detail.callHierarchy(root, body.file, body.symbol)));
       } catch (error) {
         console.error(error);
         res

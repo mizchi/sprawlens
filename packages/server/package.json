@@ -9,7 +9,8 @@
     ".": "./src/index.ts"
   },
   "dependencies": {
-    "@sprawlens/schema": "workspace:*"
+    "@sprawlens/schema": "workspace:*",
+    "@sprawlens/analyzer-ts": "workspace:*"
   },
   "scripts": {
     "dev": "tsx src/main.ts sprawlens=../.."

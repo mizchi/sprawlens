@@ -1,14 +1,10 @@
 import { resolve } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import type { LspClient } from "./lspClient.js";
+import type { CallHierarchyResult, SymbolRef } from "@sprawlens/schema";
 
 /** Repo-relative reference to a symbol; lines are 1-based. */
-export type SymbolRef = { file: string; name: string; line: number };
 
-export type CallHierarchyResult = {
-  incoming: SymbolRef[];
-  outgoing: SymbolRef[];
-};
 
 type LspRange = { start: { line: number; character: number } };
 type DocumentSymbol = {
