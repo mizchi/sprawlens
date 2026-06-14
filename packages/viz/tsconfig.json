@@ -1,0 +1,12 @@
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "rootDir": "src",
+    "noEmit": true,
+    "jsxImportSource": "preact",
+    "allowImportingTsExtensions": true
+  },
+  "include": [
+    "src"
+  ]
+}

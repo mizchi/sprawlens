@@ -3,18 +3,14 @@
   "version": "0.0.0",
   "private": true,
   "type": "module",
-  "bin": {
-    "codesprawl": "./dist/cli/index.js"
-  },
   "scripts": {
-    "build": "pnpm run build:cli && pnpm run build:atlas",
-    "build:cli": "tsc -p tsconfig.build.json",
-    "build:atlas": "vite build -c vite.atlas.config.ts",
-    "dev:atlas": "vite -c vite.atlas.config.ts --host 127.0.0.1",
-    "dev:atlas-server": "tsx src/atlas/server/index.ts sprawlens=. playwright=$HOME/ghq/github.com/microsoft/playwright",
     "test": "vitest run",
-    "typecheck": "tsc -p tsconfig.json --noEmit && tsc -p tsconfig.atlas.json --noEmit",
-    "bench": "vitest bench --run"
+    "bench": "vitest bench --run",
+    "typecheck": "pnpm -r exec tsc --noEmit -p tsconfig.json",
+    "dev": "pnpm --filter @sprawlens/viz dev",
+    "build": "pnpm --filter @sprawlens/viz build",
+    "dev:server": "pnpm --filter @sprawlens/server dev",
+    "cli": "pnpm --filter @sprawlens/cli dev"
   },
   "dependencies": {
     "@deck.gl/core": "^9.3.3",

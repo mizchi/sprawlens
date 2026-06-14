@@ -1,0 +1,14 @@
+{
+  "name": "@sprawlens/viz",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "dependencies": {
+    "@sprawlens/schema": "workspace:*",
+    "@sprawlens/layout": "workspace:*"
+  },
+  "scripts": {
+    "dev": "vite --host 127.0.0.1",
+    "build": "vite build"
+  }
+}

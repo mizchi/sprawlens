@@ -73,6 +73,44 @@ importers:
         specifier: ^2.1.8
         version: 2.1.9(@types/node@22.19.20)
 
+  packages/analyzer-ts:
+    dependencies:
+      '@sprawlens/schema':
+        specifier: workspace:*
+        version: link:../schema
+
+  packages/cli:
+    dependencies:
+      '@sprawlens/analyzer-ts':
+        specifier: workspace:*
+        version: link:../analyzer-ts
+      '@sprawlens/schema':
+        specifier: workspace:*
+        version: link:../schema
+
+  packages/layout:
+    dependencies:
+      '@sprawlens/schema':
+        specifier: workspace:*
+        version: link:../schema
+
+  packages/schema: {}
+
+  packages/server:
+    dependencies:
+      '@sprawlens/schema':
+        specifier: workspace:*
+        version: link:../schema
+
+  packages/viz:
+    dependencies:
+      '@sprawlens/layout':
+        specifier: workspace:*
+        version: link:../layout
+      '@sprawlens/schema':
+        specifier: workspace:*
+        version: link:../schema
+
 packages:
 
   '@babel/code-frame@7.29.7':
