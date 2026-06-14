@@ -1,12 +1,9 @@
 import type { AtlasGraph } from "../contracts/graph.js";
 import { defaultLayerOf } from "../contracts/layers.js";
-import { directoryGrouping, moduleGrouping } from "../contracts/hierarchy.js";
+import { circleToPolygon } from "../kernel/polygon.js";
 import type { Vec2 } from "../kernel/vec.js";
 import { ringPlane, type PlacedNode } from "./planeLayers.ts";
-import {
-  createTreemapState,
-  stepTreemapState,
-} from "./treemapController.ts";
+import { createRingsState, stepRingsState } from "./ringsController.ts";
 import type { ExternalDep } from "./fixtureAdapter.ts";
 
 /**
@@ -32,11 +29,9 @@ const SOLVER = {
   lloydRate: 0.7,
 };
 
-const DIRECTORY_DEPTH = 3;
-
-/** Capacity layout of the test files — the same engine as the source map —
- * partitioned by their own directory hierarchy (module ⊃ directory). Cross-
- * plane links follow the real test→source imports. */
+/** Concentric-ring layout of the test files — the same engine as the source
+ * map — modules as rings, files as weighted cells inside. Cross-plane links
+ * follow the real test→source imports. */
 function solveTestLayer(
   graph: AtlasGraph,
   ext: { width: number; height: number },
@@ -49,17 +44,12 @@ function solveTestLayer(
   const testEdges = graph.edges.filter(
     (e) => testIds.has(e.source) && testIds.has(e.target),
   );
-  let state = createTreemapState(
+  let state = createRingsState(
     { nodes: testNodes, edges: testEdges },
-    {
-      width: ext.width,
-      height: ext.height,
-      ...SOLVER,
-      boundaries: [moduleGrouping(), directoryGrouping(DIRECTORY_DEPTH)],
-    },
+    { width: ext.width, height: ext.height, ...SOLVER },
   );
-  for (let i = 0; i < 160; i++) {
-    const stepped = stepTreemapState(state, 6);
+  for (let i = 0; i < 200; i++) {
+    const stepped = stepRingsState(state, 6);
     state = stepped.state;
     if (!stepped.active) break;
   }
@@ -82,11 +72,15 @@ function solveTestLayer(
         sourceIds: [...(importsBy.get(c.id) ?? [])],
       });
     }
-  const districts = state.levels.flatMap((l) =>
-    [...l.cells.values()]
-      .filter((c) => c.polygon.length >= 3)
-      .map((c) => c.polygon),
-  );
+  // districts trace the module circles and any inner boundary cells
+  const districts: Vec2[][] = [];
+  for (const circle of state.circles.values())
+    districts.push(
+      circleToPolygon({ cx: circle.cx, cy: circle.cy, r: circle.r }, 48),
+    );
+  for (const level of state.innerLevels)
+    for (const c of level.cells.values())
+      if (c.polygon.length >= 3) districts.push(c.polygon);
   return {
     id: "tests",
     planeIndex,

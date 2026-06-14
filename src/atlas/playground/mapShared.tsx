@@ -788,10 +788,11 @@ export function PlaneLayerView(props: {
         <polygon points={planePolyOf(tilt1, extent.w, extent.h)} stroke-opacity={0.5} stroke-width={1.5} />
       </g>
       {/* correspondence: each node's references (top, on whichever plane owns
-          them) fan up from the node (bottom). Edges sharing the node bundle
-          into one trunk up to a waist, then diverge to each target so a
-          many-to-many relation reads as a tree, not a hairball. Clicking a
-          diverging leg selects + jumps to that target. */}
+          them) fan up from the node (bottom). Every leg stays its own strand
+          but is pulled through a shared waist toward the targets' centroid, so
+          edges of one node read as a gathered rope that splays at the ends —
+          drawn together, not collapsed into a single line. Clicking a strand
+          selects + jumps to that target. */}
       <g fill="none" stroke={color}>
         {placed.flatMap((d) => {
           const bot = apply(tilt1, d.site);
@@ -801,33 +802,26 @@ export function PlaneLayerView(props: {
             .filter((v): v is readonly [string, Vec2] => !!v[1])
             .slice(0, edgeCap);
           if (tops.length === 0) return [];
-          // waist = part-way from the node toward its targets' centroid; all of
-          // the node's legs share it, so bottom→waist overlaps as one trunk
+          // pull point = part-way from the node toward its targets' centroid;
+          // every strand bends toward it (gathered) but keeps its own ends
           const cx = tops.reduce((s, [, p]) => s + p.x, 0) / tops.length;
           const cy = tops.reduce((s, [, p]) => s + p.y, 0) / tops.length;
-          const waist =
-            tops.length > 1
-              ? { x: bot.x + (cx - bot.x) * 0.6, y: bot.y + (cy - bot.y) * 0.6 }
-              : bot;
-          const sw = active ? 1.6 : 1;
-          const so = active ? 0.85 : 0.32;
+          const gather = { x: bot.x + (cx - bot.x) * 0.5, y: bot.y + (cy - bot.y) * 0.5 };
+          const sw = active ? 1.4 : 0.9;
+          const so = active ? 0.8 : 0.28;
           const out: VNode[] = [];
-          if (tops.length > 1)
-            out.push(
-              <line
-                key={`${d.id}:trunk`}
-                x1={bot.x}
-                y1={bot.y}
-                x2={waist.x}
-                y2={waist.y}
-                stroke-width={sw + 0.6}
-                stroke-opacity={so}
-                style={{ pointerEvents: "none" }}
-              />,
-            );
           for (let i = 0; i < tops.length; i++) {
             const [sid, top] = tops[i]!;
-            const path = smoothPathD([waist, top]);
+            // nudge the shared gather a little toward this target: strands sit
+            // close together through the middle but never collapse to one point
+            const via = {
+              x: gather.x + (top.x - gather.x) * 0.15,
+              y: gather.y + (top.y - gather.y) * 0.15,
+            };
+            const path =
+              tops.length > 1
+                ? smoothPathD([bot, via, top])
+                : smoothPathD([bot, top]);
             const key = `${d.id}:${i}`;
             out.push(
               <path
