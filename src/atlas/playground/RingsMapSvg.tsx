@@ -256,21 +256,21 @@ export function RingsMapSvg(props: Props) {
   // representative upper-plane point per source file = centroid of its leaf
   // cells; satellite cross-layer links drop to / rise from these
   const sourceSiteOf = useMemo(() => {
-    const acc = new Map<string, { x: number; y: number; n: number }>();
+    // a cross-layer link points at a file, but at symbol granularity a file is
+    // many cells; anchoring on the file's *largest* cell keeps the edge landing
+    // on a real (and tinted) cell instead of the centroid gap between symbols
+    const best = new Map<string, { site: Vec2; area: number }>();
     if (satellitesOn) {
       for (const layout of rings.leafLayouts.values())
         for (const c of layout.cells) {
           const f = parentFileOf(c.id);
-          const e = acc.get(f);
-          if (e) {
-            e.x += c.site.x;
-            e.y += c.site.y;
-            e.n++;
-          } else acc.set(f, { x: c.site.x, y: c.site.y, n: 1 });
+          const e = best.get(f);
+          if (!e || c.actualArea > e.area)
+            best.set(f, { site: c.site, area: c.actualArea });
         }
     }
     const m = new Map<string, Vec2>();
-    for (const [f, e] of acc) m.set(f, { x: e.x / e.n, y: e.y / e.n });
+    for (const [f, e] of best) m.set(f, e.site);
     return m;
   }, [rings, parentFileOf, satellitesOn]);
   // every node's screen point across all planes: source files on the tilted
