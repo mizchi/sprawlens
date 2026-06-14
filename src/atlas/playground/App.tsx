@@ -386,10 +386,21 @@ export function App() {
     // when symbols are the leaves (no file boundary nesting them per file)
     const symbolLeaves =
       granularityOf(p.boundaries, p.displayLevels) === "symbol";
+    // with a directory boundary the class rest bucket must nest under the
+    // directory (its parent), not the module — otherwise the one module-wide
+    // bucket is shared across directories and empties all but one
+    const hasDirectory = p.boundaries.includes("directory");
+    const dir = directoryGrouping(DIRECTORY_DEPTH);
     const groupings = p.boundaries.flatMap((level): Grouping[] => {
       if (level === "module") return [moduleGrouping()];
-      if (level === "directory") return [directoryGrouping(DIRECTORY_DEPTH)];
-      if (level === "class" && symbolLeaves) return [classGrouping()];
+      if (level === "directory") return [dir];
+      if (level === "class" && symbolLeaves)
+        return [
+          classGrouping(
+            undefined,
+            hasDirectory ? (id) => dir.groupOf(id) : undefined,
+          ),
+        ];
       return [];
     });
     return groupings.length > 0 ? groupings : [moduleGrouping()];

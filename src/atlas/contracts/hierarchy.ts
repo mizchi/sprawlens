@@ -334,11 +334,16 @@ export function restBucketId(moduleId: string): string {
  */
 export function classGrouping(
   moduleIdOf: ModuleIdOf = defaultModuleIdOf,
+  /** Bucket key for non-class symbols. Must match this class level's PARENT
+   * boundary, so the single rest bucket nests under exactly one parent. With a
+   * directory boundary above, key it by directory — a module-keyed bucket is
+   * shared across the module's directories and, since a group has one parent,
+   * collapses into one directory and empties the others. */
+  restKeyOf: (id: string) => string = (id) => moduleIdOf(parentFileOf(id)),
 ): Grouping {
   return {
     kind: "class",
-    groupOf: (id) =>
-      classIdOf(id) ?? restBucketId(moduleIdOf(parentFileOf(id))),
+    groupOf: (id) => classIdOf(id) ?? restBucketId(restKeyOf(id)),
     labelOf: (gid) =>
       gid.startsWith("class:") ? classNameOf(gid) : gid,
   };
