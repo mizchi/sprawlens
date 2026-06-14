@@ -1799,7 +1799,9 @@ export function App() {
     { id: string; kind: "added" | "modified"; at: number }[]
   >([]);
   useEffect(() => {
-    if (params.source !== "sprawlens") return;
+    // live working-tree diff for the dev server (sprawlens) and the CLI
+    // (served). The server resolves an unknown repo name to its only repo.
+    if (params.source !== "sprawlens" && params.source !== "served") return;
     // drop any stale diff carried over from a previous source (e.g. history)
     if (changedFilesRef.current.size > 0) {
       changedFilesRef.current = new Map();
@@ -1809,7 +1811,7 @@ export function App() {
     let failures = 0;
     const seen = new Set<string>();
     const stream = new EventSource(
-      `/api/working-diff/stream?repo=sprawlens&base=${encodeURIComponent(params.diffBase)}`,
+      `/api/working-diff/stream?repo=${params.source}&base=${encodeURIComponent(params.diffBase)}`,
     );
     stream.onmessage = (event) => {
       failures = 0;
