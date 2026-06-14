@@ -417,6 +417,9 @@ export function TreemapSvg(props: Props) {
         height: "100%",
         display: "block",
         touchAction: "none",
+        // a pan drag must never text-select the labels it sweeps over
+        userSelect: "none",
+        WebkitUserSelect: "none",
         cursor: hoveredEdge ? "pointer" : "grab",
       }}
       onClick={() => onSelect(null)}
