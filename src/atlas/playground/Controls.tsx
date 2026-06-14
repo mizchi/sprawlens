@@ -21,6 +21,16 @@ export type DataSource =
   | "playwright";
 export type LayoutKind = "rings" | "treemap";
 
+/** Affine tilt that lays the map flat as a stacked-plane (isometric) view.
+ * `pitch` drives the vertical squash (cos(pitch)); `theta` rotates the plane
+ * in-plane; `skew` shears it into the right-leaning parallelogram. Radians. */
+export type TiltParams = {
+  enabled: boolean;
+  theta: number;
+  pitch: number;
+  skew: number;
+};
+
 export type PlaygroundParams = {
   source: DataSource;
   layout: LayoutKind;
@@ -38,6 +48,8 @@ export type PlaygroundParams = {
   showEdges: boolean;
   /** Dark map + chrome; defaults to the system preference. */
   dark: boolean;
+  /** Stacked-plane tilt; off keeps the flat top-down view. */
+  tilt: TiltParams;
 };
 
 type Props = {
@@ -315,6 +327,86 @@ export function Controls(props: Props) {
           }
         />
       </label>
+      <label style={row}>
+        <span style={{ width: "110px" }}>tilt (planes)</span>
+        <input
+          type="checkbox"
+          checked={params.tilt.enabled}
+          onInput={(e) =>
+            set("tilt", {
+              ...params.tilt,
+              enabled: (e.target as HTMLInputElement).checked,
+            })
+          }
+        />
+      </label>
+      {params.tilt.enabled ? (
+        <>
+          <label style={row}>
+            <span style={{ width: "110px" }}>
+              rotate {Math.round((params.tilt.theta * 180) / Math.PI)}°
+            </span>
+            <input
+              type="range"
+              min={-180}
+              max={180}
+              step={1}
+              value={(params.tilt.theta * 180) / Math.PI}
+              onInput={(e) =>
+                set("tilt", {
+                  ...params.tilt,
+                  theta:
+                    (Number((e.target as HTMLInputElement).value) * Math.PI) /
+                    180,
+                })
+              }
+            />
+          </label>
+          <label style={row}>
+            <span style={{ width: "110px" }}>
+              pitch {Math.round((params.tilt.pitch * 180) / Math.PI)}°
+            </span>
+            <input
+              type="range"
+              min={0}
+              max={80}
+              step={1}
+              value={(params.tilt.pitch * 180) / Math.PI}
+              onInput={(e) =>
+                set("tilt", {
+                  ...params.tilt,
+                  pitch:
+                    (Number((e.target as HTMLInputElement).value) * Math.PI) /
+                    180,
+                })
+              }
+            />
+          </label>
+          <label style={row}>
+            <span style={{ width: "110px" }}>
+              lean {Math.round((params.tilt.skew * 180) / Math.PI)}°
+            </span>
+            <input
+              type="range"
+              min={-60}
+              max={60}
+              step={1}
+              value={(params.tilt.skew * 180) / Math.PI}
+              onInput={(e) =>
+                set("tilt", {
+                  ...params.tilt,
+                  skew:
+                    (Number((e.target as HTMLInputElement).value) * Math.PI) /
+                    180,
+                })
+              }
+            />
+          </label>
+          <div style={{ ...row, opacity: 0.6, fontSize: "11px" }}>
+            Alt+drag the map to rotate / pitch
+          </div>
+        </>
+      ) : null}
       {props.debug ? (
         <div style={{ display: "flex", gap: "6px", flexWrap: "wrap" }}>
           <button style={button} onClick={props.onRegenerate}>

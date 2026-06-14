@@ -1,4 +1,5 @@
 import type { SymbolKind } from "../contracts/graph.js";
+import { uprightAt, type Affine } from "../kernel/affine.js";
 
 /**
  * Symbol classification glyphs, drawn when zoomed into the symbol layer.
@@ -85,20 +86,28 @@ export function SymbolTag(props: {
   color: string;
   opacity?: number;
   static?: boolean;
+  /** Active plane tilt; the tag is pinned to the plane but kept upright. */
+  tilt?: Affine;
 }) {
   const { cx, cy, name, glyph, fontSize, color, opacity } = props;
   const iconSize = fontSize * 1.1;
   const gap = fontSize * 0.28;
   const textW = name.length * fontSize * 0.55; // rough proportional-font width
   const total = (glyph ? iconSize + gap : 0) + textW;
-  const left = cx - total / 2;
+  // laid out around a local origin so the wrapper's uprightAt transform both
+  // places it on the (cx,cy) plane point and cancels the tilt's skew/squash
+  const left = -total / 2;
   return (
-    <g opacity={opacity ?? 1} style={{ pointerEvents: "none" }}>
+    <g
+      opacity={opacity ?? 1}
+      transform={uprightAt(props.tilt, { x: cx, y: cy })}
+      style={{ pointerEvents: "none" }}
+    >
       {glyph ? (
         <SymbolIcon
           glyph={glyph}
           cx={left + iconSize / 2}
-          cy={cy}
+          cy={0}
           size={iconSize}
           color={color}
           static={props.static}
@@ -106,7 +115,7 @@ export function SymbolTag(props: {
       ) : null}
       <text
         x={glyph ? left + iconSize + gap : left}
-        y={cy + fontSize * 0.34}
+        y={fontSize * 0.34}
         font-size={fontSize}
         text-anchor="start"
         fill={color}

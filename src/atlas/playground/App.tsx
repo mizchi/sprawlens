@@ -192,11 +192,11 @@ export function App() {
   const [params, setParams] = useState<PlaygroundParams>({
     source: "sprawlens",
     layout: "treemap",
-    boundaries: ["module"],
+    boundaries: ["module", "class"],
     dark:
       typeof matchMedia !== "undefined" &&
       matchMedia("(prefers-color-scheme: dark)").matches,
-    displayLevels: ["module", "symbol"],
+    displayLevels: ["module", "class", "symbol"],
     omit: ["local"],
     omitModules: [],
     weight: "loc",
@@ -204,6 +204,9 @@ export function App() {
     diffBase: "",
     // ambient edges add noise; macro module deps are opt-in via this toggle
     showEdges: false,
+    // flat top-down by default; the stacked-plane tilt is opt-in. when on it
+    // leans right like the reference sketch (skew) and lies back (pitch).
+    tilt: { enabled: false, theta: 0, pitch: 0.9, skew: 0.35 },
   });
   // multi-select: ordered ids, last one is the primary (drives the detail
   // panel, breadcrumb, and labels); shift+click toggles membership
@@ -1898,6 +1901,23 @@ export function App() {
     activeId,
     selectedIds,
   ]);
+  /** Alt+drag on the map: horizontal rotates the plane, vertical pitches it.
+   * Auto-enables tilt so the gesture is self-explanatory. */
+  const onTiltDrag = (dxPx: number, dyPx: number) => {
+    setParams((p) => ({
+      ...p,
+      tilt: {
+        ...p.tilt,
+        enabled: true,
+        theta: p.tilt.theta + dxPx * 0.01,
+        pitch: Math.min(
+          Math.max(p.tilt.pitch + dyPx * 0.01, 0),
+          (80 * Math.PI) / 180,
+        ),
+      },
+    }));
+  };
+
   /** Parent file name for disambiguating symbol references in lists. */
   const fileOf = (id: string) => {
     if (id.includes("#")) return id.split("#")[0]!.split("/").pop()!;
@@ -1965,6 +1985,8 @@ export function App() {
             portNodes={portNodes}
             width={WIDTH}
             height={HEIGHT}
+            tilt={params.tilt}
+            onTiltDrag={onTiltDrag}
             selectedId={activeId}
             selectedIds={selectedIdSet}
             selectedEdges={selectedEdges}
@@ -1999,6 +2021,8 @@ export function App() {
             focus={focusView}
             width={mapSize.width}
             height={mapSize.height}
+            tilt={params.tilt}
+            onTiltDrag={onTiltDrag}
             selectedId={activeId}
             selectedIds={selectedIdSet}
             selectedEdges={selectedEdges}

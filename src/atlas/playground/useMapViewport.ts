@@ -62,12 +62,17 @@ export function useMapViewport(options: {
   /** Pointer hover (no button), for edge-proximity preview. Not fired while
    * panning. */
   onHover?: (clientX: number, clientY: number) => void;
+  /** Alt+drag tilts the plane instead of panning: dx/dy are screen-pixel
+   * deltas the caller maps to rotation / pitch radians. */
+  onTilt?: (dxPx: number, dyPx: number) => void;
 }) {
   const { width, height, focusRequest, onViewSettle } = options;
   const onPickEdgeRef = useRef(options.onPickEdge);
   onPickEdgeRef.current = options.onPickEdge;
   const onHoverRef = useRef(options.onHover);
   onHoverRef.current = options.onHover;
+  const onTiltRef = useRef(options.onTilt);
+  onTiltRef.current = options.onTilt;
   const viewRef = useRef<ViewBox>({ x: 0, y: 0, w: width, h: height });
   const [committedView, setCommittedView] = useState<ViewBox>(viewRef.current);
   const commitTimer = useRef(0);
@@ -75,10 +80,15 @@ export function useMapViewport(options: {
     pointerId: number;
     last: Vec2;
     moved: number;
+    /** "tilt" = Alt-held drag adjusting the plane orientation, not the view. */
+    mode: "pan" | "tilt";
   } | null>(null);
   /** A drag that actually panned must not select on release. */
   const suppressClickRef = useRef(false);
   const svgRef = useRef<SVGSVGElement>(null);
+  /** The tilted content group; its CTM folds in the affine so client→world
+   * picking inverts viewBox and tilt in one shot. Falls back to the svg. */
+  const contentRef = useRef<SVGGElement>(null);
 
   const commitView = () => {
     const v = { ...viewRef.current };
@@ -164,8 +174,11 @@ export function useMapViewport(options: {
    * mapping — essential for proximity hit-testing against edge geometry. */
   const clientToWorld = (clientX: number, clientY: number): Vec2 | null => {
     const svg = svgRef.current;
-    const ctm = svg?.getScreenCTM();
-    if (!svg || !ctm) return null;
+    if (!svg) return null;
+    // pick against the tilted group's CTM when present so edge geometry
+    // (stored in pre-tilt world coords) lines up under the affine
+    const ctm = contentRef.current?.getScreenCTM() ?? svg.getScreenCTM();
+    if (!ctm) return null;
     const p = new DOMPoint(clientX, clientY).matrixTransform(ctm.inverse());
     return { x: p.x, y: p.y };
   };
@@ -211,10 +224,13 @@ export function useMapViewport(options: {
     onWheel,
     onPointerDown: (e: PointerEvent) => {
       cancelFlight();
+      // Alt+drag rotates/pitches the plane; only when a tilt sink is wired
+      const tilt = e.altKey && !!onTiltRef.current;
       dragRef.current = {
         pointerId: e.pointerId,
         last: { x: e.clientX, y: e.clientY },
         moved: 0,
+        mode: tilt ? "tilt" : "pan",
       };
       (e.target as Element).setPointerCapture(e.pointerId);
     },
@@ -228,6 +244,11 @@ export function useMapViewport(options: {
       const dx = e.clientX - drag.last.x;
       const dy = e.clientY - drag.last.y;
       drag.moved += Math.abs(dx) + Math.abs(dy);
+      drag.last = { x: e.clientX, y: e.clientY };
+      if (drag.mode === "tilt") {
+        onTiltRef.current?.(dx, dy);
+        return;
+      }
       const scale = toViewScale();
       const v = viewRef.current;
       viewRef.current = {
@@ -235,7 +256,6 @@ export function useMapViewport(options: {
         x: v.x - dx * scale,
         y: v.y - dy * scale,
       };
-      drag.last = { x: e.clientX, y: e.clientY };
       applyView();
     },
     onPointerUp: (e: PointerEvent) => {
@@ -253,6 +273,7 @@ export function useMapViewport(options: {
     committedView,
     zoom: width / committedView.w,
     viewRef,
+    contentRef,
     cancelFlight,
     clientToWorld,
     toViewScale,

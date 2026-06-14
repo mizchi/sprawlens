@@ -3,6 +3,13 @@ import type { AtlasEdge, SymbolKind } from "../contracts/graph.js";
 import { isStaticKind, SymbolTag, symbolGlyphOf } from "./symbolIcons.tsx";
 import type { CellResult } from "../kernel/capacityLayout.js";
 import type { Vec2 } from "../kernel/vec.js";
+import {
+  layerTransform,
+  toMatrixString,
+  uprightAt,
+  type Affine,
+} from "../kernel/affine.js";
+import type { TiltParams } from "./Controls.tsx";
 import { CfgLayer, cfgAnchorsOf, type CfgEntry } from "./CfgLayer.tsx";
 import {
   ACTIVE_EDGE,
@@ -78,6 +85,10 @@ type Props = {
   cfgEntries?: CfgEntry[];
   width: number;
   height: number;
+  /** Stacked-plane tilt; when enabled the content group carries its affine. */
+  tilt?: TiltParams;
+  /** Alt+drag tilt deltas (screen px) bubbled up from the viewport. */
+  onTiltDrag?: (dxPx: number, dyPx: number) => void;
   selectedId: string | null;
   selectedIds?: Set<string>;
   /** Picked dependency edges (proximity click); raised above the map. */
@@ -103,7 +114,7 @@ const SYMBOL_ICON_MIN_PX = 26;
 const MEMBER_TAG_MIN_PX = 55;
 
 export function TreemapSvg(props: Props) {
-  const { state, width, height, selectedId, onSelect } = props;
+  const { state, width, height, tilt, onTiltDrag, selectedId, onSelect } = props;
   const multiSelected = props.selectedIds ?? new Set<string>();
   const isSelected = (id: string): boolean =>
     id === selectedId || multiSelected.has(id);
@@ -122,7 +133,7 @@ export function TreemapSvg(props: Props) {
     () => false,
   );
   const hoverEdgeRef = useRef<(x: number, y: number) => void>(() => {});
-  const { svgProps, zoom, committedView, clientToWorld, toViewScale } =
+  const { svgProps, zoom, committedView, contentRef, clientToWorld, toViewScale } =
     useMapViewport({
       width,
       height,
@@ -130,7 +141,22 @@ export function TreemapSvg(props: Props) {
       onViewSettle: props.onViewSettle,
       onPickEdge: (x, y, shift) => pickEdgeRef.current(x, y, shift),
       onHover: (x, y) => hoverEdgeRef.current(x, y),
+      onTilt: onTiltDrag,
     });
+  // affine that lays the plane flat (pitch), leans it right (skew) and spins
+  // it (rotate); labels read `tiltAffine` to stay upright on top
+  const tiltAffine: Affine | undefined =
+    tilt?.enabled && (tilt.theta !== 0 || tilt.pitch !== 0 || tilt.skew !== 0)
+      ? layerTransform({
+          theta: tilt.theta,
+          squash: Math.cos(tilt.pitch),
+          skew: -Math.tan(tilt.skew),
+          gap: 0,
+          index: 0,
+          center: { x: width / 2, y: height / 2 },
+        })
+      : undefined;
+  const tiltMatrix = tiltAffine ? toMatrixString(tiltAffine) : undefined;
   const [hoveredEdge, setHoveredEdge] = useState<{
     source: string;
     target: string;
@@ -356,6 +382,7 @@ export function TreemapSvg(props: Props) {
       onClick={() => onSelect(null)}
     >
       <style>{"polygon, path { vector-effect: non-scaling-stroke; }"}</style>
+      <g ref={contentRef} transform={tiltMatrix}>
       {/* top-level districts */}
       <g style={{ display: levelVisible(state.levels[0]!.kind) ? "" : "none" }}>
         {[...topCells.values()].map((cell) =>
@@ -390,6 +417,7 @@ export function TreemapSvg(props: Props) {
         zoom={zoom}
         labels={props.labels}
         visibleLevels={props.visibleLevels}
+        tilt={tiltAffine}
       />
       {/* file cells */}
       <g style={{ display: leafVisible ? "" : "none" }}>
@@ -429,6 +457,7 @@ export function TreemapSvg(props: Props) {
           labelOf={labelOf}
           dim={dim}
           view={committedView}
+          tilt={tiltAffine}
         />
       ) : null}
       {/* nested symbols inside file cells (same rules as rings) */}
@@ -497,6 +526,7 @@ export function TreemapSvg(props: Props) {
                       : INTERNAL_LABEL
                 }
                 opacity={dim.symbol(cell.id)}
+                tilt={tiltAffine}
               />
             );
           })}
@@ -638,8 +668,7 @@ export function TreemapSvg(props: Props) {
           return (
             <text
               key={cell.id}
-              x={cell.site.x}
-              y={cell.site.y}
+              transform={uprightAt(tiltAffine, cell.site)}
               font-size={fontSize}
               font-weight="700"
               fill={districtLabelFill(cell.id)}
@@ -692,6 +721,7 @@ export function TreemapSvg(props: Props) {
               fontSize={fontSize}
               color={glyph ? SYMBOL_KIND_COLORS[glyph]! : FILE_LABEL_INK}
               opacity={fileOpacity(cell.id)}
+              tilt={tiltAffine}
             />
           );
         })}
@@ -716,8 +746,10 @@ export function TreemapSvg(props: Props) {
           onSelect={onSelect}
           onFocus={props.onFocusId}
           zoom={zoom}
+          tilt={tiltAffine}
         />
       ))}
+      </g>
     </svg>
   );
 }

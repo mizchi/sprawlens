@@ -2,6 +2,7 @@ import type { AtlasEdge } from "../contracts/graph.js";
 import { bundlePath, hierarchyControlPoints } from "../kernel/bundling.js";
 import type { CellResult } from "../kernel/capacityLayout.js";
 import type { Vec2 } from "../kernel/vec.js";
+import { uprightAt, type Affine } from "../kernel/affine.js";
 import { symbolNameOf } from "./cfgClient.ts";
 import type { CfgAnchor } from "./CfgLayer.tsx";
 import type { SubdivisionLevel } from "./subdivision.js";
@@ -314,6 +315,8 @@ export function InnerLevelsLayer(props: {
   zoom: number;
   labels?: Map<string, string>;
   visibleLevels?: ReadonlySet<string>;
+  /** Active plane tilt; district labels stay upright on the plane. */
+  tilt?: Affine;
 }) {
   const { levels, topAncestorOf, isSelected, onSelect, dim, zoom } = props;
   const visible = (kind: string) => props.visibleLevels?.has(kind) ?? true;
@@ -404,8 +407,7 @@ export function InnerLevelsLayer(props: {
             return (
               <text
                 key={cell.id}
-                x={cell.site.x}
-                y={cell.site.y}
+                transform={uprightAt(props.tilt, cell.site)}
                 font-size={fontSize}
                 font-weight="600"
                 fill={isClassGroup ? CLASS_BOUNDARY : innerDistrictLabelFill(top)}
@@ -434,6 +436,8 @@ export function WatermarkLabelsLayer(props: {
   /** Committed viewport: the name slides along inside its cell so it
    * stays on screen while the camera is inside the cell. */
   view?: { x: number; y: number; w: number; h: number };
+  /** Active plane tilt; watermarks stay upright on the plane. */
+  tilt?: Affine;
 }) {
   const { cells, zoom, labelOf, dim, view } = props;
   return (
@@ -475,8 +479,7 @@ export function WatermarkLabelsLayer(props: {
         return (
           <text
             key={cell.id}
-            x={x}
-            y={y}
+            transform={uprightAt(props.tilt, { x, y })}
             font-size={fontSize}
             font-weight="600"
             fill={WATERMARK_INK}
@@ -569,6 +572,8 @@ export function ExitPreviewsLayer(props: {
    * falls back to plain selection when not provided. */
   onFocus?: (id: string) => void;
   zoom: number;
+  /** Active plane tilt; docked names stay upright on the plane. */
+  tilt?: Affine;
 }) {
   const { view, zoom, labelOf, onSelect } = props;
   const onFocus = props.onFocus;
@@ -631,20 +636,20 @@ export function ExitPreviewsLayer(props: {
       {previews.map((preview) => (
         <text
           key={preview.id}
-          x={
-            preview.side === "left"
-              ? preview.x + fontSize * 0.5
-              : preview.side === "right"
-                ? preview.x - fontSize * 0.5
-                : preview.x
-          }
-          y={
-            preview.side === "top"
-              ? preview.y + fontSize * 1.3
-              : preview.side === "bottom"
-                ? preview.y - fontSize * 0.5
-                : preview.y + fontSize * 0.35
-          }
+          transform={uprightAt(props.tilt, {
+            x:
+              preview.side === "left"
+                ? preview.x + fontSize * 0.5
+                : preview.side === "right"
+                  ? preview.x - fontSize * 0.5
+                  : preview.x,
+            y:
+              preview.side === "top"
+                ? preview.y + fontSize * 1.3
+                : preview.side === "bottom"
+                  ? preview.y - fontSize * 0.5
+                  : preview.y + fontSize * 0.35,
+          })}
           font-size={fontSize}
           font-weight="600"
           text-anchor={

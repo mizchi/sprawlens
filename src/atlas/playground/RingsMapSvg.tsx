@@ -3,7 +3,14 @@ import type { AtlasEdge, SymbolKind } from "../contracts/graph.js";
 import { isStaticKind, SymbolTag, symbolGlyphOf } from "./symbolIcons.tsx";
 import type { CellResult } from "../kernel/capacityLayout.js";
 import type { Vec2 } from "../kernel/vec.js";
+import {
+  layerTransform,
+  toMatrixString,
+  uprightAt,
+  type Affine,
+} from "../kernel/affine.js";
 import type { RingsState } from "./ringsController.ts";
+import type { TiltParams } from "./Controls.tsx";
 
 import { CfgLayer, cfgAnchorsOf, type CfgEntry } from "./CfgLayer.tsx";
 import {
@@ -100,6 +107,10 @@ type Props = {
   cyclicModuleIds?: Set<string>;
   width: number;
   height: number;
+  /** Stacked-plane tilt; when enabled the content group carries its affine. */
+  tilt?: TiltParams;
+  /** Alt+drag tilt deltas (screen px) bubbled up from the viewport. */
+  onTiltDrag?: (dxPx: number, dyPx: number) => void;
   selectedId: string | null;
   /** Symbol declaration kind per id, for the zoomed-in classification icons. */
   symbolKindOf?: (id: string) => SymbolKind | undefined;
@@ -169,6 +180,8 @@ export function RingsMapSvg(props: Props) {
     portNodes,
     width,
     height,
+    tilt,
+    onTiltDrag,
     selectedId,
     onSelect,
     focusRequest,
@@ -194,7 +207,7 @@ export function RingsMapSvg(props: Props) {
     () => false,
   );
   const hoverEdgeRef = useRef<(x: number, y: number) => void>(() => {});
-  const { svgProps, committedView, zoom, clientToWorld, toViewScale } =
+  const { svgProps, committedView, zoom, contentRef, clientToWorld, toViewScale } =
     useMapViewport({
       width,
       height,
@@ -202,7 +215,23 @@ export function RingsMapSvg(props: Props) {
       onViewSettle,
       onPickEdge: (x, y, shift) => pickEdgeRef.current(x, y, shift),
       onHover: (x, y) => hoverEdgeRef.current(x, y),
+      onTilt: onTiltDrag,
     });
+  // affine that lays the plane flat (pitch squash), leans it right (skew) and
+  // spins it (rotate); the content group carries it so all geometry and edges
+  // inherit one transform. labels read `tiltAffine` to stay upright on top.
+  const tiltAffine: Affine | undefined =
+    tilt?.enabled && (tilt.theta !== 0 || tilt.pitch !== 0 || tilt.skew !== 0)
+      ? layerTransform({
+          theta: tilt.theta,
+          squash: Math.cos(tilt.pitch),
+          skew: -Math.tan(tilt.skew),
+          gap: 0,
+          index: 0,
+          center: { x: width / 2, y: height / 2 },
+        })
+      : undefined;
+  const tiltMatrix = tiltAffine ? toMatrixString(tiltAffine) : undefined;
   const [hoveredEdge, setHoveredEdge] = useState<{
     source: string;
     target: string;
@@ -588,6 +617,7 @@ export function RingsMapSvg(props: Props) {
       <style>
         {"polygon, line, circle, path { vector-effect: non-scaling-stroke; }"}
       </style>
+      <g ref={contentRef} transform={tiltMatrix}>
       {/* aggregated module dependencies: the macro structure, always on.
           a→b reads "a imports b": the arrow points at the target, and the
           imported symbol names are listed under the edge (zoom-gated). */}
@@ -643,8 +673,7 @@ export function RingsMapSvg(props: Props) {
                 ) : null}
                 {labelled ? (
                   <text
-                    x={mx}
-                    y={my}
+                    transform={uprightAt(tiltAffine, { x: mx, y: my })}
                     font-size={fs}
                     text-anchor="middle"
                     fill={MODULE_LABEL_INK}
@@ -653,7 +682,7 @@ export function RingsMapSvg(props: Props) {
                     style={{ pointerEvents: "none" }}
                   >
                     {lines.map((name) => (
-                      <tspan key={name} x={mx} dy={fs * 1.1}>
+                      <tspan key={name} x={0} dy={fs * 1.1}>
                         {name}
                       </tspan>
                     ))}
@@ -708,6 +737,7 @@ export function RingsMapSvg(props: Props) {
         zoom={zoom}
         labels={labels}
         visibleLevels={props.visibleLevels}
+        tilt={tiltAffine}
       />
       <g style={{ display: sourceVisible ? "" : "none" }}>
         {visibleFileCells.map((cell) => {
@@ -752,6 +782,7 @@ export function RingsMapSvg(props: Props) {
           labelOf={(id) => labels.get(id) ?? fallbackLabel(id)}
           dim={dim}
           view={committedView}
+          tilt={tiltAffine}
         />
       ) : null}
       {showInner ? (
@@ -1041,18 +1072,16 @@ export function RingsMapSvg(props: Props) {
                   ))}
                   {lines.length > 0 ? (
                     <text
-                      x={(a.cx + b.cx) / 2}
-                      y={(a.cy + b.cy) / 2}
+                      transform={uprightAt(tiltAffine, {
+                        x: (a.cx + b.cx) / 2,
+                        y: (a.cy + b.cy) / 2,
+                      })}
                       font-size={fs}
                       text-anchor="middle"
                       fill={SELECT_STROKE}
                     >
                       {lines.map((name) => (
-                        <tspan
-                          key={name}
-                          x={(a.cx + b.cx) / 2}
-                          dy={fs * 1.1}
-                        >
+                        <tspan key={name} x={0} dy={fs * 1.1}>
                           {name}
                         </tspan>
                       ))}
@@ -1099,6 +1128,7 @@ export function RingsMapSvg(props: Props) {
           onSelect={onSelect}
           onFocus={props.onFocusId}
           zoom={zoom}
+          tilt={tiltAffine}
         />
       ))}
       {/* symbol sites are conceptual edge waypoints only — no dots */}
@@ -1127,8 +1157,10 @@ export function RingsMapSvg(props: Props) {
                   }}
                 />
                 <text
-                  x={port.x}
-                  y={port.y - screenRadius(7)}
+                  transform={uprightAt(tiltAffine, {
+                    x: port.x,
+                    y: port.y - screenRadius(7),
+                  })}
                   font-size={11 / zoom}
                   text-anchor="middle"
                   font-weight="600"
@@ -1169,24 +1201,21 @@ export function RingsMapSvg(props: Props) {
             return (
               <text
                 key={id}
-                x={circle.cx}
-                y={
-                  circle.cy -
-                  circle.r -
-                  fontSize * 0.4 -
-                  (segments.length - 1) * lineHeight
-                }
+                transform={uprightAt(tiltAffine, {
+                  x: circle.cx,
+                  y:
+                    circle.cy -
+                    circle.r -
+                    fontSize * 0.4 -
+                    (segments.length - 1) * lineHeight,
+                })}
                 font-size={fontSize}
                 font-weight="600"
                 fill={MODULE_LABEL_INK}
                 opacity={moduleOpacity(id)}
               >
                 {segments.map((segment, i) => (
-                  <tspan
-                    key={segment}
-                    x={circle.cx}
-                    dy={i === 0 ? 0 : lineHeight}
-                  >
+                  <tspan key={segment} x={0} dy={i === 0 ? 0 : lineHeight}>
                     {i < segments.length - 1 ? `${segment}/` : segment}
                   </tspan>
                 ))}
@@ -1196,8 +1225,10 @@ export function RingsMapSvg(props: Props) {
           return (
             <text
               key={id}
-              x={circle.cx}
-              y={circle.cy - circle.r - fontSize * 0.4}
+              transform={uprightAt(tiltAffine, {
+                x: circle.cx,
+                y: circle.cy - circle.r - fontSize * 0.4,
+              })}
               font-size={fontSize}
               font-weight="600"
               fill={MODULE_LABEL_INK}
@@ -1226,8 +1257,10 @@ export function RingsMapSvg(props: Props) {
               return (
                 <text
                   key={cell.id}
-                  x={cell.site.x}
-                  y={cell.site.y + fontSize * 0.35}
+                  transform={uprightAt(tiltAffine, {
+                    x: cell.site.x,
+                    y: cell.site.y + fontSize * 0.35,
+                  })}
                   font-size={fontSize}
                   fill={
                     testFileIds.has(cell.id) ? TEST_LABEL_INK : FILE_LABEL_INK
@@ -1294,10 +1327,12 @@ export function RingsMapSvg(props: Props) {
                         : INTERNAL_LABEL
                   }
                   opacity={symbolOpacity(cell.id)}
+                  tilt={tiltAffine}
                 />
               );
             })
           : null}
+      </g>
       </g>
     </svg>
   );
