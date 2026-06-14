@@ -254,6 +254,8 @@ export function TreemapSvg(props: Props) {
         : new Map<string, string>(),
     [layers, linkHover, pinnedLinkIds, props.altEdges, satellitesOn],
   );
+  // amber "referenced" cue yields while a link highlight is active (see rings)
+  const hasActiveLinks = activeLinkTint.size > 0;
   const [hoveredEdge, setHoveredEdge] = useState<{
     source: string;
     target: string;
@@ -527,13 +529,18 @@ export function TreemapSvg(props: Props) {
           const border =
             isSelected(cell.id) ||
             Math.sqrt(cell.actualArea) * zoom >= LEAF_BORDER_MIN_PX;
-          const linked = !isSelected(cell.id) && linkedCell(cell.id);
+          const linked =
+            !isSelected(cell.id) && !hasActiveLinks && linkedCell(cell.id);
+          const dimmed =
+            hasActiveLinks &&
+            !isSelected(cell.id) &&
+            !activeLinkTint.has(fileIdOf(cell.id));
           return (
             <polygon
               key={cell.id}
               points={cell.polygon.map((p) => `${p.x},${p.y}`).join(" ")}
               fill={fillOf(cell)}
-              fill-opacity={fileOpacity(cell.id)}
+              fill-opacity={fileOpacity(cell.id) * (dimmed ? 0.35 : 1)}
               stroke={
                 isSelected(cell.id)
                   ? SELECT_STROKE
@@ -543,7 +550,9 @@ export function TreemapSvg(props: Props) {
                       ? LEAF_STROKE
                       : "none"
               }
-              stroke-opacity={linked ? 0.95 : fileOpacity(cell.id)}
+              stroke-opacity={
+                (linked ? 0.95 : fileOpacity(cell.id)) * (dimmed ? 0.35 : 1)
+              }
               stroke-width={isSelected(cell.id) ? 2.5 : linked ? 1.4 : 0.6}
               onMouseEnter={
                 satellitesOn ? () => setLinkHover(fileIdOf(cell.id)) : undefined
@@ -904,6 +913,7 @@ export function TreemapSvg(props: Props) {
                 onHover={setLinkHover}
                 pinnedIds={pinnedLinkIds}
                 tintOf={(id) => activeLinkTint.get(id)}
+                linksActive={hasActiveLinks}
               />
             );
           })

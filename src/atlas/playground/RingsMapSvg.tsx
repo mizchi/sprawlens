@@ -325,6 +325,9 @@ export function RingsMapSvg(props: Props) {
         : new Map<string, string>(),
     [layers, linkHover, pinnedLinkIds, props.altEdges, satellitesOn],
   );
+  // while a link highlight is active the always-on "referenced" amber would
+  // fight it, so it yields: amber only shows when nothing is being explored
+  const hasActiveLinks = activeLinkTint.size > 0;
   const [hoveredEdge, setHoveredEdge] = useState<{
     source: string;
     target: string;
@@ -845,11 +848,18 @@ export function RingsMapSvg(props: Props) {
           // referenced by a cross-layer edge (a test / dep points here): give
           // the source file a bright outline so the nodes in play surface.
           // referencedIds are file paths, so a symbol cell matches via its file.
+          // hidden while a link highlight is active so it doesn't fight the tint.
           const linked =
             !isSelected(cell.id) &&
+            !hasActiveLinks &&
             referencedIds.size > 0 &&
             (referencedIds.has(cell.id) ||
               referencedIds.has(parentFileOf(cell.id)));
+          // dim cells the active highlight doesn't touch, so the tinted ones pop
+          const dimmed =
+            hasActiveLinks &&
+            !isSelected(cell.id) &&
+            !activeLinkTint.has(parentFileOf(cell.id));
           return (
             <polygon
               key={cell.id}
@@ -873,7 +883,7 @@ export function RingsMapSvg(props: Props) {
               }
               stroke-width={isSelected(cell.id) ? 2 : linked ? 1.4 : 0.8}
               stroke-opacity={linked ? 0.95 : undefined}
-              opacity={fileOpacity(cell.id)}
+              opacity={fileOpacity(cell.id) * (dimmed ? 0.35 : 1)}
               onMouseEnter={
                 satellitesOn
                   ? () => setLinkHover(parentFileOf(cell.id))
@@ -1494,6 +1504,7 @@ export function RingsMapSvg(props: Props) {
                 onHover={setLinkHover}
                 pinnedIds={pinnedLinkIds}
                 tintOf={(id) => activeLinkTint.get(id)}
+                linksActive={hasActiveLinks}
               />
             );
           })

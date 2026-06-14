@@ -818,6 +818,9 @@ export function PlaneLayerView(props: {
   /** Node id → tint for nodes a currently-shown edge points at; fills the cell
    * region in the connecting edge's colour. */
   tintOf?: (id: string) => string | undefined;
+  /** A link highlight is active somewhere: dim this plane's untouched nodes so
+   * the tinted ones lead, and let the "referenced" cue yield to the tint. */
+  linksActive?: boolean;
 }) {
   const { tilt0, tilt1, extent, screenPosOf, placed, color, zoom } = props;
   const referencedIds = props.referencedIds;
@@ -954,12 +957,17 @@ export function PlaneLayerView(props: {
       <g transform={tilt1Matrix} stroke={color}>
         {placed.map((d) => {
           const active = d.id === hovered || d.id === props.selectedId;
-          // referenced by another plane's edges: brighten the fill so the nodes
-          // actually in play surface out of the full layout
-          const linked = !active && (referencedIds?.has(d.id) ?? false);
           // a currently-shown edge points here: tint the cell in that edge's
           // colour so the live targets read as a coloured region
           const tint = props.tintOf?.(d.id);
+          // referenced by another plane's edges: brighten the fill so the nodes
+          // actually in play surface — yields to the live tint while exploring
+          const linked =
+            !active &&
+            !props.linksActive &&
+            (referencedIds?.has(d.id) ?? false);
+          // dim untouched nodes once a highlight is active, so targets lead
+          const dim = props.linksActive && !tint && !active ? 0.4 : 1;
           const fill = tint ?? color;
           const onEnter = () => {
             setHovered(d.id);
@@ -982,6 +990,7 @@ export function PlaneLayerView(props: {
               stroke={tint ?? (active ? SELECT_STROKE : color)}
               stroke-opacity={tint ? 0.85 : active ? 0.9 : linked ? 0.75 : 0.5}
               stroke-width={active || tint ? 1.6 : 1}
+              opacity={dim}
               style={{ cursor: "pointer" }}
               onMouseEnter={onEnter}
               onMouseLeave={onLeave}
@@ -998,6 +1007,7 @@ export function PlaneLayerView(props: {
               stroke={tint ?? (active ? SELECT_STROKE : color)}
               stroke-opacity={tint ? 0.85 : active ? 0.9 : linked ? 0.8 : 0.6}
               stroke-width={active || tint ? 1.6 : 1}
+              opacity={dim}
               style={{ cursor: "pointer" }}
               onMouseEnter={onEnter}
               onMouseLeave={onLeave}
