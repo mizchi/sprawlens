@@ -46,6 +46,7 @@ import {
   RaisedEdgePath,
   selectionDirections,
   SELECT_STROKE,
+  TestPlaneLayer,
   UPSTREAM_COLOR,
   UPSTREAM_FILL,
   WatermarkLabelsLayer,
@@ -82,6 +83,8 @@ type Props = {
   focus: FocusView | null;
   /** File ids on the test layer; rendered with a muted fill. */
   testFileIds: Set<string>;
+  /** testFileId → covered source file id, for the Tests plane drops. */
+  testTargets?: Map<string, string>;
   /** Layer ids switched off; "source" hides the file/symbol map itself. */
   hiddenLayers: Set<string>;
   /** Symbol id → parent file id (precomputed; string parsing here was hot). */
@@ -220,18 +223,47 @@ export function RingsMapSvg(props: Props) {
   // affine that lays the plane flat (pitch squash), leans it right (skew) and
   // spins it (rotate); the content group carries it so all geometry and edges
   // inherit one transform. labels read `tiltAffine` to stay upright on top.
+  const tiltActive =
+    !!tilt?.enabled &&
+    (tilt.theta !== 0 || tilt.pitch !== 0 || tilt.skew !== 0 || tilt.tests);
+  const tiltOpts = tilt
+    ? {
+        theta: tilt.theta,
+        squash: Math.cos(tilt.pitch),
+        skew: -Math.tan(tilt.skew),
+        center: { x: width / 2, y: height / 2 },
+      }
+    : null;
   const tiltAffine: Affine | undefined =
-    tilt?.enabled && (tilt.theta !== 0 || tilt.pitch !== 0 || tilt.skew !== 0)
-      ? layerTransform({
-          theta: tilt.theta,
-          squash: Math.cos(tilt.pitch),
-          skew: -Math.tan(tilt.skew),
-          gap: 0,
-          index: 0,
-          center: { x: width / 2, y: height / 2 },
-        })
+    tiltActive && tiltOpts
+      ? layerTransform({ ...tiltOpts, gap: 0, index: 0 })
       : undefined;
   const tiltMatrix = tiltAffine ? toMatrixString(tiltAffine) : undefined;
+  // test plane: same tilt dropped one layer down by the gap
+  const testPlane: Affine | undefined =
+    tilt?.enabled && tilt.tests && tiltOpts
+      ? layerTransform({ ...tiltOpts, gap: tilt.gap, index: 1 })
+      : undefined;
+  // representative upper-plane point per source file = centroid of its leaf
+  // cells; the Tests plane drops each test under its target source here
+  const sourceSiteOf = useMemo(() => {
+    const acc = new Map<string, { x: number; y: number; n: number }>();
+    if (testPlane) {
+      for (const layout of rings.leafLayouts.values())
+        for (const c of layout.cells) {
+          const f = parentFileOf(c.id);
+          const e = acc.get(f);
+          if (e) {
+            e.x += c.site.x;
+            e.y += c.site.y;
+            e.n++;
+          } else acc.set(f, { x: c.site.x, y: c.site.y, n: 1 });
+        }
+    }
+    const m = new Map<string, Vec2>();
+    for (const [f, e] of acc) m.set(f, { x: e.x / e.n, y: e.y / e.n });
+    return m;
+  }, [rings, parentFileOf, !!testPlane]);
   const [hoveredEdge, setHoveredEdge] = useState<{
     source: string;
     target: string;
@@ -1334,6 +1366,19 @@ export function RingsMapSvg(props: Props) {
           : null}
       </g>
       </g>
+      {testPlane && tiltAffine && props.testTargets ? (
+        <TestPlaneLayer
+          tilt0={tiltAffine}
+          tilt1={testPlane}
+          extent={{ w: width, h: height }}
+          sourceSiteOf={sourceSiteOf}
+          testTargets={props.testTargets}
+          labelOf={(id) => labels.get(id) ?? fallbackLabel(id)}
+          zoom={zoom}
+          onSelect={onSelect}
+          selectedId={selectedId}
+        />
+      ) : null}
     </svg>
   );
 }

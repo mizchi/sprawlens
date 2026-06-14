@@ -29,6 +29,10 @@ export type TiltParams = {
   theta: number;
   pitch: number;
   skew: number;
+  /** Show the Tests plane below the source plane (drops tests off source). */
+  tests: boolean;
+  /** Vertical separation between stacked planes, in world units. */
+  gap: number;
 };
 
 export type PlaygroundParams = {
@@ -402,6 +406,39 @@ export function Controls(props: Props) {
               }
             />
           </label>
+          <label style={row}>
+            <span style={{ width: "110px" }}>tests plane</span>
+            <input
+              type="checkbox"
+              checked={params.tilt.tests}
+              onInput={(e) =>
+                set("tilt", {
+                  ...params.tilt,
+                  tests: (e.target as HTMLInputElement).checked,
+                })
+              }
+            />
+          </label>
+          {params.tilt.tests ? (
+            <label style={row}>
+              <span style={{ width: "110px" }}>
+                gap {Math.round(params.tilt.gap)}
+              </span>
+              <input
+                type="range"
+                min={100}
+                max={1000}
+                step={10}
+                value={params.tilt.gap}
+                onInput={(e) =>
+                  set("tilt", {
+                    ...params.tilt,
+                    gap: Number((e.target as HTMLInputElement).value),
+                  })
+                }
+              />
+            </label>
+          ) : null}
           <div style={{ ...row, opacity: 0.6, fontSize: "11px" }}>
             Alt+drag the map to rotate / pitch
           </div>

@@ -37,6 +37,7 @@ import {
   makeTopAncestorOf,
   RaisedEdgePath,
   SELECT_STROKE,
+  TestPlaneLayer,
   UPSTREAM_COLOR,
   WatermarkLabelsLayer,
 } from "./mapShared.tsx";
@@ -67,6 +68,8 @@ type Props = {
   cyclicIds?: Set<string>;
   /** File ids on the test layer; rendered with the shared muted fill. */
   testFileIds?: Set<string>;
+  /** testFileId → covered source file id, for the Tests plane drops. */
+  testTargets?: Map<string, string>;
   /** Nested symbol layouts inside the file cells (file granularity). */
   innerCells?: CellResult[];
   exportedIds?: Set<string>;
@@ -145,18 +148,46 @@ export function TreemapSvg(props: Props) {
     });
   // affine that lays the plane flat (pitch), leans it right (skew) and spins
   // it (rotate); labels read `tiltAffine` to stay upright on top
+  const tiltActive =
+    !!tilt?.enabled &&
+    (tilt.theta !== 0 || tilt.pitch !== 0 || tilt.skew !== 0 || tilt.tests);
+  const tiltOpts = tilt
+    ? {
+        theta: tilt.theta,
+        squash: Math.cos(tilt.pitch),
+        skew: -Math.tan(tilt.skew),
+        center: { x: width / 2, y: height / 2 },
+      }
+    : null;
   const tiltAffine: Affine | undefined =
-    tilt?.enabled && (tilt.theta !== 0 || tilt.pitch !== 0 || tilt.skew !== 0)
-      ? layerTransform({
-          theta: tilt.theta,
-          squash: Math.cos(tilt.pitch),
-          skew: -Math.tan(tilt.skew),
-          gap: 0,
-          index: 0,
-          center: { x: width / 2, y: height / 2 },
-        })
+    tiltActive && tiltOpts
+      ? layerTransform({ ...tiltOpts, gap: 0, index: 0 })
       : undefined;
   const tiltMatrix = tiltAffine ? toMatrixString(tiltAffine) : undefined;
+  const testPlane: Affine | undefined =
+    tilt?.enabled && tilt.tests && tiltOpts
+      ? layerTransform({ ...tiltOpts, gap: tilt.gap, index: 1 })
+      : undefined;
+  // representative upper-plane point per source file = centroid of leaf cells
+  const sourceSiteOf = useMemo(() => {
+    const acc = new Map<string, { x: number; y: number; n: number }>();
+    const parentFileOf = props.parentFileOf ?? ((id: string) => id);
+    if (testPlane) {
+      for (const layout of state.leafLayouts.values())
+        for (const c of layout.cells) {
+          const f = parentFileOf(c.id);
+          const e = acc.get(f);
+          if (e) {
+            e.x += c.site.x;
+            e.y += c.site.y;
+            e.n++;
+          } else acc.set(f, { x: c.site.x, y: c.site.y, n: 1 });
+        }
+    }
+    const m = new Map<string, Vec2>();
+    for (const [f, e] of acc) m.set(f, { x: e.x / e.n, y: e.y / e.n });
+    return m;
+  }, [state, props.parentFileOf, !!testPlane]);
   const [hoveredEdge, setHoveredEdge] = useState<{
     source: string;
     target: string;
@@ -750,6 +781,19 @@ export function TreemapSvg(props: Props) {
         />
       ))}
       </g>
+      {testPlane && tiltAffine && props.testTargets ? (
+        <TestPlaneLayer
+          tilt0={tiltAffine}
+          tilt1={testPlane}
+          extent={{ w: width, h: height }}
+          sourceSiteOf={sourceSiteOf}
+          testTargets={props.testTargets}
+          labelOf={labelOf}
+          zoom={zoom}
+          onSelect={onSelect}
+          selectedId={selectedId}
+        />
+      ) : null}
     </svg>
   );
 }

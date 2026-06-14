@@ -206,7 +206,14 @@ export function App() {
     showEdges: false,
     // flat top-down by default; the stacked-plane tilt is opt-in. when on it
     // leans right like the reference sketch (skew) and lies back (pitch).
-    tilt: { enabled: false, theta: 0, pitch: 0.9, skew: 0.35 },
+    tilt: {
+      enabled: false,
+      theta: 0,
+      pitch: 0.9,
+      skew: 0.35,
+      tests: false,
+      gap: 300,
+    },
   });
   // multi-select: ordered ids, last one is the primary (drives the detail
   // panel, breadcrumb, and labels); shift+click toggles membership
@@ -483,7 +490,12 @@ export function App() {
   /** Graph minus hidden display levels — what the layout subdivides. */
   const effectiveGraph = (p: PlaygroundParams): AtlasGraph => {
     let graph = graphRef.current;
-    const hiddenLayers = hiddenLayersOf(p.omit);
+    // the Tests plane lifts test files onto their own layer, so the source
+    // plane is laid out without them (they reappear below, under their target)
+    const hiddenLayers =
+      p.tilt.enabled && p.tilt.tests
+        ? [...new Set([...hiddenLayersOf(p.omit), "test"])]
+        : hiddenLayersOf(p.omit);
     const omitScopes = new Set(p.omitModules);
     if (hiddenLayers.length || omitScopes.size) {
       const hidden = new Set(hiddenLayers);
@@ -709,7 +721,7 @@ export function App() {
   const structuralKey = `${params.source}|${params.layout}|${granularity}|${params.boundaries.join("+")}|${treemapSizeKey}`;
   // weight / filters re-flow warm (the diff animation); only granularity
   // and data swaps rebuild cold
-  const detailKey = `${params.omit.join("+")}|${params.omitModules.join(",")}`;
+  const detailKey = `${params.omit.join("+")}|${params.omitModules.join(",")}|tests:${params.tilt.enabled && params.tilt.tests}`;
   const flowKey = `${detailKey}|${params.weight}`;
   const structuralRef = useRef(structuralKey);
   const flowKeyRef = useRef(flowKey);
@@ -1979,6 +1991,7 @@ export function App() {
             symbolKindOf={symbolKindOf}
             focus={focusView}
             testFileIds={testFileIds}
+            testTargets={testTargets}
             hiddenLayers={new Set(hiddenLayersOf(params.omit))}
             parentFileOf={parentFileOf}
             changedFiles={changedFilesRef.current}
@@ -2018,6 +2031,7 @@ export function App() {
             changedFiles={changedFilesRef.current}
             cyclicIds={cyclicIds}
             testFileIds={testFileIds}
+            testTargets={testTargets}
             focus={focusView}
             width={mapSize.width}
             height={mapSize.height}

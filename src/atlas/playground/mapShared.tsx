@@ -2,7 +2,12 @@ import type { AtlasEdge } from "../contracts/graph.js";
 import { bundlePath, hierarchyControlPoints } from "../kernel/bundling.js";
 import type { CellResult } from "../kernel/capacityLayout.js";
 import type { Vec2 } from "../kernel/vec.js";
-import { uprightAt, type Affine } from "../kernel/affine.js";
+import {
+  apply,
+  toMatrixString,
+  uprightAt,
+  type Affine,
+} from "../kernel/affine.js";
 import { symbolNameOf } from "./cfgClient.ts";
 import type { CfgAnchor } from "./CfgLayer.tsx";
 import type { SubdivisionLevel } from "./subdivision.js";
@@ -674,6 +679,128 @@ export function ExitPreviewsLayer(props: {
         </text>
       ))}
     </g>
+  );
+}
+
+/* ------------------------------------------------------------ test plane */
+
+/** Stroke for the faint stacked-plane outlines. */
+export let PLANE_OUTLINE = "#475569";
+
+/**
+ * The Tests plane: a second stacked plane below the source map. Each test
+ * file is dropped onto it directly beneath the source it covers (its target's
+ * upper-plane centroid), with a correspondence line rising to that source.
+ * Source and test plane outlines frame the two layers like the sketch.
+ *
+ * `tilt0` places the source plane, `tilt1` the test plane (the same tilt
+ * shifted down by the layer gap). Markers and labels stay upright via
+ * `uprightAt`; only the plane outlines and edges live in tilted space.
+ */
+export function TestPlaneLayer(props: {
+  tilt0: Affine;
+  tilt1: Affine;
+  /** World extent of the map viewport, for the plane outlines. */
+  extent: { w: number; h: number };
+  /** Upper-plane representative point per source file id. */
+  sourceSiteOf: Map<string, Vec2>;
+  /** testFileId → sourceFileId (the covered source). */
+  testTargets: Map<string, string>;
+  labelOf: (id: string) => string;
+  zoom: number;
+  onSelect: (id: string, additive?: boolean) => void;
+  selectedId?: string | null;
+}) {
+  const { tilt0, tilt1, extent, sourceSiteOf, testTargets, zoom } = props;
+  // group tests by target so several tests on one source fan out instead of
+  // stacking on the exact same point
+  const byTarget = new Map<string, string[]>();
+  for (const [testId, srcId] of testTargets) {
+    if (!sourceSiteOf.has(srcId)) continue;
+    const list = byTarget.get(srcId);
+    if (list) list.push(testId);
+    else byTarget.set(srcId, [testId]);
+  }
+  const spread = 14 / zoom;
+  const fontSize = 11 / zoom;
+  const dotR = 3.2 / zoom;
+  type Drop = { testId: string; srcId: string; node: Vec2 };
+  const drops: Drop[] = [];
+  for (const [srcId, tests] of byTarget) {
+    const base = sourceSiteOf.get(srcId)!;
+    tests.forEach((testId, i) => {
+      const off = (i - (tests.length - 1) / 2) * spread;
+      drops.push({ testId, srcId, node: { x: base.x + off, y: base.y } });
+    });
+  }
+  const planePoly = (m: Affine) =>
+    [
+      { x: 0, y: 0 },
+      { x: extent.w, y: 0 },
+      { x: extent.w, y: extent.h },
+      { x: 0, y: extent.h },
+    ]
+      .map((p) => apply(m, p))
+      .map((p) => `${p.x},${p.y}`)
+      .join(" ");
+  return (
+    <>
+      {/* the two plane frames */}
+      <g fill="none" stroke={PLANE_OUTLINE} style={{ pointerEvents: "none" }}>
+        <polygon points={planePoly(tilt0)} stroke-opacity={0.35} stroke-width={1.5} />
+        <polygon points={planePoly(tilt1)} stroke-opacity={0.5} stroke-width={1.5} />
+      </g>
+      {/* correspondence: source (top) ↓ its test (bottom) */}
+      <g fill="none" stroke={TEST_LABEL_INK} style={{ pointerEvents: "none" }}>
+        {drops.map((d) => {
+          const top = apply(tilt0, sourceSiteOf.get(d.srcId)!);
+          const bot = apply(tilt1, d.node);
+          return (
+            <line
+              key={d.testId}
+              x1={top.x}
+              y1={top.y}
+              x2={bot.x}
+              y2={bot.y}
+              stroke-width={1}
+              stroke-opacity={0.55}
+            />
+          );
+        })}
+      </g>
+      {/* test nodes on the lower plane, upright */}
+      <g style={{ userSelect: "none" }}>
+        {drops.map((d) => (
+          <g
+            key={d.testId}
+            transform={uprightAt(tilt1, d.node)}
+            style={{ cursor: "pointer" }}
+            onClick={(event) => {
+              event.stopPropagation();
+              props.onSelect(d.testId, event.shiftKey);
+            }}
+          >
+            <circle
+              cx={0}
+              cy={0}
+              r={dotR}
+              fill={TEST_FILL}
+              stroke={d.testId === props.selectedId ? SELECT_STROKE : TEST_LABEL_INK}
+              stroke-width={d.testId === props.selectedId ? 2 : 0.8}
+            />
+            <text
+              x={dotR * 1.8}
+              y={fontSize * 0.34}
+              font-size={fontSize}
+              font-weight="600"
+              fill={TEST_LABEL_INK}
+            >
+              {props.labelOf(d.testId)}
+            </text>
+          </g>
+        ))}
+      </g>
+    </>
   );
 }
 
