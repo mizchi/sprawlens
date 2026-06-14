@@ -10,8 +10,9 @@ beforeAll(async () => {
   await mkdir(join(dir, "src"), { recursive: true });
   await writeFile(
     join(dir, "src/lib.rs"),
-    `use std::fmt;\npub struct Greeter { pub name: String }\npub trait Hello { fn hello(&self) -> String; }\nimpl Greeter { pub fn new() -> Self { Greeter { name: String::new() } } fn secret(&self) -> u32 { 1 } }\npub enum Mode { On, Off }\nfn helper() -> i32 { 42 }\n`,
+    `mod util;\nuse std::fmt;\nuse crate::util::Thing;\npub struct Greeter { pub name: String }\npub trait Hello { fn hello(&self) -> String; }\nimpl Greeter { pub fn new() -> Self { Greeter { name: String::new() } } fn secret(&self) -> u32 { 1 } }\npub enum Mode { On, Off }\nfn helper() -> i32 { 42 }\n`,
   );
+  await writeFile(join(dir, "src/util.rs"), `pub struct Thing { v: i32 }\n`);
 });
 afterAll(async () => { await rm(dir, { recursive: true, force: true }); });
 const commit = { hash: "WORKTREE", shortHash: "worktree", timestamp: "2020-01-01T00:00:00.000Z", authorName: "t", message: "t", aiIndicators: [] };
@@ -28,7 +29,13 @@ describe("snapshotRustWorkingTree", () => {
     expect(by("Mode")?.kind).toBe("enum");
     expect(by("helper")?.exported).toBe(false);
     expect(syms.some((s) => s.parentClass === "Greeter" && s.name === "new" && s.kind === "method")).toBe(true);
-    const imports = snap.edges.filter((e) => e.type === "imports").map((e) => e.specifier);
-    expect(imports).toContain("std");
+    const imports = snap.edges.filter((e) => e.type === "imports");
+    expect(imports.some((e) => e.specifier === "std" && !e.resolved)).toBe(true);
+    // use crate::util resolves to the module file
+    expect(
+      imports.some(
+        (e) => e.from === "file:src/lib.rs" && e.to === "file:src/util.rs" && e.resolved,
+      ),
+    ).toBe(true);
   });
 });
