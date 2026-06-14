@@ -152,47 +152,6 @@ function insetRing(ring: Ring, factor: number): Ring {
 }
 
 /** Collapsible panel section; user toggles survive re-renders via state. */
-function Section(props: {
-  title: string;
-  children: preact.ComponentChildren;
-  defaultOpen?: boolean;
-  style?: Record<string, string | number>;
-}) {
-  const [open, setOpen] = useState(props.defaultOpen ?? true);
-  return (
-    <details
-      open={open}
-      onToggle={(e) => setOpen((e.target as HTMLDetailsElement).open)}
-      style={{
-        background: MAP_BG,
-        color: INK,
-        borderRadius: "6px",
-        border: `1px solid ${PANEL_BORDER}`,
-        padding: "6px 8px",
-        minWidth: "0",
-        maxHeight: "100%",
-        boxSizing: "border-box",
-        overflowY: "auto",
-        ...props.style,
-      }}
-    >
-      <summary
-        style={{
-          cursor: "pointer",
-          fontWeight: "600",
-          fontSize: "12px",
-          userSelect: "none",
-        }}
-      >
-        {props.title}
-      </summary>
-      <div style={{ paddingTop: "6px" }}>{props.children}</div>
-    </details>
-  );
-}
-
-type PanelPosition = "auto" | "right" | "bottom";
-
 export function App() {
   const [params, setParams] = useState<PlaygroundParams>({
     source: "sprawlens",
@@ -249,19 +208,6 @@ export function App() {
   const viewInfoRef = useRef(viewInfo);
   viewInfoRef.current = viewInfo;
   const [, setFrame] = useState(0);
-  // DevTools-style panel docking: auto follows the window aspect ratio
-  const [panelPos, setPanelPos] = useState<PanelPosition>("auto");
-  const [landscape, setLandscape] = useState(
-    window.innerWidth > window.innerHeight * 1.1,
-  );
-  useEffect(() => {
-    const onResize = () =>
-      setLandscape(window.innerWidth > window.innerHeight * 1.1);
-    window.addEventListener("resize", onResize);
-    return () => window.removeEventListener("resize", onResize);
-  }, []);
-  const panelSide: "right" | "bottom" =
-    panelPos === "auto" ? (landscape ? "right" : "bottom") : panelPos;
 
   const graphRef = useRef<AtlasGraph>(null as unknown as AtlasGraph);
   const ringsRef = useRef<RingsState | null>(null);
