@@ -1,3 +1,4 @@
+import { useState } from "preact/hooks";
 import type { AtlasEdge } from "../contracts/graph.js";
 import { bundlePath, hierarchyControlPoints } from "../kernel/bundling.js";
 import type { CellResult } from "../kernel/capacityLayout.js";
@@ -733,22 +734,7 @@ export function PlaneLayerView(props: {
   const { tilt0, tilt1, extent, sourceSiteOf, placed, color, zoom } = props;
   const edgeCap = props.edgeCap ?? 16;
   const tilt1Matrix = toMatrixString(tilt1);
-  // a node's world size (cell extent or circle diameter); labels gate on it so
-  // a name only appears once its cell is big enough on screen, and its font is
-  // capped to the cell so zoomed-out views don't sprawl giant text
-  const sizeOf = (d: PlacedNode): number => {
-    if (d.r !== undefined) return d.r * 2;
-    if (!d.polygon) return 0;
-    let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
-    for (const p of d.polygon) {
-      minX = Math.min(minX, p.x);
-      maxX = Math.max(maxX, p.x);
-      minY = Math.min(minY, p.y);
-      maxY = Math.max(maxY, p.y);
-    }
-    return Math.max(maxX - minX, maxY - minY);
-  };
-  const LABEL_MIN_PX = 30;
+  const [hovered, setHovered] = useState<string | null>(null);
   return (
     <>
       {/* plane frames */}
@@ -782,13 +768,8 @@ export function PlaneLayerView(props: {
             });
         })}
       </g>
-      {/* in-plane layout geometry (cells / rings) + district outlines */}
-      <g
-        transform={tilt1Matrix}
-        fill="none"
-        stroke={color}
-        style={{ pointerEvents: "none" }}
-      >
+      {/* district outlines, tilted with the plane */}
+      <g transform={tilt1Matrix} fill="none" style={{ pointerEvents: "none" }}>
         {(props.districts ?? []).map((poly, i) => (
           <polygon
             key={`d${i}`}
@@ -798,15 +779,30 @@ export function PlaneLayerView(props: {
             stroke-width={1}
           />
         ))}
-        {placed.map((d) =>
-          d.polygon ? (
+      </g>
+      {/* in-plane cells / rings, hoverable for their name */}
+      <g transform={tilt1Matrix} stroke={color}>
+        {placed.map((d) => {
+          const active = d.id === hovered || d.id === props.selectedId;
+          const onEnter = () => setHovered(d.id);
+          const onLeave = () => setHovered((h) => (h === d.id ? null : h));
+          const onClick = (event: MouseEvent) => {
+            event.stopPropagation();
+            props.onSelect(d.id, event.shiftKey);
+          };
+          return d.polygon ? (
             <polygon
               key={d.id}
               points={d.polygon.map((p) => `${p.x},${p.y}`).join(" ")}
               fill={color}
-              fill-opacity={0.08}
-              stroke-opacity={0.5}
-              stroke-width={1}
+              fill-opacity={active ? 0.22 : 0.08}
+              stroke={active ? SELECT_STROKE : color}
+              stroke-opacity={active ? 0.9 : 0.5}
+              stroke-width={active ? 1.6 : 1}
+              style={{ cursor: "pointer" }}
+              onMouseEnter={onEnter}
+              onMouseLeave={onLeave}
+              onClick={onClick}
             />
           ) : d.r !== undefined ? (
             <circle
@@ -815,44 +811,47 @@ export function PlaneLayerView(props: {
               cy={d.site.y}
               r={d.r}
               fill={color}
-              fill-opacity={0.12}
-              stroke-opacity={0.6}
-              stroke-width={1}
-            />
-          ) : null,
-        )}
-      </g>
-      {/* node labels, upright, gated + capped so they don't sprawl */}
-      <g style={{ userSelect: "none" }}>
-        {placed.map((d) => {
-          const size = sizeOf(d);
-          const selected = d.id === props.selectedId;
-          // only label a cell once it's big enough on screen; the font stays
-          // screen-constant (no cell-proportional blow-up when zoomed out)
-          if (size * zoom < LABEL_MIN_PX && !selected) return null;
-          const fontSize = 12 / zoom;
-          return (
-            <text
-              key={d.id}
-              transform={uprightAt(tilt1, d.site)}
-              y={fontSize * 0.34}
-              font-size={fontSize}
-              font-weight="600"
-              text-anchor="middle"
-              fill={color}
-              stroke={selected ? SELECT_STROKE : "none"}
-              stroke-width={selected ? 0.6 / zoom : 0}
+              fill-opacity={active ? 0.28 : 0.12}
+              stroke={active ? SELECT_STROKE : color}
+              stroke-opacity={active ? 0.9 : 0.6}
+              stroke-width={active ? 1.6 : 1}
               style={{ cursor: "pointer" }}
-              onClick={(event) => {
-                event.stopPropagation();
-                props.onSelect(d.id, event.shiftKey);
-              }}
-            >
-              {d.label}
-            </text>
-          );
+              onMouseEnter={onEnter}
+              onMouseLeave={onLeave}
+              onClick={onClick}
+            />
+          ) : null;
         })}
       </g>
+      {/* name shown only for the hovered / selected node — upright, at the
+          node's site on this plane (translate to its projected point; no tilt
+          parent, so the label never rotates or scales with the plane) */}
+      {placed
+        .filter((d) => d.id === hovered || d.id === props.selectedId)
+        .map((d) => {
+          const p = apply(tilt1, d.site);
+          const fontSize = 12 / zoom;
+          return (
+            <g
+              key={d.id}
+              transform={`translate(${p.x},${p.y})`}
+              style={{ pointerEvents: "none", userSelect: "none" }}
+            >
+              <text
+                y={fontSize * 0.34}
+                font-size={fontSize}
+                font-weight="600"
+                text-anchor="middle"
+                fill={color}
+                stroke={PLANE_OUTLINE}
+                stroke-width={3 / zoom}
+                paint-order="stroke"
+              >
+                {d.label}
+              </text>
+            </g>
+          );
+        })}
     </>
   );
 }
