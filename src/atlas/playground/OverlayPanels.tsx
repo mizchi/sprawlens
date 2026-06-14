@@ -183,12 +183,12 @@ export function CameraPanel(props: {
           </label>
           {tilt.tests || tilt.deps ? (
             <label style={sliderRow}>
-              <span style={{ width: "78px" }}>gap {Math.round(tilt.gap)}</span>
+              <span style={{ width: "78px" }}>gap {tilt.gap.toFixed(2)}×</span>
               <input
                 type="range"
-                min={100}
-                max={1800}
-                step={10}
+                min={0.2}
+                max={2}
+                step={0.05}
                 value={tilt.gap}
                 onInput={(e) =>
                   setTilt({ gap: Number((e.target as HTMLInputElement).value) })

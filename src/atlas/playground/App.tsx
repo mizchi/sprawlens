@@ -217,8 +217,9 @@ export function App() {
       skew: 0.35,
       tests: false,
       deps: false,
-      // ~ the plane's longer edge, so a layer sits a full map-width below
-      gap: 950,
+      // gap is a fraction of the plane's height, so the stack auto-scales with
+      // the viewport instead of a fixed world distance
+      gap: 0.7,
     },
   });
   // multi-select: ordered ids, last one is the primary (drives the detail

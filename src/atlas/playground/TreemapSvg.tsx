@@ -175,7 +175,7 @@ export function TreemapSvg(props: Props) {
   const satellitesOn = !!tilt?.enabled && layers.length > 0 && !!tiltOpts;
   const planeFor = (index: number): Affine | undefined =>
     tilt && tiltOpts
-      ? layerTransform({ ...tiltOpts, gap: tilt.gap, index })
+      ? layerTransform({ ...tiltOpts, gap: tilt.gap * height, index })
       : undefined;
   // representative upper-plane point per source file = centroid of leaf cells
   const sourceSiteOf = useMemo(() => {
