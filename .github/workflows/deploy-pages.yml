@@ -1,4 +1,4 @@
-name: Deploy atlas to GitHub Pages
+name: Deploy the map to GitHub Pages
 
 on:
   push:
@@ -28,12 +28,11 @@ jobs:
           node-version: 24
           cache: pnpm
       - run: pnpm install --frozen-lockfile
-      - run: pnpm build:atlas
-      # serve the playground at the site root
-      - run: cp dist/atlas/atlas.html dist/atlas/index.html
+      # static build of the viz; serves the baked sprawlens fixture (no server)
+      - run: pnpm --filter @sprawlens/viz build
       - uses: actions/configure-pages@v5
       - uses: actions/upload-pages-artifact@v3
         with:
-          path: dist/atlas
+          path: packages/viz/dist
       - id: deployment
         uses: actions/deploy-pages@v4
