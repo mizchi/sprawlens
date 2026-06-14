@@ -4,6 +4,7 @@ import { isStaticKind, SymbolTag, symbolGlyphOf } from "./symbolIcons.tsx";
 import type { CellResult } from "../kernel/capacityLayout.js";
 import type { Vec2 } from "../kernel/vec.js";
 import {
+  apply,
   layerTransform,
   toMatrixString,
   uprightAt,
@@ -48,6 +49,7 @@ import {
   DEPS_INK,
   PlaneLayerView,
   SELECT_STROKE,
+  LINKED_STROKE,
   UPSTREAM_COLOR,
   UPSTREAM_FILL,
   WatermarkLabelsLayer,
@@ -223,21 +225,16 @@ export function RingsMapSvg(props: Props) {
       onHover: (x, y) => hoverEdgeRef.current(x, y),
       onTilt: onTiltDrag,
     });
-  // affine that lays the plane flat (pitch squash), leans it right (skew) and
-  // spins it (rotate); the content group carries it so all geometry and edges
-  // inherit one transform. labels read `tiltAffine` to stay upright on top.
+  // affine that lays the plane flat (pitch squash) and spins it (rotate); the
+  // content group carries it so all geometry and edges inherit one transform.
+  // labels read `tiltAffine` to stay upright on top.
   const tiltActive =
     !!tilt?.enabled &&
-    (tilt.theta !== 0 ||
-      tilt.pitch !== 0 ||
-      tilt.skew !== 0 ||
-      tilt.tests ||
-      tilt.deps);
+    (tilt.theta !== 0 || tilt.pitch !== 0 || tilt.tests || tilt.deps);
   const tiltOpts = tilt
     ? {
         theta: tilt.theta,
         squash: Math.cos(tilt.pitch),
-        skew: -Math.tan(tilt.skew),
         center: { x: width / 2, y: height / 2 },
       }
     : null;
@@ -273,6 +270,28 @@ export function RingsMapSvg(props: Props) {
     for (const [f, e] of acc) m.set(f, { x: e.x / e.n, y: e.y / e.n });
     return m;
   }, [rings, parentFileOf, satellitesOn]);
+  // every node's screen point across all planes: source files on the tilted
+  // source plane, each satellite node on its own plane. Cross-layer edges
+  // resolve their endpoints through this, so a dep edge lands on the tests
+  // plane (its test importers) rather than being dropped.
+  const screenPos = useMemo(() => {
+    const m = new Map<string, Vec2>();
+    if (tiltAffine)
+      for (const [f, site] of sourceSiteOf) m.set(f, apply(tiltAffine, site));
+    for (const layer of layers) {
+      const t = planeFor(layer.planeIndex);
+      if (!t) continue;
+      for (const n of layer.placed) m.set(n.id, apply(t, n.site));
+    }
+    return m;
+  }, [sourceSiteOf, layers, tiltAffine, height]);
+  // ids referenced as an endpoint of some cross-layer edge — highlighted
+  const referencedIds = useMemo(() => {
+    const s = new Set<string>();
+    for (const layer of layers)
+      for (const n of layer.placed) for (const sid of n.sourceIds) s.add(sid);
+    return s;
+  }, [layers]);
   const [hoveredEdge, setHoveredEdge] = useState<{
     source: string;
     target: string;
@@ -790,6 +809,14 @@ export function RingsMapSvg(props: Props) {
           const border =
             isSelected(cell.id) ||
             Math.sqrt(cell.actualArea) * zoom >= LEAF_BORDER_MIN_PX;
+          // referenced by a cross-layer edge (a test / dep points here): give
+          // the source file a bright outline so the nodes in play surface.
+          // referencedIds are file paths, so a symbol cell matches via its file.
+          const linked =
+            !isSelected(cell.id) &&
+            referencedIds.size > 0 &&
+            (referencedIds.has(cell.id) ||
+              referencedIds.has(parentFileOf(cell.id)));
           return (
             <polygon
               key={cell.id}
@@ -805,11 +832,14 @@ export function RingsMapSvg(props: Props) {
               stroke={
                 isSelected(cell.id)
                   ? SELECT_STROKE
-                  : border
-                    ? LEAF_STROKE
-                    : "none"
+                  : linked
+                    ? LINKED_STROKE
+                    : border
+                      ? LEAF_STROKE
+                      : "none"
               }
-              stroke-width={isSelected(cell.id) ? 2 : 0.8}
+              stroke-width={isSelected(cell.id) ? 2 : linked ? 1.4 : 0.8}
+              stroke-opacity={linked ? 0.95 : undefined}
               opacity={fileOpacity(cell.id)}
               onClick={(event) => {
                 event.stopPropagation();
@@ -1388,7 +1418,8 @@ export function RingsMapSvg(props: Props) {
                 tilt0={tiltAffine}
                 tilt1={tilt1}
                 extent={layer.extent}
-                sourceSiteOf={sourceSiteOf}
+                screenPosOf={(id) => screenPos.get(id)}
+                referencedIds={referencedIds}
                 placed={layer.placed}
                 districts={layer.districts}
                 color={layer.id === "deps" ? DEPS_INK : TEST_LABEL_INK}

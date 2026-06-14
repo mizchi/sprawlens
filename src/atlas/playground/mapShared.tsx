@@ -1,3 +1,4 @@
+import type { VNode } from "preact";
 import { useState } from "preact/hooks";
 import type { AtlasEdge } from "../contracts/graph.js";
 import { bundlePath, hierarchyControlPoints } from "../kernel/bundling.js";
@@ -42,6 +43,9 @@ export let DOWNSTREAM_FILL = "hsl(21 90% 86%)";
 export let UPSTREAM_FILL = "hsl(193 70% 86%)";
 /** Selection outline everywhere. */
 export let SELECT_STROKE = "#1d4ed8";
+/** Outline for nodes referenced by a (cross-layer) edge — warm, so it reads
+ * apart from the blue selection. */
+export let LINKED_STROKE = "#d97706";
 /** SVG strata inks and chrome, theme-switched. */
 export let LEAF_STROKE = "#94a3b8";
 export let SYMBOL_STROKE = "#64748b";
@@ -116,6 +120,7 @@ export function setMapTheme(dark: boolean): void {
     DOWNSTREAM_FILL = "hsl(21 65% 28%)";
     UPSTREAM_FILL = "hsl(193 55% 26%)";
     SELECT_STROKE = "#60a5fa";
+    LINKED_STROKE = "#fbbf24";
     LEAF_STROKE = "#475569";
     SYMBOL_STROKE = "#64748b";
     SYMBOL_EDGE = "#a78bfa";
@@ -169,6 +174,7 @@ export function setMapTheme(dark: boolean): void {
     DOWNSTREAM_FILL = "hsl(21 90% 86%)";
     UPSTREAM_FILL = "hsl(193 70% 86%)";
     SELECT_STROKE = "#1d4ed8";
+    LINKED_STROKE = "#d97706";
     LEAF_STROKE = "#94a3b8";
     SYMBOL_STROKE = "#64748b";
     SYMBOL_EDGE = "#7c3aed";
@@ -717,8 +723,13 @@ export function PlaneLayerView(props: {
   tilt1: Affine;
   /** World extent of the map viewport, for the plane outline. */
   extent: { w: number; h: number };
-  /** Upper-plane representative point per source file id. */
-  sourceSiteOf: Map<string, Vec2>;
+  /** Resolve any node id (source file, test, dep, ...) to its screen point on
+   * whichever plane owns it. Lets a dep edge land on the tests plane (vitest →
+   * its test importers) instead of being dropped for not being a source file. */
+  screenPosOf: (id: string) => Vec2 | undefined;
+  /** Ids that are an endpoint of some cross-layer edge — highlighted as the
+   * nodes worth reading out of the hairball. */
+  referencedIds?: Set<string>;
   placed: readonly PlacedNode[];
   /** Intermediate boundary (e.g. module) outlines for this plane's layout. */
   districts?: readonly (readonly Vec2[])[];
@@ -734,7 +745,8 @@ export function PlaneLayerView(props: {
   onLinkSelect?: (sourceId: string, additive?: boolean) => void;
   selectedId?: string | null;
 }) {
-  const { tilt0, tilt1, extent, sourceSiteOf, placed, color, zoom } = props;
+  const { tilt0, tilt1, extent, screenPosOf, placed, color, zoom } = props;
+  const referencedIds = props.referencedIds;
   const edgeCap = props.edgeCap ?? 16;
   const tilt1Matrix = toMatrixString(tilt1);
   const [hovered, setHovered] = useState<string | null>(null);
@@ -775,47 +787,70 @@ export function PlaneLayerView(props: {
         ) : null}
         <polygon points={planePolyOf(tilt1, extent.w, extent.h)} stroke-opacity={0.5} stroke-width={1.5} />
       </g>
-      {/* correspondence: each related source (top) ↓ the node (bottom). Like
-          an in-layer arrow, clicking one selects + jumps to that source. */}
+      {/* correspondence: each node's references (top, on whichever plane owns
+          them) fan up from the node (bottom). Edges sharing the node bundle
+          into one trunk up to a waist, then diverge to each target so a
+          many-to-many relation reads as a tree, not a hairball. Clicking a
+          diverging leg selects + jumps to that target. */}
       <g fill="none" stroke={color}>
         {placed.flatMap((d) => {
           const bot = apply(tilt1, d.site);
           const active = d.id === hovered || d.id === props.selectedId;
-          return d.sourceIds
-            .map((s) => [s, sourceSiteOf.get(s)] as const)
+          const tops = d.sourceIds
+            .map((s) => [s, screenPosOf(s)] as const)
             .filter((v): v is readonly [string, Vec2] => !!v[1])
-            .slice(0, edgeCap)
-            .flatMap(([sid, src], i) => {
-              const top = apply(tilt0, src);
-              const key = `${d.id}:${i}`;
-              return [
-                <line
-                  key={key}
-                  x1={top.x}
-                  y1={top.y}
-                  x2={bot.x}
-                  y2={bot.y}
-                  stroke-width={active ? 1.6 : 1}
-                  stroke-opacity={active ? 0.85 : 0.3}
-                  style={{ pointerEvents: "none" }}
-                />,
-                // fat transparent hit line so the thin link is easy to click
-                <line
-                  key={`${key}-hit`}
-                  x1={top.x}
-                  y1={top.y}
-                  x2={bot.x}
-                  y2={bot.y}
-                  stroke="transparent"
-                  stroke-width={8 / zoom}
-                  style={{ cursor: "pointer" }}
-                  onClick={(event) => {
-                    event.stopPropagation();
-                    props.onLinkSelect?.(sid, event.shiftKey);
-                  }}
-                />,
-              ];
-            });
+            .slice(0, edgeCap);
+          if (tops.length === 0) return [];
+          // waist = part-way from the node toward its targets' centroid; all of
+          // the node's legs share it, so bottom→waist overlaps as one trunk
+          const cx = tops.reduce((s, [, p]) => s + p.x, 0) / tops.length;
+          const cy = tops.reduce((s, [, p]) => s + p.y, 0) / tops.length;
+          const waist =
+            tops.length > 1
+              ? { x: bot.x + (cx - bot.x) * 0.6, y: bot.y + (cy - bot.y) * 0.6 }
+              : bot;
+          const sw = active ? 1.6 : 1;
+          const so = active ? 0.85 : 0.32;
+          const out: VNode[] = [];
+          if (tops.length > 1)
+            out.push(
+              <line
+                key={`${d.id}:trunk`}
+                x1={bot.x}
+                y1={bot.y}
+                x2={waist.x}
+                y2={waist.y}
+                stroke-width={sw + 0.6}
+                stroke-opacity={so}
+                style={{ pointerEvents: "none" }}
+              />,
+            );
+          for (let i = 0; i < tops.length; i++) {
+            const [sid, top] = tops[i]!;
+            const path = smoothPathD([waist, top]);
+            const key = `${d.id}:${i}`;
+            out.push(
+              <path
+                key={key}
+                d={path}
+                stroke-width={sw}
+                stroke-opacity={so}
+                style={{ pointerEvents: "none" }}
+              />,
+              <path
+                key={`${key}-hit`}
+                d={path}
+                stroke="transparent"
+                stroke-width={8 / zoom}
+                style={{ cursor: "pointer" }}
+                onClick={(event) => {
+                  event.stopPropagation();
+                  props.onLinkSelect?.(sid, event.shiftKey);
+                }}
+              />,
+            );
+          }
+          return out;
         })}
       </g>
       {/* district outlines, tilted with the plane */}
@@ -834,6 +869,9 @@ export function PlaneLayerView(props: {
       <g transform={tilt1Matrix} stroke={color}>
         {placed.map((d) => {
           const active = d.id === hovered || d.id === props.selectedId;
+          // referenced by another plane's edges: brighten the fill so the nodes
+          // actually in play surface out of the full layout
+          const linked = !active && (referencedIds?.has(d.id) ?? false);
           const onEnter = () => setHovered(d.id);
           const onLeave = () => setHovered((h) => (h === d.id ? null : h));
           const onClick = (event: MouseEvent) => {
@@ -845,9 +883,9 @@ export function PlaneLayerView(props: {
               key={d.id}
               points={d.polygon.map((p) => `${p.x},${p.y}`).join(" ")}
               fill={color}
-              fill-opacity={active ? 0.22 : 0.08}
+              fill-opacity={active ? 0.22 : linked ? 0.18 : 0.08}
               stroke={active ? SELECT_STROKE : color}
-              stroke-opacity={active ? 0.9 : 0.5}
+              stroke-opacity={active ? 0.9 : linked ? 0.75 : 0.5}
               stroke-width={active ? 1.6 : 1}
               style={{ cursor: "pointer" }}
               onMouseEnter={onEnter}
@@ -861,9 +899,9 @@ export function PlaneLayerView(props: {
               cy={d.site.y}
               r={d.r}
               fill={color}
-              fill-opacity={active ? 0.28 : 0.12}
+              fill-opacity={active ? 0.28 : linked ? 0.24 : 0.12}
               stroke={active ? SELECT_STROKE : color}
-              stroke-opacity={active ? 0.9 : 0.6}
+              stroke-opacity={active ? 0.9 : linked ? 0.8 : 0.6}
               stroke-width={active ? 1.6 : 1}
               style={{ cursor: "pointer" }}
               onMouseEnter={onEnter}

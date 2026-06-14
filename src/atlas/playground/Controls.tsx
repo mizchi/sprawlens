@@ -16,14 +16,14 @@ export type DataSource =
   | "playwright";
 export type LayoutKind = "rings" | "treemap";
 
-/** Affine tilt that lays the map flat as a stacked-plane (isometric) view.
- * `pitch` drives the vertical squash (cos(pitch)); `theta` rotates the plane
- * in-plane; `skew` shears it into the right-leaning parallelogram. Radians. */
+/** Affine tilt that lays the map flat as a stacked-plane view. `pitch` drives
+ * the vertical squash (cos(pitch)); `theta` rotates the plane in-plane. The
+ * planes stay axis-aligned rectangles — the user tilts them with the mouse
+ * (alt+drag) rather than a baked-in parallelogram lean. Radians. */
 export type TiltParams = {
   enabled: boolean;
   theta: number;
   pitch: number;
-  skew: number;
   /** Show the Tests plane below the source plane (drops tests off source). */
   tests: boolean;
   /** Show the Deps plane: external packages below their importers. */

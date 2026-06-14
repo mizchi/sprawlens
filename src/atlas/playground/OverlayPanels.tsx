@@ -208,13 +208,6 @@ export function CameraPanel(props: {
             value={toDeg(tilt.pitch)}
             onChange={(d) => setTilt({ pitch: toRad(d) })}
           />
-          <DegSlider
-            label="lean"
-            min={-60}
-            max={60}
-            value={toDeg(tilt.skew)}
-            onChange={(d) => setTilt({ skew: toRad(d) })}
-          />
           <label style={sliderRow}>
             <span style={{ width: "78px" }}>gap {tilt.gap.toFixed(2)}×</span>
             <input
@@ -314,13 +307,16 @@ export function LayersMenu(props: {
     (level === "cfg" && granularity === "module");
 
   // selecting a satellite plane (2+ layers incl. source) auto-tilts the view;
-  // turning all of them off (source alone) lays it flat again
+  // turning all of them off (source alone) lays it flat again. stacked planes
+  // read best on the rings layout, so enabling one switches to it.
   const setPlane = (key: "tests" | "deps", on: boolean) => {
     const tests = key === "tests" ? on : params.tilt.tests;
     const deps = key === "deps" ? on : params.tilt.deps;
+    const stacked = tests || deps;
     props.onChange({
       ...params,
-      tilt: { ...params.tilt, tests, deps, enabled: tests || deps },
+      layout: stacked ? "rings" : params.layout,
+      tilt: { ...params.tilt, tests, deps, enabled: stacked },
     });
   };
 

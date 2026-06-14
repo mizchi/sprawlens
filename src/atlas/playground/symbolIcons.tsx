@@ -95,7 +95,7 @@ export function SymbolTag(props: {
   const textW = name.length * fontSize * 0.55; // rough proportional-font width
   const total = (glyph ? iconSize + gap : 0) + textW;
   // laid out around a local origin so the wrapper's uprightAt transform both
-  // places it on the (cx,cy) plane point and cancels the tilt's skew/squash
+  // places it on the (cx,cy) plane point and cancels the tilt's rotate/squash
   const left = -total / 2;
   return (
     <g

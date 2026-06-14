@@ -4,6 +4,7 @@ import { isStaticKind, SymbolTag, symbolGlyphOf } from "./symbolIcons.tsx";
 import type { CellResult } from "../kernel/capacityLayout.js";
 import type { Vec2 } from "../kernel/vec.js";
 import {
+  apply,
   layerTransform,
   toMatrixString,
   uprightAt,
@@ -39,6 +40,7 @@ import {
   PlaneLayerView,
   RaisedEdgePath,
   SELECT_STROKE,
+  LINKED_STROKE,
   TEST_LABEL_INK,
   UPSTREAM_COLOR,
   WatermarkLabelsLayer,
@@ -151,20 +153,15 @@ export function TreemapSvg(props: Props) {
       onHover: (x, y) => hoverEdgeRef.current(x, y),
       onTilt: onTiltDrag,
     });
-  // affine that lays the plane flat (pitch), leans it right (skew) and spins
-  // it (rotate); labels read `tiltAffine` to stay upright on top
+  // affine that lays the plane flat (pitch) and spins it (rotate); labels read
+  // `tiltAffine` to stay upright on top
   const tiltActive =
     !!tilt?.enabled &&
-    (tilt.theta !== 0 ||
-      tilt.pitch !== 0 ||
-      tilt.skew !== 0 ||
-      tilt.tests ||
-      tilt.deps);
+    (tilt.theta !== 0 || tilt.pitch !== 0 || tilt.tests || tilt.deps);
   const tiltOpts = tilt
     ? {
         theta: tilt.theta,
         squash: Math.cos(tilt.pitch),
-        skew: -Math.tan(tilt.skew),
         center: { x: width / 2, y: height / 2 },
       }
     : null;
@@ -199,6 +196,31 @@ export function TreemapSvg(props: Props) {
     for (const [f, e] of acc) m.set(f, { x: e.x / e.n, y: e.y / e.n });
     return m;
   }, [state, props.parentFileOf, satellitesOn]);
+  // every node's screen point across all planes (see RingsMapSvg): lets a dep
+  // edge resolve onto the tests plane instead of being dropped.
+  const screenPos = useMemo(() => {
+    const m = new Map<string, Vec2>();
+    if (tiltAffine)
+      for (const [f, site] of sourceSiteOf) m.set(f, apply(tiltAffine, site));
+    for (const layer of layers) {
+      const t = planeFor(layer.planeIndex);
+      if (!t) continue;
+      for (const n of layer.placed) m.set(n.id, apply(t, n.site));
+    }
+    return m;
+  }, [sourceSiteOf, layers, tiltAffine, height]);
+  const referencedIds = useMemo(() => {
+    const s = new Set<string>();
+    for (const layer of layers)
+      for (const n of layer.placed) for (const sid of n.sourceIds) s.add(sid);
+    return s;
+  }, [layers]);
+  // referencedIds are file paths; a symbol cell counts as referenced when its
+  // parent file is. `linkedCell` works at either granularity.
+  const linkedCell = (id: string) =>
+    referencedIds.size > 0 &&
+    (referencedIds.has(id) ||
+      referencedIds.has((props.parentFileOf ?? ((x) => x))(id)));
   const [hoveredEdge, setHoveredEdge] = useState<{
     source: string;
     target: string;
@@ -472,6 +494,7 @@ export function TreemapSvg(props: Props) {
           const border =
             isSelected(cell.id) ||
             Math.sqrt(cell.actualArea) * zoom >= LEAF_BORDER_MIN_PX;
+          const linked = !isSelected(cell.id) && linkedCell(cell.id);
           return (
             <polygon
               key={cell.id}
@@ -481,12 +504,14 @@ export function TreemapSvg(props: Props) {
               stroke={
                 isSelected(cell.id)
                   ? SELECT_STROKE
-                  : border
-                    ? LEAF_STROKE
-                    : "none"
+                  : linked
+                    ? LINKED_STROKE
+                    : border
+                      ? LEAF_STROKE
+                      : "none"
               }
-              stroke-opacity={fileOpacity(cell.id)}
-              stroke-width={isSelected(cell.id) ? 2.5 : 0.6}
+              stroke-opacity={linked ? 0.95 : fileOpacity(cell.id)}
+              stroke-width={isSelected(cell.id) ? 2.5 : linked ? 1.4 : 0.6}
               onClick={(event) => {
                 event.stopPropagation();
                 onSelect(cell.id, event.shiftKey);
@@ -805,7 +830,8 @@ export function TreemapSvg(props: Props) {
                 tilt0={tiltAffine}
                 tilt1={tilt1}
                 extent={layer.extent}
-                sourceSiteOf={sourceSiteOf}
+                screenPosOf={(id) => screenPos.get(id)}
+                referencedIds={referencedIds}
                 placed={layer.placed}
                 districts={layer.districts}
                 color={layer.id === "deps" ? DEPS_INK : TEST_LABEL_INK}
