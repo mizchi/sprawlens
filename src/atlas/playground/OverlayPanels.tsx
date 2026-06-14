@@ -128,16 +128,6 @@ export function CameraPanel(props: {
           ×
         </button>
       </div>
-      <label style={sliderRow}>
-        <span style={{ width: "78px" }}>tilt</span>
-        <input
-          type="checkbox"
-          checked={tilt.enabled}
-          onInput={(e) =>
-            setTilt({ enabled: (e.target as HTMLInputElement).checked })
-          }
-        />
-      </label>
       {tilt.enabled ? (
         <>
           <DegSlider
@@ -162,45 +152,27 @@ export function CameraPanel(props: {
             onChange={(d) => setTilt({ skew: toRad(d) })}
           />
           <label style={sliderRow}>
-            <span style={{ width: "78px" }}>tests</span>
+            <span style={{ width: "78px" }}>gap {tilt.gap.toFixed(2)}×</span>
             <input
-              type="checkbox"
-              checked={tilt.tests}
+              type="range"
+              min={0.2}
+              max={2}
+              step={0.05}
+              value={tilt.gap}
               onInput={(e) =>
-                setTilt({ tests: (e.target as HTMLInputElement).checked })
+                setTilt({ gap: Number((e.target as HTMLInputElement).value) })
               }
             />
           </label>
-          <label style={sliderRow}>
-            <span style={{ width: "78px" }}>deps</span>
-            <input
-              type="checkbox"
-              checked={tilt.deps}
-              onInput={(e) =>
-                setTilt({ deps: (e.target as HTMLInputElement).checked })
-              }
-            />
-          </label>
-          {tilt.tests || tilt.deps ? (
-            <label style={sliderRow}>
-              <span style={{ width: "78px" }}>gap {tilt.gap.toFixed(2)}×</span>
-              <input
-                type="range"
-                min={0.2}
-                max={2}
-                step={0.05}
-                value={tilt.gap}
-                onInput={(e) =>
-                  setTilt({ gap: Number((e.target as HTMLInputElement).value) })
-                }
-              />
-            </label>
-          ) : null}
           <div style={{ opacity: 0.55, fontSize: "11px" }}>
             Alt+drag the map to rotate / pitch
           </div>
         </>
-      ) : null}
+      ) : (
+        <div style={{ opacity: 0.55, fontSize: "11px" }}>
+          enable a layer (tests / deps) on the left to tilt
+        </div>
+      )}
     </div>
   );
 }
@@ -273,6 +245,17 @@ export function LayersMenu(props: {
     (level === "directory" && !params.boundaries.includes("directory")) ||
     (level === "cfg" && granularity === "module");
 
+  // selecting a satellite plane (2+ layers incl. source) auto-tilts the view;
+  // turning all of them off (source alone) lays it flat again
+  const setPlane = (key: "tests" | "deps", on: boolean) => {
+    const tests = key === "tests" ? on : params.tilt.tests;
+    const deps = key === "deps" ? on : params.tilt.deps;
+    props.onChange({
+      ...params,
+      tilt: { ...params.tilt, tests, deps, enabled: tests || deps },
+    });
+  };
+
   return (
     <>
       <button
@@ -308,6 +291,30 @@ export function LayersMenu(props: {
           gap: "12px",
         }}
       >
+        <div>
+          <div style={{ fontSize: "11px", opacity: 0.6, marginBottom: "6px", letterSpacing: "0.06em" }}>
+            PLANES — stack below source
+          </div>
+          <div style={{ display: "flex", alignItems: "center", gap: "8px", height: "26px", fontSize: "12px", opacity: 0.5 }}>
+            <span style={{ width: "13px" }} />
+            <span style={{ flex: 1 }}>source</span>
+          </div>
+          {(["tests", "deps"] as const).map((plane) => (
+            <label
+              key={plane}
+              style={{ display: "flex", alignItems: "center", gap: "8px", height: "26px", fontSize: "12px", cursor: "pointer" }}
+            >
+              <input
+                type="checkbox"
+                checked={params.tilt[plane]}
+                onInput={(e) =>
+                  setPlane(plane, (e.target as HTMLInputElement).checked)
+                }
+              />
+              <span style={{ flex: 1 }}>{plane}</span>
+            </label>
+          ))}
+        </div>
         <div>
           <div style={{ fontSize: "11px", opacity: 0.6, marginBottom: "6px", letterSpacing: "0.06em" }}>
             LAYERS — boundary · eye = shown
