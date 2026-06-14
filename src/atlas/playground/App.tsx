@@ -1712,6 +1712,22 @@ export function App() {
     return () => window.removeEventListener("keydown", onKey);
   }, []);
 
+  // hold alt to reveal every cross-layer edge at once (the default is hover-
+  // gated). a blur resets it so a lost keyup doesn't leave it stuck on.
+  const [altEdges, setAltEdges] = useState(false);
+  useEffect(() => {
+    const sync = (e: KeyboardEvent) => setAltEdges(e.altKey);
+    const clear = () => setAltEdges(false);
+    window.addEventListener("keydown", sync);
+    window.addEventListener("keyup", sync);
+    window.addEventListener("blur", clear);
+    return () => {
+      window.removeEventListener("keydown", sync);
+      window.removeEventListener("keyup", sync);
+      window.removeEventListener("blur", clear);
+    };
+  }, []);
+
   const selectedIdsRef = useRef(selectedIds);
   selectedIdsRef.current = selectedIds;
 
@@ -2110,6 +2126,7 @@ export function App() {
             focus={focusView}
             testFileIds={testFileIds}
             layers={satelliteLayers}
+            altEdges={altEdges}
             hiddenLayers={new Set(hiddenLayersOf(params.omit))}
             parentFileOf={parentFileOf}
             changedOf={changedOf}
@@ -2150,6 +2167,7 @@ export function App() {
             cyclicIds={cyclicIds}
             testFileIds={testFileIds}
             layers={satelliteLayers}
+            altEdges={altEdges}
             focus={focusView}
             width={mapSize.width}
             height={mapSize.height}

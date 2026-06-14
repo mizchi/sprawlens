@@ -744,12 +744,23 @@ export function PlaneLayerView(props: {
   /** Click a correspondence line → select + jump to that source node. */
   onLinkSelect?: (sourceId: string, additive?: boolean) => void;
   selectedId?: string | null;
+  /** Show every cross-layer edge (alt held); otherwise only the hovered node's.
+   */
+  altEdges?: boolean;
+  /** Cross-plane hovered id (a node on any plane); its edges show. */
+  hoverId?: string | null;
+  /** Report this plane's node hover up so other planes can light their links. */
+  onHover?: (id: string | null) => void;
+  /** Endpoints whose edges stay shown even without hover — the selection (node
+   * ids and their files), so picking a node keeps its links up. */
+  pinnedIds?: Set<string>;
 }) {
   const { tilt0, tilt1, extent, screenPosOf, placed, color, zoom } = props;
   const referencedIds = props.referencedIds;
   const edgeCap = props.edgeCap ?? 16;
   const tilt1Matrix = toMatrixString(tilt1);
   const [hovered, setHovered] = useState<string | null>(null);
+  const hoverId = props.hoverId ?? hovered;
   // a node's world size (cell extent / circle diameter); labels gate on it the
   // same way the source map does, so big cells get a name without hovering
   const sizeOf = (d: PlacedNode): number => {
@@ -791,15 +802,25 @@ export function PlaneLayerView(props: {
           them) fan up from the node (bottom). Every leg stays its own strand
           but is pulled through a shared waist toward the targets' centroid, so
           edges of one node read as a gathered rope that splays at the ends —
-          drawn together, not collapsed into a single line. Clicking a strand
-          selects + jumps to that target. */}
+          drawn together, not collapsed into a single line. Hidden until you
+          hover an endpoint (its rope lights up) or hold alt (all of them).
+          Clicking a strand selects + jumps to that target. */}
       <g fill="none" stroke={color}>
-        {placed.flatMap((d) => {
+        {(props.altEdges || hoverId != null || (props.pinnedIds?.size ?? 0) > 0
+          ? placed
+          : []
+        ).flatMap((d) => {
           const bot = apply(tilt1, d.site);
-          const active = d.id === hovered || d.id === props.selectedId;
+          const pinned = props.pinnedIds;
+          const nodeHot = hoverId === d.id || (pinned?.has(d.id) ?? false);
+          const active = nodeHot || d.id === props.selectedId;
+          const showAll = props.altEdges || nodeHot;
           const tops = d.sourceIds
             .map((s) => [s, screenPosOf(s)] as const)
             .filter((v): v is readonly [string, Vec2] => !!v[1])
+            .filter(
+              ([sid]) => showAll || hoverId === sid || (pinned?.has(sid) ?? false),
+            )
             .slice(0, edgeCap);
           if (tops.length === 0) return [];
           // pull point = part-way from the node toward its targets' centroid;
@@ -807,8 +828,10 @@ export function PlaneLayerView(props: {
           const cx = tops.reduce((s, [, p]) => s + p.x, 0) / tops.length;
           const cy = tops.reduce((s, [, p]) => s + p.y, 0) / tops.length;
           const gather = { x: bot.x + (cx - bot.x) * 0.5, y: bot.y + (cy - bot.y) * 0.5 };
+          // a specifically-hovered rope reads bold; the alt-held everything view
+          // stays faint so it's legible as a field
           const sw = active ? 1.4 : 0.9;
-          const so = active ? 0.8 : 0.28;
+          const so = active ? 0.85 : props.altEdges ? 0.2 : 0.5;
           const out: VNode[] = [];
           for (let i = 0; i < tops.length; i++) {
             const [sid, top] = tops[i]!;
@@ -866,8 +889,14 @@ export function PlaneLayerView(props: {
           // referenced by another plane's edges: brighten the fill so the nodes
           // actually in play surface out of the full layout
           const linked = !active && (referencedIds?.has(d.id) ?? false);
-          const onEnter = () => setHovered(d.id);
-          const onLeave = () => setHovered((h) => (h === d.id ? null : h));
+          const onEnter = () => {
+            setHovered(d.id);
+            props.onHover?.(d.id);
+          };
+          const onLeave = () => {
+            setHovered((h) => (h === d.id ? null : h));
+            props.onHover?.(null);
+          };
           const onClick = (event: MouseEvent) => {
             event.stopPropagation();
             props.onSelect(d.id, event.shiftKey);

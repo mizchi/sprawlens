@@ -77,6 +77,8 @@ type Props = {
   testFileIds?: Set<string>;
   /** Solved satellite planes (tests, deps, ...) stacked below the source. */
   layers?: SolvedLayer[];
+  /** Alt held → show every cross-layer edge; otherwise hover-gated. */
+  altEdges?: boolean;
   /** Nested symbol layouts inside the file cells (file granularity). */
   innerCells?: CellResult[];
   exportedIds?: Set<string>;
@@ -221,6 +223,22 @@ export function TreemapSvg(props: Props) {
     referencedIds.size > 0 &&
     (referencedIds.has(id) ||
       referencedIds.has((props.parentFileOf ?? ((x) => x))(id)));
+  // cross-plane hovered node id (a source cell's file, or a satellite node);
+  // its cross-layer edges light up. alt overrides to show all.
+  const [linkHover, setLinkHover] = useState<string | null>(null);
+  const fileIdOf = props.parentFileOf ?? ((x) => x);
+  // selection keeps its edges up persistently (id + its file, since edges
+  // target file ids)
+  const pinnedLinkIds = useMemo(() => {
+    const s = new Set<string>();
+    const add = (id: string) => {
+      s.add(id);
+      s.add(fileIdOf(id));
+    };
+    if (selectedId) add(selectedId);
+    for (const id of multiSelected) add(id);
+    return s;
+  }, [selectedId, multiSelected, fileIdOf]);
   const [hoveredEdge, setHoveredEdge] = useState<{
     source: string;
     target: string;
@@ -512,6 +530,10 @@ export function TreemapSvg(props: Props) {
               }
               stroke-opacity={linked ? 0.95 : fileOpacity(cell.id)}
               stroke-width={isSelected(cell.id) ? 2.5 : linked ? 1.4 : 0.6}
+              onMouseEnter={
+                satellitesOn ? () => setLinkHover(fileIdOf(cell.id)) : undefined
+              }
+              onMouseLeave={satellitesOn ? () => setLinkHover(null) : undefined}
               onClick={(event) => {
                 event.stopPropagation();
                 onSelect(cell.id, event.shiftKey);
@@ -843,6 +865,10 @@ export function TreemapSvg(props: Props) {
                   props.onFocusId?.(id);
                 }}
                 selectedId={selectedId}
+                altEdges={props.altEdges}
+                hoverId={linkHover}
+                onHover={setLinkHover}
+                pinnedIds={pinnedLinkIds}
               />
             );
           })

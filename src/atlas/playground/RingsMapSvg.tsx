@@ -89,6 +89,8 @@ type Props = {
   testFileIds: Set<string>;
   /** Solved satellite planes (tests, deps, ...) stacked below the source. */
   layers?: SolvedLayer[];
+  /** Alt held → show every cross-layer edge; otherwise hover-gated. */
+  altEdges?: boolean;
   /** Layer ids switched off; "source" hides the file/symbol map itself. */
   hiddenLayers: Set<string>;
   /** Symbol id → parent file id (precomputed; string parsing here was hot). */
@@ -292,6 +294,21 @@ export function RingsMapSvg(props: Props) {
       for (const n of layer.placed) for (const sid of n.sourceIds) s.add(sid);
     return s;
   }, [layers]);
+  // cross-plane hovered node id: hovering a source cell or a satellite node
+  // lights only its cross-layer edges (alt overrides to show all)
+  const [linkHover, setLinkHover] = useState<string | null>(null);
+  // selection keeps its edges up persistently: each selected id plus its file
+  // (edges target file ids, so a selected symbol still matches)
+  const pinnedLinkIds = useMemo(() => {
+    const s = new Set<string>();
+    const add = (id: string) => {
+      s.add(id);
+      s.add(parentFileOf(id));
+    };
+    if (selectedId) add(selectedId);
+    for (const id of multiSelected) add(id);
+    return s;
+  }, [selectedId, multiSelected, parentFileOf]);
   const [hoveredEdge, setHoveredEdge] = useState<{
     source: string;
     target: string;
@@ -841,6 +858,12 @@ export function RingsMapSvg(props: Props) {
               stroke-width={isSelected(cell.id) ? 2 : linked ? 1.4 : 0.8}
               stroke-opacity={linked ? 0.95 : undefined}
               opacity={fileOpacity(cell.id)}
+              onMouseEnter={
+                satellitesOn
+                  ? () => setLinkHover(parentFileOf(cell.id))
+                  : undefined
+              }
+              onMouseLeave={satellitesOn ? () => setLinkHover(null) : undefined}
               onClick={(event) => {
                 event.stopPropagation();
                 onSelect(cell.id, event.shiftKey);
@@ -1431,6 +1454,10 @@ export function RingsMapSvg(props: Props) {
                   props.onFocusId?.(id);
                 }}
                 selectedId={selectedId}
+                altEdges={props.altEdges}
+                hoverId={linkHover}
+                onHover={setLinkHover}
+                pinnedIds={pinnedLinkIds}
               />
             );
           })
