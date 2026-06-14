@@ -10,7 +10,8 @@
   },
   "dependencies": {
     "@sprawlens/schema": "workspace:*",
-    "@sprawlens/analyzer-ts": "workspace:*"
+    "@sprawlens/analyzer-ts": "workspace:*",
+    "@sprawlens/server": "workspace:*"
   },
   "scripts": {
     "dev": "tsx src/index.ts"

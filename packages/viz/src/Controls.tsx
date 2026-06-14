@@ -13,7 +13,9 @@ export type DataSource =
   | "synthetic"
   | "sprawlens"
   | "sprawlens-history"
-  | "playwright";
+  | "playwright"
+  // a snapshot served by the CLI (`sprawlens <repo>`) at GET /api/snapshot
+  | "served";
 export type LayoutKind = "rings" | "treemap";
 
 /** Affine tilt that lays the map flat as a stacked-plane view. `pitch` drives
@@ -114,6 +116,9 @@ export function Controls(props: Props) {
               set("source", (e.target as HTMLSelectElement).value as DataSource)
             }
           >
+            {params.source === "served" ? (
+              <option value="served">served (this repo)</option>
+            ) : null}
             <option value="synthetic">synthetic</option>
             <option value="sprawlens">sprawlens (this repo)</option>
             <option value="sprawlens-history">sprawlens (git log)</option>

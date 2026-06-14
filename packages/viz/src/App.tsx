@@ -327,6 +327,24 @@ export function App() {
   );
   /** Lazily fetched large fixture (served from public-atlas/). */
   const playwrightSnapRef = useRef<SnapshotLike | null>(null);
+  /** Snapshot served by the CLI at /api/snapshot (fetched once). */
+  const servedSnapRef = useRef<SnapshotLike | null>(null);
+  // launched by the CLI? a snapshot is served — adopt it as the default source
+  // (cached here so the rebuild below doesn't refetch). No-ops in dev/demo.
+  useEffect(() => {
+    let cancelled = false;
+    fetch("/api/snapshot")
+      .then((r) => (r.ok ? r.json() : null))
+      .then((json: SnapshotLike | null) => {
+        if (cancelled || !json) return;
+        servedSnapRef.current = json;
+        setParams((p) => (p.source === "sprawlens" ? { ...p, source: "served" } : p));
+      })
+      .catch(() => {});
+    return () => {
+      cancelled = true;
+    };
+  }, []);
   /** Git-log history fixture and the commit currently on display. */
   const commitsRef = useRef<HistoryEntry[] | null>(null);
   const historyIndexRef = useRef<HistoryIndex | null>(null);
@@ -733,6 +751,28 @@ export function App() {
             }
           })
           .catch((error) => console.error("fixture load failed", error));
+      } else {
+        graph = snapshotToAtlasGraph(snapshot);
+        symbolsRef.current = snapshotSymbols(snapshot);
+        symbolEdgesRef.current = snapshotSymbolEdges(snapshot);
+        externalDepsRef.current = snapshotExternalDeps(snapshot);
+      }
+    } else if (p.source === "served") {
+      const snapshot = servedSnapRef.current;
+      if (!snapshot) {
+        graph = { nodes: [], edges: [] };
+        symbolsRef.current = null;
+        symbolEdgesRef.current = [];
+        fetch("/api/snapshot")
+          .then((r) => r.json())
+          .then((json: SnapshotLike) => {
+            servedSnapRef.current = json;
+            if (paramsRef.current.source === "served") {
+              rebuild(paramsRef.current);
+              setFrame((f) => f + 1);
+            }
+          })
+          .catch((error) => console.error("served snapshot load failed", error));
       } else {
         graph = snapshotToAtlasGraph(snapshot);
         symbolsRef.current = snapshotSymbols(snapshot);

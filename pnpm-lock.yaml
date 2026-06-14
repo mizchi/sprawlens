@@ -87,6 +87,9 @@ importers:
       '@sprawlens/schema':
         specifier: workspace:*
         version: link:../schema
+      '@sprawlens/server':
+        specifier: workspace:*
+        version: link:../server
 
   packages/layout:
     dependencies:

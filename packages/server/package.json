@@ -12,6 +12,6 @@
     "@sprawlens/schema": "workspace:*"
   },
   "scripts": {
-    "dev": "tsx src/index.ts sprawlens=../.."
+    "dev": "tsx src/main.ts sprawlens=../.."
   }
 }
