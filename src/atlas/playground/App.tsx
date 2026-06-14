@@ -13,7 +13,7 @@ import { centroid, containsPoint, type Ring } from "../kernel/polygon.js";
 import { createRng, type Rng } from "../kernel/rng.js";
 import { Controls, type PlaygroundParams } from "./Controls.tsx";
 import { CameraPanel, LayersMenu } from "./OverlayPanels.tsx";
-import type { PlacedNode } from "./planeLayers.ts";
+import { buildSatelliteLayers } from "./layerModel.ts";
 import {
   INK,
   makeTopAncestorOf,
@@ -1769,71 +1769,30 @@ export function App() {
   const allInnerCells = innerCellsRef.current;
   const testFileIds = testFileIdsRef.current;
   const testTargets = testTargetsRef.current;
-  const externalDeps = externalDepsRef.current;
-  // the Tests plane is a full module-grouped layout of just the test files —
-  // the same capacity engine as the source map — and the cross-plane lines
-  // follow the real test→source import dependencies (a test imports many)
-  const testPlane = useMemo((): {
-    placed: PlacedNode[];
-    districts: { x: number; y: number }[][];
-    extent: { w: number; h: number };
-  } | null => {
-    if (!params.tilt.enabled || !params.tilt.tests) return null;
-    const full = graphRef.current;
-    const testNodes = full.nodes.filter((n) => defaultLayerOf(n.id) === "test");
-    if (testNodes.length === 0) return null;
-    const testIds = new Set(testNodes.map((n) => n.id));
-    const testEdges = full.edges.filter(
-      (e) => testIds.has(e.source) && testIds.has(e.target),
-    );
+  // every stacked plane below the source is a SolvedLayer built by the same
+  // pipeline (layout + cross-layer links); adding a layer type is one builder
+  const satelliteLayers = useMemo(() => {
+    if (!params.tilt.enabled || (!params.tilt.tests && !params.tilt.deps))
+      return [];
     const ext =
-      params.layout === "rings"
-        ? { width: WIDTH, height: HEIGHT }
-        : mapSize;
-    let state = createTreemapState(
-      { nodes: testNodes, edges: testEdges },
-      {
-        width: ext.width,
-        height: ext.height,
-        seed: SEED,
-        adaptationRate: ADAPTATION_RATE,
-        lloydRate: LLOYD_RATE,
-        boundaries: [moduleGrouping()],
-      },
-    );
-    for (let i = 0; i < 160; i++) {
-      const stepped = stepTreemapState(state, 6);
-      state = stepped.state;
-      if (!stepped.active) break;
-    }
-    // each test → the source files it imports (across the plane)
-    const importsBy = new Map<string, Set<string>>();
-    for (const e of full.edges) {
-      if (!testIds.has(e.source) || testIds.has(e.target)) continue;
-      let set = importsBy.get(e.source);
-      if (!set) importsBy.set(e.source, (set = new Set()));
-      set.add(e.target);
-    }
-    const placed: PlacedNode[] = [];
-    for (const layout of state.leafLayouts.values())
-      for (const c of layout.cells) {
-        if (c.polygon.length < 3) continue;
-        placed.push({
-          id: c.id,
-          label: labelsRef.current.get(c.id) ?? c.id.split("/").pop() ?? c.id,
-          site: c.site,
-          polygon: c.polygon,
-          sourceIds: [...(importsBy.get(c.id) ?? [])],
-        });
-      }
-    const districts = state.levels.flatMap((l) =>
-      [...l.cells.values()]
-        .filter((c) => c.polygon.length >= 3)
-        .map((c) => c.polygon),
-    );
-    return { placed, districts, extent: { w: ext.width, h: ext.height } };
+      params.layout === "rings" ? { width: WIDTH, height: HEIGHT } : mapSize;
+    return buildSatelliteLayers({
+      showTests: params.tilt.tests,
+      showDeps: params.tilt.deps,
+      graph: graphRef.current,
+      externalDeps: externalDepsRef.current,
+      ext,
+      labelOf: (id) => labelsRef.current.get(id) ?? id.split("/").pop() ?? id,
+    });
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [leafGraph, params.tilt.enabled, params.tilt.tests, params.layout, mapSize]);
+  }, [
+    leafGraph,
+    params.tilt.enabled,
+    params.tilt.tests,
+    params.tilt.deps,
+    params.layout,
+    mapSize,
+  ]);
   const selected = useMemo(
     () =>
       allCells.find((c) => c.id === activeId) ??
@@ -2067,9 +2026,7 @@ export function App() {
             symbolKindOf={symbolKindOf}
             focus={focusView}
             testFileIds={testFileIds}
-            testTargets={testTargets}
-            externalDeps={externalDeps}
-            testPlane={testPlane}
+            layers={satelliteLayers}
             hiddenLayers={new Set(hiddenLayersOf(params.omit))}
             parentFileOf={parentFileOf}
             changedFiles={changedFilesRef.current}
@@ -2109,9 +2066,7 @@ export function App() {
             changedFiles={changedFilesRef.current}
             cyclicIds={cyclicIds}
             testFileIds={testFileIds}
-            testTargets={testTargets}
-            externalDeps={externalDeps}
-            testPlane={testPlane}
+            layers={satelliteLayers}
             focus={focusView}
             width={mapSize.width}
             height={mapSize.height}

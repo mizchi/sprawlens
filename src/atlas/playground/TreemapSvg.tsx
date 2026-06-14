@@ -43,11 +43,7 @@ import {
   UPSTREAM_COLOR,
   WatermarkLabelsLayer,
 } from "./mapShared.tsx";
-import {
-  ringPlane,
-  type LayerNode,
-  type PlacedNode,
-} from "./planeLayers.ts";
+import type { SolvedLayer } from "./layerModel.ts";
 import { symbolNameOf } from "./cfgClient.ts";
 import {
   EDGE_PICK_DOMINANCE,
@@ -75,16 +71,8 @@ type Props = {
   cyclicIds?: Set<string>;
   /** File ids on the test layer; rendered with the shared muted fill. */
   testFileIds?: Set<string>;
-  /** testFileId → covered source file id, for the Tests plane drops. */
-  testTargets?: Map<string, string>;
-  /** Source file × external package pairs, for the Deps plane drops. */
-  externalDeps?: { source: string; specifier: string }[];
-  /** Pre-laid Tests plane (module-grouped layout of the test files). */
-  testPlane?: {
-    placed: PlacedNode[];
-    districts: Vec2[][];
-    extent: { w: number; h: number };
-  } | null;
+  /** Solved satellite planes (tests, deps, ...) stacked below the source. */
+  layers?: SolvedLayer[];
   /** Nested symbol layouts inside the file cells (file granularity). */
   innerCells?: CellResult[];
   exportedIds?: Set<string>;
@@ -183,15 +171,12 @@ export function TreemapSvg(props: Props) {
       ? layerTransform({ ...tiltOpts, gap: 0, index: 0 })
       : undefined;
   const tiltMatrix = tiltAffine ? toMatrixString(tiltAffine) : undefined;
-  const testsPlane: Affine | undefined =
-    tilt?.enabled && tilt.tests && tiltOpts
-      ? layerTransform({ ...tiltOpts, gap: tilt.gap, index: 1 })
+  const layers = props.layers ?? [];
+  const satellitesOn = !!tilt?.enabled && layers.length > 0 && !!tiltOpts;
+  const planeFor = (index: number): Affine | undefined =>
+    tilt && tiltOpts
+      ? layerTransform({ ...tiltOpts, gap: tilt.gap, index })
       : undefined;
-  const depsPlane: Affine | undefined =
-    tilt?.enabled && tilt.deps && tiltOpts
-      ? layerTransform({ ...tiltOpts, gap: tilt.gap, index: tilt.tests ? 2 : 1 })
-      : undefined;
-  const satellitesOn = !!testsPlane || !!depsPlane;
   // representative upper-plane point per source file = centroid of leaf cells
   const sourceSiteOf = useMemo(() => {
     const acc = new Map<string, { x: number; y: number; n: number }>();
@@ -423,24 +408,6 @@ export function TreemapSvg(props: Props) {
   );
   const labelOf = (id: string): string =>
     props.labels?.get(id) ?? symbolNameOf(id) ?? id.split("/").pop() ?? id;
-
-  // deps plane: packages on rings, rank by number of importing source files
-  const depPlaced = (() => {
-    if (!depsPlane || !props.externalDeps) return [];
-    const byPkg = new Map<string, string[]>();
-    for (const { source, specifier } of props.externalDeps) {
-      const list = byPkg.get(specifier);
-      if (list) list.push(source);
-      else byPkg.set(specifier, [source]);
-    }
-    const nodes: LayerNode[] = [...byPkg].map(([spec, srcs]) => ({
-      id: `external:${spec}`,
-      label: spec,
-      weight: srcs.length,
-      sourceIds: srcs,
-    }));
-    return ringPlane(nodes, { w: width, h: height });
-  })();
 
   return (
     <svg
@@ -823,35 +790,28 @@ export function TreemapSvg(props: Props) {
         />
       ))}
       </g>
-      {testsPlane && tiltAffine && props.testPlane ? (
-        <PlaneLayerView
-          tilt0={tiltAffine}
-          tilt1={testsPlane}
-          extent={props.testPlane.extent}
-          sourceSiteOf={sourceSiteOf}
-          placed={props.testPlane.placed}
-          districts={props.testPlane.districts}
-          color={TEST_LABEL_INK}
-          withSourceFrame
-          zoom={zoom}
-          onSelect={onSelect}
-          selectedId={selectedId}
-        />
-      ) : null}
-      {depsPlane && tiltAffine && depPlaced.length ? (
-        <PlaneLayerView
-          tilt0={tiltAffine}
-          tilt1={depsPlane}
-          extent={{ w: width, h: height }}
-          sourceSiteOf={sourceSiteOf}
-          placed={depPlaced}
-          color={DEPS_INK}
-          withSourceFrame={!testsPlane}
-          zoom={zoom}
-          onSelect={onSelect}
-          selectedId={selectedId}
-        />
-      ) : null}
+      {tiltAffine
+        ? layers.map((layer, i) => {
+            const tilt1 = planeFor(layer.planeIndex);
+            if (!tilt1) return null;
+            return (
+              <PlaneLayerView
+                key={layer.id}
+                tilt0={tiltAffine}
+                tilt1={tilt1}
+                extent={layer.extent}
+                sourceSiteOf={sourceSiteOf}
+                placed={layer.placed}
+                districts={layer.districts}
+                color={layer.id === "deps" ? DEPS_INK : TEST_LABEL_INK}
+                withSourceFrame={i === 0}
+                zoom={zoom}
+                onSelect={onSelect}
+                selectedId={selectedId}
+              />
+            );
+          })
+        : null}
     </svg>
   );
 }
