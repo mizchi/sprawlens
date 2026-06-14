@@ -13,7 +13,8 @@
     "@sprawlens/analyzer-ts": "workspace:*",
     "@sprawlens/server": "workspace:*",
     "@sprawlens/analyzer-go": "workspace:*",
-    "@sprawlens/analyzer-rust": "workspace:*"
+    "@sprawlens/analyzer-rust": "workspace:*",
+    "@sprawlens/analyzer-moonbit": "workspace:*"
   },
   "scripts": {
     "dev": "tsx src/index.ts"

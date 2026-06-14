@@ -94,6 +94,15 @@ importers:
         specifier: ^0.22.6
         version: 0.22.6
 
+  packages/analyzer-moonbit:
+    dependencies:
+      '@sprawlens/schema':
+        specifier: workspace:*
+        version: link:../schema
+      fast-glob:
+        specifier: ^3.3.3
+        version: 3.3.3
+
   packages/analyzer-rust:
     dependencies:
       '@sprawlens/schema':
@@ -120,6 +129,9 @@ importers:
       '@sprawlens/analyzer-go':
         specifier: workspace:*
         version: link:../analyzer-go
+      '@sprawlens/analyzer-moonbit':
+        specifier: workspace:*
+        version: link:../analyzer-moonbit
       '@sprawlens/analyzer-rust':
         specifier: workspace:*
         version: link:../analyzer-rust
