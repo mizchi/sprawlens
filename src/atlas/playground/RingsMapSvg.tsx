@@ -48,6 +48,7 @@ import {
   selectionDirections,
   DEPS_INK,
   PlaneLayerView,
+  propagateLinkTints,
   SELECT_STROKE,
   LINKED_STROKE,
   UPSTREAM_COLOR,
@@ -312,22 +313,18 @@ export function RingsMapSvg(props: Props) {
   // source files whose cross-layer edges are currently shown → tint their cell
   // region in the connecting layer's edge colour, so the targets read at a
   // glance. Mirrors the edge gate (hover / selection / alt).
-  const activeLinkTint = useMemo(() => {
-    const m = new Map<string, string>();
-    if (!satellitesOn) return m;
-    for (const layer of layers) {
-      const tint = layer.id === "deps" ? DEPS_INK : TEST_LABEL_INK;
-      for (const n of layer.placed) {
-        const nodeHot =
-          props.altEdges || linkHover === n.id || pinnedLinkIds.has(n.id);
-        for (const sid of n.sourceIds) {
-          if (nodeHot || linkHover === sid || pinnedLinkIds.has(sid))
-            m.set(sid, tint);
-        }
-      }
-    }
-    return m;
-  }, [layers, linkHover, pinnedLinkIds, props.altEdges, satellitesOn]);
+  const activeLinkTint = useMemo(
+    () =>
+      satellitesOn
+        ? propagateLinkTints(layers, {
+            hover: linkHover,
+            pinned: pinnedLinkIds,
+            all: !!props.altEdges,
+            tintFor: (id) => (id === "deps" ? DEPS_INK : TEST_LABEL_INK),
+          })
+        : new Map<string, string>(),
+    [layers, linkHover, pinnedLinkIds, props.altEdges, satellitesOn],
+  );
   const [hoveredEdge, setHoveredEdge] = useState<{
     source: string;
     target: string;

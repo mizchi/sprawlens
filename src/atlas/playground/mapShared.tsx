@@ -57,7 +57,7 @@ export let CIRCLE_STROKE = "#334155";
 export let CIRCLE_CYCLE_FILL = "hsl(0 65% 92%)";
 export let MODULE_LABEL_INK = "#0f172a";
 export let FILE_LABEL_INK = "#334155";
-export let TEST_LABEL_INK = "#7a8699";
+export let TEST_LABEL_INK = "#10b981";
 /** Deps plane tint (external packages); distinct from the test grey. */
 export let DEPS_INK = "#22d3ee";
 export let WATERMARK_INK = "#334155";
@@ -131,7 +131,7 @@ export function setMapTheme(dark: boolean): void {
     CIRCLE_CYCLE_FILL = "hsl(0 45% 20%)";
     MODULE_LABEL_INK = "#f1f5f9";
     FILE_LABEL_INK = "#cbd5e1";
-    TEST_LABEL_INK = "#64748b";
+    TEST_LABEL_INK = "#34d399";
     DEPS_INK = "#22d3ee";
     WATERMARK_INK = "#cbd5e1";
     PORT_FILL = "#0f172a";
@@ -197,7 +197,7 @@ export function setMapTheme(dark: boolean): void {
     CLASS_BOUNDARY = "#d97706";
     MODULE_LABEL_INK = "#0f172a";
     FILE_LABEL_INK = "#334155";
-    TEST_LABEL_INK = "#7a8699";
+    TEST_LABEL_INK = "#059669";
     DEPS_INK = "#0891b2";
     WATERMARK_INK = "#334155";
     PORT_FILL = "#ffffff";
@@ -710,6 +710,67 @@ const planePolyOf = (m: Affine, w: number, h: number) =>
     .map((p) => apply(m, p))
     .map((p) => `${p.x},${p.y}`)
     .join(" ");
+
+/**
+ * Resolve which nodes a hover/selection lights and in what colour, following
+ * the cross-layer edges transitively: hovering a deps package walks deps →
+ * tests → source, tinting each hop in the colour of the edge that reached it,
+ * so the highlight flows all the way up the stack (plus one reverse hop, so
+ * hovering a target lights what imports it). Returns id → tint colour.
+ */
+export function propagateLinkTints(
+  layers: readonly {
+    id: string;
+    placed: readonly { id: string; sourceIds: readonly string[] }[];
+  }[],
+  opts: {
+    hover: string | null;
+    pinned: ReadonlySet<string>;
+    all: boolean;
+    tintFor: (layerId: string) => string;
+  },
+): Map<string, string> {
+  const out = new Map<string, { to: string; color: string }[]>();
+  const into = new Map<string, { from: string; color: string }[]>();
+  const push = <T,>(m: Map<string, T[]>, k: string, v: T) => {
+    const list = m.get(k);
+    if (list) list.push(v);
+    else m.set(k, [v]);
+  };
+  for (const layer of layers) {
+    const color = opts.tintFor(layer.id);
+    for (const n of layer.placed)
+      for (const sid of n.sourceIds) {
+        push(out, n.id, { to: sid, color });
+        push(into, sid, { from: n.id, color });
+      }
+  }
+  const seeds: string[] = [];
+  if (opts.all) {
+    for (const layer of layers) for (const n of layer.placed) seeds.push(n.id);
+  } else {
+    if (opts.hover) seeds.push(opts.hover);
+    for (const id of opts.pinned) seeds.push(id);
+  }
+  const tint = new Map<string, string>();
+  // forward transitively: a node lights everything it (transitively) imports
+  const seen = new Set<string>();
+  const queue = [...seeds];
+  while (queue.length) {
+    const id = queue.shift()!;
+    if (seen.has(id)) continue;
+    seen.add(id);
+    for (const e of out.get(id) ?? []) {
+      if (!tint.has(e.to)) tint.set(e.to, e.color);
+      queue.push(e.to);
+    }
+  }
+  // one reverse hop: hovering a target lights the nodes that import it
+  for (const seed of seeds)
+    for (const e of into.get(seed) ?? [])
+      if (!tint.has(e.from)) tint.set(e.from, e.color);
+  return tint;
+}
 
 /**
  * A stacked plane below the source map (Tests, Deps, ...). Its nodes are
