@@ -156,6 +156,10 @@ export type SymbolBudget = {
   budget: number;
   /** Ranks symbols (higher = keep); gets the id and its area weight. */
   priorityOf?: (id: string, weight: number) => number;
+  /** Files that must keep at least one cell regardless of priority — e.g.
+   * those a cross-layer edge points at, so they surface to be highlighted and
+   * linked even when the budget would otherwise fold them. */
+  ensure?: { files: ReadonlySet<string>; fileOf: (id: string) => string };
 };
 
 /**
@@ -167,7 +171,7 @@ export type SymbolBudget = {
  */
 export function applySymbolBudget(
   graph: AtlasGraph,
-  { budget, priorityOf = (_, w) => w }: SymbolBudget,
+  { budget, priorityOf = (_, w) => w, ensure }: SymbolBudget,
 ): AtlasGraph {
   if (graph.nodes.length <= budget) return graph;
   const ranked = graph.nodes
@@ -175,6 +179,20 @@ export function applySymbolBudget(
     .sort((a, b) => b.score - a.score);
   const kept = ranked.slice(0, budget).map((r) => r.node);
   const keptIds = new Set(kept.map((n) => n.id));
+  // promote the best-ranked symbol of any ensured file that the budget missed,
+  // so each cross-layer-referenced file keeps a cell to anchor its edge + glow
+  if (ensure && ensure.files.size > 0) {
+    const have = new Set<string>();
+    for (const n of kept) have.add(ensure.fileOf(n.id));
+    for (const { node } of ranked) {
+      if (keptIds.has(node.id)) continue;
+      const file = ensure.fileOf(node.id);
+      if (!ensure.files.has(file) || have.has(file)) continue;
+      have.add(file);
+      kept.push(node);
+      keptIds.add(node.id);
+    }
+  }
   const fillerLoc = new Map<string, number>();
   for (const { node } of ranked.slice(budget)) {
     const moduleId = apiModuleIdOf(node.id);

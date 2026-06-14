@@ -334,6 +334,9 @@ export function App() {
   const changedFilesRef = useRef(new Map<string, "added" | "modified">());
   /** Per-symbol diff for the displayed history commit (empty otherwise). */
   const changedSymbolsRef = useRef(new Map<string, "added" | "modified">());
+  /** Files a satellite layer's edges point at; each keeps a budgeted cell so it
+   * surfaces to be linked + highlighted. Empty when no planes are shown. */
+  const referencedFilesRef = useRef<Set<string>>(new Set());
   const lastDiffRef = useRef({ added: 0, modified: 0, removed: 0 });
   /** Symbols whose call hierarchy was already fetched from the LSP server. */
   const fetchedHierarchyRef = useRef(new Set<string>());
@@ -469,6 +472,18 @@ export function App() {
     const api = applySymbolBudget(full, {
       budget,
       priorityOf: symbolPriorityOf,
+      // cross-layer-referenced files always keep a cell so their edge lands and
+      // they can be highlighted, no matter how the budget would rank them
+      ensure:
+        referencedFilesRef.current.size > 0
+          ? {
+              files: referencedFilesRef.current,
+              fileOf: (id) =>
+                id.startsWith("symbol:")
+                  ? (id.split(":")[1] ?? id)
+                  : id.split("#")[0]!,
+            }
+          : undefined,
     });
     for (const node of api.nodes) labelsRef.current.set(node.id, node.label);
     displayGraphRef.current = api;
@@ -1812,6 +1827,21 @@ export function App() {
     params.layout,
     mapSize,
   ]);
+  // the files every plane's edges point at; budget ensures they keep a cell.
+  // when the set changes (planes toggled), rebuild so the budget re-applies.
+  useEffect(() => {
+    const next = new Set<string>();
+    for (const layer of satelliteLayers)
+      for (const n of layer.placed) for (const sid of n.sourceIds) next.add(sid);
+    const prev = referencedFilesRef.current;
+    const changed =
+      prev.size !== next.size || [...next].some((f) => !prev.has(f));
+    if (changed) {
+      referencedFilesRef.current = next;
+      rebuild(paramsRef.current);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [satelliteLayers]);
   // refit the camera to the whole stack whenever the layer set changes (or the
   // viewport resizes) so a newly added / removed plane is framed full-screen
   useEffect(() => {
