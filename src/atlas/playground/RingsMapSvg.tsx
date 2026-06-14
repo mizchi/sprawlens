@@ -91,8 +91,9 @@ type Props = {
   hiddenLayers: Set<string>;
   /** Symbol id → parent file id (precomputed; string parsing here was hot). */
   parentFileOf: (id: string) => string;
-  /** History diff: files changed by the displayed commit get accent strokes. */
-  changedFiles: Map<string, "added" | "modified">;
+  /** Diff kind for a leaf (file or symbol); symbols inherit / refine the file
+   * change so the diff shows at symbol granularity too. */
+  changedOf: (id: string) => "added" | "modified" | undefined;
   /** API view: adapter ports sitting on the module rim. */
   portNodes: { id: string; label: string; x: number; y: number }[];
   /** Module granularity hides the file subdivision entirely. */
@@ -181,7 +182,7 @@ export function RingsMapSvg(props: Props) {
     testFileIds,
     hiddenLayers,
     parentFileOf,
-    changedFiles,
+    changedOf,
     portNodes,
     width,
     height,
@@ -486,7 +487,7 @@ export function RingsMapSvg(props: Props) {
   };
   // highlighted cells stay visible at any size (signal > texture)
   const mustRender = (id: string) =>
-    isSelected(id) || changedFiles.has(id) || cyclicIds.has(id);
+    isSelected(id) || changedOf(id) !== undefined || cyclicIds.has(id);
   // filter once; the render lists below share these instead of re-testing
   // visibility per layer (3x the cells each render adds up at 4k+ symbols)
   const visibleFileCells = fileCells.filter(
@@ -794,7 +795,7 @@ export function RingsMapSvg(props: Props) {
               key={cell.id}
               points={pointsOf(cell)}
               fill={leafFillOf(cell.id, {
-                changedFiles,
+                changedOf,
                 cyclicIds,
                 testFileIds,
                 dependencyIds,

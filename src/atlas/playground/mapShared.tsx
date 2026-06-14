@@ -293,7 +293,8 @@ export function focusDimOf(focus: FocusView | null): FocusDim {
 /* ------------------------------------------------------------ leaf fill */
 
 export type LeafFillContext = {
-  changedFiles?: ReadonlyMap<string, "added" | "modified">;
+  /** Diff kind for this leaf (file or symbol), resolving symbol→file inherit. */
+  changedOf?: (id: string) => "added" | "modified" | undefined;
   cyclicIds?: ReadonlySet<string>;
   testFileIds?: ReadonlySet<string>;
   /** Direction tints of the current selection's reference targets. */
@@ -307,7 +308,7 @@ export type LeafFillContext = {
 export function leafFillOf(id: string, ctx: LeafFillContext): string {
   if (ctx.dependencyIds?.has(id)) return DOWNSTREAM_FILL;
   if (ctx.dependentIds?.has(id)) return UPSTREAM_FILL;
-  const changed = ctx.changedFiles?.get(id);
+  const changed = ctx.changedOf?.(id);
   if (changed === "added") return ADDED_FILL;
   if (changed === "modified") return MODIFIED_FILL;
   if (ctx.cyclicIds?.has(id)) return CYCLE_FILL;

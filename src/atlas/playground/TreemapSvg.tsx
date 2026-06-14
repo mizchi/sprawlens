@@ -67,7 +67,9 @@ type Props = {
   /** Hierarchy-path bundling strength: 1 = fully bundled, 0 = straight. */
   bundleStrength?: number;
   labels?: Map<string, string>;
-  changedFiles?: Map<string, "added" | "modified">;
+  /** Diff kind for a leaf (file or symbol); symbols inherit / refine the file
+   * change so the diff shows at symbol granularity too. */
+  changedOf?: (id: string) => "added" | "modified" | undefined;
   cyclicIds?: Set<string>;
   /** File ids on the test layer; rendered with the shared muted fill. */
   testFileIds?: Set<string>;
@@ -390,7 +392,7 @@ export function TreemapSvg(props: Props) {
 
   const fillOf = (cell: CellResult): string =>
     leafFillOf(cell.id, {
-      changedFiles: props.changedFiles,
+      changedOf: props.changedOf,
       cyclicIds,
       testFileIds: props.testFileIds,
       dependencyIds: directions.dependencyIds,
@@ -402,7 +404,7 @@ export function TreemapSvg(props: Props) {
     (c) =>
       c.polygon.length >= 3 &&
       (isSelected(c.id) ||
-        props.changedFiles?.has(c.id) ||
+        props.changedOf?.(c.id) !== undefined ||
         (Math.sqrt(c.actualArea) * zoom >= MIN_CELL_PX &&
           cellInView(c.site, Math.sqrt(c.actualArea), committedView))),
   );
