@@ -188,12 +188,28 @@ function createImportEdges(root: string, fileContents: Map<string, string>, file
     const usageByLocal = collectTopLevelSymbolUsages(content, fromPath, new Set(imports.flatMap((item) => item.bindings.map((binding) => binding.local))));
     for (const item of imports) {
       const { specifier, bindings } = item;
+      const from = fileId(fromPath);
+      // bare specifiers are external packages: capture them as edges to a
+      // synthetic external node (no node emitted, like unresolved imports)
       if (!specifier.startsWith(".")) {
+        const to = externalId(specifier);
+        const id = importId(from, to, specifier);
+        // resolved: the package is known, just not a project file — so it
+        // never counts as an unresolved (broken) import
+        edges.set(id, {
+          id,
+          type: "imports",
+          from,
+          to,
+          specifier,
+          resolved: true,
+          external: true,
+          bindings: bindings.length > 0 ? bindings : undefined,
+        });
         continue;
       }
 
       const resolvedPath = resolveRelativeImport(fromPath, specifier, fileSet);
-      const from = fileId(fromPath);
       const to = resolvedPath ? fileId(resolvedPath) : unresolvedId(fromPath, specifier);
       const id = importId(from, to, specifier);
       const symbolImports = resolvedPath ? resolveSymbolImports(bindings, usageByLocal, fileByPath.get(resolvedPath)) : [];
@@ -638,4 +654,8 @@ function importId(from: string, to: string, specifier: string): string {
 
 function unresolvedId(fromPath: string, specifier: string): string {
   return `unresolved:${fromPath}:${specifier}`;
+}
+
+function externalId(specifier: string): string {
+  return `external:${specifier}`;
 }

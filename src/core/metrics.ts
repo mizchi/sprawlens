@@ -65,8 +65,10 @@ export function computeGraphMetrics(nodes: CodeNode[], edges: CodeEdge[]): Metri
     loc: fileNodes.reduce((sum, node) => sum + node.loc, 0),
     fileCount: fileNodes.length,
     dirCount: nodes.filter((node) => node.type === "dir").length,
-    importEdgeCount: importEdges.length,
-    unresolvedImportCount: importEdges.filter((edge) => !edge.resolved).length,
+    // external (bare-package) imports are tracked separately; these counts
+    // stay about imports between project files
+    importEdgeCount: importEdges.filter((edge) => !edge.external).length,
+    unresolvedImportCount: importEdges.filter((edge) => !edge.resolved && !edge.external).length,
     cycleCount,
     largestComponentSize: largestConnectedComponentSize(undirected),
     maxFanIn: fanValues.reduce((max, metric) => Math.max(max, metric.fanIn), 0),

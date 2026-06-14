@@ -46,6 +46,12 @@ const edges = [];
 for (const e of snap.edges) {
   if (e.type !== "imports") continue;
   const out = { type: "imports", from: e.from, to: e.to, resolved: !!e.resolved };
+  if (e.external) {
+    out.external = true;
+    out.specifier = e.specifier;
+    edges.push(out);
+    continue;
+  }
   if (e.resolved) {
     const exp = exportByFile.get(e.to);
     if (exp) {

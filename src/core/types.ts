@@ -113,6 +113,9 @@ export type ImportsEdge = {
   to: string;
   specifier: string;
   resolved: boolean;
+  /** An import of an external package (bare specifier); `to` is a synthetic
+   * `external:<specifier>` id with no node, like unresolved imports. */
+  external?: boolean;
   bindings?: CodeImportBinding[];
   symbolImports?: CodeSymbolImport[];
 };

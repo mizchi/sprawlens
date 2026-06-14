@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  snapshotExternalDeps,
   snapshotSymbolEdges,
   snapshotSymbols,
   snapshotToAtlasGraph,
@@ -53,6 +54,22 @@ const snapshot: SnapshotLike = {
       to: "file:src/external.ts",
       resolved: false,
     },
+    {
+      type: "imports",
+      from: "file:src/a.ts",
+      to: "external:preact",
+      specifier: "preact",
+      resolved: true,
+      external: true,
+    },
+    {
+      type: "imports",
+      from: "file:src/b.ts",
+      to: "external:preact",
+      specifier: "preact",
+      resolved: true,
+      external: true,
+    },
   ],
 };
 
@@ -93,6 +110,25 @@ describe("snapshotToAtlasGraph", () => {
       edges: [],
     });
     expect(graph.nodes[0]!.metrics.loc).toBe(1);
+  });
+});
+
+describe("snapshotExternalDeps", () => {
+  it("pairs each source file with the packages it imports", () => {
+    expect(snapshotExternalDeps(snapshot)).toEqual([
+      { source: "src/a.ts", specifier: "preact" },
+      { source: "src/b.ts", specifier: "preact" },
+    ]);
+  });
+
+  it("ignores resolved and unresolved relative imports", () => {
+    const deps = snapshotExternalDeps({
+      nodes: snapshot.nodes,
+      edges: [
+        { type: "imports", from: "file:src/b.ts", to: "file:src/a.ts", resolved: true },
+      ],
+    });
+    expect(deps).toEqual([]);
   });
 });
 

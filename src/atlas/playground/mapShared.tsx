@@ -52,6 +52,8 @@ export let CIRCLE_CYCLE_FILL = "hsl(0 65% 92%)";
 export let MODULE_LABEL_INK = "#0f172a";
 export let FILE_LABEL_INK = "#334155";
 export let TEST_LABEL_INK = "#7a8699";
+/** Deps plane tint (external packages); distinct from the test grey. */
+export let DEPS_INK = "#22d3ee";
 export let WATERMARK_INK = "#334155";
 export let PORT_FILL = "#ffffff";
 /** Per-kind ink for the symbol classification icons, so each kind reads at a
@@ -123,6 +125,7 @@ export function setMapTheme(dark: boolean): void {
     MODULE_LABEL_INK = "#f1f5f9";
     FILE_LABEL_INK = "#cbd5e1";
     TEST_LABEL_INK = "#64748b";
+    DEPS_INK = "#22d3ee";
     WATERMARK_INK = "#cbd5e1";
     PORT_FILL = "#0f172a";
     SYMBOL_KIND_COLORS = {
@@ -187,6 +190,7 @@ export function setMapTheme(dark: boolean): void {
     MODULE_LABEL_INK = "#0f172a";
     FILE_LABEL_INK = "#334155";
     TEST_LABEL_INK = "#7a8699";
+    DEPS_INK = "#0891b2";
     WATERMARK_INK = "#334155";
     PORT_FILL = "#ffffff";
     EXPORTED_DOT = "#059669";
@@ -682,120 +686,141 @@ export function ExitPreviewsLayer(props: {
   );
 }
 
-/* ------------------------------------------------------------ test plane */
+/* -------------------------------------------------------- satellite plane */
 
 /** Stroke for the faint stacked-plane outlines. */
 export let PLANE_OUTLINE = "#475569";
 
+/** A node for a satellite plane (a test file, an external package, ...) and
+ * the source files it relates to. The node is dropped beneath the centroid of
+ * those sources, with a line rising to each. */
+export type SatelliteItem = { id: string; label: string; sourceIds: string[] };
+
+const planePolyOf = (m: Affine, w: number, h: number) =>
+  [
+    { x: 0, y: 0 },
+    { x: w, y: 0 },
+    { x: w, y: h },
+    { x: 0, y: h },
+  ]
+    .map((p) => apply(m, p))
+    .map((p) => `${p.x},${p.y}`)
+    .join(" ");
+
 /**
- * The Tests plane: a second stacked plane below the source map. Each test
- * file is dropped onto it directly beneath the source it covers (its target's
- * upper-plane centroid), with a correspondence line rising to that source.
- * Source and test plane outlines frame the two layers like the sketch.
+ * A stacked plane below the source map (Tests, Deps, ...). Each item is a node
+ * dropped onto `tilt1` beneath the centroid of its related source files, with
+ * a correspondence line rising to each source on the `tilt0` plane. Markers and
+ * labels stay upright via `uprightAt`; only the plane frame and lines tilt.
  *
- * `tilt0` places the source plane, `tilt1` the test plane (the same tilt
- * shifted down by the layer gap). Markers and labels stay upright via
- * `uprightAt`; only the plane outlines and edges live in tilted space.
+ * Tests pass one source per item (the covered file); Deps pass every importer
+ * of a package, so a popular package sits under its importers' centroid with
+ * lines fanning up to each.
  */
-export function TestPlaneLayer(props: {
+export function SatellitePlaneLayer(props: {
   tilt0: Affine;
   tilt1: Affine;
-  /** World extent of the map viewport, for the plane outlines. */
+  /** World extent of the map viewport, for the plane outline. */
   extent: { w: number; h: number };
   /** Upper-plane representative point per source file id. */
   sourceSiteOf: Map<string, Vec2>;
-  /** testFileId → sourceFileId (the covered source). */
-  testTargets: Map<string, string>;
-  labelOf: (id: string) => string;
+  items: readonly SatelliteItem[];
+  /** Node fill / label / line tint. */
+  color: string;
+  /** Also draw the source-plane frame (only one satellite need do this). */
+  withSourceFrame?: boolean;
+  /** Cap correspondence lines per item so popular packages don't hairball. */
+  edgeCap?: number;
   zoom: number;
   onSelect: (id: string, additive?: boolean) => void;
   selectedId?: string | null;
 }) {
-  const { tilt0, tilt1, extent, sourceSiteOf, testTargets, zoom } = props;
-  // group tests by target so several tests on one source fan out instead of
-  // stacking on the exact same point
-  const byTarget = new Map<string, string[]>();
-  for (const [testId, srcId] of testTargets) {
-    if (!sourceSiteOf.has(srcId)) continue;
-    const list = byTarget.get(srcId);
-    if (list) list.push(testId);
-    else byTarget.set(srcId, [testId]);
-  }
-  const spread = 14 / zoom;
+  const { tilt0, tilt1, extent, sourceSiteOf, items, color, zoom } = props;
+  const spread = 16 / zoom;
   const fontSize = 11 / zoom;
   const dotR = 3.2 / zoom;
-  type Drop = { testId: string; srcId: string; node: Vec2 };
-  const drops: Drop[] = [];
-  for (const [srcId, tests] of byTarget) {
-    const base = sourceSiteOf.get(srcId)!;
-    tests.forEach((testId, i) => {
-      const off = (i - (tests.length - 1) / 2) * spread;
-      drops.push({ testId, srcId, node: { x: base.x + off, y: base.y } });
-    });
+  const edgeCap = props.edgeCap ?? 24;
+  // resolve each item to the source sites it knows, and a base centroid
+  type Drop = { id: string; label: string; sources: Vec2[]; node: Vec2 };
+  const placed: Drop[] = [];
+  for (const item of items) {
+    const sources = item.sourceIds
+      .map((s) => sourceSiteOf.get(s))
+      .filter((v): v is Vec2 => !!v);
+    if (sources.length === 0) continue;
+    const cx = sources.reduce((s, p) => s + p.x, 0) / sources.length;
+    const cy = sources.reduce((s, p) => s + p.y, 0) / sources.length;
+    placed.push({ id: item.id, label: item.label, sources, node: { x: cx, y: cy } });
   }
-  const planePoly = (m: Affine) =>
-    [
-      { x: 0, y: 0 },
-      { x: extent.w, y: 0 },
-      { x: extent.w, y: extent.h },
-      { x: 0, y: extent.h },
-    ]
-      .map((p) => apply(m, p))
-      .map((p) => `${p.x},${p.y}`)
-      .join(" ");
+  // items sharing a centroid (several tests on one file) fan out horizontally
+  const byCell = new Map<string, Drop[]>();
+  for (const d of placed) {
+    const k = `${Math.round(d.node.x / spread)}:${Math.round(d.node.y / spread)}`;
+    const list = byCell.get(k);
+    if (list) list.push(d);
+    else byCell.set(k, [d]);
+  }
+  for (const group of byCell.values())
+    group.forEach((d, i) => {
+      d.node = { x: d.node.x + (i - (group.length - 1) / 2) * spread, y: d.node.y };
+    });
   return (
     <>
-      {/* the two plane frames */}
+      {/* plane frames */}
       <g fill="none" stroke={PLANE_OUTLINE} style={{ pointerEvents: "none" }}>
-        <polygon points={planePoly(tilt0)} stroke-opacity={0.35} stroke-width={1.5} />
-        <polygon points={planePoly(tilt1)} stroke-opacity={0.5} stroke-width={1.5} />
+        {props.withSourceFrame ? (
+          <polygon points={planePolyOf(tilt0, extent.w, extent.h)} stroke-opacity={0.3} stroke-width={1.5} />
+        ) : null}
+        <polygon points={planePolyOf(tilt1, extent.w, extent.h)} stroke-opacity={0.5} stroke-width={1.5} />
       </g>
-      {/* correspondence: source (top) ↓ its test (bottom) */}
-      <g fill="none" stroke={TEST_LABEL_INK} style={{ pointerEvents: "none" }}>
-        {drops.map((d) => {
-          const top = apply(tilt0, sourceSiteOf.get(d.srcId)!);
+      {/* correspondence: each source (top) ↓ the item node (bottom) */}
+      <g fill="none" stroke={color} style={{ pointerEvents: "none" }}>
+        {placed.flatMap((d) => {
           const bot = apply(tilt1, d.node);
-          return (
-            <line
-              key={d.testId}
-              x1={top.x}
-              y1={top.y}
-              x2={bot.x}
-              y2={bot.y}
-              stroke-width={1}
-              stroke-opacity={0.55}
-            />
-          );
+          return d.sources.slice(0, edgeCap).map((src, i) => {
+            const top = apply(tilt0, src);
+            return (
+              <line
+                key={`${d.id}:${i}`}
+                x1={top.x}
+                y1={top.y}
+                x2={bot.x}
+                y2={bot.y}
+                stroke-width={1}
+                stroke-opacity={0.4}
+              />
+            );
+          });
         })}
       </g>
-      {/* test nodes on the lower plane, upright */}
+      {/* item nodes on the lower plane, upright */}
       <g style={{ userSelect: "none" }}>
-        {drops.map((d) => (
+        {placed.map((d) => (
           <g
-            key={d.testId}
+            key={d.id}
             transform={uprightAt(tilt1, d.node)}
             style={{ cursor: "pointer" }}
             onClick={(event) => {
               event.stopPropagation();
-              props.onSelect(d.testId, event.shiftKey);
+              props.onSelect(d.id, event.shiftKey);
             }}
           >
             <circle
               cx={0}
               cy={0}
               r={dotR}
-              fill={TEST_FILL}
-              stroke={d.testId === props.selectedId ? SELECT_STROKE : TEST_LABEL_INK}
-              stroke-width={d.testId === props.selectedId ? 2 : 0.8}
+              fill={color}
+              stroke={d.id === props.selectedId ? SELECT_STROKE : color}
+              stroke-width={d.id === props.selectedId ? 2 : 0.8}
             />
             <text
               x={dotR * 1.8}
               y={fontSize * 0.34}
               font-size={fontSize}
               font-weight="600"
-              fill={TEST_LABEL_INK}
+              fill={color}
             >
-              {props.labelOf(d.testId)}
+              {d.label}
             </text>
           </g>
         ))}

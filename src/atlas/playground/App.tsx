@@ -24,9 +24,11 @@ import {
   setMapTheme,
 } from "./mapShared.tsx";
 import {
+  snapshotExternalDeps,
   snapshotSymbolEdges,
   snapshotSymbols,
   snapshotToAtlasGraph,
+  type ExternalDep,
   type SnapshotLike,
 } from "./fixtureAdapter.ts";
 import { sprawlensSnapshot } from "./fixtures/sprawlens.ts";
@@ -212,6 +214,7 @@ export function App() {
       pitch: 0.9,
       skew: 0.35,
       tests: false,
+      deps: false,
       gap: 300,
     },
   });
@@ -328,6 +331,8 @@ export function App() {
   const symbolsRef = useRef<Map<string, AtlasNode[]> | null>(null);
   /** Symbol references (call-hierarchy precursor); endpoints: symbol or file ids. */
   const symbolEdgesRef = useRef<AtlasEdge[]>([]);
+  /** External-package imports for the Deps plane (empty for synthetic data). */
+  const externalDepsRef = useRef<ExternalDep[]>([]);
   /** Per-symbol metadata accumulated as nested layouts materialize. */
   const symbolMetaRef = useRef(
     new Map<
@@ -629,6 +634,7 @@ export function App() {
       graph = snapshotToAtlasGraph(sprawlensSnapshot);
       symbolsRef.current = snapshotSymbols(sprawlensSnapshot);
       symbolEdgesRef.current = snapshotSymbolEdges(sprawlensSnapshot);
+      externalDepsRef.current = snapshotExternalDeps(sprawlensSnapshot);
     } else if (p.source === "sprawlens-history") {
       const history = commitsRef.current;
       if (!history) {
@@ -657,6 +663,7 @@ export function App() {
         graph = snapshotToAtlasGraph(snapshot);
         symbolsRef.current = snapshotSymbols(snapshot);
         symbolEdgesRef.current = snapshotSymbolEdges(snapshot);
+        externalDepsRef.current = snapshotExternalDeps(snapshot);
         applyCommitDiff(index);
       }
     } else if (p.source === "playwright") {
@@ -680,11 +687,13 @@ export function App() {
         graph = snapshotToAtlasGraph(snapshot);
         symbolsRef.current = snapshotSymbols(snapshot);
         symbolEdgesRef.current = snapshotSymbolEdges(snapshot);
+        externalDepsRef.current = snapshotExternalDeps(snapshot);
       }
     } else {
       graph = createSyntheticGraph({ count: SYNTH_COUNT, seed: SEED });
       symbolsRef.current = null;
       symbolEdgesRef.current = synthesizeSymbolEdges(graph, SEED);
+      externalDepsRef.current = [];
     }
     graphRef.current = graph;
     nextNodeId.current = SYNTH_COUNT;
@@ -1758,6 +1767,7 @@ export function App() {
   const allInnerCells = innerCellsRef.current;
   const testFileIds = testFileIdsRef.current;
   const testTargets = testTargetsRef.current;
+  const externalDeps = externalDepsRef.current;
   const selected = useMemo(
     () =>
       allCells.find((c) => c.id === activeId) ??
@@ -1992,6 +2002,7 @@ export function App() {
             focus={focusView}
             testFileIds={testFileIds}
             testTargets={testTargets}
+            externalDeps={externalDeps}
             hiddenLayers={new Set(hiddenLayersOf(params.omit))}
             parentFileOf={parentFileOf}
             changedFiles={changedFilesRef.current}
@@ -2032,6 +2043,7 @@ export function App() {
             cyclicIds={cyclicIds}
             testFileIds={testFileIds}
             testTargets={testTargets}
+            externalDeps={externalDeps}
             focus={focusView}
             width={mapSize.width}
             height={mapSize.height}

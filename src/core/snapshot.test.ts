@@ -212,7 +212,7 @@ describe("createSnapshotFromWorkingTree", () => {
     );
   });
 
-  it("records unresolved relative imports without treating package imports as unresolved", async () => {
+  it("captures package imports as external edges, separate from unresolved relative imports", async () => {
     await withFixture(
       {
         "src/index.ts": "import React from 'react';\nimport missing from './missing';\nconsole.log(React, missing);\n",
@@ -228,11 +228,19 @@ describe("createSnapshotFromWorkingTree", () => {
         });
 
         const imports = snapshot.edges.filter((edge) => edge.type === "imports");
-        expect(imports).toHaveLength(1);
-        expect(imports[0]).toMatchObject({
-          specifier: "./missing",
-          resolved: false,
+        expect(imports).toHaveLength(2);
+        const external = imports.find((e) => e.type === "imports" && e.external);
+        expect(external).toMatchObject({
+          specifier: "react",
+          to: "external:react",
+          resolved: true,
+          external: true,
         });
+        const missing = imports.find(
+          (e) => e.type === "imports" && e.specifier === "./missing",
+        );
+        expect(missing).toMatchObject({ resolved: false });
+        // external imports never count as unresolved (broken) imports
         expect(snapshot.metrics.unresolvedImportCount).toBe(1);
       },
     );

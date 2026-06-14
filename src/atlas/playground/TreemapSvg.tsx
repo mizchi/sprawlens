@@ -35,9 +35,12 @@ import {
   isWatermarkSized,
   leafFillOf,
   makeTopAncestorOf,
+  DEPS_INK,
   RaisedEdgePath,
+  SatellitePlaneLayer,
   SELECT_STROKE,
-  TestPlaneLayer,
+  TEST_LABEL_INK,
+  type SatelliteItem,
   UPSTREAM_COLOR,
   WatermarkLabelsLayer,
 } from "./mapShared.tsx";
@@ -70,6 +73,8 @@ type Props = {
   testFileIds?: Set<string>;
   /** testFileId → covered source file id, for the Tests plane drops. */
   testTargets?: Map<string, string>;
+  /** Source file × external package pairs, for the Deps plane drops. */
+  externalDeps?: { source: string; specifier: string }[];
   /** Nested symbol layouts inside the file cells (file granularity). */
   innerCells?: CellResult[];
   exportedIds?: Set<string>;
@@ -150,7 +155,11 @@ export function TreemapSvg(props: Props) {
   // it (rotate); labels read `tiltAffine` to stay upright on top
   const tiltActive =
     !!tilt?.enabled &&
-    (tilt.theta !== 0 || tilt.pitch !== 0 || tilt.skew !== 0 || tilt.tests);
+    (tilt.theta !== 0 ||
+      tilt.pitch !== 0 ||
+      tilt.skew !== 0 ||
+      tilt.tests ||
+      tilt.deps);
   const tiltOpts = tilt
     ? {
         theta: tilt.theta,
@@ -164,15 +173,20 @@ export function TreemapSvg(props: Props) {
       ? layerTransform({ ...tiltOpts, gap: 0, index: 0 })
       : undefined;
   const tiltMatrix = tiltAffine ? toMatrixString(tiltAffine) : undefined;
-  const testPlane: Affine | undefined =
+  const testsPlane: Affine | undefined =
     tilt?.enabled && tilt.tests && tiltOpts
       ? layerTransform({ ...tiltOpts, gap: tilt.gap, index: 1 })
       : undefined;
+  const depsPlane: Affine | undefined =
+    tilt?.enabled && tilt.deps && tiltOpts
+      ? layerTransform({ ...tiltOpts, gap: tilt.gap, index: tilt.tests ? 2 : 1 })
+      : undefined;
+  const satellitesOn = !!testsPlane || !!depsPlane;
   // representative upper-plane point per source file = centroid of leaf cells
   const sourceSiteOf = useMemo(() => {
     const acc = new Map<string, { x: number; y: number; n: number }>();
     const parentFileOf = props.parentFileOf ?? ((id: string) => id);
-    if (testPlane) {
+    if (satellitesOn) {
       for (const layout of state.leafLayouts.values())
         for (const c of layout.cells) {
           const f = parentFileOf(c.id);
@@ -187,7 +201,7 @@ export function TreemapSvg(props: Props) {
     const m = new Map<string, Vec2>();
     for (const [f, e] of acc) m.set(f, { x: e.x / e.n, y: e.y / e.n });
     return m;
-  }, [state, props.parentFileOf, !!testPlane]);
+  }, [state, props.parentFileOf, satellitesOn]);
   const [hoveredEdge, setHoveredEdge] = useState<{
     source: string;
     target: string;
@@ -399,6 +413,29 @@ export function TreemapSvg(props: Props) {
   );
   const labelOf = (id: string): string =>
     props.labels?.get(id) ?? symbolNameOf(id) ?? id.split("/").pop() ?? id;
+
+  // satellite items: tests cover one source each; deps group all importers
+  const testItems: SatelliteItem[] = testsPlane && props.testTargets
+    ? [...props.testTargets].map(([t, s]) => ({
+        id: t,
+        label: labelOf(t),
+        sourceIds: [s],
+      }))
+    : [];
+  const depItems: SatelliteItem[] = (() => {
+    if (!depsPlane || !props.externalDeps) return [];
+    const byPkg = new Map<string, string[]>();
+    for (const { source, specifier } of props.externalDeps) {
+      const list = byPkg.get(specifier);
+      if (list) list.push(source);
+      else byPkg.set(specifier, [source]);
+    }
+    return [...byPkg].map(([spec, srcs]) => ({
+      id: `external:${spec}`,
+      label: spec,
+      sourceIds: srcs,
+    }));
+  })();
 
   return (
     <svg
@@ -781,14 +818,29 @@ export function TreemapSvg(props: Props) {
         />
       ))}
       </g>
-      {testPlane && tiltAffine && props.testTargets ? (
-        <TestPlaneLayer
+      {testsPlane && tiltAffine && testItems.length ? (
+        <SatellitePlaneLayer
           tilt0={tiltAffine}
-          tilt1={testPlane}
+          tilt1={testsPlane}
           extent={{ w: width, h: height }}
           sourceSiteOf={sourceSiteOf}
-          testTargets={props.testTargets}
-          labelOf={labelOf}
+          items={testItems}
+          color={TEST_LABEL_INK}
+          withSourceFrame
+          zoom={zoom}
+          onSelect={onSelect}
+          selectedId={selectedId}
+        />
+      ) : null}
+      {depsPlane && tiltAffine && depItems.length ? (
+        <SatellitePlaneLayer
+          tilt0={tiltAffine}
+          tilt1={depsPlane}
+          extent={{ w: width, h: height }}
+          sourceSiteOf={sourceSiteOf}
+          items={depItems}
+          color={DEPS_INK}
+          withSourceFrame={!testsPlane}
           zoom={zoom}
           onSelect={onSelect}
           selectedId={selectedId}

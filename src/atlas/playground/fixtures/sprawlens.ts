@@ -1,4 +1,4 @@
-// Generated from .codesprawl snapshot (commit 83341b4).
+// Generated from .codesprawl snapshot (commit 3d687b3).
 // Regenerate: npx tsx src/cli/index.ts collect . --commits 1, then
 //   node scripts/snapshot-to-fixture.mjs <snapshot.json> sprawlensSnapshot > <out>
 import type { SnapshotLike } from "../fixtureAdapter.js";
@@ -91,7 +91,7 @@ export const sprawlensSnapshot: SnapshotLike = {
    "id": "file:scripts/snapshot-to-fixture.mjs",
    "type": "file",
    "path": "scripts/snapshot-to-fixture.mjs",
-   "loc": 70
+   "loc": 77
   },
   {
    "id": "file:src/atlas/contracts/delta.test.ts",
@@ -299,10 +299,10 @@ export const sprawlensSnapshot: SnapshotLike = {
    "id": "file:src/atlas/contracts/hierarchy.test.ts",
    "type": "file",
    "path": "src/atlas/contracts/hierarchy.test.ts",
-   "loc": 282,
+   "loc": 325,
    "symbols": [
     {
-     "id": "symbol:src/atlas/contracts/hierarchy.test.ts:function:fileGraph:13",
+     "id": "symbol:src/atlas/contracts/hierarchy.test.ts:function:fileGraph:15",
      "name": "fileGraph",
      "kind": "function",
      "loc": 23,
@@ -314,7 +314,7 @@ export const sprawlensSnapshot: SnapshotLike = {
    "id": "file:src/atlas/contracts/hierarchy.ts",
    "type": "file",
    "path": "src/atlas/contracts/hierarchy.ts",
-   "loc": 296,
+   "loc": 356,
    "symbols": [
     {
      "id": "symbol:src/atlas/contracts/hierarchy.ts:type:Grouping:19",
@@ -397,7 +397,39 @@ export const sprawlensSnapshot: SnapshotLike = {
      "exported": true
     },
     {
-     "id": "symbol:src/atlas/contracts/hierarchy.ts:function:serviceGrouping:292",
+     "id": "symbol:src/atlas/contracts/hierarchy.ts:function:classIdOf:300",
+     "name": "classIdOf",
+     "kind": "function",
+     "loc": 11,
+     "complexity": 5,
+     "exported": true
+    },
+    {
+     "id": "symbol:src/atlas/contracts/hierarchy.ts:function:classNameOf:313",
+     "name": "classNameOf",
+     "kind": "function",
+     "loc": 3,
+     "complexity": 1,
+     "exported": true
+    },
+    {
+     "id": "symbol:src/atlas/contracts/hierarchy.ts:function:restBucketId:318",
+     "name": "restBucketId",
+     "kind": "function",
+     "loc": 3,
+     "complexity": 1,
+     "exported": true
+    },
+    {
+     "id": "symbol:src/atlas/contracts/hierarchy.ts:function:classGrouping:335",
+     "name": "classGrouping",
+     "kind": "function",
+     "loc": 11,
+     "complexity": 3,
+     "exported": true
+    },
+    {
+     "id": "symbol:src/atlas/contracts/hierarchy.ts:function:serviceGrouping:352",
      "name": "serviceGrouping",
      "kind": "function",
      "loc": 5,
@@ -567,6 +599,125 @@ export const sprawlensSnapshot: SnapshotLike = {
      "kind": "function",
      "loc": 23,
      "complexity": 9,
+     "exported": true
+    }
+   ]
+  },
+  {
+   "id": "file:src/atlas/kernel/affine.test.ts",
+   "type": "file",
+   "path": "src/atlas/kernel/affine.test.ts",
+   "loc": 205,
+   "symbols": [
+    {
+     "id": "symbol:src/atlas/kernel/affine.test.ts:function:closeTo:16",
+     "name": "closeTo",
+     "kind": "function",
+     "loc": 4,
+     "complexity": 1
+    }
+   ]
+  },
+  {
+   "id": "file:src/atlas/kernel/affine.ts",
+   "type": "file",
+   "path": "src/atlas/kernel/affine.ts",
+   "loc": 133,
+   "symbols": [
+    {
+     "id": "symbol:src/atlas/kernel/affine.ts:type:Affine:15",
+     "name": "Affine",
+     "kind": "type",
+     "loc": 8,
+     "complexity": 1,
+     "exported": true
+    },
+    {
+     "id": "symbol:src/atlas/kernel/affine.ts:variable:IDENTITY:24",
+     "name": "IDENTITY",
+     "kind": "variable",
+     "loc": 1,
+     "complexity": 1,
+     "exported": true
+    },
+    {
+     "id": "symbol:src/atlas/kernel/affine.ts:function:apply:26",
+     "name": "apply",
+     "kind": "function",
+     "loc": 3,
+     "complexity": 1,
+     "exported": true
+    },
+    {
+     "id": "symbol:src/atlas/kernel/affine.ts:function:compose:31",
+     "name": "compose",
+     "kind": "function",
+     "loc": 10,
+     "complexity": 1,
+     "exported": true
+    },
+    {
+     "id": "symbol:src/atlas/kernel/affine.ts:function:translate:42",
+     "name": "translate",
+     "kind": "function",
+     "loc": 3,
+     "complexity": 1,
+     "exported": true
+    },
+    {
+     "id": "symbol:src/atlas/kernel/affine.ts:function:rotate:47",
+     "name": "rotate",
+     "kind": "function",
+     "loc": 13,
+     "complexity": 1,
+     "exported": true
+    },
+    {
+     "id": "symbol:src/atlas/kernel/affine.ts:function:squashY:62",
+     "name": "squashY",
+     "kind": "function",
+     "loc": 3,
+     "complexity": 1,
+     "exported": true
+    },
+    {
+     "id": "symbol:src/atlas/kernel/affine.ts:function:skewX:69",
+     "name": "skewX",
+     "kind": "function",
+     "loc": 3,
+     "complexity": 1,
+     "exported": true
+    },
+    {
+     "id": "symbol:src/atlas/kernel/affine.ts:function:invert:73",
+     "name": "invert",
+     "kind": "function",
+     "loc": 13,
+     "complexity": 2,
+     "exported": true
+    },
+    {
+     "id": "symbol:src/atlas/kernel/affine.ts:function:toMatrixString:87",
+     "name": "toMatrixString",
+     "kind": "function",
+     "loc": 3,
+     "complexity": 1,
+     "exported": true
+    },
+    {
+     "id": "symbol:src/atlas/kernel/affine.ts:function:uprightAt:103",
+     "name": "uprightAt",
+     "kind": "function",
+     "loc": 5,
+     "complexity": 2,
+     "exported": true
+    },
+    {
+     "id": "symbol:src/atlas/kernel/affine.ts:function:layerTransform:116",
+     "name": "layerTransform",
+     "kind": "function",
+     "loc": 18,
+     "complexity": 2,
      "exported": true
     }
    ]
@@ -2023,42 +2174,42 @@ export const sprawlensSnapshot: SnapshotLike = {
    "id": "file:src/atlas/playground/App.tsx",
    "type": "file",
    "path": "src/atlas/playground/App.tsx",
-   "loc": 2402,
+   "loc": 2462,
    "symbols": [
     {
-     "id": "symbol:src/atlas/playground/App.tsx:function:scopeOf:126",
+     "id": "symbol:src/atlas/playground/App.tsx:function:scopeOf:129",
      "name": "scopeOf",
      "kind": "function",
      "loc": 5,
      "complexity": 2
     },
     {
-     "id": "symbol:src/atlas/playground/App.tsx:function:insetRing:138",
+     "id": "symbol:src/atlas/playground/App.tsx:function:insetRing:141",
      "name": "insetRing",
      "kind": "function",
      "loc": 7,
      "complexity": 1
     },
     {
-     "id": "symbol:src/atlas/playground/App.tsx:function:Section:147",
+     "id": "symbol:src/atlas/playground/App.tsx:function:Section:150",
      "name": "Section",
      "kind": "function",
      "loc": 38,
      "complexity": 2
     },
     {
-     "id": "symbol:src/atlas/playground/App.tsx:type:PanelPosition:186",
+     "id": "symbol:src/atlas/playground/App.tsx:type:PanelPosition:189",
      "name": "PanelPosition",
      "kind": "type",
      "loc": 1,
      "complexity": 1
     },
     {
-     "id": "symbol:src/atlas/playground/App.tsx:function:App:188",
+     "id": "symbol:src/atlas/playground/App.tsx:function:App:191",
      "name": "App",
      "kind": "function",
-     "loc": 2215,
-     "complexity": 402,
+     "loc": 2272,
+     "complexity": 408,
      "exported": true
     }
    ]
@@ -2187,7 +2338,7 @@ export const sprawlensSnapshot: SnapshotLike = {
    "id": "file:src/atlas/playground/Controls.tsx",
    "type": "file",
    "path": "src/atlas/playground/Controls.tsx",
-   "loc": 335,
+   "loc": 465,
    "symbols": [
     {
      "id": "symbol:src/atlas/playground/Controls.tsx:type:DataSource:17",
@@ -2206,26 +2357,34 @@ export const sprawlensSnapshot: SnapshotLike = {
      "exported": true
     },
     {
-     "id": "symbol:src/atlas/playground/Controls.tsx:type:PlaygroundParams:24",
-     "name": "PlaygroundParams",
+     "id": "symbol:src/atlas/playground/Controls.tsx:type:TiltParams:27",
+     "name": "TiltParams",
      "kind": "type",
-     "loc": 18,
+     "loc": 10,
      "complexity": 1,
      "exported": true
     },
     {
-     "id": "symbol:src/atlas/playground/Controls.tsx:type:Props:43",
+     "id": "symbol:src/atlas/playground/Controls.tsx:type:PlaygroundParams:38",
+     "name": "PlaygroundParams",
+     "kind": "type",
+     "loc": 20,
+     "complexity": 1,
+     "exported": true
+    },
+    {
+     "id": "symbol:src/atlas/playground/Controls.tsx:type:Props:59",
      "name": "Props",
      "kind": "type",
      "loc": 12,
      "complexity": 1
     },
     {
-     "id": "symbol:src/atlas/playground/Controls.tsx:function:Controls:76",
+     "id": "symbol:src/atlas/playground/Controls.tsx:function:Controls:93",
      "name": "Controls",
      "kind": "function",
-     "loc": 260,
-     "complexity": 14,
+     "loc": 373,
+     "complexity": 16,
      "exported": true
     }
    ]
@@ -2234,28 +2393,28 @@ export const sprawlensSnapshot: SnapshotLike = {
    "id": "file:src/atlas/playground/RingsMapSvg.tsx",
    "type": "file",
    "path": "src/atlas/playground/RingsMapSvg.tsx",
-   "loc": 1302,
+   "loc": 1384,
    "symbols": [
     {
-     "id": "symbol:src/atlas/playground/RingsMapSvg.tsx:type:Props:64",
+     "id": "symbol:src/atlas/playground/RingsMapSvg.tsx:type:Props:72",
      "name": "Props",
      "kind": "type",
-     "loc": 56,
+     "loc": 62,
      "complexity": 1
     },
     {
-     "id": "symbol:src/atlas/playground/RingsMapSvg.tsx:function:fallbackLabel:123",
+     "id": "symbol:src/atlas/playground/RingsMapSvg.tsx:function:fallbackLabel:137",
      "name": "fallbackLabel",
      "kind": "function",
      "loc": 7,
      "complexity": 4
     },
     {
-     "id": "symbol:src/atlas/playground/RingsMapSvg.tsx:function:RingsMapSvg:152",
+     "id": "symbol:src/atlas/playground/RingsMapSvg.tsx:function:RingsMapSvg:169",
      "name": "RingsMapSvg",
      "kind": "function",
-     "loc": 1151,
-     "complexity": 222,
+     "loc": 1216,
+     "complexity": 246,
      "exported": true
     }
    ]
@@ -2264,21 +2423,21 @@ export const sprawlensSnapshot: SnapshotLike = {
    "id": "file:src/atlas/playground/TreemapSvg.tsx",
    "type": "file",
    "path": "src/atlas/playground/TreemapSvg.tsx",
-   "loc": 712,
+   "loc": 799,
    "symbols": [
     {
-     "id": "symbol:src/atlas/playground/TreemapSvg.tsx:type:Props:52",
+     "id": "symbol:src/atlas/playground/TreemapSvg.tsx:type:Props:60",
      "name": "Props",
      "kind": "type",
-     "loc": 43,
+     "loc": 49,
      "complexity": 1
     },
     {
-     "id": "symbol:src/atlas/playground/TreemapSvg.tsx:function:TreemapSvg:103",
+     "id": "symbol:src/atlas/playground/TreemapSvg.tsx:function:TreemapSvg:119",
      "name": "TreemapSvg",
      "kind": "function",
-     "loc": 610,
-     "complexity": 115,
+     "loc": 681,
+     "complexity": 143,
      "exported": true
     }
    ]
@@ -2764,10 +2923,10 @@ export const sprawlensSnapshot: SnapshotLike = {
    "id": "file:src/atlas/playground/mapShared.tsx",
    "type": "file",
    "path": "src/atlas/playground/mapShared.tsx",
-   "loc": 771,
+   "loc": 941,
    "symbols": [
     {
-     "id": "symbol:src/atlas/playground/mapShared.tsx:variable:DIM:22",
+     "id": "symbol:src/atlas/playground/mapShared.tsx:variable:DIM:28",
      "name": "DIM",
      "kind": "variable",
      "loc": 1,
@@ -2775,7 +2934,7 @@ export const sprawlensSnapshot: SnapshotLike = {
      "exported": true
     },
     {
-     "id": "symbol:src/atlas/playground/mapShared.tsx:variable:MODIFIED_FILL:24",
+     "id": "symbol:src/atlas/playground/mapShared.tsx:variable:MODIFIED_FILL:30",
      "name": "MODIFIED_FILL",
      "kind": "variable",
      "loc": 1,
@@ -2783,7 +2942,7 @@ export const sprawlensSnapshot: SnapshotLike = {
      "exported": true
     },
     {
-     "id": "symbol:src/atlas/playground/mapShared.tsx:variable:ADDED_FILL:25",
+     "id": "symbol:src/atlas/playground/mapShared.tsx:variable:ADDED_FILL:31",
      "name": "ADDED_FILL",
      "kind": "variable",
      "loc": 1,
@@ -2791,7 +2950,7 @@ export const sprawlensSnapshot: SnapshotLike = {
      "exported": true
     },
     {
-     "id": "symbol:src/atlas/playground/mapShared.tsx:variable:CYCLE_FILL:27",
+     "id": "symbol:src/atlas/playground/mapShared.tsx:variable:CYCLE_FILL:33",
      "name": "CYCLE_FILL",
      "kind": "variable",
      "loc": 1,
@@ -2799,7 +2958,7 @@ export const sprawlensSnapshot: SnapshotLike = {
      "exported": true
     },
     {
-     "id": "symbol:src/atlas/playground/mapShared.tsx:variable:TEST_FILL:29",
+     "id": "symbol:src/atlas/playground/mapShared.tsx:variable:TEST_FILL:35",
      "name": "TEST_FILL",
      "kind": "variable",
      "loc": 1,
@@ -2807,7 +2966,7 @@ export const sprawlensSnapshot: SnapshotLike = {
      "exported": true
     },
     {
-     "id": "symbol:src/atlas/playground/mapShared.tsx:variable:DOWNSTREAM_COLOR:31",
+     "id": "symbol:src/atlas/playground/mapShared.tsx:variable:DOWNSTREAM_COLOR:37",
      "name": "DOWNSTREAM_COLOR",
      "kind": "variable",
      "loc": 1,
@@ -2815,7 +2974,7 @@ export const sprawlensSnapshot: SnapshotLike = {
      "exported": true
     },
     {
-     "id": "symbol:src/atlas/playground/mapShared.tsx:variable:UPSTREAM_COLOR:32",
+     "id": "symbol:src/atlas/playground/mapShared.tsx:variable:UPSTREAM_COLOR:38",
      "name": "UPSTREAM_COLOR",
      "kind": "variable",
      "loc": 1,
@@ -2823,7 +2982,7 @@ export const sprawlensSnapshot: SnapshotLike = {
      "exported": true
     },
     {
-     "id": "symbol:src/atlas/playground/mapShared.tsx:variable:DOWNSTREAM_FILL:33",
+     "id": "symbol:src/atlas/playground/mapShared.tsx:variable:DOWNSTREAM_FILL:39",
      "name": "DOWNSTREAM_FILL",
      "kind": "variable",
      "loc": 1,
@@ -2831,7 +2990,7 @@ export const sprawlensSnapshot: SnapshotLike = {
      "exported": true
     },
     {
-     "id": "symbol:src/atlas/playground/mapShared.tsx:variable:UPSTREAM_FILL:34",
+     "id": "symbol:src/atlas/playground/mapShared.tsx:variable:UPSTREAM_FILL:40",
      "name": "UPSTREAM_FILL",
      "kind": "variable",
      "loc": 1,
@@ -2839,7 +2998,7 @@ export const sprawlensSnapshot: SnapshotLike = {
      "exported": true
     },
     {
-     "id": "symbol:src/atlas/playground/mapShared.tsx:variable:SELECT_STROKE:36",
+     "id": "symbol:src/atlas/playground/mapShared.tsx:variable:SELECT_STROKE:42",
      "name": "SELECT_STROKE",
      "kind": "variable",
      "loc": 1,
@@ -2847,7 +3006,7 @@ export const sprawlensSnapshot: SnapshotLike = {
      "exported": true
     },
     {
-     "id": "symbol:src/atlas/playground/mapShared.tsx:variable:LEAF_STROKE:38",
+     "id": "symbol:src/atlas/playground/mapShared.tsx:variable:LEAF_STROKE:44",
      "name": "LEAF_STROKE",
      "kind": "variable",
      "loc": 1,
@@ -2855,7 +3014,7 @@ export const sprawlensSnapshot: SnapshotLike = {
      "exported": true
     },
     {
-     "id": "symbol:src/atlas/playground/mapShared.tsx:variable:SYMBOL_STROKE:39",
+     "id": "symbol:src/atlas/playground/mapShared.tsx:variable:SYMBOL_STROKE:45",
      "name": "SYMBOL_STROKE",
      "kind": "variable",
      "loc": 1,
@@ -2863,7 +3022,7 @@ export const sprawlensSnapshot: SnapshotLike = {
      "exported": true
     },
     {
-     "id": "symbol:src/atlas/playground/mapShared.tsx:variable:SYMBOL_EDGE:40",
+     "id": "symbol:src/atlas/playground/mapShared.tsx:variable:SYMBOL_EDGE:46",
      "name": "SYMBOL_EDGE",
      "kind": "variable",
      "loc": 1,
@@ -2871,7 +3030,7 @@ export const sprawlensSnapshot: SnapshotLike = {
      "exported": true
     },
     {
-     "id": "symbol:src/atlas/playground/mapShared.tsx:variable:MACRO_EDGE:41",
+     "id": "symbol:src/atlas/playground/mapShared.tsx:variable:MACRO_EDGE:47",
      "name": "MACRO_EDGE",
      "kind": "variable",
      "loc": 1,
@@ -2879,7 +3038,7 @@ export const sprawlensSnapshot: SnapshotLike = {
      "exported": true
     },
     {
-     "id": "symbol:src/atlas/playground/mapShared.tsx:variable:ACTIVE_EDGE:42",
+     "id": "symbol:src/atlas/playground/mapShared.tsx:variable:ACTIVE_EDGE:48",
      "name": "ACTIVE_EDGE",
      "kind": "variable",
      "loc": 1,
@@ -2887,7 +3046,7 @@ export const sprawlensSnapshot: SnapshotLike = {
      "exported": true
     },
     {
-     "id": "symbol:src/atlas/playground/mapShared.tsx:variable:CIRCLE_FILL:43",
+     "id": "symbol:src/atlas/playground/mapShared.tsx:variable:CIRCLE_FILL:49",
      "name": "CIRCLE_FILL",
      "kind": "variable",
      "loc": 1,
@@ -2895,7 +3054,7 @@ export const sprawlensSnapshot: SnapshotLike = {
      "exported": true
     },
     {
-     "id": "symbol:src/atlas/playground/mapShared.tsx:variable:CIRCLE_STROKE:44",
+     "id": "symbol:src/atlas/playground/mapShared.tsx:variable:CIRCLE_STROKE:50",
      "name": "CIRCLE_STROKE",
      "kind": "variable",
      "loc": 1,
@@ -2903,7 +3062,7 @@ export const sprawlensSnapshot: SnapshotLike = {
      "exported": true
     },
     {
-     "id": "symbol:src/atlas/playground/mapShared.tsx:variable:CIRCLE_CYCLE_FILL:45",
+     "id": "symbol:src/atlas/playground/mapShared.tsx:variable:CIRCLE_CYCLE_FILL:51",
      "name": "CIRCLE_CYCLE_FILL",
      "kind": "variable",
      "loc": 1,
@@ -2911,7 +3070,7 @@ export const sprawlensSnapshot: SnapshotLike = {
      "exported": true
     },
     {
-     "id": "symbol:src/atlas/playground/mapShared.tsx:variable:MODULE_LABEL_INK:46",
+     "id": "symbol:src/atlas/playground/mapShared.tsx:variable:MODULE_LABEL_INK:52",
      "name": "MODULE_LABEL_INK",
      "kind": "variable",
      "loc": 1,
@@ -2919,7 +3078,7 @@ export const sprawlensSnapshot: SnapshotLike = {
      "exported": true
     },
     {
-     "id": "symbol:src/atlas/playground/mapShared.tsx:variable:FILE_LABEL_INK:47",
+     "id": "symbol:src/atlas/playground/mapShared.tsx:variable:FILE_LABEL_INK:53",
      "name": "FILE_LABEL_INK",
      "kind": "variable",
      "loc": 1,
@@ -2927,7 +3086,7 @@ export const sprawlensSnapshot: SnapshotLike = {
      "exported": true
     },
     {
-     "id": "symbol:src/atlas/playground/mapShared.tsx:variable:TEST_LABEL_INK:48",
+     "id": "symbol:src/atlas/playground/mapShared.tsx:variable:TEST_LABEL_INK:54",
      "name": "TEST_LABEL_INK",
      "kind": "variable",
      "loc": 1,
@@ -2935,7 +3094,7 @@ export const sprawlensSnapshot: SnapshotLike = {
      "exported": true
     },
     {
-     "id": "symbol:src/atlas/playground/mapShared.tsx:variable:WATERMARK_INK:49",
+     "id": "symbol:src/atlas/playground/mapShared.tsx:variable:WATERMARK_INK:55",
      "name": "WATERMARK_INK",
      "kind": "variable",
      "loc": 1,
@@ -2943,7 +3102,7 @@ export const sprawlensSnapshot: SnapshotLike = {
      "exported": true
     },
     {
-     "id": "symbol:src/atlas/playground/mapShared.tsx:variable:PORT_FILL:50",
+     "id": "symbol:src/atlas/playground/mapShared.tsx:variable:PORT_FILL:56",
      "name": "PORT_FILL",
      "kind": "variable",
      "loc": 1,
@@ -2951,7 +3110,7 @@ export const sprawlensSnapshot: SnapshotLike = {
      "exported": true
     },
     {
-     "id": "symbol:src/atlas/playground/mapShared.tsx:variable:SYMBOL_KIND_COLORS:54",
+     "id": "symbol:src/atlas/playground/mapShared.tsx:variable:SYMBOL_KIND_COLORS:60",
      "name": "SYMBOL_KIND_COLORS",
      "kind": "variable",
      "loc": 11,
@@ -2959,7 +3118,15 @@ export const sprawlensSnapshot: SnapshotLike = {
      "exported": true
     },
     {
-     "id": "symbol:src/atlas/playground/mapShared.tsx:variable:EXPORTED_DOT:65",
+     "id": "symbol:src/atlas/playground/mapShared.tsx:variable:CLASS_BOUNDARY:72",
+     "name": "CLASS_BOUNDARY",
+     "kind": "variable",
+     "loc": 1,
+     "complexity": 1,
+     "exported": true
+    },
+    {
+     "id": "symbol:src/atlas/playground/mapShared.tsx:variable:EXPORTED_DOT:73",
      "name": "EXPORTED_DOT",
      "kind": "variable",
      "loc": 1,
@@ -2967,7 +3134,7 @@ export const sprawlensSnapshot: SnapshotLike = {
      "exported": true
     },
     {
-     "id": "symbol:src/atlas/playground/mapShared.tsx:variable:PAGE_BG:67",
+     "id": "symbol:src/atlas/playground/mapShared.tsx:variable:PAGE_BG:75",
      "name": "PAGE_BG",
      "kind": "variable",
      "loc": 1,
@@ -2975,7 +3142,7 @@ export const sprawlensSnapshot: SnapshotLike = {
      "exported": true
     },
     {
-     "id": "symbol:src/atlas/playground/mapShared.tsx:variable:MAP_BG:68",
+     "id": "symbol:src/atlas/playground/mapShared.tsx:variable:MAP_BG:76",
      "name": "MAP_BG",
      "kind": "variable",
      "loc": 1,
@@ -2983,7 +3150,7 @@ export const sprawlensSnapshot: SnapshotLike = {
      "exported": true
     },
     {
-     "id": "symbol:src/atlas/playground/mapShared.tsx:variable:PANEL_BG:69",
+     "id": "symbol:src/atlas/playground/mapShared.tsx:variable:PANEL_BG:77",
      "name": "PANEL_BG",
      "kind": "variable",
      "loc": 1,
@@ -2991,7 +3158,7 @@ export const sprawlensSnapshot: SnapshotLike = {
      "exported": true
     },
     {
-     "id": "symbol:src/atlas/playground/mapShared.tsx:variable:PANEL_BORDER:70",
+     "id": "symbol:src/atlas/playground/mapShared.tsx:variable:PANEL_BORDER:78",
      "name": "PANEL_BORDER",
      "kind": "variable",
      "loc": 1,
@@ -2999,7 +3166,7 @@ export const sprawlensSnapshot: SnapshotLike = {
      "exported": true
     },
     {
-     "id": "symbol:src/atlas/playground/mapShared.tsx:variable:INK:71",
+     "id": "symbol:src/atlas/playground/mapShared.tsx:variable:INK:79",
      "name": "INK",
      "kind": "variable",
      "loc": 1,
@@ -3007,7 +3174,7 @@ export const sprawlensSnapshot: SnapshotLike = {
      "exported": true
     },
     {
-     "id": "symbol:src/atlas/playground/mapShared.tsx:variable:MUTED_INK:72",
+     "id": "symbol:src/atlas/playground/mapShared.tsx:variable:MUTED_INK:80",
      "name": "MUTED_INK",
      "kind": "variable",
      "loc": 1,
@@ -3015,7 +3182,7 @@ export const sprawlensSnapshot: SnapshotLike = {
      "exported": true
     },
     {
-     "id": "symbol:src/atlas/playground/mapShared.tsx:function:districtFill:83",
+     "id": "symbol:src/atlas/playground/mapShared.tsx:function:districtFill:91",
      "name": "districtFill",
      "kind": "function",
      "loc": 2,
@@ -3023,7 +3190,7 @@ export const sprawlensSnapshot: SnapshotLike = {
      "exported": true
     },
     {
-     "id": "symbol:src/atlas/playground/mapShared.tsx:function:districtStroke:85",
+     "id": "symbol:src/atlas/playground/mapShared.tsx:function:districtStroke:93",
      "name": "districtStroke",
      "kind": "function",
      "loc": 2,
@@ -3031,7 +3198,7 @@ export const sprawlensSnapshot: SnapshotLike = {
      "exported": true
     },
     {
-     "id": "symbol:src/atlas/playground/mapShared.tsx:function:districtLabelFill:87",
+     "id": "symbol:src/atlas/playground/mapShared.tsx:function:districtLabelFill:95",
      "name": "districtLabelFill",
      "kind": "function",
      "loc": 2,
@@ -3039,7 +3206,7 @@ export const sprawlensSnapshot: SnapshotLike = {
      "exported": true
     },
     {
-     "id": "symbol:src/atlas/playground/mapShared.tsx:function:innerDistrictStroke:89",
+     "id": "symbol:src/atlas/playground/mapShared.tsx:function:innerDistrictStroke:97",
      "name": "innerDistrictStroke",
      "kind": "function",
      "loc": 2,
@@ -3047,7 +3214,7 @@ export const sprawlensSnapshot: SnapshotLike = {
      "exported": true
     },
     {
-     "id": "symbol:src/atlas/playground/mapShared.tsx:function:innerDistrictLabelFill:91",
+     "id": "symbol:src/atlas/playground/mapShared.tsx:function:innerDistrictLabelFill:99",
      "name": "innerDistrictLabelFill",
      "kind": "function",
      "loc": 2,
@@ -3055,7 +3222,7 @@ export const sprawlensSnapshot: SnapshotLike = {
      "exported": true
     },
     {
-     "id": "symbol:src/atlas/playground/mapShared.tsx:function:leafTint:93",
+     "id": "symbol:src/atlas/playground/mapShared.tsx:function:leafTint:101",
      "name": "leafTint",
      "kind": "function",
      "loc": 2,
@@ -3063,15 +3230,15 @@ export const sprawlensSnapshot: SnapshotLike = {
      "exported": true
     },
     {
-     "id": "symbol:src/atlas/playground/mapShared.tsx:function:setMapTheme:96",
+     "id": "symbol:src/atlas/playground/mapShared.tsx:function:setMapTheme:104",
      "name": "setMapTheme",
      "kind": "function",
-     "loc": 105,
+     "loc": 107,
      "complexity": 2,
      "exported": true
     },
     {
-     "id": "symbol:src/atlas/playground/mapShared.tsx:variable:WATERMARK_PX:205",
+     "id": "symbol:src/atlas/playground/mapShared.tsx:variable:WATERMARK_PX:215",
      "name": "WATERMARK_PX",
      "kind": "variable",
      "loc": 1,
@@ -3079,7 +3246,7 @@ export const sprawlensSnapshot: SnapshotLike = {
      "exported": true
     },
     {
-     "id": "symbol:src/atlas/playground/mapShared.tsx:variable:LEAF_BORDER_MIN_PX:211",
+     "id": "symbol:src/atlas/playground/mapShared.tsx:variable:LEAF_BORDER_MIN_PX:221",
      "name": "LEAF_BORDER_MIN_PX",
      "kind": "variable",
      "loc": 1,
@@ -3087,7 +3254,7 @@ export const sprawlensSnapshot: SnapshotLike = {
      "exported": true
     },
     {
-     "id": "symbol:src/atlas/playground/mapShared.tsx:variable:DISTRICT_BORDER_MIN_PX:212",
+     "id": "symbol:src/atlas/playground/mapShared.tsx:variable:DISTRICT_BORDER_MIN_PX:222",
      "name": "DISTRICT_BORDER_MIN_PX",
      "kind": "variable",
      "loc": 1,
@@ -3095,7 +3262,15 @@ export const sprawlensSnapshot: SnapshotLike = {
      "exported": true
     },
     {
-     "id": "symbol:src/atlas/playground/mapShared.tsx:variable:SYMBOL_ZOOM:215",
+     "id": "symbol:src/atlas/playground/mapShared.tsx:variable:CLASS_BORDER_MIN_PX:226",
+     "name": "CLASS_BORDER_MIN_PX",
+     "kind": "variable",
+     "loc": 1,
+     "complexity": 1,
+     "exported": true
+    },
+    {
+     "id": "symbol:src/atlas/playground/mapShared.tsx:variable:SYMBOL_ZOOM:229",
      "name": "SYMBOL_ZOOM",
      "kind": "variable",
      "loc": 1,
@@ -3103,7 +3278,7 @@ export const sprawlensSnapshot: SnapshotLike = {
      "exported": true
     },
     {
-     "id": "symbol:src/atlas/playground/mapShared.tsx:variable:SYMBOL_DOMINANT_FRACTION:218",
+     "id": "symbol:src/atlas/playground/mapShared.tsx:variable:SYMBOL_DOMINANT_FRACTION:232",
      "name": "SYMBOL_DOMINANT_FRACTION",
      "kind": "variable",
      "loc": 1,
@@ -3111,7 +3286,7 @@ export const sprawlensSnapshot: SnapshotLike = {
      "exported": true
     },
     {
-     "id": "symbol:src/atlas/playground/mapShared.tsx:variable:EXPORTED_LABEL:220",
+     "id": "symbol:src/atlas/playground/mapShared.tsx:variable:EXPORTED_LABEL:234",
      "name": "EXPORTED_LABEL",
      "kind": "variable",
      "loc": 1,
@@ -3119,7 +3294,7 @@ export const sprawlensSnapshot: SnapshotLike = {
      "exported": true
     },
     {
-     "id": "symbol:src/atlas/playground/mapShared.tsx:variable:INTERNAL_LABEL:221",
+     "id": "symbol:src/atlas/playground/mapShared.tsx:variable:INTERNAL_LABEL:235",
      "name": "INTERNAL_LABEL",
      "kind": "variable",
      "loc": 1,
@@ -3127,7 +3302,7 @@ export const sprawlensSnapshot: SnapshotLike = {
      "exported": true
     },
     {
-     "id": "symbol:src/atlas/playground/mapShared.tsx:function:moduleHue:224",
+     "id": "symbol:src/atlas/playground/mapShared.tsx:function:moduleHue:238",
      "name": "moduleHue",
      "kind": "function",
      "loc": 7,
@@ -3135,7 +3310,7 @@ export const sprawlensSnapshot: SnapshotLike = {
      "exported": true
     },
     {
-     "id": "symbol:src/atlas/playground/mapShared.tsx:function:makeTopAncestorOf:235",
+     "id": "symbol:src/atlas/playground/mapShared.tsx:function:makeTopAncestorOf:249",
      "name": "makeTopAncestorOf",
      "kind": "function",
      "loc": 12,
@@ -3143,7 +3318,7 @@ export const sprawlensSnapshot: SnapshotLike = {
      "exported": true
     },
     {
-     "id": "symbol:src/atlas/playground/mapShared.tsx:type:FocusDim:250",
+     "id": "symbol:src/atlas/playground/mapShared.tsx:type:FocusDim:264",
      "name": "FocusDim",
      "kind": "type",
      "loc": 8,
@@ -3151,7 +3326,7 @@ export const sprawlensSnapshot: SnapshotLike = {
      "exported": true
     },
     {
-     "id": "symbol:src/atlas/playground/mapShared.tsx:function:focusDimOf:259",
+     "id": "symbol:src/atlas/playground/mapShared.tsx:function:focusDimOf:273",
      "name": "focusDimOf",
      "kind": "function",
      "loc": 13,
@@ -3159,7 +3334,7 @@ export const sprawlensSnapshot: SnapshotLike = {
      "exported": true
     },
     {
-     "id": "symbol:src/atlas/playground/mapShared.tsx:type:LeafFillContext:275",
+     "id": "symbol:src/atlas/playground/mapShared.tsx:type:LeafFillContext:289",
      "name": "LeafFillContext",
      "kind": "type",
      "loc": 9,
@@ -3167,7 +3342,7 @@ export const sprawlensSnapshot: SnapshotLike = {
      "exported": true
     },
     {
-     "id": "symbol:src/atlas/playground/mapShared.tsx:function:leafFillOf:287",
+     "id": "symbol:src/atlas/playground/mapShared.tsx:function:leafFillOf:301",
      "name": "leafFillOf",
      "kind": "function",
      "loc": 10,
@@ -3175,23 +3350,23 @@ export const sprawlensSnapshot: SnapshotLike = {
      "exported": true
     },
     {
-     "id": "symbol:src/atlas/playground/mapShared.tsx:function:InnerLevelsLayer:300",
+     "id": "symbol:src/atlas/playground/mapShared.tsx:function:InnerLevelsLayer:314",
      "name": "InnerLevelsLayer",
      "kind": "function",
-     "loc": 85,
-     "complexity": 16,
+     "loc": 116,
+     "complexity": 29,
      "exported": true
     },
     {
-     "id": "symbol:src/atlas/playground/mapShared.tsx:function:WatermarkLabelsLayer:391",
+     "id": "symbol:src/atlas/playground/mapShared.tsx:function:WatermarkLabelsLayer:436",
      "name": "WatermarkLabelsLayer",
      "kind": "function",
-     "loc": 63,
+     "loc": 64,
      "complexity": 7,
      "exported": true
     },
     {
-     "id": "symbol:src/atlas/playground/mapShared.tsx:function:isWatermarkSized:456",
+     "id": "symbol:src/atlas/playground/mapShared.tsx:function:isWatermarkSized:502",
      "name": "isWatermarkSized",
      "kind": "function",
      "loc": 3,
@@ -3199,7 +3374,7 @@ export const sprawlensSnapshot: SnapshotLike = {
      "exported": true
     },
     {
-     "id": "symbol:src/atlas/playground/mapShared.tsx:type:SelectionDirections:462",
+     "id": "symbol:src/atlas/playground/mapShared.tsx:type:SelectionDirections:508",
      "name": "SelectionDirections",
      "kind": "type",
      "loc": 9,
@@ -3207,7 +3382,7 @@ export const sprawlensSnapshot: SnapshotLike = {
      "exported": true
     },
     {
-     "id": "symbol:src/atlas/playground/mapShared.tsx:function:selectionDirections:479",
+     "id": "symbol:src/atlas/playground/mapShared.tsx:function:selectionDirections:525",
      "name": "selectionDirections",
      "kind": "function",
      "loc": 30,
@@ -3215,22 +3390,38 @@ export const sprawlensSnapshot: SnapshotLike = {
      "exported": true
     },
     {
-     "id": "symbol:src/atlas/playground/mapShared.tsx:type:ExitPreview:512",
+     "id": "symbol:src/atlas/playground/mapShared.tsx:type:ExitPreview:558",
      "name": "ExitPreview",
      "kind": "type",
      "loc": 6,
      "complexity": 1
     },
     {
-     "id": "symbol:src/atlas/playground/mapShared.tsx:function:ExitPreviewsLayer:523",
+     "id": "symbol:src/atlas/playground/mapShared.tsx:function:ExitPreviewsLayer:569",
      "name": "ExitPreviewsLayer",
      "kind": "function",
-     "loc": 113,
+     "loc": 115,
      "complexity": 31,
      "exported": true
     },
     {
-     "id": "symbol:src/atlas/playground/mapShared.tsx:function:smoothPathD:640",
+     "id": "symbol:src/atlas/playground/mapShared.tsx:variable:PLANE_OUTLINE:688",
+     "name": "PLANE_OUTLINE",
+     "kind": "variable",
+     "loc": 1,
+     "complexity": 1,
+     "exported": true
+    },
+    {
+     "id": "symbol:src/atlas/playground/mapShared.tsx:function:TestPlaneLayer:700",
+     "name": "TestPlaneLayer",
+     "kind": "function",
+     "loc": 106,
+     "complexity": 7,
+     "exported": true
+    },
+    {
+     "id": "symbol:src/atlas/playground/mapShared.tsx:function:smoothPathD:810",
      "name": "smoothPathD",
      "kind": "function",
      "loc": 19,
@@ -3238,7 +3429,7 @@ export const sprawlensSnapshot: SnapshotLike = {
      "exported": true
     },
     {
-     "id": "symbol:src/atlas/playground/mapShared.tsx:function:RaisedEdgePath:663",
+     "id": "symbol:src/atlas/playground/mapShared.tsx:function:RaisedEdgePath:833",
      "name": "RaisedEdgePath",
      "kind": "function",
      "loc": 18,
@@ -3246,7 +3437,7 @@ export const sprawlensSnapshot: SnapshotLike = {
      "exported": true
     },
     {
-     "id": "symbol:src/atlas/playground/mapShared.tsx:variable:BUNDLE_STRENGTH:685",
+     "id": "symbol:src/atlas/playground/mapShared.tsx:variable:BUNDLE_STRENGTH:855",
      "name": "BUNDLE_STRENGTH",
      "kind": "variable",
      "loc": 1,
@@ -3254,7 +3445,7 @@ export const sprawlensSnapshot: SnapshotLike = {
      "exported": true
     },
     {
-     "id": "symbol:src/atlas/playground/mapShared.tsx:type:EdgeBundle:692",
+     "id": "symbol:src/atlas/playground/mapShared.tsx:type:EdgeBundle:862",
      "name": "EdgeBundle",
      "kind": "type",
      "loc": 10,
@@ -3262,7 +3453,7 @@ export const sprawlensSnapshot: SnapshotLike = {
      "exported": true
     },
     {
-     "id": "symbol:src/atlas/playground/mapShared.tsx:function:makeEdgeBundler:710",
+     "id": "symbol:src/atlas/playground/mapShared.tsx:function:makeEdgeBundler:880",
      "name": "makeEdgeBundler",
      "kind": "function",
      "loc": 62,
@@ -3468,10 +3659,10 @@ export const sprawlensSnapshot: SnapshotLike = {
    "id": "file:src/atlas/playground/symbolIcons.tsx",
    "type": "file",
    "path": "src/atlas/playground/symbolIcons.tsx",
-   "loc": 165,
+   "loc": 183,
    "symbols": [
     {
-     "id": "symbol:src/atlas/playground/symbolIcons.tsx:type:SymbolGlyph:9",
+     "id": "symbol:src/atlas/playground/symbolIcons.tsx:type:SymbolGlyph:10",
      "name": "SymbolGlyph",
      "kind": "type",
      "loc": 10,
@@ -3479,7 +3670,7 @@ export const sprawlensSnapshot: SnapshotLike = {
      "exported": true
     },
     {
-     "id": "symbol:src/atlas/playground/symbolIcons.tsx:function:symbolGlyphOf:23",
+     "id": "symbol:src/atlas/playground/symbolIcons.tsx:function:symbolGlyphOf:24",
      "name": "symbolGlyphOf",
      "kind": "function",
      "loc": 11,
@@ -3487,7 +3678,7 @@ export const sprawlensSnapshot: SnapshotLike = {
      "exported": true
     },
     {
-     "id": "symbol:src/atlas/playground/symbolIcons.tsx:function:isStaticKind:36",
+     "id": "symbol:src/atlas/playground/symbolIcons.tsx:function:isStaticKind:37",
      "name": "isStaticKind",
      "kind": "function",
      "loc": 3,
@@ -3495,19 +3686,19 @@ export const sprawlensSnapshot: SnapshotLike = {
      "exported": true
     },
     {
-     "id": "symbol:src/atlas/playground/symbolIcons.tsx:function:SymbolTag:78",
+     "id": "symbol:src/atlas/playground/symbolIcons.tsx:function:SymbolTag:79",
      "name": "SymbolTag",
      "kind": "function",
-     "loc": 41,
+     "loc": 49,
      "complexity": 5,
      "exported": true
     },
     {
-     "id": "symbol:src/atlas/playground/symbolIcons.tsx:function:SymbolIcon:121",
+     "id": "symbol:src/atlas/playground/symbolIcons.tsx:function:SymbolIcon:130",
      "name": "SymbolIcon",
      "kind": "function",
-     "loc": 45,
-     "complexity": 3,
+     "loc": 54,
+     "complexity": 4,
      "exported": true
     }
    ]
@@ -3647,7 +3838,7 @@ export const sprawlensSnapshot: SnapshotLike = {
    "id": "file:src/atlas/playground/useMapViewport.ts",
    "type": "file",
    "path": "src/atlas/playground/useMapViewport.ts",
-   "loc": 260,
+   "loc": 281,
    "symbols": [
     {
      "id": "symbol:src/atlas/playground/useMapViewport.ts:type:FocusRequest:6",
@@ -3677,8 +3868,8 @@ export const sprawlensSnapshot: SnapshotLike = {
      "id": "symbol:src/atlas/playground/useMapViewport.ts:function:useMapViewport:48",
      "name": "useMapViewport",
      "kind": "function",
-     "loc": 213,
-     "complexity": 16,
+     "loc": 234,
+     "complexity": 20,
      "exported": true
     }
    ]
@@ -3693,7 +3884,7 @@ export const sprawlensSnapshot: SnapshotLike = {
    "id": "file:src/atlas/playground/viewConfig.ts",
    "type": "file",
    "path": "src/atlas/playground/viewConfig.ts",
-   "loc": 183,
+   "loc": 186,
    "symbols": [
     {
      "id": "symbol:src/atlas/playground/viewConfig.ts:type:Granularity:14",
@@ -3723,28 +3914,28 @@ export const sprawlensSnapshot: SnapshotLike = {
      "id": "symbol:src/atlas/playground/viewConfig.ts:variable:BOUNDARY_LEVELS:32",
      "name": "BOUNDARY_LEVELS",
      "kind": "variable",
-     "loc": 5,
-     "complexity": 1,
-     "exported": true
-    },
-    {
-     "id": "symbol:src/atlas/playground/viewConfig.ts:type:DisplayLevel:46",
-     "name": "DisplayLevel",
-     "kind": "type",
      "loc": 6,
      "complexity": 1,
      "exported": true
     },
     {
-     "id": "symbol:src/atlas/playground/viewConfig.ts:variable:DISPLAY_LEVELS:52",
-     "name": "DISPLAY_LEVELS",
-     "kind": "variable",
+     "id": "symbol:src/atlas/playground/viewConfig.ts:type:DisplayLevel:47",
+     "name": "DisplayLevel",
+     "kind": "type",
      "loc": 7,
      "complexity": 1,
      "exported": true
     },
     {
-     "id": "symbol:src/atlas/playground/viewConfig.ts:variable:UNAVAILABLE_LEVELS:60",
+     "id": "symbol:src/atlas/playground/viewConfig.ts:variable:DISPLAY_LEVELS:54",
+     "name": "DISPLAY_LEVELS",
+     "kind": "variable",
+     "loc": 8,
+     "complexity": 1,
+     "exported": true
+    },
+    {
+     "id": "symbol:src/atlas/playground/viewConfig.ts:variable:UNAVAILABLE_LEVELS:63",
      "name": "UNAVAILABLE_LEVELS",
      "kind": "variable",
      "loc": 1,
@@ -3752,7 +3943,7 @@ export const sprawlensSnapshot: SnapshotLike = {
      "exported": true
     },
     {
-     "id": "symbol:src/atlas/playground/viewConfig.ts:type:OmitScope:68",
+     "id": "symbol:src/atlas/playground/viewConfig.ts:type:OmitScope:71",
      "name": "OmitScope",
      "kind": "type",
      "loc": 1,
@@ -3760,7 +3951,7 @@ export const sprawlensSnapshot: SnapshotLike = {
      "exported": true
     },
     {
-     "id": "symbol:src/atlas/playground/viewConfig.ts:variable:OMIT_SCOPES:69",
+     "id": "symbol:src/atlas/playground/viewConfig.ts:variable:OMIT_SCOPES:72",
      "name": "OMIT_SCOPES",
      "kind": "variable",
      "loc": 1,
@@ -3768,7 +3959,7 @@ export const sprawlensSnapshot: SnapshotLike = {
      "exported": true
     },
     {
-     "id": "symbol:src/atlas/playground/viewConfig.ts:function:hiddenLayersOf:72",
+     "id": "symbol:src/atlas/playground/viewConfig.ts:function:hiddenLayersOf:75",
      "name": "hiddenLayersOf",
      "kind": "function",
      "loc": 3,
@@ -3776,7 +3967,7 @@ export const sprawlensSnapshot: SnapshotLike = {
      "exported": true
     },
     {
-     "id": "symbol:src/atlas/playground/viewConfig.ts:function:showsSymbolLevels:77",
+     "id": "symbol:src/atlas/playground/viewConfig.ts:function:showsSymbolLevels:80",
      "name": "showsSymbolLevels",
      "kind": "function",
      "loc": 3,
@@ -3784,7 +3975,7 @@ export const sprawlensSnapshot: SnapshotLike = {
      "exported": true
     },
     {
-     "id": "symbol:src/atlas/playground/viewConfig.ts:type:WeightKind:81",
+     "id": "symbol:src/atlas/playground/viewConfig.ts:type:WeightKind:84",
      "name": "WeightKind",
      "kind": "type",
      "loc": 1,
@@ -3792,7 +3983,7 @@ export const sprawlensSnapshot: SnapshotLike = {
      "exported": true
     },
     {
-     "id": "symbol:src/atlas/playground/viewConfig.ts:type:ViewConfig:83",
+     "id": "symbol:src/atlas/playground/viewConfig.ts:type:ViewConfig:86",
      "name": "ViewConfig",
      "kind": "type",
      "loc": 6,
@@ -3800,7 +3991,7 @@ export const sprawlensSnapshot: SnapshotLike = {
      "exported": true
     },
     {
-     "id": "symbol:src/atlas/playground/viewConfig.ts:type:ViewPreset:90",
+     "id": "symbol:src/atlas/playground/viewConfig.ts:type:ViewPreset:93",
      "name": "ViewPreset",
      "kind": "type",
      "loc": 5,
@@ -3808,7 +3999,7 @@ export const sprawlensSnapshot: SnapshotLike = {
      "exported": true
     },
     {
-     "id": "symbol:src/atlas/playground/viewConfig.ts:variable:VIEW_PRESETS:96",
+     "id": "symbol:src/atlas/playground/viewConfig.ts:variable:VIEW_PRESETS:99",
      "name": "VIEW_PRESETS",
      "kind": "variable",
      "loc": 32,
@@ -3816,7 +4007,7 @@ export const sprawlensSnapshot: SnapshotLike = {
      "exported": true
     },
     {
-     "id": "symbol:src/atlas/playground/viewConfig.ts:function:presetOf:129",
+     "id": "symbol:src/atlas/playground/viewConfig.ts:function:presetOf:132",
      "name": "presetOf",
      "kind": "function",
      "loc": 12,
@@ -3824,7 +4015,7 @@ export const sprawlensSnapshot: SnapshotLike = {
      "exported": true
     },
     {
-     "id": "symbol:src/atlas/playground/viewConfig.ts:function:presetConfig:142",
+     "id": "symbol:src/atlas/playground/viewConfig.ts:function:presetConfig:145",
      "name": "presetConfig",
      "kind": "function",
      "loc": 11,
@@ -3832,7 +4023,7 @@ export const sprawlensSnapshot: SnapshotLike = {
      "exported": true
     },
     {
-     "id": "symbol:src/atlas/playground/viewConfig.ts:function:complexityOf:156",
+     "id": "symbol:src/atlas/playground/viewConfig.ts:function:complexityOf:159",
      "name": "complexityOf",
      "kind": "function",
      "loc": 3,
@@ -3840,7 +4031,7 @@ export const sprawlensSnapshot: SnapshotLike = {
      "exported": true
     },
     {
-     "id": "symbol:src/atlas/playground/viewConfig.ts:function:reweightByTransitiveComplexity:165",
+     "id": "symbol:src/atlas/playground/viewConfig.ts:function:reweightByTransitiveComplexity:168",
      "name": "reweightByTransitiveComplexity",
      "kind": "function",
      "loc": 18,
@@ -4899,7 +5090,7 @@ export const sprawlensSnapshot: SnapshotLike = {
    "id": "file:src/core/snapshot.ts",
    "type": "file",
    "path": "src/core/snapshot.ts",
-   "loc": 636,
+   "loc": 641,
    "symbols": [
     {
      "id": "symbol:src/core/snapshot.ts:variable:SOURCE_EXTENSIONS:19",
@@ -5019,123 +5210,123 @@ export const sprawlensSnapshot: SnapshotLike = {
      "id": "symbol:src/core/snapshot.ts:function:symbolsFromTopLevelStatement:377",
      "name": "symbolsFromTopLevelStatement",
      "kind": "function",
-     "loc": 16,
+     "loc": 21,
      "complexity": 6
     },
     {
-     "id": "symbol:src/core/snapshot.ts:function:hasModifier:394",
+     "id": "symbol:src/core/snapshot.ts:function:hasModifier:399",
      "name": "hasModifier",
      "kind": "function",
      "loc": 3,
      "complexity": 2
     },
     {
-     "id": "symbol:src/core/snapshot.ts:function:classMemberSymbols:402",
+     "id": "symbol:src/core/snapshot.ts:function:classMemberSymbols:407",
      "name": "classMemberSymbols",
      "kind": "function",
      "loc": 43,
      "complexity": 12
     },
     {
-     "id": "symbol:src/core/snapshot.ts:function:memberName:446",
+     "id": "symbol:src/core/snapshot.ts:function:memberName:451",
      "name": "memberName",
      "kind": "function",
      "loc": 6,
      "complexity": 6
     },
     {
-     "id": "symbol:src/core/snapshot.ts:function:symbolFromStatement:453",
+     "id": "symbol:src/core/snapshot.ts:function:symbolFromStatement:458",
      "name": "symbolFromStatement",
      "kind": "function",
      "loc": 18,
      "complexity": 8
     },
     {
-     "id": "symbol:src/core/snapshot.ts:function:symbolFromVariableDeclaration:472",
+     "id": "symbol:src/core/snapshot.ts:function:symbolFromVariableDeclaration:477",
      "name": "symbolFromVariableDeclaration",
      "kind": "function",
      "loc": 25,
      "complexity": 8
     },
     {
-     "id": "symbol:src/core/snapshot.ts:function:createSymbol:498",
+     "id": "symbol:src/core/snapshot.ts:function:createSymbol:503",
      "name": "createSymbol",
      "kind": "function",
      "loc": 21,
      "complexity": 1
     },
     {
-     "id": "symbol:src/core/snapshot.ts:function:cyclomaticComplexity:523",
+     "id": "symbol:src/core/snapshot.ts:function:cyclomaticComplexity:528",
      "name": "cyclomaticComplexity",
      "kind": "function",
      "loc": 34,
      "complexity": 14
     },
     {
-     "id": "symbol:src/core/snapshot.ts:function:hasExportModifier:558",
+     "id": "symbol:src/core/snapshot.ts:function:hasExportModifier:563",
      "name": "hasExportModifier",
      "kind": "function",
      "loc": 3,
      "complexity": 2
     },
     {
-     "id": "symbol:src/core/snapshot.ts:function:scriptKindFor:562",
+     "id": "symbol:src/core/snapshot.ts:function:scriptKindFor:567",
      "name": "scriptKindFor",
      "kind": "function",
      "loc": 12,
      "complexity": 6
     },
     {
-     "id": "symbol:src/core/snapshot.ts:function:resolveRelativeImport:575",
+     "id": "symbol:src/core/snapshot.ts:function:resolveRelativeImport:580",
      "name": "resolveRelativeImport",
      "kind": "function",
      "loc": 15,
      "complexity": 5
     },
     {
-     "id": "symbol:src/core/snapshot.ts:function:resolutionCandidates:591",
+     "id": "symbol:src/core/snapshot.ts:function:resolutionCandidates:596",
      "name": "resolutionCandidates",
      "kind": "function",
      "loc": 22,
      "complexity": 6
     },
     {
-     "id": "symbol:src/core/snapshot.ts:function:fileId:614",
+     "id": "symbol:src/core/snapshot.ts:function:fileId:619",
      "name": "fileId",
      "kind": "function",
      "loc": 3,
      "complexity": 1
     },
     {
-     "id": "symbol:src/core/snapshot.ts:function:symbolId:618",
+     "id": "symbol:src/core/snapshot.ts:function:symbolId:623",
      "name": "symbolId",
      "kind": "function",
      "loc": 3,
      "complexity": 1
     },
     {
-     "id": "symbol:src/core/snapshot.ts:function:dirId:622",
+     "id": "symbol:src/core/snapshot.ts:function:dirId:627",
      "name": "dirId",
      "kind": "function",
      "loc": 3,
      "complexity": 1
     },
     {
-     "id": "symbol:src/core/snapshot.ts:function:containsId:626",
+     "id": "symbol:src/core/snapshot.ts:function:containsId:631",
      "name": "containsId",
      "kind": "function",
      "loc": 3,
      "complexity": 1
     },
     {
-     "id": "symbol:src/core/snapshot.ts:function:importId:630",
+     "id": "symbol:src/core/snapshot.ts:function:importId:635",
      "name": "importId",
      "kind": "function",
      "loc": 3,
      "complexity": 1
     },
     {
-     "id": "symbol:src/core/snapshot.ts:function:unresolvedId:634",
+     "id": "symbol:src/core/snapshot.ts:function:unresolvedId:639",
      "name": "unresolvedId",
      "kind": "function",
      "loc": 3,
@@ -5376,8 +5567,40 @@ export const sprawlensSnapshot: SnapshotLike = {
   {
    "type": "imports",
    "from": "file:e2e/atlas-zoom.spec.ts",
+   "to": "external:@playwright/test",
+   "resolved": true,
+   "external": true,
+   "specifier": "@playwright/test"
+  },
+  {
+   "type": "imports",
+   "from": "file:e2e/atlas-zoom.spec.ts",
    "to": "unresolved:e2e/atlas-zoom.spec.ts:./vendor/lightbringer.mjs",
    "resolved": false
+  },
+  {
+   "type": "imports",
+   "from": "file:playwright.atlas.config.ts",
+   "to": "external:@playwright/test",
+   "resolved": true,
+   "external": true,
+   "specifier": "@playwright/test"
+  },
+  {
+   "type": "imports",
+   "from": "file:scripts/snapshot-to-fixture.mjs",
+   "to": "external:node:fs",
+   "resolved": true,
+   "external": true,
+   "specifier": "node:fs"
+  },
+  {
+   "type": "imports",
+   "from": "file:src/atlas/contracts/delta.test.ts",
+   "to": "external:vitest",
+   "resolved": true,
+   "external": true,
+   "specifier": "vitest"
   },
   {
    "type": "imports",
@@ -5441,6 +5664,14 @@ export const sprawlensSnapshot: SnapshotLike = {
   {
    "type": "imports",
    "from": "file:src/atlas/contracts/graph.test.ts",
+   "to": "external:vitest",
+   "resolved": true,
+   "external": true,
+   "specifier": "vitest"
+  },
+  {
+   "type": "imports",
+   "from": "file:src/atlas/contracts/graph.test.ts",
    "to": "file:src/atlas/contracts/graph.ts",
    "resolved": true,
    "symbolImports": [
@@ -5451,6 +5682,14 @@ export const sprawlensSnapshot: SnapshotLike = {
      "toSymbolId": "symbol:src/atlas/contracts/graph.ts:type:AtlasGraph:72"
     }
    ]
+  },
+  {
+   "type": "imports",
+   "from": "file:src/atlas/contracts/hierarchy.test.ts",
+   "to": "external:vitest",
+   "resolved": true,
+   "external": true,
+   "specifier": "vitest"
   },
   {
    "type": "imports",
@@ -5473,6 +5712,12 @@ export const sprawlensSnapshot: SnapshotLike = {
      "toSymbolId": "symbol:src/atlas/contracts/hierarchy.ts:function:ancestorAt:241"
     },
     {
+     "toSymbolId": "symbol:src/atlas/contracts/hierarchy.ts:function:classGrouping:335"
+    },
+    {
+     "toSymbolId": "symbol:src/atlas/contracts/hierarchy.ts:function:classIdOf:300"
+    },
+    {
      "toSymbolId": "symbol:src/atlas/contracts/hierarchy.ts:function:deriveLevels:72"
     },
     {
@@ -5488,7 +5733,7 @@ export const sprawlensSnapshot: SnapshotLike = {
      "toSymbolId": "symbol:src/atlas/contracts/hierarchy.ts:function:parentFileOf:256"
     },
     {
-     "toSymbolId": "symbol:src/atlas/contracts/hierarchy.ts:function:serviceGrouping:292"
+     "toSymbolId": "symbol:src/atlas/contracts/hierarchy.ts:function:serviceGrouping:352"
     }
    ]
   },
@@ -5525,6 +5770,14 @@ export const sprawlensSnapshot: SnapshotLike = {
      "toSymbolId": "symbol:src/atlas/contracts/modules.ts:type:ModuleIdOf:9"
     }
    ]
+  },
+  {
+   "type": "imports",
+   "from": "file:src/atlas/contracts/layers.test.ts",
+   "to": "external:vitest",
+   "resolved": true,
+   "external": true,
+   "specifier": "vitest"
   },
   {
    "type": "imports",
@@ -5571,6 +5824,14 @@ export const sprawlensSnapshot: SnapshotLike = {
   {
    "type": "imports",
    "from": "file:src/atlas/contracts/modules.test.ts",
+   "to": "external:vitest",
+   "resolved": true,
+   "external": true,
+   "specifier": "vitest"
+  },
+  {
+   "type": "imports",
+   "from": "file:src/atlas/contracts/modules.test.ts",
    "to": "file:src/atlas/contracts/graph.ts",
    "resolved": true,
    "symbolImports": [
@@ -5613,6 +5874,14 @@ export const sprawlensSnapshot: SnapshotLike = {
   {
    "type": "imports",
    "from": "file:src/atlas/contracts/overlay.test.ts",
+   "to": "external:vitest",
+   "resolved": true,
+   "external": true,
+   "specifier": "vitest"
+  },
+  {
+   "type": "imports",
+   "from": "file:src/atlas/contracts/overlay.test.ts",
    "to": "file:src/atlas/contracts/overlay.ts",
    "resolved": true,
    "symbolImports": [
@@ -5626,6 +5895,74 @@ export const sprawlensSnapshot: SnapshotLike = {
   },
   {
    "type": "imports",
+   "from": "file:src/atlas/kernel/affine.test.ts",
+   "to": "external:vitest",
+   "resolved": true,
+   "external": true,
+   "specifier": "vitest"
+  },
+  {
+   "type": "imports",
+   "from": "file:src/atlas/kernel/affine.test.ts",
+   "to": "file:src/atlas/kernel/affine.ts",
+   "resolved": true,
+   "symbolImports": [
+    {
+     "toSymbolId": "symbol:src/atlas/kernel/affine.ts:function:apply:26"
+    },
+    {
+     "toSymbolId": "symbol:src/atlas/kernel/affine.ts:function:compose:31"
+    },
+    {
+     "toSymbolId": "symbol:src/atlas/kernel/affine.ts:variable:IDENTITY:24"
+    },
+    {
+     "toSymbolId": "symbol:src/atlas/kernel/affine.ts:function:invert:73"
+    },
+    {
+     "toSymbolId": "symbol:src/atlas/kernel/affine.ts:function:layerTransform:116"
+    },
+    {
+     "toSymbolId": "symbol:src/atlas/kernel/affine.ts:function:rotate:47"
+    },
+    {
+     "toSymbolId": "symbol:src/atlas/kernel/affine.ts:function:skewX:69"
+    },
+    {
+     "toSymbolId": "symbol:src/atlas/kernel/affine.ts:function:squashY:62"
+    },
+    {
+     "toSymbolId": "symbol:src/atlas/kernel/affine.ts:function:toMatrixString:87"
+    },
+    {
+     "toSymbolId": "symbol:src/atlas/kernel/affine.ts:function:translate:42"
+    },
+    {
+     "toSymbolId": "symbol:src/atlas/kernel/affine.ts:function:uprightAt:103"
+    }
+   ]
+  },
+  {
+   "type": "imports",
+   "from": "file:src/atlas/kernel/affine.ts",
+   "to": "file:src/atlas/kernel/vec.ts",
+   "resolved": true,
+   "symbolImports": [
+    {
+     "toSymbolId": "symbol:src/atlas/kernel/vec.ts:type:Vec2:1"
+    }
+   ]
+  },
+  {
+   "type": "imports",
+   "from": "file:src/atlas/kernel/assignment.test.ts",
+   "to": "external:vitest",
+   "resolved": true,
+   "external": true,
+   "specifier": "vitest"
+  },
+  {
+   "type": "imports",
    "from": "file:src/atlas/kernel/assignment.test.ts",
    "to": "file:src/atlas/kernel/assignment.ts",
    "resolved": true,
@@ -5634,6 +5971,14 @@ export const sprawlensSnapshot: SnapshotLike = {
      "toSymbolId": "symbol:src/atlas/kernel/assignment.ts:function:minCostAssignment:12"
     }
    ]
+  },
+  {
+   "type": "imports",
+   "from": "file:src/atlas/kernel/bundling.test.ts",
+   "to": "external:vitest",
+   "resolved": true,
+   "external": true,
+   "specifier": "vitest"
   },
   {
    "type": "imports",
@@ -5659,6 +6004,14 @@ export const sprawlensSnapshot: SnapshotLike = {
      "toSymbolId": "symbol:src/atlas/kernel/vec.ts:type:Vec2:1"
     }
    ]
+  },
+  {
+   "type": "imports",
+   "from": "file:src/atlas/kernel/capacityLayout.bench.ts",
+   "to": "external:vitest",
+   "resolved": true,
+   "external": true,
+   "specifier": "vitest"
   },
   {
    "type": "imports",
@@ -5709,6 +6062,14 @@ export const sprawlensSnapshot: SnapshotLike = {
      "toSymbolId": "symbol:src/atlas/kernel/transitiveWeight.ts:function:transitiveWeights:13"
     }
    ]
+  },
+  {
+   "type": "imports",
+   "from": "file:src/atlas/kernel/capacityLayout.test.ts",
+   "to": "external:vitest",
+   "resolved": true,
+   "external": true,
+   "specifier": "vitest"
   },
   {
    "type": "imports",
@@ -5820,6 +6181,14 @@ export const sprawlensSnapshot: SnapshotLike = {
   {
    "type": "imports",
    "from": "file:src/atlas/kernel/centrality.test.ts",
+   "to": "external:vitest",
+   "resolved": true,
+   "external": true,
+   "specifier": "vitest"
+  },
+  {
+   "type": "imports",
+   "from": "file:src/atlas/kernel/centrality.test.ts",
    "to": "file:src/atlas/kernel/centrality.ts",
    "resolved": true,
    "symbolImports": [
@@ -5855,6 +6224,14 @@ export const sprawlensSnapshot: SnapshotLike = {
      "toSymbolId": "symbol:src/atlas/kernel/transitiveWeight.ts:function:transitiveWeights:13"
     }
    ]
+  },
+  {
+   "type": "imports",
+   "from": "file:src/atlas/kernel/cfgLayout.test.ts",
+   "to": "external:vitest",
+   "resolved": true,
+   "external": true,
+   "specifier": "vitest"
   },
   {
    "type": "imports",
@@ -5905,6 +6282,14 @@ export const sprawlensSnapshot: SnapshotLike = {
      "toSymbolId": "symbol:src/atlas/kernel/vec.ts:type:Vec2:1"
     }
    ]
+  },
+  {
+   "type": "imports",
+   "from": "file:src/atlas/kernel/clip.test.ts",
+   "to": "external:vitest",
+   "resolved": true,
+   "external": true,
+   "specifier": "vitest"
   },
   {
    "type": "imports",
@@ -5985,6 +6370,14 @@ export const sprawlensSnapshot: SnapshotLike = {
   {
    "type": "imports",
    "from": "file:src/atlas/kernel/embed.test.ts",
+   "to": "external:vitest",
+   "resolved": true,
+   "external": true,
+   "specifier": "vitest"
+  },
+  {
+   "type": "imports",
+   "from": "file:src/atlas/kernel/embed.test.ts",
    "to": "file:src/atlas/kernel/embed.ts",
    "resolved": true,
    "symbolImports": [
@@ -6020,6 +6413,14 @@ export const sprawlensSnapshot: SnapshotLike = {
      "toSymbolId": "symbol:src/atlas/kernel/vec.ts:type:Vec2:1"
     }
    ]
+  },
+  {
+   "type": "imports",
+   "from": "file:src/atlas/kernel/forceLayout.test.ts",
+   "to": "external:vitest",
+   "resolved": true,
+   "external": true,
+   "specifier": "vitest"
   },
   {
    "type": "imports",
@@ -6126,6 +6527,14 @@ export const sprawlensSnapshot: SnapshotLike = {
   {
    "type": "imports",
    "from": "file:src/atlas/kernel/geojson.test.ts",
+   "to": "external:vitest",
+   "resolved": true,
+   "external": true,
+   "specifier": "vitest"
+  },
+  {
+   "type": "imports",
+   "from": "file:src/atlas/kernel/geojson.test.ts",
    "to": "file:src/atlas/kernel/capacityLayout.ts",
    "resolved": true,
    "symbolImports": [
@@ -6159,6 +6568,14 @@ export const sprawlensSnapshot: SnapshotLike = {
   {
    "type": "imports",
    "from": "file:src/atlas/kernel/louvain.test.ts",
+   "to": "external:vitest",
+   "resolved": true,
+   "external": true,
+   "specifier": "vitest"
+  },
+  {
+   "type": "imports",
+   "from": "file:src/atlas/kernel/louvain.test.ts",
    "to": "file:src/atlas/kernel/louvain.ts",
    "resolved": true,
    "symbolImports": [
@@ -6169,6 +6586,14 @@ export const sprawlensSnapshot: SnapshotLike = {
      "toSymbolId": "symbol:src/atlas/kernel/louvain.ts:type:LouvainEdge:9"
     }
    ]
+  },
+  {
+   "type": "imports",
+   "from": "file:src/atlas/kernel/neighborhood.test.ts",
+   "to": "external:vitest",
+   "resolved": true,
+   "external": true,
+   "specifier": "vitest"
   },
   {
    "type": "imports",
@@ -6219,6 +6644,14 @@ export const sprawlensSnapshot: SnapshotLike = {
      "toSymbolId": "symbol:src/atlas/kernel/capacityLayout.ts:type:CellResult:38"
     }
    ]
+  },
+  {
+   "type": "imports",
+   "from": "file:src/atlas/kernel/pipeline.test.ts",
+   "to": "external:vitest",
+   "resolved": true,
+   "external": true,
+   "specifier": "vitest"
   },
   {
    "type": "imports",
@@ -6352,6 +6785,14 @@ export const sprawlensSnapshot: SnapshotLike = {
   {
    "type": "imports",
    "from": "file:src/atlas/kernel/polygon.test.ts",
+   "to": "external:vitest",
+   "resolved": true,
+   "external": true,
+   "specifier": "vitest"
+  },
+  {
+   "type": "imports",
+   "from": "file:src/atlas/kernel/polygon.test.ts",
    "to": "file:src/atlas/kernel/polygon.ts",
    "resolved": true,
    "symbolImports": [
@@ -6389,6 +6830,14 @@ export const sprawlensSnapshot: SnapshotLike = {
   {
    "type": "imports",
    "from": "file:src/atlas/kernel/powerDiagram.bench.ts",
+   "to": "external:vitest",
+   "resolved": true,
+   "external": true,
+   "specifier": "vitest"
+  },
+  {
+   "type": "imports",
+   "from": "file:src/atlas/kernel/powerDiagram.bench.ts",
    "to": "file:src/atlas/kernel/polygon.ts",
    "resolved": true,
    "symbolImports": [
@@ -6421,6 +6870,14 @@ export const sprawlensSnapshot: SnapshotLike = {
      "toSymbolId": "symbol:src/atlas/kernel/rng.ts:function:createRng:4"
     }
    ]
+  },
+  {
+   "type": "imports",
+   "from": "file:src/atlas/kernel/powerDiagram.test.ts",
+   "to": "external:vitest",
+   "resolved": true,
+   "external": true,
+   "specifier": "vitest"
   },
   {
    "type": "imports",
@@ -6500,6 +6957,14 @@ export const sprawlensSnapshot: SnapshotLike = {
   {
    "type": "imports",
    "from": "file:src/atlas/kernel/reach.test.ts",
+   "to": "external:vitest",
+   "resolved": true,
+   "external": true,
+   "specifier": "vitest"
+  },
+  {
+   "type": "imports",
+   "from": "file:src/atlas/kernel/reach.test.ts",
    "to": "file:src/atlas/kernel/reach.ts",
    "resolved": true,
    "symbolImports": [
@@ -6507,6 +6972,14 @@ export const sprawlensSnapshot: SnapshotLike = {
      "toSymbolId": "symbol:src/atlas/kernel/reach.ts:function:reachSubgraph:19"
     }
    ]
+  },
+  {
+   "type": "imports",
+   "from": "file:src/atlas/kernel/ringLayout.test.ts",
+   "to": "external:vitest",
+   "resolved": true,
+   "external": true,
+   "specifier": "vitest"
   },
   {
    "type": "imports",
@@ -6547,6 +7020,14 @@ export const sprawlensSnapshot: SnapshotLike = {
   {
    "type": "imports",
    "from": "file:src/atlas/kernel/ringOrder.test.ts",
+   "to": "external:vitest",
+   "resolved": true,
+   "external": true,
+   "specifier": "vitest"
+  },
+  {
+   "type": "imports",
+   "from": "file:src/atlas/kernel/ringOrder.test.ts",
    "to": "file:src/atlas/kernel/ringOrder.ts",
    "resolved": true,
    "symbolImports": [
@@ -6561,6 +7042,14 @@ export const sprawlensSnapshot: SnapshotLike = {
   {
    "type": "imports",
    "from": "file:src/atlas/kernel/rng.test.ts",
+   "to": "external:vitest",
+   "resolved": true,
+   "external": true,
+   "specifier": "vitest"
+  },
+  {
+   "type": "imports",
+   "from": "file:src/atlas/kernel/rng.test.ts",
    "to": "file:src/atlas/kernel/rng.ts",
    "resolved": true,
    "symbolImports": [
@@ -6568,6 +7057,14 @@ export const sprawlensSnapshot: SnapshotLike = {
      "toSymbolId": "symbol:src/atlas/kernel/rng.ts:function:createRng:4"
     }
    ]
+  },
+  {
+   "type": "imports",
+   "from": "file:src/atlas/kernel/scc.test.ts",
+   "to": "external:vitest",
+   "resolved": true,
+   "external": true,
+   "specifier": "vitest"
   },
   {
    "type": "imports",
@@ -6592,6 +7089,14 @@ export const sprawlensSnapshot: SnapshotLike = {
   {
    "type": "imports",
    "from": "file:src/atlas/kernel/topoRank.test.ts",
+   "to": "external:vitest",
+   "resolved": true,
+   "external": true,
+   "specifier": "vitest"
+  },
+  {
+   "type": "imports",
+   "from": "file:src/atlas/kernel/topoRank.test.ts",
    "to": "file:src/atlas/kernel/topoRank.ts",
    "resolved": true,
    "symbolImports": [
@@ -6610,6 +7115,14 @@ export const sprawlensSnapshot: SnapshotLike = {
      "toSymbolId": "symbol:src/atlas/kernel/scc.ts:function:stronglyConnectedComponents:19"
     }
    ]
+  },
+  {
+   "type": "imports",
+   "from": "file:src/atlas/kernel/transitiveWeight.test.ts",
+   "to": "external:vitest",
+   "resolved": true,
+   "external": true,
+   "specifier": "vitest"
   },
   {
    "type": "imports",
@@ -6647,6 +7160,14 @@ export const sprawlensSnapshot: SnapshotLike = {
   {
    "type": "imports",
    "from": "file:src/atlas/kernel/vec.test.ts",
+   "to": "external:vitest",
+   "resolved": true,
+   "external": true,
+   "specifier": "vitest"
+  },
+  {
+   "type": "imports",
+   "from": "file:src/atlas/kernel/vec.test.ts",
    "to": "file:src/atlas/kernel/vec.ts",
    "resolved": true,
    "symbolImports": [
@@ -6669,6 +7190,14 @@ export const sprawlensSnapshot: SnapshotLike = {
      "toSymbolId": "symbol:src/atlas/kernel/vec.ts:function:sub:7"
     }
    ]
+  },
+  {
+   "type": "imports",
+   "from": "file:src/atlas/playground/apiView.test.ts",
+   "to": "external:vitest",
+   "resolved": true,
+   "external": true,
+   "specifier": "vitest"
   },
   {
    "type": "imports",
@@ -6767,9 +7296,17 @@ export const sprawlensSnapshot: SnapshotLike = {
    "resolved": true,
    "symbolImports": [
     {
-     "toSymbolId": "symbol:src/atlas/playground/viewConfig.ts:function:complexityOf:156"
+     "toSymbolId": "symbol:src/atlas/playground/viewConfig.ts:function:complexityOf:159"
     }
    ]
+  },
+  {
+   "type": "imports",
+   "from": "file:src/atlas/playground/App.tsx",
+   "to": "external:preact/hooks",
+   "resolved": true,
+   "external": true,
+   "specifier": "preact/hooks"
   },
   {
    "type": "imports",
@@ -6813,6 +7350,9 @@ export const sprawlensSnapshot: SnapshotLike = {
    "to": "file:src/atlas/contracts/hierarchy.ts",
    "resolved": true,
    "symbolImports": [
+    {
+     "toSymbolId": "symbol:src/atlas/contracts/hierarchy.ts:function:classGrouping:335"
+    },
     {
      "toSymbolId": "symbol:src/atlas/contracts/hierarchy.ts:function:directoryGrouping:270"
     },
@@ -6997,10 +7537,10 @@ export const sprawlensSnapshot: SnapshotLike = {
    "resolved": true,
    "symbolImports": [
     {
-     "toSymbolId": "symbol:src/atlas/playground/Controls.tsx:function:Controls:76"
+     "toSymbolId": "symbol:src/atlas/playground/Controls.tsx:function:Controls:93"
     },
     {
-     "toSymbolId": "symbol:src/atlas/playground/Controls.tsx:type:PlaygroundParams:24"
+     "toSymbolId": "symbol:src/atlas/playground/Controls.tsx:type:PlaygroundParams:38"
     }
    ]
   },
@@ -7048,31 +7588,31 @@ export const sprawlensSnapshot: SnapshotLike = {
    "resolved": true,
    "symbolImports": [
     {
-     "toSymbolId": "symbol:src/atlas/playground/mapShared.tsx:variable:INK:71"
+     "toSymbolId": "symbol:src/atlas/playground/mapShared.tsx:variable:INK:79"
     },
     {
-     "toSymbolId": "symbol:src/atlas/playground/mapShared.tsx:function:makeTopAncestorOf:235"
+     "toSymbolId": "symbol:src/atlas/playground/mapShared.tsx:function:makeTopAncestorOf:249"
     },
     {
-     "toSymbolId": "symbol:src/atlas/playground/mapShared.tsx:variable:MAP_BG:68"
+     "toSymbolId": "symbol:src/atlas/playground/mapShared.tsx:variable:MAP_BG:76"
     },
     {
-     "toSymbolId": "symbol:src/atlas/playground/mapShared.tsx:variable:MUTED_INK:72"
+     "toSymbolId": "symbol:src/atlas/playground/mapShared.tsx:variable:MUTED_INK:80"
     },
     {
-     "toSymbolId": "symbol:src/atlas/playground/mapShared.tsx:variable:PAGE_BG:67"
+     "toSymbolId": "symbol:src/atlas/playground/mapShared.tsx:variable:PAGE_BG:75"
     },
     {
-     "toSymbolId": "symbol:src/atlas/playground/mapShared.tsx:variable:PANEL_BG:69"
+     "toSymbolId": "symbol:src/atlas/playground/mapShared.tsx:variable:PANEL_BG:77"
     },
     {
-     "toSymbolId": "symbol:src/atlas/playground/mapShared.tsx:variable:PANEL_BORDER:70"
+     "toSymbolId": "symbol:src/atlas/playground/mapShared.tsx:variable:PANEL_BORDER:78"
     },
     {
-     "toSymbolId": "symbol:src/atlas/playground/mapShared.tsx:variable:SELECT_STROKE:36"
+     "toSymbolId": "symbol:src/atlas/playground/mapShared.tsx:variable:SELECT_STROKE:42"
     },
     {
-     "toSymbolId": "symbol:src/atlas/playground/mapShared.tsx:function:setMapTheme:96"
+     "toSymbolId": "symbol:src/atlas/playground/mapShared.tsx:function:setMapTheme:104"
     }
    ]
   },
@@ -7103,7 +7643,7 @@ export const sprawlensSnapshot: SnapshotLike = {
    "resolved": true,
    "symbolImports": [
     {
-     "toSymbolId": "symbol:src/atlas/playground/RingsMapSvg.tsx:function:RingsMapSvg:152"
+     "toSymbolId": "symbol:src/atlas/playground/RingsMapSvg.tsx:function:RingsMapSvg:169"
     }
    ]
   },
@@ -7151,7 +7691,7 @@ export const sprawlensSnapshot: SnapshotLike = {
    "resolved": true,
    "symbolImports": [
     {
-     "toSymbolId": "symbol:src/atlas/playground/TreemapSvg.tsx:function:TreemapSvg:103"
+     "toSymbolId": "symbol:src/atlas/playground/TreemapSvg.tsx:function:TreemapSvg:119"
     }
    ]
   },
@@ -7165,13 +7705,13 @@ export const sprawlensSnapshot: SnapshotLike = {
      "toSymbolId": "symbol:src/atlas/playground/viewConfig.ts:function:granularityOf:16"
     },
     {
-     "toSymbolId": "symbol:src/atlas/playground/viewConfig.ts:function:hiddenLayersOf:72"
+     "toSymbolId": "symbol:src/atlas/playground/viewConfig.ts:function:hiddenLayersOf:75"
     },
     {
-     "toSymbolId": "symbol:src/atlas/playground/viewConfig.ts:function:reweightByTransitiveComplexity:165"
+     "toSymbolId": "symbol:src/atlas/playground/viewConfig.ts:function:reweightByTransitiveComplexity:168"
     },
     {
-     "toSymbolId": "symbol:src/atlas/playground/viewConfig.ts:function:showsSymbolLevels:77"
+     "toSymbolId": "symbol:src/atlas/playground/viewConfig.ts:function:showsSymbolLevels:80"
     }
    ]
   },
@@ -7180,6 +7720,30 @@ export const sprawlensSnapshot: SnapshotLike = {
    "from": "file:src/atlas/playground/App.tsx",
    "to": "unresolved:src/atlas/playground/App.tsx:./fixtures/sprawlens.ts",
    "resolved": false
+  },
+  {
+   "type": "imports",
+   "from": "file:src/atlas/playground/build.bench.ts",
+   "to": "external:node:fs",
+   "resolved": true,
+   "external": true,
+   "specifier": "node:fs"
+  },
+  {
+   "type": "imports",
+   "from": "file:src/atlas/playground/build.bench.ts",
+   "to": "external:node:url",
+   "resolved": true,
+   "external": true,
+   "specifier": "node:url"
+  },
+  {
+   "type": "imports",
+   "from": "file:src/atlas/playground/build.bench.ts",
+   "to": "external:vitest",
+   "resolved": true,
+   "external": true,
+   "specifier": "vitest"
   },
   {
    "type": "imports",
@@ -7227,6 +7791,14 @@ export const sprawlensSnapshot: SnapshotLike = {
      "toSymbolId": "symbol:src/atlas/playground/treemapController.ts:function:createTreemapState:79"
     }
    ]
+  },
+  {
+   "type": "imports",
+   "from": "file:src/atlas/playground/callHierarchyClient.test.ts",
+   "to": "external:vitest",
+   "resolved": true,
+   "external": true,
+   "specifier": "vitest"
   },
   {
    "type": "imports",
@@ -7281,6 +7853,14 @@ export const sprawlensSnapshot: SnapshotLike = {
   {
    "type": "imports",
    "from": "file:src/atlas/playground/CfgLayer.tsx",
+   "to": "external:preact/hooks",
+   "resolved": true,
+   "external": true,
+   "specifier": "preact/hooks"
+  },
+  {
+   "type": "imports",
+   "from": "file:src/atlas/playground/CfgLayer.tsx",
    "to": "file:src/atlas/contracts/detail.ts",
    "resolved": true,
    "symbolImports": [
@@ -7329,13 +7909,13 @@ export const sprawlensSnapshot: SnapshotLike = {
    "resolved": true,
    "symbolImports": [
     {
-     "toSymbolId": "symbol:src/atlas/playground/mapShared.tsx:variable:FILE_LABEL_INK:47"
+     "toSymbolId": "symbol:src/atlas/playground/mapShared.tsx:variable:FILE_LABEL_INK:53"
     },
     {
-     "toSymbolId": "symbol:src/atlas/playground/mapShared.tsx:variable:MACRO_EDGE:41"
+     "toSymbolId": "symbol:src/atlas/playground/mapShared.tsx:variable:MACRO_EDGE:47"
     },
     {
-     "toSymbolId": "symbol:src/atlas/playground/mapShared.tsx:variable:SELECT_STROKE:36"
+     "toSymbolId": "symbol:src/atlas/playground/mapShared.tsx:variable:SELECT_STROKE:42"
     }
    ]
   },
@@ -7349,42 +7929,50 @@ export const sprawlensSnapshot: SnapshotLike = {
      "toSymbolId": "symbol:src/atlas/playground/viewConfig.ts:variable:BOUNDARY_LEVELS:32"
     },
     {
-     "toSymbolId": "symbol:src/atlas/playground/viewConfig.ts:variable:DISPLAY_LEVELS:52"
+     "toSymbolId": "symbol:src/atlas/playground/viewConfig.ts:variable:DISPLAY_LEVELS:54"
     },
     {
      "toSymbolId": "symbol:src/atlas/playground/viewConfig.ts:function:granularityOf:16"
     },
     {
-     "toSymbolId": "symbol:src/atlas/playground/viewConfig.ts:variable:OMIT_SCOPES:69"
+     "toSymbolId": "symbol:src/atlas/playground/viewConfig.ts:variable:OMIT_SCOPES:72"
     },
     {
-     "toSymbolId": "symbol:src/atlas/playground/viewConfig.ts:function:presetConfig:142"
+     "toSymbolId": "symbol:src/atlas/playground/viewConfig.ts:function:presetConfig:145"
     },
     {
-     "toSymbolId": "symbol:src/atlas/playground/viewConfig.ts:function:presetOf:129"
+     "toSymbolId": "symbol:src/atlas/playground/viewConfig.ts:function:presetOf:132"
     },
     {
-     "toSymbolId": "symbol:src/atlas/playground/viewConfig.ts:variable:UNAVAILABLE_LEVELS:60"
+     "toSymbolId": "symbol:src/atlas/playground/viewConfig.ts:variable:UNAVAILABLE_LEVELS:63"
     },
     {
-     "toSymbolId": "symbol:src/atlas/playground/viewConfig.ts:variable:VIEW_PRESETS:96"
+     "toSymbolId": "symbol:src/atlas/playground/viewConfig.ts:variable:VIEW_PRESETS:99"
     },
     {
      "toSymbolId": "symbol:src/atlas/playground/viewConfig.ts:type:BoundaryLevel:31"
     },
     {
-     "toSymbolId": "symbol:src/atlas/playground/viewConfig.ts:type:DisplayLevel:46"
+     "toSymbolId": "symbol:src/atlas/playground/viewConfig.ts:type:DisplayLevel:47"
     },
     {
-     "toSymbolId": "symbol:src/atlas/playground/viewConfig.ts:type:OmitScope:68"
+     "toSymbolId": "symbol:src/atlas/playground/viewConfig.ts:type:OmitScope:71"
     },
     {
-     "toSymbolId": "symbol:src/atlas/playground/viewConfig.ts:type:ViewConfig:83"
+     "toSymbolId": "symbol:src/atlas/playground/viewConfig.ts:type:ViewConfig:86"
     },
     {
-     "toSymbolId": "symbol:src/atlas/playground/viewConfig.ts:type:WeightKind:81"
+     "toSymbolId": "symbol:src/atlas/playground/viewConfig.ts:type:WeightKind:84"
     }
    ]
+  },
+  {
+   "type": "imports",
+   "from": "file:src/atlas/playground/edgePick.test.ts",
+   "to": "external:vitest",
+   "resolved": true,
+   "external": true,
+   "specifier": "vitest"
   },
   {
    "type": "imports",
@@ -7413,6 +8001,14 @@ export const sprawlensSnapshot: SnapshotLike = {
      "toSymbolId": "symbol:src/atlas/kernel/vec.ts:type:Vec2:1"
     }
    ]
+  },
+  {
+   "type": "imports",
+   "from": "file:src/atlas/playground/fixtureAdapter.test.ts",
+   "to": "external:vitest",
+   "resolved": true,
+   "external": true,
+   "specifier": "vitest"
   },
   {
    "type": "imports",
@@ -7453,6 +8049,14 @@ export const sprawlensSnapshot: SnapshotLike = {
      "toSymbolId": "symbol:src/atlas/contracts/graph.ts:type:SymbolKind:29"
     }
    ]
+  },
+  {
+   "type": "imports",
+   "from": "file:src/atlas/playground/history.test.ts",
+   "to": "external:vitest",
+   "resolved": true,
+   "external": true,
+   "specifier": "vitest"
   },
   {
    "type": "imports",
@@ -7518,6 +8122,14 @@ export const sprawlensSnapshot: SnapshotLike = {
   {
    "type": "imports",
    "from": "file:src/atlas/playground/labelLayout.bench.ts",
+   "to": "external:vitest",
+   "resolved": true,
+   "external": true,
+   "specifier": "vitest"
+  },
+  {
+   "type": "imports",
+   "from": "file:src/atlas/playground/labelLayout.bench.ts",
    "to": "file:src/atlas/kernel/capacityLayout.ts",
    "resolved": true,
    "symbolImports": [
@@ -7540,11 +8152,19 @@ export const sprawlensSnapshot: SnapshotLike = {
   {
    "type": "imports",
    "from": "file:src/atlas/playground/main.tsx",
+   "to": "external:preact",
+   "resolved": true,
+   "external": true,
+   "specifier": "preact"
+  },
+  {
+   "type": "imports",
+   "from": "file:src/atlas/playground/main.tsx",
    "to": "file:src/atlas/playground/App.tsx",
    "resolved": true,
    "symbolImports": [
     {
-     "toSymbolId": "symbol:src/atlas/playground/App.tsx:function:App:188"
+     "toSymbolId": "symbol:src/atlas/playground/App.tsx:function:App:191"
     }
    ]
   },
@@ -7556,6 +8176,26 @@ export const sprawlensSnapshot: SnapshotLike = {
    "symbolImports": [
     {
      "toSymbolId": "symbol:src/atlas/contracts/graph.ts:type:AtlasEdge:61"
+    }
+   ]
+  },
+  {
+   "type": "imports",
+   "from": "file:src/atlas/playground/mapShared.tsx",
+   "to": "file:src/atlas/kernel/affine.ts",
+   "resolved": true,
+   "symbolImports": [
+    {
+     "toSymbolId": "symbol:src/atlas/kernel/affine.ts:function:apply:26"
+    },
+    {
+     "toSymbolId": "symbol:src/atlas/kernel/affine.ts:function:toMatrixString:87"
+    },
+    {
+     "toSymbolId": "symbol:src/atlas/kernel/affine.ts:function:uprightAt:103"
+    },
+    {
+     "toSymbolId": "symbol:src/atlas/kernel/affine.ts:type:Affine:15"
     }
    ]
   },
@@ -7638,6 +8278,14 @@ export const sprawlensSnapshot: SnapshotLike = {
      "toSymbolId": "symbol:src/atlas/playground/useMapViewport.ts:type:FocusView:14"
     }
    ]
+  },
+  {
+   "type": "imports",
+   "from": "file:src/atlas/playground/ringsController.test.ts",
+   "to": "external:vitest",
+   "resolved": true,
+   "external": true,
+   "specifier": "vitest"
   },
   {
    "type": "imports",
@@ -7831,6 +8479,14 @@ export const sprawlensSnapshot: SnapshotLike = {
   {
    "type": "imports",
    "from": "file:src/atlas/playground/RingsMapSvg.tsx",
+   "to": "external:preact/hooks",
+   "resolved": true,
+   "external": true,
+   "specifier": "preact/hooks"
+  },
+  {
+   "type": "imports",
+   "from": "file:src/atlas/playground/RingsMapSvg.tsx",
    "to": "file:src/atlas/contracts/graph.ts",
    "resolved": true,
    "symbolImports": [
@@ -7839,6 +8495,26 @@ export const sprawlensSnapshot: SnapshotLike = {
     },
     {
      "toSymbolId": "symbol:src/atlas/contracts/graph.ts:type:SymbolKind:29"
+    }
+   ]
+  },
+  {
+   "type": "imports",
+   "from": "file:src/atlas/playground/RingsMapSvg.tsx",
+   "to": "file:src/atlas/kernel/affine.ts",
+   "resolved": true,
+   "symbolImports": [
+    {
+     "toSymbolId": "symbol:src/atlas/kernel/affine.ts:function:layerTransform:116"
+    },
+    {
+     "toSymbolId": "symbol:src/atlas/kernel/affine.ts:function:toMatrixString:87"
+    },
+    {
+     "toSymbolId": "symbol:src/atlas/kernel/affine.ts:function:uprightAt:103"
+    },
+    {
+     "toSymbolId": "symbol:src/atlas/kernel/affine.ts:type:Affine:15"
     }
    ]
   },
@@ -7895,6 +8571,17 @@ export const sprawlensSnapshot: SnapshotLike = {
   {
    "type": "imports",
    "from": "file:src/atlas/playground/RingsMapSvg.tsx",
+   "to": "file:src/atlas/playground/Controls.tsx",
+   "resolved": true,
+   "symbolImports": [
+    {
+     "toSymbolId": "symbol:src/atlas/playground/Controls.tsx:type:TiltParams:27"
+    }
+   ]
+  },
+  {
+   "type": "imports",
+   "from": "file:src/atlas/playground/RingsMapSvg.tsx",
    "to": "file:src/atlas/playground/edgePick.ts",
    "resolved": true,
    "symbolImports": [
@@ -7922,109 +8609,112 @@ export const sprawlensSnapshot: SnapshotLike = {
    "resolved": true,
    "symbolImports": [
     {
-     "toSymbolId": "symbol:src/atlas/playground/mapShared.tsx:variable:ACTIVE_EDGE:42"
+     "toSymbolId": "symbol:src/atlas/playground/mapShared.tsx:variable:ACTIVE_EDGE:48"
     },
     {
-     "toSymbolId": "symbol:src/atlas/playground/mapShared.tsx:variable:CIRCLE_CYCLE_FILL:45"
+     "toSymbolId": "symbol:src/atlas/playground/mapShared.tsx:variable:CIRCLE_CYCLE_FILL:51"
     },
     {
-     "toSymbolId": "symbol:src/atlas/playground/mapShared.tsx:variable:CIRCLE_FILL:43"
+     "toSymbolId": "symbol:src/atlas/playground/mapShared.tsx:variable:CIRCLE_FILL:49"
     },
     {
-     "toSymbolId": "symbol:src/atlas/playground/mapShared.tsx:variable:CIRCLE_STROKE:44"
+     "toSymbolId": "symbol:src/atlas/playground/mapShared.tsx:variable:CIRCLE_STROKE:50"
     },
     {
-     "toSymbolId": "symbol:src/atlas/playground/mapShared.tsx:variable:DIM:22"
+     "toSymbolId": "symbol:src/atlas/playground/mapShared.tsx:variable:DIM:28"
     },
     {
-     "toSymbolId": "symbol:src/atlas/playground/mapShared.tsx:variable:DOWNSTREAM_COLOR:31"
+     "toSymbolId": "symbol:src/atlas/playground/mapShared.tsx:variable:DOWNSTREAM_COLOR:37"
     },
     {
-     "toSymbolId": "symbol:src/atlas/playground/mapShared.tsx:variable:DOWNSTREAM_FILL:33"
+     "toSymbolId": "symbol:src/atlas/playground/mapShared.tsx:variable:DOWNSTREAM_FILL:39"
     },
     {
-     "toSymbolId": "symbol:src/atlas/playground/mapShared.tsx:function:ExitPreviewsLayer:523"
+     "toSymbolId": "symbol:src/atlas/playground/mapShared.tsx:function:ExitPreviewsLayer:569"
     },
     {
-     "toSymbolId": "symbol:src/atlas/playground/mapShared.tsx:variable:EXPORTED_DOT:65"
+     "toSymbolId": "symbol:src/atlas/playground/mapShared.tsx:variable:EXPORTED_DOT:73"
     },
     {
-     "toSymbolId": "symbol:src/atlas/playground/mapShared.tsx:variable:EXPORTED_LABEL:220"
+     "toSymbolId": "symbol:src/atlas/playground/mapShared.tsx:variable:EXPORTED_LABEL:234"
     },
     {
-     "toSymbolId": "symbol:src/atlas/playground/mapShared.tsx:variable:FILE_LABEL_INK:47"
+     "toSymbolId": "symbol:src/atlas/playground/mapShared.tsx:variable:FILE_LABEL_INK:53"
     },
     {
-     "toSymbolId": "symbol:src/atlas/playground/mapShared.tsx:function:focusDimOf:259"
+     "toSymbolId": "symbol:src/atlas/playground/mapShared.tsx:function:focusDimOf:273"
     },
     {
-     "toSymbolId": "symbol:src/atlas/playground/mapShared.tsx:variable:INTERNAL_LABEL:221"
+     "toSymbolId": "symbol:src/atlas/playground/mapShared.tsx:variable:INTERNAL_LABEL:235"
     },
     {
-     "toSymbolId": "symbol:src/atlas/playground/mapShared.tsx:variable:LEAF_STROKE:38"
+     "toSymbolId": "symbol:src/atlas/playground/mapShared.tsx:variable:LEAF_STROKE:44"
     },
     {
-     "toSymbolId": "symbol:src/atlas/playground/mapShared.tsx:variable:LEAF_BORDER_MIN_PX:211"
+     "toSymbolId": "symbol:src/atlas/playground/mapShared.tsx:variable:LEAF_BORDER_MIN_PX:221"
     },
     {
-     "toSymbolId": "symbol:src/atlas/playground/mapShared.tsx:variable:MACRO_EDGE:41"
+     "toSymbolId": "symbol:src/atlas/playground/mapShared.tsx:variable:MACRO_EDGE:47"
     },
     {
-     "toSymbolId": "symbol:src/atlas/playground/mapShared.tsx:variable:MODULE_LABEL_INK:46"
+     "toSymbolId": "symbol:src/atlas/playground/mapShared.tsx:variable:MODULE_LABEL_INK:52"
     },
     {
-     "toSymbolId": "symbol:src/atlas/playground/mapShared.tsx:variable:PORT_FILL:50"
+     "toSymbolId": "symbol:src/atlas/playground/mapShared.tsx:variable:PORT_FILL:56"
     },
     {
-     "toSymbolId": "symbol:src/atlas/playground/mapShared.tsx:variable:SYMBOL_DOMINANT_FRACTION:218"
+     "toSymbolId": "symbol:src/atlas/playground/mapShared.tsx:variable:SYMBOL_DOMINANT_FRACTION:232"
     },
     {
-     "toSymbolId": "symbol:src/atlas/playground/mapShared.tsx:variable:SYMBOL_KIND_COLORS:54"
+     "toSymbolId": "symbol:src/atlas/playground/mapShared.tsx:variable:SYMBOL_KIND_COLORS:60"
     },
     {
-     "toSymbolId": "symbol:src/atlas/playground/mapShared.tsx:variable:SYMBOL_EDGE:40"
+     "toSymbolId": "symbol:src/atlas/playground/mapShared.tsx:variable:SYMBOL_EDGE:46"
     },
     {
-     "toSymbolId": "symbol:src/atlas/playground/mapShared.tsx:variable:SYMBOL_STROKE:39"
+     "toSymbolId": "symbol:src/atlas/playground/mapShared.tsx:variable:SYMBOL_STROKE:45"
     },
     {
-     "toSymbolId": "symbol:src/atlas/playground/mapShared.tsx:variable:SYMBOL_ZOOM:215"
+     "toSymbolId": "symbol:src/atlas/playground/mapShared.tsx:variable:SYMBOL_ZOOM:229"
     },
     {
-     "toSymbolId": "symbol:src/atlas/playground/mapShared.tsx:variable:TEST_LABEL_INK:48"
+     "toSymbolId": "symbol:src/atlas/playground/mapShared.tsx:variable:TEST_LABEL_INK:54"
     },
     {
-     "toSymbolId": "symbol:src/atlas/playground/mapShared.tsx:function:InnerLevelsLayer:300"
+     "toSymbolId": "symbol:src/atlas/playground/mapShared.tsx:function:InnerLevelsLayer:314"
     },
     {
-     "toSymbolId": "symbol:src/atlas/playground/mapShared.tsx:function:isWatermarkSized:456"
+     "toSymbolId": "symbol:src/atlas/playground/mapShared.tsx:function:isWatermarkSized:502"
     },
     {
-     "toSymbolId": "symbol:src/atlas/playground/mapShared.tsx:function:leafFillOf:287"
+     "toSymbolId": "symbol:src/atlas/playground/mapShared.tsx:function:leafFillOf:301"
     },
     {
-     "toSymbolId": "symbol:src/atlas/playground/mapShared.tsx:function:makeEdgeBundler:710"
+     "toSymbolId": "symbol:src/atlas/playground/mapShared.tsx:function:makeEdgeBundler:880"
     },
     {
-     "toSymbolId": "symbol:src/atlas/playground/mapShared.tsx:function:makeTopAncestorOf:235"
+     "toSymbolId": "symbol:src/atlas/playground/mapShared.tsx:function:makeTopAncestorOf:249"
     },
     {
-     "toSymbolId": "symbol:src/atlas/playground/mapShared.tsx:function:RaisedEdgePath:663"
+     "toSymbolId": "symbol:src/atlas/playground/mapShared.tsx:function:RaisedEdgePath:833"
     },
     {
-     "toSymbolId": "symbol:src/atlas/playground/mapShared.tsx:function:selectionDirections:479"
+     "toSymbolId": "symbol:src/atlas/playground/mapShared.tsx:function:selectionDirections:525"
     },
     {
-     "toSymbolId": "symbol:src/atlas/playground/mapShared.tsx:variable:SELECT_STROKE:36"
+     "toSymbolId": "symbol:src/atlas/playground/mapShared.tsx:variable:SELECT_STROKE:42"
     },
     {
-     "toSymbolId": "symbol:src/atlas/playground/mapShared.tsx:variable:UPSTREAM_COLOR:32"
+     "toSymbolId": "symbol:src/atlas/playground/mapShared.tsx:function:TestPlaneLayer:700"
     },
     {
-     "toSymbolId": "symbol:src/atlas/playground/mapShared.tsx:variable:UPSTREAM_FILL:34"
+     "toSymbolId": "symbol:src/atlas/playground/mapShared.tsx:variable:UPSTREAM_COLOR:38"
     },
     {
-     "toSymbolId": "symbol:src/atlas/playground/mapShared.tsx:function:WatermarkLabelsLayer:391"
+     "toSymbolId": "symbol:src/atlas/playground/mapShared.tsx:variable:UPSTREAM_FILL:40"
+    },
+    {
+     "toSymbolId": "symbol:src/atlas/playground/mapShared.tsx:function:WatermarkLabelsLayer:436"
     }
    ]
   },
@@ -8046,13 +8736,13 @@ export const sprawlensSnapshot: SnapshotLike = {
    "resolved": true,
    "symbolImports": [
     {
-     "toSymbolId": "symbol:src/atlas/playground/symbolIcons.tsx:function:isStaticKind:36"
+     "toSymbolId": "symbol:src/atlas/playground/symbolIcons.tsx:function:isStaticKind:37"
     },
     {
-     "toSymbolId": "symbol:src/atlas/playground/symbolIcons.tsx:function:SymbolTag:78"
+     "toSymbolId": "symbol:src/atlas/playground/symbolIcons.tsx:function:SymbolTag:79"
     },
     {
-     "toSymbolId": "symbol:src/atlas/playground/symbolIcons.tsx:function:symbolGlyphOf:23"
+     "toSymbolId": "symbol:src/atlas/playground/symbolIcons.tsx:function:symbolGlyphOf:24"
     }
    ]
   },
@@ -8237,6 +8927,28 @@ export const sprawlensSnapshot: SnapshotLike = {
   },
   {
    "type": "imports",
+   "from": "file:src/atlas/playground/symbolIcons.tsx",
+   "to": "file:src/atlas/kernel/affine.ts",
+   "resolved": true,
+   "symbolImports": [
+    {
+     "toSymbolId": "symbol:src/atlas/kernel/affine.ts:function:uprightAt:103"
+    },
+    {
+     "toSymbolId": "symbol:src/atlas/kernel/affine.ts:type:Affine:15"
+    }
+   ]
+  },
+  {
+   "type": "imports",
+   "from": "file:src/atlas/playground/synthetic.test.ts",
+   "to": "external:vitest",
+   "resolved": true,
+   "external": true,
+   "specifier": "vitest"
+  },
+  {
+   "type": "imports",
    "from": "file:src/atlas/playground/synthetic.test.ts",
    "to": "file:src/atlas/playground/synthetic.ts",
    "resolved": true,
@@ -8279,6 +8991,14 @@ export const sprawlensSnapshot: SnapshotLike = {
      "toSymbolId": "symbol:src/atlas/kernel/rng.ts:function:createRng:4"
     }
    ]
+  },
+  {
+   "type": "imports",
+   "from": "file:src/atlas/playground/treemapController.test.ts",
+   "to": "external:vitest",
+   "resolved": true,
+   "external": true,
+   "specifier": "vitest"
   },
   {
    "type": "imports",
@@ -8484,6 +9204,14 @@ export const sprawlensSnapshot: SnapshotLike = {
   {
    "type": "imports",
    "from": "file:src/atlas/playground/TreemapSvg.tsx",
+   "to": "external:preact/hooks",
+   "resolved": true,
+   "external": true,
+   "specifier": "preact/hooks"
+  },
+  {
+   "type": "imports",
+   "from": "file:src/atlas/playground/TreemapSvg.tsx",
    "to": "file:src/atlas/contracts/graph.ts",
    "resolved": true,
    "symbolImports": [
@@ -8492,6 +9220,26 @@ export const sprawlensSnapshot: SnapshotLike = {
     },
     {
      "toSymbolId": "symbol:src/atlas/contracts/graph.ts:type:SymbolKind:29"
+    }
+   ]
+  },
+  {
+   "type": "imports",
+   "from": "file:src/atlas/playground/TreemapSvg.tsx",
+   "to": "file:src/atlas/kernel/affine.ts",
+   "resolved": true,
+   "symbolImports": [
+    {
+     "toSymbolId": "symbol:src/atlas/kernel/affine.ts:function:layerTransform:116"
+    },
+    {
+     "toSymbolId": "symbol:src/atlas/kernel/affine.ts:function:toMatrixString:87"
+    },
+    {
+     "toSymbolId": "symbol:src/atlas/kernel/affine.ts:function:uprightAt:103"
+    },
+    {
+     "toSymbolId": "symbol:src/atlas/kernel/affine.ts:type:Affine:15"
     }
    ]
   },
@@ -8548,6 +9296,17 @@ export const sprawlensSnapshot: SnapshotLike = {
   {
    "type": "imports",
    "from": "file:src/atlas/playground/TreemapSvg.tsx",
+   "to": "file:src/atlas/playground/Controls.tsx",
+   "resolved": true,
+   "symbolImports": [
+    {
+     "toSymbolId": "symbol:src/atlas/playground/Controls.tsx:type:TiltParams:27"
+    }
+   ]
+  },
+  {
+   "type": "imports",
+   "from": "file:src/atlas/playground/TreemapSvg.tsx",
    "to": "file:src/atlas/playground/edgePick.ts",
    "resolved": true,
    "symbolImports": [
@@ -8575,85 +9334,88 @@ export const sprawlensSnapshot: SnapshotLike = {
    "resolved": true,
    "symbolImports": [
     {
-     "toSymbolId": "symbol:src/atlas/playground/mapShared.tsx:variable:ACTIVE_EDGE:42"
+     "toSymbolId": "symbol:src/atlas/playground/mapShared.tsx:variable:ACTIVE_EDGE:48"
     },
     {
-     "toSymbolId": "symbol:src/atlas/playground/mapShared.tsx:variable:BUNDLE_STRENGTH:685"
+     "toSymbolId": "symbol:src/atlas/playground/mapShared.tsx:variable:BUNDLE_STRENGTH:855"
     },
     {
-     "toSymbolId": "symbol:src/atlas/playground/mapShared.tsx:function:districtFill:83"
+     "toSymbolId": "symbol:src/atlas/playground/mapShared.tsx:function:districtFill:91"
     },
     {
-     "toSymbolId": "symbol:src/atlas/playground/mapShared.tsx:function:districtLabelFill:87"
+     "toSymbolId": "symbol:src/atlas/playground/mapShared.tsx:function:districtLabelFill:95"
     },
     {
-     "toSymbolId": "symbol:src/atlas/playground/mapShared.tsx:function:districtStroke:85"
+     "toSymbolId": "symbol:src/atlas/playground/mapShared.tsx:function:districtStroke:93"
     },
     {
-     "toSymbolId": "symbol:src/atlas/playground/mapShared.tsx:variable:DOWNSTREAM_COLOR:31"
+     "toSymbolId": "symbol:src/atlas/playground/mapShared.tsx:variable:DOWNSTREAM_COLOR:37"
     },
     {
-     "toSymbolId": "symbol:src/atlas/playground/mapShared.tsx:function:ExitPreviewsLayer:523"
+     "toSymbolId": "symbol:src/atlas/playground/mapShared.tsx:function:ExitPreviewsLayer:569"
     },
     {
-     "toSymbolId": "symbol:src/atlas/playground/mapShared.tsx:variable:EXPORTED_LABEL:220"
+     "toSymbolId": "symbol:src/atlas/playground/mapShared.tsx:variable:EXPORTED_LABEL:234"
     },
     {
-     "toSymbolId": "symbol:src/atlas/playground/mapShared.tsx:variable:FILE_LABEL_INK:47"
+     "toSymbolId": "symbol:src/atlas/playground/mapShared.tsx:variable:FILE_LABEL_INK:53"
     },
     {
-     "toSymbolId": "symbol:src/atlas/playground/mapShared.tsx:variable:INTERNAL_LABEL:221"
+     "toSymbolId": "symbol:src/atlas/playground/mapShared.tsx:variable:INTERNAL_LABEL:235"
     },
     {
-     "toSymbolId": "symbol:src/atlas/playground/mapShared.tsx:variable:LEAF_STROKE:38"
+     "toSymbolId": "symbol:src/atlas/playground/mapShared.tsx:variable:LEAF_STROKE:44"
     },
     {
-     "toSymbolId": "symbol:src/atlas/playground/mapShared.tsx:variable:LEAF_BORDER_MIN_PX:211"
+     "toSymbolId": "symbol:src/atlas/playground/mapShared.tsx:variable:LEAF_BORDER_MIN_PX:221"
     },
     {
-     "toSymbolId": "symbol:src/atlas/playground/mapShared.tsx:function:makeEdgeBundler:710"
+     "toSymbolId": "symbol:src/atlas/playground/mapShared.tsx:function:makeEdgeBundler:880"
     },
     {
-     "toSymbolId": "symbol:src/atlas/playground/mapShared.tsx:variable:SYMBOL_DOMINANT_FRACTION:218"
+     "toSymbolId": "symbol:src/atlas/playground/mapShared.tsx:variable:SYMBOL_DOMINANT_FRACTION:232"
     },
     {
-     "toSymbolId": "symbol:src/atlas/playground/mapShared.tsx:variable:SYMBOL_KIND_COLORS:54"
+     "toSymbolId": "symbol:src/atlas/playground/mapShared.tsx:variable:SYMBOL_KIND_COLORS:60"
     },
     {
-     "toSymbolId": "symbol:src/atlas/playground/mapShared.tsx:variable:SYMBOL_STROKE:39"
+     "toSymbolId": "symbol:src/atlas/playground/mapShared.tsx:variable:SYMBOL_STROKE:45"
     },
     {
-     "toSymbolId": "symbol:src/atlas/playground/mapShared.tsx:variable:SYMBOL_ZOOM:215"
+     "toSymbolId": "symbol:src/atlas/playground/mapShared.tsx:variable:SYMBOL_ZOOM:229"
     },
     {
-     "toSymbolId": "symbol:src/atlas/playground/mapShared.tsx:function:selectionDirections:479"
+     "toSymbolId": "symbol:src/atlas/playground/mapShared.tsx:function:selectionDirections:525"
     },
     {
-     "toSymbolId": "symbol:src/atlas/playground/mapShared.tsx:function:focusDimOf:259"
+     "toSymbolId": "symbol:src/atlas/playground/mapShared.tsx:function:focusDimOf:273"
     },
     {
-     "toSymbolId": "symbol:src/atlas/playground/mapShared.tsx:function:InnerLevelsLayer:300"
+     "toSymbolId": "symbol:src/atlas/playground/mapShared.tsx:function:InnerLevelsLayer:314"
     },
     {
-     "toSymbolId": "symbol:src/atlas/playground/mapShared.tsx:function:isWatermarkSized:456"
+     "toSymbolId": "symbol:src/atlas/playground/mapShared.tsx:function:isWatermarkSized:502"
     },
     {
-     "toSymbolId": "symbol:src/atlas/playground/mapShared.tsx:function:leafFillOf:287"
+     "toSymbolId": "symbol:src/atlas/playground/mapShared.tsx:function:leafFillOf:301"
     },
     {
-     "toSymbolId": "symbol:src/atlas/playground/mapShared.tsx:function:makeTopAncestorOf:235"
+     "toSymbolId": "symbol:src/atlas/playground/mapShared.tsx:function:makeTopAncestorOf:249"
     },
     {
-     "toSymbolId": "symbol:src/atlas/playground/mapShared.tsx:function:RaisedEdgePath:663"
+     "toSymbolId": "symbol:src/atlas/playground/mapShared.tsx:function:RaisedEdgePath:833"
     },
     {
-     "toSymbolId": "symbol:src/atlas/playground/mapShared.tsx:variable:SELECT_STROKE:36"
+     "toSymbolId": "symbol:src/atlas/playground/mapShared.tsx:variable:SELECT_STROKE:42"
     },
     {
-     "toSymbolId": "symbol:src/atlas/playground/mapShared.tsx:variable:UPSTREAM_COLOR:32"
+     "toSymbolId": "symbol:src/atlas/playground/mapShared.tsx:function:TestPlaneLayer:700"
     },
     {
-     "toSymbolId": "symbol:src/atlas/playground/mapShared.tsx:function:WatermarkLabelsLayer:391"
+     "toSymbolId": "symbol:src/atlas/playground/mapShared.tsx:variable:UPSTREAM_COLOR:38"
+    },
+    {
+     "toSymbolId": "symbol:src/atlas/playground/mapShared.tsx:function:WatermarkLabelsLayer:436"
     }
    ]
   },
@@ -8664,13 +9426,13 @@ export const sprawlensSnapshot: SnapshotLike = {
    "resolved": true,
    "symbolImports": [
     {
-     "toSymbolId": "symbol:src/atlas/playground/symbolIcons.tsx:function:isStaticKind:36"
+     "toSymbolId": "symbol:src/atlas/playground/symbolIcons.tsx:function:isStaticKind:37"
     },
     {
-     "toSymbolId": "symbol:src/atlas/playground/symbolIcons.tsx:function:SymbolTag:78"
+     "toSymbolId": "symbol:src/atlas/playground/symbolIcons.tsx:function:SymbolTag:79"
     },
     {
-     "toSymbolId": "symbol:src/atlas/playground/symbolIcons.tsx:function:symbolGlyphOf:23"
+     "toSymbolId": "symbol:src/atlas/playground/symbolIcons.tsx:function:symbolGlyphOf:24"
     }
    ]
   },
@@ -8719,6 +9481,14 @@ export const sprawlensSnapshot: SnapshotLike = {
   {
    "type": "imports",
    "from": "file:src/atlas/playground/useMapViewport.ts",
+   "to": "external:preact/hooks",
+   "resolved": true,
+   "external": true,
+   "specifier": "preact/hooks"
+  },
+  {
+   "type": "imports",
+   "from": "file:src/atlas/playground/useMapViewport.ts",
    "to": "file:src/atlas/contracts/graph.ts",
    "resolved": true,
    "symbolImports": [
@@ -8741,6 +9511,14 @@ export const sprawlensSnapshot: SnapshotLike = {
   {
    "type": "imports",
    "from": "file:src/atlas/playground/viewConfig.test.ts",
+   "to": "external:vitest",
+   "resolved": true,
+   "external": true,
+   "specifier": "vitest"
+  },
+  {
+   "type": "imports",
+   "from": "file:src/atlas/playground/viewConfig.test.ts",
    "to": "file:src/atlas/contracts/graph.ts",
    "resolved": true,
    "symbolImports": [
@@ -8756,19 +9534,19 @@ export const sprawlensSnapshot: SnapshotLike = {
    "resolved": true,
    "symbolImports": [
     {
-     "toSymbolId": "symbol:src/atlas/playground/viewConfig.ts:function:presetConfig:142"
+     "toSymbolId": "symbol:src/atlas/playground/viewConfig.ts:function:presetConfig:145"
     },
     {
-     "toSymbolId": "symbol:src/atlas/playground/viewConfig.ts:function:presetOf:129"
+     "toSymbolId": "symbol:src/atlas/playground/viewConfig.ts:function:presetOf:132"
     },
     {
-     "toSymbolId": "symbol:src/atlas/playground/viewConfig.ts:function:reweightByTransitiveComplexity:165"
+     "toSymbolId": "symbol:src/atlas/playground/viewConfig.ts:function:reweightByTransitiveComplexity:168"
     },
     {
-     "toSymbolId": "symbol:src/atlas/playground/viewConfig.ts:variable:VIEW_PRESETS:96"
+     "toSymbolId": "symbol:src/atlas/playground/viewConfig.ts:variable:VIEW_PRESETS:99"
     },
     {
-     "toSymbolId": "symbol:src/atlas/playground/viewConfig.ts:type:ViewConfig:83"
+     "toSymbolId": "symbol:src/atlas/playground/viewConfig.ts:type:ViewConfig:86"
     }
    ]
   },
@@ -8796,6 +9574,14 @@ export const sprawlensSnapshot: SnapshotLike = {
      "toSymbolId": "symbol:src/atlas/kernel/transitiveWeight.ts:function:transitiveWeights:13"
     }
    ]
+  },
+  {
+   "type": "imports",
+   "from": "file:src/atlas/playground/viewCulling.test.ts",
+   "to": "external:vitest",
+   "resolved": true,
+   "external": true,
+   "specifier": "vitest"
   },
   {
    "type": "imports",
@@ -8828,6 +9614,30 @@ export const sprawlensSnapshot: SnapshotLike = {
   {
    "type": "imports",
    "from": "file:src/atlas/server/callHierarchy.test.ts",
+   "to": "external:node:path",
+   "resolved": true,
+   "external": true,
+   "specifier": "node:path"
+  },
+  {
+   "type": "imports",
+   "from": "file:src/atlas/server/callHierarchy.test.ts",
+   "to": "external:node:url",
+   "resolved": true,
+   "external": true,
+   "specifier": "node:url"
+  },
+  {
+   "type": "imports",
+   "from": "file:src/atlas/server/callHierarchy.test.ts",
+   "to": "external:vitest",
+   "resolved": true,
+   "external": true,
+   "specifier": "vitest"
+  },
+  {
+   "type": "imports",
+   "from": "file:src/atlas/server/callHierarchy.test.ts",
    "to": "file:src/atlas/server/callHierarchyProvider.ts",
    "resolved": true,
    "symbolImports": [
@@ -8850,6 +9660,22 @@ export const sprawlensSnapshot: SnapshotLike = {
   {
    "type": "imports",
    "from": "file:src/atlas/server/callHierarchyProvider.ts",
+   "to": "external:node:path",
+   "resolved": true,
+   "external": true,
+   "specifier": "node:path"
+  },
+  {
+   "type": "imports",
+   "from": "file:src/atlas/server/callHierarchyProvider.ts",
+   "to": "external:node:url",
+   "resolved": true,
+   "external": true,
+   "specifier": "node:url"
+  },
+  {
+   "type": "imports",
+   "from": "file:src/atlas/server/callHierarchyProvider.ts",
    "to": "file:src/atlas/server/lspClient.ts",
    "resolved": true,
    "symbolImports": [
@@ -8861,6 +9687,14 @@ export const sprawlensSnapshot: SnapshotLike = {
   {
    "type": "imports",
    "from": "file:src/atlas/server/cfgProvider.test.ts",
+   "to": "external:vitest",
+   "resolved": true,
+   "external": true,
+   "specifier": "vitest"
+  },
+  {
+   "type": "imports",
+   "from": "file:src/atlas/server/cfgProvider.test.ts",
    "to": "file:src/atlas/server/cfgProvider.ts",
    "resolved": true,
    "symbolImports": [
@@ -8868,6 +9702,14 @@ export const sprawlensSnapshot: SnapshotLike = {
      "toSymbolId": "symbol:src/atlas/server/cfgProvider.ts:function:extractCfg:543"
     }
    ]
+  },
+  {
+   "type": "imports",
+   "from": "file:src/atlas/server/cfgProvider.ts",
+   "to": "external:typescript",
+   "resolved": true,
+   "external": true,
+   "specifier": "typescript"
   },
   {
    "type": "imports",
@@ -8893,6 +9735,38 @@ export const sprawlensSnapshot: SnapshotLike = {
      "toSymbolId": "symbol:src/atlas/contracts/graph.ts:type:AtlasNode:42"
     }
    ]
+  },
+  {
+   "type": "imports",
+   "from": "file:src/atlas/server/index.ts",
+   "to": "external:node:fs",
+   "resolved": true,
+   "external": true,
+   "specifier": "node:fs"
+  },
+  {
+   "type": "imports",
+   "from": "file:src/atlas/server/index.ts",
+   "to": "external:node:fs/promises",
+   "resolved": true,
+   "external": true,
+   "specifier": "node:fs/promises"
+  },
+  {
+   "type": "imports",
+   "from": "file:src/atlas/server/index.ts",
+   "to": "external:node:http",
+   "resolved": true,
+   "external": true,
+   "specifier": "node:http"
+  },
+  {
+   "type": "imports",
+   "from": "file:src/atlas/server/index.ts",
+   "to": "external:node:path",
+   "resolved": true,
+   "external": true,
+   "specifier": "node:path"
   },
   {
    "type": "imports",
@@ -8950,6 +9824,14 @@ export const sprawlensSnapshot: SnapshotLike = {
   {
    "type": "imports",
    "from": "file:src/atlas/server/jsonRpc.test.ts",
+   "to": "external:vitest",
+   "resolved": true,
+   "external": true,
+   "specifier": "vitest"
+  },
+  {
+   "type": "imports",
+   "from": "file:src/atlas/server/jsonRpc.test.ts",
    "to": "file:src/atlas/server/jsonRpc.ts",
    "resolved": true,
    "symbolImports": [
@@ -8964,6 +9846,38 @@ export const sprawlensSnapshot: SnapshotLike = {
   {
    "type": "imports",
    "from": "file:src/atlas/server/lspClient.ts",
+   "to": "external:node:child_process",
+   "resolved": true,
+   "external": true,
+   "specifier": "node:child_process"
+  },
+  {
+   "type": "imports",
+   "from": "file:src/atlas/server/lspClient.ts",
+   "to": "external:node:fs",
+   "resolved": true,
+   "external": true,
+   "specifier": "node:fs"
+  },
+  {
+   "type": "imports",
+   "from": "file:src/atlas/server/lspClient.ts",
+   "to": "external:node:module",
+   "resolved": true,
+   "external": true,
+   "specifier": "node:module"
+  },
+  {
+   "type": "imports",
+   "from": "file:src/atlas/server/lspClient.ts",
+   "to": "external:node:url",
+   "resolved": true,
+   "external": true,
+   "specifier": "node:url"
+  },
+  {
+   "type": "imports",
+   "from": "file:src/atlas/server/lspClient.ts",
    "to": "file:src/atlas/server/jsonRpc.ts",
    "resolved": true,
    "symbolImports": [
@@ -8974,6 +9888,14 @@ export const sprawlensSnapshot: SnapshotLike = {
      "toSymbolId": "symbol:src/atlas/server/jsonRpc.ts:class:JsonRpcReader:16"
     }
    ]
+  },
+  {
+   "type": "imports",
+   "from": "file:src/atlas/server/workingDiff.test.ts",
+   "to": "external:vitest",
+   "resolved": true,
+   "external": true,
+   "specifier": "vitest"
   },
   {
    "type": "imports",
@@ -9000,6 +9922,54 @@ export const sprawlensSnapshot: SnapshotLike = {
   },
   {
    "type": "imports",
+   "from": "file:src/atlas/server/workingDiff.ts",
+   "to": "external:node:child_process",
+   "resolved": true,
+   "external": true,
+   "specifier": "node:child_process"
+  },
+  {
+   "type": "imports",
+   "from": "file:src/atlas/server/workingDiff.ts",
+   "to": "external:node:fs",
+   "resolved": true,
+   "external": true,
+   "specifier": "node:fs"
+  },
+  {
+   "type": "imports",
+   "from": "file:src/atlas/server/workingDiff.ts",
+   "to": "external:node:fs/promises",
+   "resolved": true,
+   "external": true,
+   "specifier": "node:fs/promises"
+  },
+  {
+   "type": "imports",
+   "from": "file:src/atlas/server/workingDiff.ts",
+   "to": "external:node:path",
+   "resolved": true,
+   "external": true,
+   "specifier": "node:path"
+  },
+  {
+   "type": "imports",
+   "from": "file:src/atlas/server/workingDiff.ts",
+   "to": "external:node:util",
+   "resolved": true,
+   "external": true,
+   "specifier": "node:util"
+  },
+  {
+   "type": "imports",
+   "from": "file:src/cli/index.ts",
+   "to": "external:commander",
+   "resolved": true,
+   "external": true,
+   "specifier": "commander"
+  },
+  {
+   "type": "imports",
    "from": "file:src/cli/index.ts",
    "to": "file:src/core/collect.ts",
    "resolved": true,
@@ -9011,6 +9981,14 @@ export const sprawlensSnapshot: SnapshotLike = {
      "toSymbolId": "symbol:src/core/collect.ts:function:collectRepository:37"
     }
    ]
+  },
+  {
+   "type": "imports",
+   "from": "file:src/core/ai.test.ts",
+   "to": "external:vitest",
+   "resolved": true,
+   "external": true,
+   "specifier": "vitest"
   },
   {
    "type": "imports",
@@ -9043,6 +10021,54 @@ export const sprawlensSnapshot: SnapshotLike = {
   {
    "type": "imports",
    "from": "file:src/core/collect.test.ts",
+   "to": "external:node:child_process",
+   "resolved": true,
+   "external": true,
+   "specifier": "node:child_process"
+  },
+  {
+   "type": "imports",
+   "from": "file:src/core/collect.test.ts",
+   "to": "external:node:fs/promises",
+   "resolved": true,
+   "external": true,
+   "specifier": "node:fs/promises"
+  },
+  {
+   "type": "imports",
+   "from": "file:src/core/collect.test.ts",
+   "to": "external:node:os",
+   "resolved": true,
+   "external": true,
+   "specifier": "node:os"
+  },
+  {
+   "type": "imports",
+   "from": "file:src/core/collect.test.ts",
+   "to": "external:node:path",
+   "resolved": true,
+   "external": true,
+   "specifier": "node:path"
+  },
+  {
+   "type": "imports",
+   "from": "file:src/core/collect.test.ts",
+   "to": "external:node:util",
+   "resolved": true,
+   "external": true,
+   "specifier": "node:util"
+  },
+  {
+   "type": "imports",
+   "from": "file:src/core/collect.test.ts",
+   "to": "external:vitest",
+   "resolved": true,
+   "external": true,
+   "specifier": "vitest"
+  },
+  {
+   "type": "imports",
+   "from": "file:src/core/collect.test.ts",
    "to": "file:src/core/collect.ts",
    "resolved": true,
    "symbolImports": [
@@ -9056,6 +10082,46 @@ export const sprawlensSnapshot: SnapshotLike = {
      "toSymbolId": "symbol:src/core/collect.ts:function:collectRepository:37"
     }
    ]
+  },
+  {
+   "type": "imports",
+   "from": "file:src/core/collect.ts",
+   "to": "external:node:child_process",
+   "resolved": true,
+   "external": true,
+   "specifier": "node:child_process"
+  },
+  {
+   "type": "imports",
+   "from": "file:src/core/collect.ts",
+   "to": "external:node:fs/promises",
+   "resolved": true,
+   "external": true,
+   "specifier": "node:fs/promises"
+  },
+  {
+   "type": "imports",
+   "from": "file:src/core/collect.ts",
+   "to": "external:node:os",
+   "resolved": true,
+   "external": true,
+   "specifier": "node:os"
+  },
+  {
+   "type": "imports",
+   "from": "file:src/core/collect.ts",
+   "to": "external:node:path",
+   "resolved": true,
+   "external": true,
+   "specifier": "node:path"
+  },
+  {
+   "type": "imports",
+   "from": "file:src/core/collect.ts",
+   "to": "external:node:util",
+   "resolved": true,
+   "external": true,
+   "specifier": "node:util"
   },
   {
    "type": "imports",
@@ -9112,6 +10178,14 @@ export const sprawlensSnapshot: SnapshotLike = {
      "toSymbolId": "symbol:src/core/types.ts:type:SnapshotCommit:25"
     }
    ]
+  },
+  {
+   "type": "imports",
+   "from": "file:src/core/diff.test.ts",
+   "to": "external:vitest",
+   "resolved": true,
+   "external": true,
+   "specifier": "vitest"
   },
   {
    "type": "imports",
@@ -9184,6 +10258,14 @@ export const sprawlensSnapshot: SnapshotLike = {
   {
    "type": "imports",
    "from": "file:src/core/metrics.test.ts",
+   "to": "external:vitest",
+   "resolved": true,
+   "external": true,
+   "specifier": "vitest"
+  },
+  {
+   "type": "imports",
+   "from": "file:src/core/metrics.test.ts",
    "to": "file:src/core/metrics.ts",
    "resolved": true,
    "symbolImports": [
@@ -9238,6 +10320,38 @@ export const sprawlensSnapshot: SnapshotLike = {
   {
    "type": "imports",
    "from": "file:src/core/snapshot.test.ts",
+   "to": "external:node:fs/promises",
+   "resolved": true,
+   "external": true,
+   "specifier": "node:fs/promises"
+  },
+  {
+   "type": "imports",
+   "from": "file:src/core/snapshot.test.ts",
+   "to": "external:node:os",
+   "resolved": true,
+   "external": true,
+   "specifier": "node:os"
+  },
+  {
+   "type": "imports",
+   "from": "file:src/core/snapshot.test.ts",
+   "to": "external:node:path",
+   "resolved": true,
+   "external": true,
+   "specifier": "node:path"
+  },
+  {
+   "type": "imports",
+   "from": "file:src/core/snapshot.test.ts",
+   "to": "external:vitest",
+   "resolved": true,
+   "external": true,
+   "specifier": "vitest"
+  },
+  {
+   "type": "imports",
+   "from": "file:src/core/snapshot.test.ts",
    "to": "file:src/core/snapshot.ts",
    "resolved": true,
    "symbolImports": [
@@ -9245,6 +10359,38 @@ export const sprawlensSnapshot: SnapshotLike = {
      "toSymbolId": "symbol:src/core/snapshot.ts:function:createSnapshotFromWorkingTree:49"
     }
    ]
+  },
+  {
+   "type": "imports",
+   "from": "file:src/core/snapshot.ts",
+   "to": "external:fast-glob",
+   "resolved": true,
+   "external": true,
+   "specifier": "fast-glob"
+  },
+  {
+   "type": "imports",
+   "from": "file:src/core/snapshot.ts",
+   "to": "external:node:fs/promises",
+   "resolved": true,
+   "external": true,
+   "specifier": "node:fs/promises"
+  },
+  {
+   "type": "imports",
+   "from": "file:src/core/snapshot.ts",
+   "to": "external:node:path",
+   "resolved": true,
+   "external": true,
+   "specifier": "node:path"
+  },
+  {
+   "type": "imports",
+   "from": "file:src/core/snapshot.ts",
+   "to": "external:typescript",
+   "resolved": true,
+   "external": true,
+   "specifier": "typescript"
   },
   {
    "type": "imports",
@@ -9294,6 +10440,30 @@ export const sprawlensSnapshot: SnapshotLike = {
      "toSymbolId": "symbol:src/core/types.ts:type:SnapshotCommit:25"
     }
    ]
+  },
+  {
+   "type": "imports",
+   "from": "file:vite.atlas.config.ts",
+   "to": "external:@preact/preset-vite",
+   "resolved": true,
+   "external": true,
+   "specifier": "@preact/preset-vite"
+  },
+  {
+   "type": "imports",
+   "from": "file:vite.atlas.config.ts",
+   "to": "external:vite",
+   "resolved": true,
+   "external": true,
+   "specifier": "vite"
+  },
+  {
+   "type": "imports",
+   "from": "file:vitest.config.ts",
+   "to": "external:vitest/config",
+   "resolved": true,
+   "external": true,
+   "specifier": "vitest/config"
   }
  ]
 };

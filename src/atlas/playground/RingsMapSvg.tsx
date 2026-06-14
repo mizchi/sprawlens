@@ -45,8 +45,10 @@ import {
   makeTopAncestorOf,
   RaisedEdgePath,
   selectionDirections,
+  DEPS_INK,
+  SatellitePlaneLayer,
   SELECT_STROKE,
-  TestPlaneLayer,
+  type SatelliteItem,
   UPSTREAM_COLOR,
   UPSTREAM_FILL,
   WatermarkLabelsLayer,
@@ -85,6 +87,8 @@ type Props = {
   testFileIds: Set<string>;
   /** testFileId → covered source file id, for the Tests plane drops. */
   testTargets?: Map<string, string>;
+  /** Source file × external package pairs, for the Deps plane drops. */
+  externalDeps?: { source: string; specifier: string }[];
   /** Layer ids switched off; "source" hides the file/symbol map itself. */
   hiddenLayers: Set<string>;
   /** Symbol id → parent file id (precomputed; string parsing here was hot). */
@@ -225,7 +229,11 @@ export function RingsMapSvg(props: Props) {
   // inherit one transform. labels read `tiltAffine` to stay upright on top.
   const tiltActive =
     !!tilt?.enabled &&
-    (tilt.theta !== 0 || tilt.pitch !== 0 || tilt.skew !== 0 || tilt.tests);
+    (tilt.theta !== 0 ||
+      tilt.pitch !== 0 ||
+      tilt.skew !== 0 ||
+      tilt.tests ||
+      tilt.deps);
   const tiltOpts = tilt
     ? {
         theta: tilt.theta,
@@ -239,16 +247,22 @@ export function RingsMapSvg(props: Props) {
       ? layerTransform({ ...tiltOpts, gap: 0, index: 0 })
       : undefined;
   const tiltMatrix = tiltAffine ? toMatrixString(tiltAffine) : undefined;
-  // test plane: same tilt dropped one layer down by the gap
-  const testPlane: Affine | undefined =
+  // satellite planes: same tilt dropped one (or two) layer gaps down. tests
+  // takes index 1; deps takes the next free index so they stack
+  const testsPlane: Affine | undefined =
     tilt?.enabled && tilt.tests && tiltOpts
       ? layerTransform({ ...tiltOpts, gap: tilt.gap, index: 1 })
       : undefined;
+  const depsPlane: Affine | undefined =
+    tilt?.enabled && tilt.deps && tiltOpts
+      ? layerTransform({ ...tiltOpts, gap: tilt.gap, index: tilt.tests ? 2 : 1 })
+      : undefined;
+  const satellitesOn = !!testsPlane || !!depsPlane;
   // representative upper-plane point per source file = centroid of its leaf
-  // cells; the Tests plane drops each test under its target source here
+  // cells; satellite planes drop nodes under these
   const sourceSiteOf = useMemo(() => {
     const acc = new Map<string, { x: number; y: number; n: number }>();
-    if (testPlane) {
+    if (satellitesOn) {
       for (const layout of rings.leafLayouts.values())
         for (const c of layout.cells) {
           const f = parentFileOf(c.id);
@@ -263,7 +277,33 @@ export function RingsMapSvg(props: Props) {
     const m = new Map<string, Vec2>();
     for (const [f, e] of acc) m.set(f, { x: e.x / e.n, y: e.y / e.n });
     return m;
-  }, [rings, parentFileOf, !!testPlane]);
+  }, [rings, parentFileOf, satellitesOn]);
+  // satellite items: tests cover one source each; deps group all importers
+  const testItems: SatelliteItem[] = useMemo(
+    () =>
+      testsPlane && props.testTargets
+        ? [...props.testTargets].map(([t, s]) => ({
+            id: t,
+            label: labels.get(t) ?? fallbackLabel(t),
+            sourceIds: [s],
+          }))
+        : [],
+    [testsPlane, props.testTargets, labels],
+  );
+  const depItems: SatelliteItem[] = useMemo(() => {
+    if (!depsPlane || !props.externalDeps) return [];
+    const byPkg = new Map<string, string[]>();
+    for (const { source, specifier } of props.externalDeps) {
+      const list = byPkg.get(specifier);
+      if (list) list.push(source);
+      else byPkg.set(specifier, [source]);
+    }
+    return [...byPkg].map(([spec, srcs]) => ({
+      id: `external:${spec}`,
+      label: spec,
+      sourceIds: srcs,
+    }));
+  }, [depsPlane, props.externalDeps]);
   const [hoveredEdge, setHoveredEdge] = useState<{
     source: string;
     target: string;
@@ -1366,14 +1406,29 @@ export function RingsMapSvg(props: Props) {
           : null}
       </g>
       </g>
-      {testPlane && tiltAffine && props.testTargets ? (
-        <TestPlaneLayer
+      {testsPlane && tiltAffine && testItems.length ? (
+        <SatellitePlaneLayer
           tilt0={tiltAffine}
-          tilt1={testPlane}
+          tilt1={testsPlane}
           extent={{ w: width, h: height }}
           sourceSiteOf={sourceSiteOf}
-          testTargets={props.testTargets}
-          labelOf={(id) => labels.get(id) ?? fallbackLabel(id)}
+          items={testItems}
+          color={TEST_LABEL_INK}
+          withSourceFrame
+          zoom={zoom}
+          onSelect={onSelect}
+          selectedId={selectedId}
+        />
+      ) : null}
+      {depsPlane && tiltAffine && depItems.length ? (
+        <SatellitePlaneLayer
+          tilt0={tiltAffine}
+          tilt1={depsPlane}
+          extent={{ w: width, h: height }}
+          sourceSiteOf={sourceSiteOf}
+          items={depItems}
+          color={DEPS_INK}
+          withSourceFrame={!testsPlane}
           zoom={zoom}
           onSelect={onSelect}
           selectedId={selectedId}

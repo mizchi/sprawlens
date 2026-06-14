@@ -31,6 +31,8 @@ export type TiltParams = {
   skew: number;
   /** Show the Tests plane below the source plane (drops tests off source). */
   tests: boolean;
+  /** Show the Deps plane: external packages below their importers. */
+  deps: boolean;
   /** Vertical separation between stacked planes, in world units. */
   gap: number;
 };
@@ -419,7 +421,20 @@ export function Controls(props: Props) {
               }
             />
           </label>
-          {params.tilt.tests ? (
+          <label style={row}>
+            <span style={{ width: "110px" }}>deps plane</span>
+            <input
+              type="checkbox"
+              checked={params.tilt.deps}
+              onInput={(e) =>
+                set("tilt", {
+                  ...params.tilt,
+                  deps: (e.target as HTMLInputElement).checked,
+                })
+              }
+            />
+          </label>
+          {params.tilt.tests || params.tilt.deps ? (
             <label style={row}>
               <span style={{ width: "110px" }}>
                 gap {Math.round(params.tilt.gap)}
