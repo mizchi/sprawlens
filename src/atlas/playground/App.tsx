@@ -2395,30 +2395,6 @@ export function App() {
                 </div>
                 {isActive ? (
                   <div style={{ maxHeight: "42vh", overflowY: "auto", marginTop: "6px" }}>
-            <div style={{ display: "flex", gap: "6px", margin: "6px 0" }}>
-              {focusId !== activeId ? (
-                <button
-                  onClick={() => setFocusId(activeId)}
-                  style={{ padding: "4px 8px", fontSize: "11px", cursor: "pointer" }}
-                >
-                  依存経路を抽出
-                </button>
-              ) : null}
-              {focusId ? (
-                <button
-                  onClick={() => setFocusId(null)}
-                  style={{ padding: "4px 8px", fontSize: "11px", cursor: "pointer" }}
-                >
-                  全体表示に戻す
-                </button>
-              ) : null}
-            </div>
-            {selected ? (
-              <>
-                <div>target: {selected.targetArea.toFixed(1)} px²</div>
-                <div>actual: {selected.actualArea.toFixed(1)} px²</div>
-              </>
-            ) : null}
             {selectedTest && testTargets.get(selectedTest.id) ? (
               <button
                 onClick={() => jumpTo(testTargets.get(selectedTest.id)!)}
@@ -2547,6 +2523,27 @@ export function App() {
               </div>
             );
           })}
+          {/* one action for the whole selected stack: focus merges every
+              selected node's dependency paths (see focusRoots) */}
+          <div style={{ display: "flex", flex: "none" }}>
+            <button
+              onClick={() => setFocusId(focusId ? null : activeId)}
+              style={{
+                flex: "1",
+                padding: "6px 8px",
+                fontSize: "12px",
+                cursor: "pointer",
+                background: PANEL_BG,
+                color: INK,
+                border: `1px solid ${PANEL_BORDER}`,
+                borderRadius: "8px",
+              }}
+            >
+              {focusId
+                ? "全体表示に戻す"
+                : `依存経路を抽出 (${selectedIds.length})`}
+            </button>
+          </div>
         </div>
       ) : null}
     </div>
