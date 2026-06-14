@@ -11,3 +11,4 @@ export * from "./core/diff.js";
 export * from "./core/metrics.js";
 export * from "./core/types.js";
 export * from "./adapter.js";
+export * from "./provider.js";

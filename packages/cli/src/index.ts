@@ -4,12 +4,12 @@ import { spawn } from "node:child_process";
 import { existsSync } from "node:fs";
 import { basename, dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
-import {
-  analyzeRepository,
-  collectRepository,
-  createSnapshotFromWorkingTree,
-} from "@sprawlens/analyzer-ts";
+import { analyzeRepository, collectRepository, tsProvider } from "@sprawlens/analyzer-ts";
+import { selectProvider } from "@sprawlens/schema";
 import { createAtlasServer } from "@sprawlens/server";
+
+/** Registered language providers, in match order. */
+const PROVIDERS = [tsProvider];
 
 const program = new Command();
 
@@ -31,19 +31,14 @@ program
     ): Promise<void> => {
       const root = resolve(repo);
       const name = basename(root);
-      console.log(`analyzing ${root} …`);
-      const snapshot = await createSnapshotFromWorkingTree(
-        root,
-        {
-          hash: "WORKTREE",
-          shortHash: "worktree",
-          timestamp: new Date().toISOString(),
-          authorName: "Working Tree",
-          message: "Uncommitted working tree",
-          aiIndicators: [],
-        },
-        { repoPath: root, repoName: name },
-      );
+      const provider = await selectProvider(PROVIDERS, root);
+      if (!provider) {
+        console.error(`no language provider matched ${root}`);
+        process.exitCode = 1;
+        return;
+      }
+      console.log(`analyzing ${root} (${provider.id}) …`);
+      const snapshot = await provider.analyze(root);
       const fileCount = snapshot.nodes.filter((n) => n.type === "file").length;
       console.log(`  ${fileCount} files, ${snapshot.edges.length} edges`);
 
