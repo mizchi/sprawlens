@@ -239,6 +239,24 @@ export function TreemapSvg(props: Props) {
     for (const id of multiSelected) add(id);
     return s;
   }, [selectedId, multiSelected, fileIdOf]);
+  // files whose cross-layer edges are currently shown → tint them in the
+  // connecting layer's edge colour (mirrors the edge gate)
+  const activeLinkTint = useMemo(() => {
+    const m = new Map<string, string>();
+    if (!satellitesOn) return m;
+    for (const layer of layers) {
+      const tint = layer.id === "deps" ? DEPS_INK : TEST_LABEL_INK;
+      for (const n of layer.placed) {
+        const nodeHot =
+          props.altEdges || linkHover === n.id || pinnedLinkIds.has(n.id);
+        for (const sid of n.sourceIds) {
+          if (nodeHot || linkHover === sid || pinnedLinkIds.has(sid))
+            m.set(sid, tint);
+        }
+      }
+    }
+    return m;
+  }, [layers, linkHover, pinnedLinkIds, props.altEdges, satellitesOn]);
   const [hoveredEdge, setHoveredEdge] = useState<{
     source: string;
     target: string;
@@ -542,6 +560,25 @@ export function TreemapSvg(props: Props) {
           );
         })}
       </g>
+      {activeLinkTint.size > 0 ? (
+        <g style={{ pointerEvents: "none" }}>
+          {visibleFileCells.map((cell) => {
+            const tint = activeLinkTint.get(fileIdOf(cell.id));
+            if (!tint) return null;
+            return (
+              <polygon
+                key={`lt:${cell.id}`}
+                points={cell.polygon.map((p) => `${p.x},${p.y}`).join(" ")}
+                fill={tint}
+                fill-opacity={0.28}
+                stroke={tint}
+                stroke-opacity={0.55}
+                stroke-width={1}
+              />
+            );
+          })}
+        </g>
+      ) : null}
       {leafVisible ? (
         <WatermarkLabelsLayer
           cells={visibleFileCells}
@@ -869,6 +906,7 @@ export function TreemapSvg(props: Props) {
                 hoverId={linkHover}
                 onHover={setLinkHover}
                 pinnedIds={pinnedLinkIds}
+                tintOf={(id) => activeLinkTint.get(id)}
               />
             );
           })

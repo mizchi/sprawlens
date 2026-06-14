@@ -754,6 +754,9 @@ export function PlaneLayerView(props: {
   /** Endpoints whose edges stay shown even without hover — the selection (node
    * ids and their files), so picking a node keeps its links up. */
   pinnedIds?: Set<string>;
+  /** Node id → tint for nodes a currently-shown edge points at; fills the cell
+   * region in the connecting edge's colour. */
+  tintOf?: (id: string) => string | undefined;
 }) {
   const { tilt0, tilt1, extent, screenPosOf, placed, color, zoom } = props;
   const referencedIds = props.referencedIds;
@@ -889,6 +892,10 @@ export function PlaneLayerView(props: {
           // referenced by another plane's edges: brighten the fill so the nodes
           // actually in play surface out of the full layout
           const linked = !active && (referencedIds?.has(d.id) ?? false);
+          // a currently-shown edge points here: tint the cell in that edge's
+          // colour so the live targets read as a coloured region
+          const tint = props.tintOf?.(d.id);
+          const fill = tint ?? color;
           const onEnter = () => {
             setHovered(d.id);
             props.onHover?.(d.id);
@@ -905,11 +912,11 @@ export function PlaneLayerView(props: {
             <polygon
               key={d.id}
               points={d.polygon.map((p) => `${p.x},${p.y}`).join(" ")}
-              fill={color}
-              fill-opacity={active ? 0.22 : linked ? 0.18 : 0.08}
-              stroke={active ? SELECT_STROKE : color}
-              stroke-opacity={active ? 0.9 : linked ? 0.75 : 0.5}
-              stroke-width={active ? 1.6 : 1}
+              fill={fill}
+              fill-opacity={tint ? 0.34 : active ? 0.22 : linked ? 0.18 : 0.08}
+              stroke={tint ?? (active ? SELECT_STROKE : color)}
+              stroke-opacity={tint ? 0.85 : active ? 0.9 : linked ? 0.75 : 0.5}
+              stroke-width={active || tint ? 1.6 : 1}
               style={{ cursor: "pointer" }}
               onMouseEnter={onEnter}
               onMouseLeave={onLeave}
@@ -921,11 +928,11 @@ export function PlaneLayerView(props: {
               cx={d.site.x}
               cy={d.site.y}
               r={d.r}
-              fill={color}
-              fill-opacity={active ? 0.28 : linked ? 0.24 : 0.12}
-              stroke={active ? SELECT_STROKE : color}
-              stroke-opacity={active ? 0.9 : linked ? 0.8 : 0.6}
-              stroke-width={active ? 1.6 : 1}
+              fill={fill}
+              fill-opacity={tint ? 0.34 : active ? 0.28 : linked ? 0.24 : 0.12}
+              stroke={tint ?? (active ? SELECT_STROKE : color)}
+              stroke-opacity={tint ? 0.85 : active ? 0.9 : linked ? 0.8 : 0.6}
+              stroke-width={active || tint ? 1.6 : 1}
               style={{ cursor: "pointer" }}
               onMouseEnter={onEnter}
               onMouseLeave={onLeave}
