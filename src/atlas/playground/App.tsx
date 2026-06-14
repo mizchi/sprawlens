@@ -1782,7 +1782,6 @@ export function App() {
       showTests: params.tilt.tests,
       showDeps: params.tilt.deps,
       graph: graphRef.current,
-      testTargets: testTargetsRef.current,
       externalDeps: externalDepsRef.current,
       ext,
       labelOf: (id) => labelsRef.current.get(id) ?? id.split("/").pop() ?? id,
