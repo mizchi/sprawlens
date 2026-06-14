@@ -217,7 +217,8 @@ export function App() {
       skew: 0.35,
       tests: false,
       deps: false,
-      gap: 300,
+      // ~ the plane's longer edge, so a layer sits a full map-width below
+      gap: 950,
     },
   });
   // multi-select: ordered ids, last one is the primary (drives the detail
@@ -1780,6 +1781,7 @@ export function App() {
       showTests: params.tilt.tests,
       showDeps: params.tilt.deps,
       graph: graphRef.current,
+      testTargets: testTargetsRef.current,
       externalDeps: externalDepsRef.current,
       ext,
       labelOf: (id) => labelsRef.current.get(id) ?? id.split("/").pop() ?? id,

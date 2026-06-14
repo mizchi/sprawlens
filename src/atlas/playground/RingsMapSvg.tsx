@@ -1391,6 +1391,10 @@ export function RingsMapSvg(props: Props) {
                 withSourceFrame={i === 0}
                 zoom={zoom}
                 onSelect={onSelect}
+                onLinkSelect={(id, additive) => {
+                  onSelect(id, additive);
+                  props.onFocusId?.(id);
+                }}
                 selectedId={selectedId}
               />
             );

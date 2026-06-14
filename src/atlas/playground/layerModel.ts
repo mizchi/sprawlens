@@ -1,6 +1,7 @@
 import type { AtlasGraph } from "../contracts/graph.js";
 import { defaultLayerOf } from "../contracts/layers.js";
-import { moduleGrouping } from "../contracts/hierarchy.js";
+import type { Grouping } from "../contracts/hierarchy.js";
+import { defaultModuleIdOf } from "../contracts/modules.js";
 import type { Vec2 } from "../kernel/vec.js";
 import { ringPlane, type PlacedNode } from "./planeLayers.ts";
 import {
@@ -32,10 +33,13 @@ const SOLVER = {
   lloydRate: 0.7,
 };
 
-/** Module-grouped capacity layout of the test files — the same engine as the
- * source map — with cross-plane links following real test→source imports. */
+/** Capacity layout of the test files — the same engine as the source map —
+ * but grouped by the module of the SOURCE each test covers, so tests cluster
+ * under the source area they exercise rather than by their own folder. Cross-
+ * plane links follow the real test→source imports. */
 function solveTestLayer(
   graph: AtlasGraph,
+  testTargets: Map<string, string>,
   ext: { width: number; height: number },
   labelOf: (id: string) => string,
   planeIndex: number,
@@ -46,13 +50,18 @@ function solveTestLayer(
   const testEdges = graph.edges.filter(
     (e) => testIds.has(e.source) && testIds.has(e.target),
   );
+  // district = the covered source's module (fallback: the test's own module)
+  const byTargetModule: Grouping = {
+    kind: "module",
+    groupOf: (id) => defaultModuleIdOf(testTargets.get(id) ?? id),
+  };
   let state = createTreemapState(
     { nodes: testNodes, edges: testEdges },
     {
       width: ext.width,
       height: ext.height,
       ...SOLVER,
-      boundaries: [moduleGrouping()],
+      boundaries: [byTargetModule],
     },
   );
   for (let i = 0; i < 160; i++) {
@@ -134,6 +143,8 @@ export function buildSatelliteLayers(opts: {
   showTests: boolean;
   showDeps: boolean;
   graph: AtlasGraph;
+  /** testFileId → covered source file id, for clustering tests by source. */
+  testTargets: Map<string, string>;
   externalDeps: readonly ExternalDep[];
   ext: { width: number; height: number };
   labelOf: (id: string) => string;
@@ -141,7 +152,13 @@ export function buildSatelliteLayers(opts: {
   const layers: SolvedLayer[] = [];
   let index = 1;
   if (opts.showTests) {
-    const layer = solveTestLayer(opts.graph, opts.ext, opts.labelOf, index);
+    const layer = solveTestLayer(
+      opts.graph,
+      opts.testTargets,
+      opts.ext,
+      opts.labelOf,
+      index,
+    );
     if (layer) {
       layers.push(layer);
       index++;

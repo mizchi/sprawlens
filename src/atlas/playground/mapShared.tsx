@@ -729,12 +729,29 @@ export function PlaneLayerView(props: {
   edgeCap?: number;
   zoom: number;
   onSelect: (id: string, additive?: boolean) => void;
+  /** Click a correspondence line → select + jump to that source node. */
+  onLinkSelect?: (sourceId: string, additive?: boolean) => void;
   selectedId?: string | null;
 }) {
   const { tilt0, tilt1, extent, sourceSiteOf, placed, color, zoom } = props;
   const edgeCap = props.edgeCap ?? 16;
   const tilt1Matrix = toMatrixString(tilt1);
   const [hovered, setHovered] = useState<string | null>(null);
+  // a node's world size (cell extent / circle diameter); labels gate on it the
+  // same way the source map does, so big cells get a name without hovering
+  const sizeOf = (d: PlacedNode): number => {
+    if (d.r !== undefined) return d.r * 2;
+    if (!d.polygon) return 0;
+    let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+    for (const p of d.polygon) {
+      minX = Math.min(minX, p.x);
+      maxX = Math.max(maxX, p.x);
+      minY = Math.min(minY, p.y);
+      maxY = Math.max(maxY, p.y);
+    }
+    return Math.max(maxX - minX, maxY - minY);
+  };
+  const LABEL_MIN_PX = 44;
   return (
     <>
       {/* plane frames */}
@@ -744,27 +761,46 @@ export function PlaneLayerView(props: {
         ) : null}
         <polygon points={planePolyOf(tilt1, extent.w, extent.h)} stroke-opacity={0.5} stroke-width={1.5} />
       </g>
-      {/* correspondence: each related source (top) ↓ the node (bottom) */}
-      <g fill="none" stroke={color} style={{ pointerEvents: "none" }}>
+      {/* correspondence: each related source (top) ↓ the node (bottom). Like
+          an in-layer arrow, clicking one selects + jumps to that source. */}
+      <g fill="none" stroke={color}>
         {placed.flatMap((d) => {
           const bot = apply(tilt1, d.site);
+          const active = d.id === hovered || d.id === props.selectedId;
           return d.sourceIds
-            .map((s) => sourceSiteOf.get(s))
-            .filter((v): v is Vec2 => !!v)
+            .map((s) => [s, sourceSiteOf.get(s)] as const)
+            .filter((v): v is readonly [string, Vec2] => !!v[1])
             .slice(0, edgeCap)
-            .map((src, i) => {
+            .flatMap(([sid, src], i) => {
               const top = apply(tilt0, src);
-              return (
+              const key = `${d.id}:${i}`;
+              return [
                 <line
-                  key={`${d.id}:${i}`}
+                  key={key}
                   x1={top.x}
                   y1={top.y}
                   x2={bot.x}
                   y2={bot.y}
-                  stroke-width={1}
-                  stroke-opacity={0.35}
-                />
-              );
+                  stroke-width={active ? 1.6 : 1}
+                  stroke-opacity={active ? 0.85 : 0.3}
+                  style={{ pointerEvents: "none" }}
+                />,
+                // fat transparent hit line so the thin link is easy to click
+                <line
+                  key={`${key}-hit`}
+                  x1={top.x}
+                  y1={top.y}
+                  x2={bot.x}
+                  y2={bot.y}
+                  stroke="transparent"
+                  stroke-width={8 / zoom}
+                  style={{ cursor: "pointer" }}
+                  onClick={(event) => {
+                    event.stopPropagation();
+                    props.onLinkSelect?.(sid, event.shiftKey);
+                  }}
+                />,
+              ];
             });
         })}
       </g>
@@ -823,11 +859,16 @@ export function PlaneLayerView(props: {
           ) : null;
         })}
       </g>
-      {/* name shown only for the hovered / selected node — upright, at the
-          node's site on this plane (translate to its projected point; no tilt
-          parent, so the label never rotates or scales with the plane) */}
+      {/* names: shown for cells big enough on screen (like the source map),
+          plus the hovered / selected node. Upright at the node's projected
+          site (plain translate, no tilt parent, so it never rotates/scales). */}
       {placed
-        .filter((d) => d.id === hovered || d.id === props.selectedId)
+        .filter(
+          (d) =>
+            d.id === hovered ||
+            d.id === props.selectedId ||
+            sizeOf(d) * zoom >= LABEL_MIN_PX,
+        )
         .map((d) => {
           const p = apply(tilt1, d.site);
           const fontSize = 12 / zoom;

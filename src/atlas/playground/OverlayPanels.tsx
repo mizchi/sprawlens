@@ -187,7 +187,7 @@ export function CameraPanel(props: {
               <input
                 type="range"
                 min={100}
-                max={1000}
+                max={1800}
                 step={10}
                 value={tilt.gap}
                 onInput={(e) =>
