@@ -85,9 +85,15 @@ export type ApiGraphOptions = {
   weight?: "complexity" | "loc";
 };
 
-/** Filler node id holding a module's budgeted-out symbols' total area. */
-export function moduleScopeId(moduleId: string): string {
-  return `${moduleId}#scope`;
+/**
+ * Filler node id holding a group's budgeted-out symbols' total area. The id is
+ * a synthetic path *under* the group key (`${key}/(scope)`) so every boundary
+ * (module, directory, ...) re-groups it back into that exact key via the same
+ * path heuristic — a bare `key#scope` would mis-bucket a container module id
+ * (`src/atlas`) up into its parent and collapse the directory layout.
+ */
+export function moduleScopeId(groupKey: string): string {
+  return `${groupKey}/(scope)`;
 }
 
 export function buildApiGraph(
@@ -160,6 +166,12 @@ export type SymbolBudget = {
    * those a cross-layer edge points at, so they surface to be highlighted and
    * linked even when the budget would otherwise fold them. */
   ensure?: { files: ReadonlySet<string>; fileOf: (id: string) => string };
+  /** Group a folded symbol belongs to; its dropped area pools into one filler
+   * per group. Defaults to the module, but with a directory boundary active the
+   * caller passes the directory so each directory keeps its own scope filler —
+   * otherwise the per-module filler becomes one giant directory that swamps the
+   * real ones. */
+  fillerKeyOf?: (id: string) => string;
 };
 
 /**
@@ -171,7 +183,12 @@ export type SymbolBudget = {
  */
 export function applySymbolBudget(
   graph: AtlasGraph,
-  { budget, priorityOf = (_, w) => w, ensure }: SymbolBudget,
+  {
+    budget,
+    priorityOf = (_, w) => w,
+    ensure,
+    fillerKeyOf = apiModuleIdOf,
+  }: SymbolBudget,
 ): AtlasGraph {
   if (graph.nodes.length <= budget) return graph;
   const ranked = graph.nodes
@@ -195,11 +212,12 @@ export function applySymbolBudget(
   }
   const fillerLoc = new Map<string, number>();
   for (const { node } of ranked.slice(budget)) {
-    const moduleId = apiModuleIdOf(node.id);
-    fillerLoc.set(moduleId, (fillerLoc.get(moduleId) ?? 0) + node.metrics.loc);
+    if (keptIds.has(node.id)) continue; // ensure-promoted: not folded
+    const key = fillerKeyOf(node.id);
+    fillerLoc.set(key, (fillerLoc.get(key) ?? 0) + node.metrics.loc);
   }
-  const fillers: AtlasNode[] = [...fillerLoc].map(([moduleId, loc]) => ({
-    id: moduleScopeId(moduleId),
+  const fillers: AtlasNode[] = [...fillerLoc].map(([key, loc]) => ({
+    id: moduleScopeId(key),
     kind: "symbol",
     label: "(module scope)",
     metrics: { loc },

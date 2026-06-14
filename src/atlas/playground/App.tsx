@@ -472,6 +472,12 @@ export function App() {
     const api = applySymbolBudget(full, {
       budget,
       priorityOf: symbolPriorityOf,
+      // with a directory boundary, fold per directory so each keeps its own
+      // scope filler (a single per-module filler would become one giant
+      // directory that swamps the real ones and collapses the layout)
+      fillerKeyOf: paramsRef.current.boundaries.includes("directory")
+        ? (id) => directoryGrouping(DIRECTORY_DEPTH).groupOf(id)
+        : undefined,
       // cross-layer-referenced files always keep a cell so their edge lands and
       // they can be highlighted, no matter how the budget would rank them
       ensure:
