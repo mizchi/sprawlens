@@ -22,7 +22,8 @@ export default defineConfig({
   },
   build: {
     outDir: "dist",
-    emptyOutDir: false,
+    // clean stale hashed bundles each build (publicDir fixtures are re-copied)
+    emptyOutDir: true,
     rollupOptions: {
       input: "index.html",
     },

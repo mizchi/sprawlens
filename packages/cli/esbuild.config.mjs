@@ -27,10 +27,16 @@ await build({
     },
   ],
 });
-// bundle the built viz so the published CLI is self-contained
+// bundle the built viz so the published CLI is self-contained. Skip the demo
+// fixtures (public-atlas/*, ~6MB): the CLI serves a real repo over /api/snapshot
+// and defaults to the "served" source, so the baked demo data is never used.
 const here = fileURLToPath(new URL(".", import.meta.url));
 const vizSrc = resolve(here, "../viz/dist");
 const vizOut = resolve(here, "dist/viz");
+const fixturesDir = resolve(vizSrc, "fixtures");
 await rm(vizOut, { recursive: true, force: true });
-await cp(vizSrc, vizOut, { recursive: true });
-console.log("built dist/index.js + bundled viz");
+await cp(vizSrc, vizOut, {
+  recursive: true,
+  filter: (src) => src !== fixturesDir && !src.startsWith(`${fixturesDir}/`),
+});
+console.log("built dist/index.js + bundled viz (no demo fixtures)");
