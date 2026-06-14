@@ -13,6 +13,7 @@ import { centroid, containsPoint, type Ring } from "../kernel/polygon.js";
 import { createRng, type Rng } from "../kernel/rng.js";
 import { Controls, type PlaygroundParams } from "./Controls.tsx";
 import { CameraPanel, LayersMenu } from "./OverlayPanels.tsx";
+import type { PlacedNode } from "./planeLayers.ts";
 import {
   INK,
   makeTopAncestorOf,
@@ -1769,6 +1770,70 @@ export function App() {
   const testFileIds = testFileIdsRef.current;
   const testTargets = testTargetsRef.current;
   const externalDeps = externalDepsRef.current;
+  // the Tests plane is a full module-grouped layout of just the test files —
+  // the same capacity engine as the source map — and the cross-plane lines
+  // follow the real test→source import dependencies (a test imports many)
+  const testPlane = useMemo((): {
+    placed: PlacedNode[];
+    districts: { x: number; y: number }[][];
+    extent: { w: number; h: number };
+  } | null => {
+    if (!params.tilt.enabled || !params.tilt.tests) return null;
+    const full = graphRef.current;
+    const testNodes = full.nodes.filter((n) => defaultLayerOf(n.id) === "test");
+    if (testNodes.length === 0) return null;
+    const testIds = new Set(testNodes.map((n) => n.id));
+    const testEdges = full.edges.filter(
+      (e) => testIds.has(e.source) && testIds.has(e.target),
+    );
+    const ext =
+      params.layout === "rings"
+        ? { width: WIDTH, height: HEIGHT }
+        : mapSize;
+    let state = createTreemapState(
+      { nodes: testNodes, edges: testEdges },
+      {
+        width: ext.width,
+        height: ext.height,
+        seed: SEED,
+        adaptationRate: ADAPTATION_RATE,
+        lloydRate: LLOYD_RATE,
+        boundaries: [moduleGrouping()],
+      },
+    );
+    for (let i = 0; i < 160; i++) {
+      const stepped = stepTreemapState(state, 6);
+      state = stepped.state;
+      if (!stepped.active) break;
+    }
+    // each test → the source files it imports (across the plane)
+    const importsBy = new Map<string, Set<string>>();
+    for (const e of full.edges) {
+      if (!testIds.has(e.source) || testIds.has(e.target)) continue;
+      let set = importsBy.get(e.source);
+      if (!set) importsBy.set(e.source, (set = new Set()));
+      set.add(e.target);
+    }
+    const placed: PlacedNode[] = [];
+    for (const layout of state.leafLayouts.values())
+      for (const c of layout.cells) {
+        if (c.polygon.length < 3) continue;
+        placed.push({
+          id: c.id,
+          label: labelsRef.current.get(c.id) ?? c.id.split("/").pop() ?? c.id,
+          site: c.site,
+          polygon: c.polygon,
+          sourceIds: [...(importsBy.get(c.id) ?? [])],
+        });
+      }
+    const districts = state.levels.flatMap((l) =>
+      [...l.cells.values()]
+        .filter((c) => c.polygon.length >= 3)
+        .map((c) => c.polygon),
+    );
+    return { placed, districts, extent: { w: ext.width, h: ext.height } };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [leafGraph, params.tilt.enabled, params.tilt.tests, params.layout, mapSize]);
   const selected = useMemo(
     () =>
       allCells.find((c) => c.id === activeId) ??
@@ -2004,7 +2069,7 @@ export function App() {
             testFileIds={testFileIds}
             testTargets={testTargets}
             externalDeps={externalDeps}
-            locOf={(id) => locOfRef.current.get(id) ?? 1}
+            testPlane={testPlane}
             hiddenLayers={new Set(hiddenLayersOf(params.omit))}
             parentFileOf={parentFileOf}
             changedFiles={changedFilesRef.current}
@@ -2046,7 +2111,7 @@ export function App() {
             testFileIds={testFileIds}
             testTargets={testTargets}
             externalDeps={externalDeps}
-            locOf={(id) => locOfRef.current.get(id) ?? 1}
+            testPlane={testPlane}
             focus={focusView}
             width={mapSize.width}
             height={mapSize.height}

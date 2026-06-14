@@ -44,9 +44,9 @@ import {
   WatermarkLabelsLayer,
 } from "./mapShared.tsx";
 import {
-  capacityPlane,
   ringPlane,
   type LayerNode,
+  type PlacedNode,
 } from "./planeLayers.ts";
 import { symbolNameOf } from "./cfgClient.ts";
 import {
@@ -79,8 +79,12 @@ type Props = {
   testTargets?: Map<string, string>;
   /** Source file × external package pairs, for the Deps plane drops. */
   externalDeps?: { source: string; specifier: string }[];
-  /** LOC per id, weighting the test plane's capacity layout. */
-  locOf?: (id: string) => number;
+  /** Pre-laid Tests plane (module-grouped layout of the test files). */
+  testPlane?: {
+    placed: PlacedNode[];
+    districts: Vec2[][];
+    extent: { w: number; h: number };
+  } | null;
   /** Nested symbol layouts inside the file cells (file granularity). */
   innerCells?: CellResult[];
   exportedIds?: Set<string>;
@@ -420,18 +424,6 @@ export function TreemapSvg(props: Props) {
   const labelOf = (id: string): string =>
     props.labels?.get(id) ?? symbolNameOf(id) ?? id.split("/").pop() ?? id;
 
-  // tests plane: capacity Voronoi of test files weighted by LOC, like source
-  const testPlaced = testsPlane && props.testTargets
-    ? capacityPlane(
-        [...props.testTargets].map(([t, s]): LayerNode => ({
-          id: t,
-          label: labelOf(t),
-          weight: props.locOf?.(t) ?? 1,
-          sourceIds: [s],
-        })),
-        { w: width, h: height },
-      )
-    : [];
   // deps plane: packages on rings, rank by number of importing source files
   const depPlaced = (() => {
     if (!depsPlane || !props.externalDeps) return [];
@@ -831,13 +823,14 @@ export function TreemapSvg(props: Props) {
         />
       ))}
       </g>
-      {testsPlane && tiltAffine && testPlaced.length ? (
+      {testsPlane && tiltAffine && props.testPlane ? (
         <PlaneLayerView
           tilt0={tiltAffine}
           tilt1={testsPlane}
-          extent={{ w: width, h: height }}
+          extent={props.testPlane.extent}
           sourceSiteOf={sourceSiteOf}
-          placed={testPlaced}
+          placed={props.testPlane.placed}
+          districts={props.testPlane.districts}
           color={TEST_LABEL_INK}
           withSourceFrame
           zoom={zoom}

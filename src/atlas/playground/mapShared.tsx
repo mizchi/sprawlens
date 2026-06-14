@@ -718,6 +718,8 @@ export function PlaneLayerView(props: {
   /** Upper-plane representative point per source file id. */
   sourceSiteOf: Map<string, Vec2>;
   placed: readonly PlacedNode[];
+  /** Intermediate boundary (e.g. module) outlines for this plane's layout. */
+  districts?: readonly (readonly Vec2[])[];
   /** Cell stroke / label / line tint. */
   color: string;
   /** Also draw the source-plane frame (only one layer need do this). */
@@ -729,9 +731,24 @@ export function PlaneLayerView(props: {
   selectedId?: string | null;
 }) {
   const { tilt0, tilt1, extent, sourceSiteOf, placed, color, zoom } = props;
-  const fontSize = 11 / zoom;
   const edgeCap = props.edgeCap ?? 16;
   const tilt1Matrix = toMatrixString(tilt1);
+  // a node's world size (cell extent or circle diameter); labels gate on it so
+  // a name only appears once its cell is big enough on screen, and its font is
+  // capped to the cell so zoomed-out views don't sprawl giant text
+  const sizeOf = (d: PlacedNode): number => {
+    if (d.r !== undefined) return d.r * 2;
+    if (!d.polygon) return 0;
+    let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+    for (const p of d.polygon) {
+      minX = Math.min(minX, p.x);
+      maxX = Math.max(maxX, p.x);
+      minY = Math.min(minY, p.y);
+      maxY = Math.max(maxY, p.y);
+    }
+    return Math.max(maxX - minX, maxY - minY);
+  };
+  const LABEL_MIN_PX = 30;
   return (
     <>
       {/* plane frames */}
@@ -765,13 +782,22 @@ export function PlaneLayerView(props: {
             });
         })}
       </g>
-      {/* in-plane layout geometry (cells / rings), tilted with the plane */}
+      {/* in-plane layout geometry (cells / rings) + district outlines */}
       <g
         transform={tilt1Matrix}
         fill="none"
         stroke={color}
         style={{ pointerEvents: "none" }}
       >
+        {(props.districts ?? []).map((poly, i) => (
+          <polygon
+            key={`d${i}`}
+            points={poly.map((p) => `${p.x},${p.y}`).join(" ")}
+            stroke={PLANE_OUTLINE}
+            stroke-opacity={0.35}
+            stroke-width={1}
+          />
+        ))}
         {placed.map((d) =>
           d.polygon ? (
             <polygon
@@ -796,28 +822,36 @@ export function PlaneLayerView(props: {
           ) : null,
         )}
       </g>
-      {/* node labels, kept upright on the plane */}
+      {/* node labels, upright, gated + capped so they don't sprawl */}
       <g style={{ userSelect: "none" }}>
-        {placed.map((d) => (
-          <text
-            key={d.id}
-            transform={uprightAt(tilt1, d.site)}
-            y={fontSize * 0.34}
-            font-size={fontSize}
-            font-weight="600"
-            text-anchor="middle"
-            fill={color}
-            stroke={d.id === props.selectedId ? SELECT_STROKE : "none"}
-            stroke-width={d.id === props.selectedId ? 0.6 / zoom : 0}
-            style={{ cursor: "pointer" }}
-            onClick={(event) => {
-              event.stopPropagation();
-              props.onSelect(d.id, event.shiftKey);
-            }}
-          >
-            {d.label}
-          </text>
-        ))}
+        {placed.map((d) => {
+          const size = sizeOf(d);
+          const selected = d.id === props.selectedId;
+          // only label a cell once it's big enough on screen; the font stays
+          // screen-constant (no cell-proportional blow-up when zoomed out)
+          if (size * zoom < LABEL_MIN_PX && !selected) return null;
+          const fontSize = 12 / zoom;
+          return (
+            <text
+              key={d.id}
+              transform={uprightAt(tilt1, d.site)}
+              y={fontSize * 0.34}
+              font-size={fontSize}
+              font-weight="600"
+              text-anchor="middle"
+              fill={color}
+              stroke={selected ? SELECT_STROKE : "none"}
+              stroke-width={selected ? 0.6 / zoom : 0}
+              style={{ cursor: "pointer" }}
+              onClick={(event) => {
+                event.stopPropagation();
+                props.onSelect(d.id, event.shiftKey);
+              }}
+            >
+              {d.label}
+            </text>
+          );
+        })}
       </g>
     </>
   );

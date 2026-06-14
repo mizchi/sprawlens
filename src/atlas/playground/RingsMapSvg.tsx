@@ -53,9 +53,9 @@ import {
   WatermarkLabelsLayer,
 } from "./mapShared.tsx";
 import {
-  capacityPlane,
   ringPlane,
   type LayerNode,
+  type PlacedNode,
 } from "./planeLayers.ts";
 import { symbolNameOf } from "./cfgClient.ts";
 import {
@@ -93,8 +93,12 @@ type Props = {
   testTargets?: Map<string, string>;
   /** Source file × external package pairs, for the Deps plane drops. */
   externalDeps?: { source: string; specifier: string }[];
-  /** LOC per id, weighting the test plane's capacity layout. */
-  locOf?: (id: string) => number;
+  /** Pre-laid Tests plane (module-grouped layout of the test files). */
+  testPlane?: {
+    placed: PlacedNode[];
+    districts: Vec2[][];
+    extent: { w: number; h: number };
+  } | null;
   /** Layer ids switched off; "source" hides the file/symbol map itself. */
   hiddenLayers: Set<string>;
   /** Symbol id → parent file id (precomputed; string parsing here was hot). */
@@ -284,18 +288,6 @@ export function RingsMapSvg(props: Props) {
     for (const [f, e] of acc) m.set(f, { x: e.x / e.n, y: e.y / e.n });
     return m;
   }, [rings, parentFileOf, satellitesOn]);
-  // tests plane: capacity Voronoi of test files weighted by LOC, like source
-  const locOf = props.locOf;
-  const testPlaced = useMemo(() => {
-    if (!testsPlane || !props.testTargets) return [];
-    const nodes: LayerNode[] = [...props.testTargets].map(([t, s]) => ({
-      id: t,
-      label: labels.get(t) ?? fallbackLabel(t),
-      weight: locOf?.(t) ?? 1,
-      sourceIds: [s],
-    }));
-    return capacityPlane(nodes, { w: width, h: height });
-  }, [testsPlane, props.testTargets, labels, locOf, width, height]);
   // deps plane: packages on concentric rings, rank by how depended-upon (the
   // number of importing source files)
   const depPlaced = useMemo(() => {
@@ -1416,13 +1408,14 @@ export function RingsMapSvg(props: Props) {
           : null}
       </g>
       </g>
-      {testsPlane && tiltAffine && testPlaced.length ? (
+      {testsPlane && tiltAffine && props.testPlane ? (
         <PlaneLayerView
           tilt0={tiltAffine}
           tilt1={testsPlane}
-          extent={{ w: width, h: height }}
+          extent={props.testPlane.extent}
           sourceSiteOf={sourceSiteOf}
-          placed={testPlaced}
+          placed={props.testPlane.placed}
+          districts={props.testPlane.districts}
           color={TEST_LABEL_INK}
           withSourceFrame
           zoom={zoom}
