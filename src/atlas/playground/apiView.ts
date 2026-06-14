@@ -78,6 +78,9 @@ export function splitApiBoundary(
 export type ApiGraphOptions = {
   /** Keep non-exported symbols too (the full symbol network). */
   includePrivate?: boolean;
+  /** Force-keep specific (otherwise private) symbols — e.g. changed ones, so
+   * the diff shows at symbol granularity even with private symbols hidden. */
+  keep?: (symbolId: string) => boolean;
   /** Area scoring; defaults to transitive complexity over the network. */
   weight?: "complexity" | "loc";
 };
@@ -101,7 +104,10 @@ export function buildApiGraph(
     const symbols = symbolsOf(file.id);
     const exported = symbols.filter((s) => s.exported === true);
     soleExportOf.set(file.id, exported.length === 1 ? exported[0]!.id : null);
-    for (const symbol of options.includePrivate ? symbols : exported) {
+    const shown = options.includePrivate
+      ? symbols
+      : symbols.filter((s) => s.exported === true || options.keep?.(s.id));
+    for (const symbol of shown) {
       nodes.push({
         id: symbol.id,
         kind: "symbol",
