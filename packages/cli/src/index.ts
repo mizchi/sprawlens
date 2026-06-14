@@ -96,8 +96,8 @@ program.parseAsync().catch((error: unknown) => {
 function resolveVizDist(): string | null {
   const here = dirname(fileURLToPath(import.meta.url));
   const candidates = [
-    resolve(here, "../../viz/dist"), // packages/cli/src -> packages/viz/dist
-    resolve(here, "../viz/dist"),
+    resolve(here, "viz"), // bundled next to dist/index.js (published)
+    resolve(here, "../../viz/dist"), // packages/cli/src -> packages/viz/dist (dev)
   ];
   return candidates.find((p) => existsSync(resolve(p, "index.html"))) ?? null;
 }

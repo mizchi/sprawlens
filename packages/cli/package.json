@@ -17,9 +17,13 @@
     "@sprawlens/analyzer-moonbit": "workspace:*"
   },
   "scripts": {
-    "dev": "tsx src/index.ts"
+    "dev": "tsx src/index.ts",
+    "build": "node esbuild.config.mjs"
   },
   "bin": {
-    "sprawlens": "./src/index.ts"
-  }
+    "sprawlens": "./dist/index.js"
+  },
+  "files": [
+    "dist"
+  ]
 }
