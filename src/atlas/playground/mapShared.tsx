@@ -878,7 +878,11 @@ export function PlaneLayerView(props: {
           const pinned = props.pinnedIds;
           const nodeHot = hoverId === d.id || (pinned?.has(d.id) ?? false);
           const active = nodeHot || d.id === props.selectedId;
-          const showAll = props.altEdges || nodeHot;
+          // a node reached by the highlight chain (it carries a tint) also draws
+          // its onward edges, so the rope runs the full deps→tests→source path
+          // instead of stopping one hop from the hovered node
+          const chained = props.tintOf?.(d.id) !== undefined;
+          const showAll = props.altEdges || nodeHot || chained;
           const tops = d.sourceIds
             .map((s) => [s, screenPosOf(s)] as const)
             .filter((v): v is readonly [string, Vec2] => !!v[1])
