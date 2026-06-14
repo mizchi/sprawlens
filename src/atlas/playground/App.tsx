@@ -2267,112 +2267,134 @@ export function App() {
       </div>
       {/* detail / history overlay: floats over the right of the full-screen
           map, only when there is a selection or recent change to show */}
-      {recentChangesRef.current.length > 0 || activeId !== null ? (
-      <div
-        style={{
-          position: "absolute",
-          top: "48px",
-          right: "8px",
-          bottom: "8px",
-          width: "300px",
-          maxWidth: "calc(100vw - 16px)",
-          display: "flex",
-          flexDirection: "column",
-          gap: "12px",
-          fontSize: "12px",
-          color: INK,
-          background: PANEL_BG,
-          border: `1px solid ${PANEL_BORDER}`,
-          borderRadius: "10px",
-          padding: "10px 12px",
-          boxSizing: "border-box",
-          overflowY: "auto",
-        }}
-      >
-        {recentChangesRef.current.length > 0 ? (
-          <Section title="変更履歴">
-            <div
-              style={{ display: "flex", flexDirection: "column", gap: "2px" }}
-            >
-              {recentChangesRef.current.map((entry) => (
-                <button
-                  key={entry.id}
-                  onClick={() => jumpTo(entry.id, 6)}
-                  style={{
-                    padding: "3px 4px",
-                    fontSize: "11px",
-                    cursor: "pointer",
-                    background: "none",
-                    border: "none",
-                    color: entry.kind === "added" ? "#047857" : "#b45309",
-                    textAlign: "left",
-                    wordBreak: "break-all",
-                  }}
-                >
-                  {new Date(entry.at).toLocaleTimeString()}{" "}
-                  {labelOf(entry.id)}
-                </button>
-              ))}
-            </div>
-          </Section>
-        ) : null}
-        {selected ||
-        selectedIsModule ||
-        selectedGroupKind ||
-        selectedTest ||
-        selectedPort ? (
-          <Section title="選択ノード">
-            <div style={{ fontWeight: "600", wordBreak: "break-all" }}>
-              {labelOf(activeId!)}
-              {selectedPort
-                ? " (port)"
-                : selectedIsSymbol
-                  ? " (symbol)"
-                  : selectedIsModule
-                    ? " (module)"
-                    : selectedGroupKind
-                      ? ` (${selectedGroupKind})`
-                      : selectedTest
-                        ? " (test)"
-                        : ""}
-            </div>
-            {granularity !== "symbol" ? (
-              <div style={{ color: MUTED_INK, wordBreak: "break-all" }}>
-                {activeId}
-              </div>
-            ) : null}
-            {selectedIds.length > 1 ? (
-              <div style={{ marginTop: "4px" }}>
-                <div style={{ color: MUTED_INK }}>
-                  選択中 {selectedIds.length} 件 (shift+クリックで増減):
-                </div>
-                {selectedIds.map((id) => (
+      {/* working-tree change log: small overlay, bottom-left */}
+      {recentChangesRef.current.length > 0 ? (
+        <div
+          style={{
+            position: "absolute",
+            left: "8px",
+            bottom: "8px",
+            width: "260px",
+            maxHeight: "40vh",
+            overflowY: "auto",
+            background: PANEL_BG,
+            border: `1px solid ${PANEL_BORDER}`,
+            borderRadius: "10px",
+            padding: "8px 10px",
+            fontSize: "12px",
+            color: INK,
+          }}
+        >
+          <div style={{ fontWeight: "600", marginBottom: "4px" }}>変更履歴</div>
+          <div style={{ display: "flex", flexDirection: "column", gap: "2px" }}>
+            {recentChangesRef.current.map((entry) => (
+              <button
+                key={entry.id}
+                onClick={() => jumpTo(entry.id, 6)}
+                style={{
+                  padding: "3px 4px",
+                  fontSize: "11px",
+                  cursor: "pointer",
+                  background: "none",
+                  border: "none",
+                  color: entry.kind === "added" ? "#34d399" : "#fbbf24",
+                  textAlign: "left",
+                  wordBreak: "break-all",
+                }}
+              >
+                {new Date(entry.at).toLocaleTimeString()} {labelOf(entry.id)}
+              </button>
+            ))}
+          </div>
+        </div>
+      ) : null}
+      {/* selected nodes: closeable cards stacking up from the bottom-right */}
+      {selectedIds.length > 0 ? (
+        <div
+          style={{
+            position: "absolute",
+            right: "8px",
+            bottom: "8px",
+            width: "300px",
+            maxWidth: "calc(100vw - 16px)",
+            maxHeight: "calc(100vh - 60px)",
+            display: "flex",
+            flexDirection: "column",
+            gap: "8px",
+            overflowY: "auto",
+            fontSize: "12px",
+          }}
+        >
+          {selectedIds.map((id) => {
+            const isActive = id === activeId;
+            return (
+              <div
+                key={id}
+                style={{
+                  flex: "none",
+                  background: PANEL_BG,
+                  border: `1px solid ${id === selectedId ? SELECT_STROKE : PANEL_BORDER}`,
+                  borderRadius: "10px",
+                  padding: "8px 10px",
+                  color: INK,
+                }}
+              >
+                <div style={{ display: "flex", alignItems: "flex-start", gap: "8px" }}>
                   <button
-                    key={id}
                     onClick={() =>
-                      setSelectedIds([
-                        ...selectedIds.filter((x) => x !== id),
-                        id,
-                      ])
+                      setSelectedIds([...selectedIds.filter((x) => x !== id), id])
                     }
                     style={{
-                      display: "block",
-                      padding: "1px 4px",
-                      fontSize: "11px",
-                      cursor: "pointer",
+                      flex: "1",
+                      minWidth: "0",
+                      textAlign: "left",
                       background: "none",
                       border: "none",
-                      color: id === selectedId ? "#1d4ed8" : "#334155",
-                      fontWeight: id === selectedId ? "600" : "400",
-                      textAlign: "left",
+                      color: INK,
+                      cursor: "pointer",
+                      fontWeight: "600",
                       wordBreak: "break-all",
+                      padding: "0",
                     }}
                   >
                     {labelOf(id)}
+                    {isActive ? (
+                      <span style={{ color: MUTED_INK, fontWeight: "400" }}>
+                        {selectedPort
+                          ? " (port)"
+                          : selectedIsSymbol
+                            ? " (symbol)"
+                            : selectedIsModule
+                              ? " (module)"
+                              : selectedGroupKind
+                                ? ` (${selectedGroupKind})`
+                                : selectedTest
+                                  ? " (test)"
+                                  : ""}
+                      </span>
+                    ) : null}
                   </button>
-                ))}
-              </div>
-            ) : null}
+                  <button
+                    title="close"
+                    onClick={() =>
+                      setSelectedIds(selectedIds.filter((x) => x !== id))
+                    }
+                    style={{
+                      flex: "none",
+                      background: "none",
+                      border: "none",
+                      color: MUTED_INK,
+                      cursor: "pointer",
+                      fontSize: "15px",
+                      lineHeight: "1",
+                      padding: "0 2px",
+                    }}
+                  >
+                    ×
+                  </button>
+                </div>
+                {isActive ? (
+                  <div style={{ maxHeight: "42vh", overflowY: "auto", marginTop: "6px" }}>
             <div style={{ display: "flex", gap: "6px", margin: "6px 0" }}>
               {focusId !== activeId ? (
                 <button
@@ -2520,9 +2542,12 @@ export function App() {
                 ))}
               </div>
             ) : null}
-          </Section>
-        ) : null}
-      </div>
+                  </div>
+                ) : null}
+              </div>
+            );
+          })}
+        </div>
       ) : null}
     </div>
   );
