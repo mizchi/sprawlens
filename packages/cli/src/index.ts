@@ -6,12 +6,13 @@ import { basename, dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { analyzeRepository, collectRepository, tsProvider } from "@sprawlens/analyzer-ts";
 import { goProvider } from "@sprawlens/analyzer-go";
+import { rustProvider } from "@sprawlens/analyzer-rust";
 import { selectProvider } from "@sprawlens/schema";
 import { createAtlasServer } from "@sprawlens/server";
 
-// match order: language-specific signals (go.mod, ...) before the broad TS
-// fallback (which also claims any package.json).
-const PROVIDERS = [goProvider, tsProvider];
+// match order: language-specific signals (go.mod, Cargo.toml, ...) before the
+// broad TS fallback (which also claims any package.json).
+const PROVIDERS = [goProvider, rustProvider, tsProvider];
 
 const program = new Command();
 

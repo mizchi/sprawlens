@@ -12,7 +12,8 @@
     "@sprawlens/schema": "workspace:*",
     "@sprawlens/analyzer-ts": "workspace:*",
     "@sprawlens/server": "workspace:*",
-    "@sprawlens/analyzer-go": "workspace:*"
+    "@sprawlens/analyzer-go": "workspace:*",
+    "@sprawlens/analyzer-rust": "workspace:*"
   },
   "scripts": {
     "dev": "tsx src/index.ts"
