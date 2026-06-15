@@ -3,7 +3,7 @@ import { readFile } from "node:fs/promises";
 import { extname, posix } from "node:path";
 import fg from "fast-glob";
 import Parser from "web-tree-sitter";
-import { computeGraphMetrics } from "@sprawlens/schema";
+import { computeGraphMetrics, matchWorkspacePackage } from "@sprawlens/schema";
 import type {
   CodeEdge,
   CodeNode,
@@ -11,6 +11,7 @@ import type {
   CodeSymbolKind,
   Snapshot,
   SnapshotCommit,
+  WorkspacePackage,
 } from "@sprawlens/schema";
 
 type SyntaxNode = Parser.SyntaxNode;
@@ -200,32 +201,106 @@ function resolveModule(
   return null;
 }
 
-/** Resolve a `use` path to a local file, or an external crate name, or null. */
+/** A crate in the tree: its name, its dir (repo-relative, "" for a lone crate),
+ * and the dir its module tree is rooted at (e.g. `crates/foo/src`). */
+type Crate = { name: string; dir: string; srcRoot: string };
+
+/** The `[package] name` of a Cargo.toml, else null. */
+function packageName(toml: string): string | null {
+  const m = toml.match(/\[package\][\s\S]*?\bname\s*=\s*["']([^"']+)["']/);
+  return m ? m[1]! : null;
+}
+
+/**
+ * Discover the crates in the tree. A `[workspace]` root makes this a workspace:
+ * every nested Cargo.toml with a `[package]` is a member crate (this covers
+ * `members`, path-dependency crates, and virtual roots alike), each rooted at
+ * `<dir>/src`. Otherwise the whole tree is one crate rooted by `crateRoot`.
+ * `members` is the cross-crate match list (crate names with cargo's `-`→`_`);
+ * it is empty for a lone crate, so single-crate resolution is unchanged.
+ */
+async function detectCrates(
+  repoPath: string,
+  fileSet: ReadonlySet<string>,
+): Promise<{ crates: Crate[]; members: WorkspacePackage[] }> {
+  let rootToml = "";
+  try {
+    rootToml = await readFile(posix.join(repoPath, "Cargo.toml"), "utf8");
+  } catch {
+    // no root Cargo.toml — treat as a lone crate
+  }
+  if (/^\s*\[workspace\]/m.test(rootToml)) {
+    const manifests = await fg("**/Cargo.toml", {
+      cwd: repoPath,
+      onlyFiles: true,
+      unique: true,
+      ignore: ["**/target/**", "**/vendor/**"],
+    });
+    const crates: Crate[] = [];
+    const members: WorkspacePackage[] = [];
+    for (const rel of manifests.sort()) {
+      const toml =
+        rel === "Cargo.toml"
+          ? rootToml
+          : await readFile(posix.join(repoPath, rel), "utf8");
+      const name = packageName(toml);
+      if (!name) continue; // a virtual workspace root has no [package]
+      const dir = posix.dirname(rel);
+      const srcRoot = dir === "." ? crateRoot(fileSet) : `${dir}/src`;
+      crates.push({ name, dir: dir === "." ? "" : dir, srcRoot });
+      members.push({ name: name.replace(/-/g, "_"), sourceRoot: srcRoot });
+    }
+    if (crates.length > 0) return { crates, members };
+  }
+  return { crates: [{ name: "", dir: "", srcRoot: crateRoot(fileSet) }], members: [] };
+}
+
+/** The crate a file belongs to (longest member-dir prefix). */
+function crateOf(rel: string, crates: Crate[]): Crate {
+  let best = crates[0]!;
+  for (const c of crates) {
+    if ((c.dir === "" || rel.startsWith(`${c.dir}/`)) && c.dir.length >= best.dir.length) {
+      best = c;
+    }
+  }
+  return best;
+}
+
+/** Resolve a `use` path to a local file, an external crate name, or null. */
 function resolveUse(
   path: string,
   importerRel: string,
-  root: string,
+  importerCrate: Crate,
+  members: WorkspacePackage[],
   fileSet: ReadonlySet<string>,
 ): { file: string } | { external: string } | null {
   const segs = path.split("::").filter(Boolean);
   if (segs.length === 0) return null;
   const head = segs[0]!;
-  let moduleSegs: string[];
-  if (head === "crate") {
-    moduleSegs = segs.slice(1);
-  } else if (head === "self" || head === "super") {
-    let mod = moduleSegsOf(importerRel, root);
-    let i = 0;
-    while (segs[i] === "super" || segs[i] === "self") {
-      if (segs[i] === "super") mod = mod.slice(0, -1);
-      i++;
+  if (head === "crate" || head === "self" || head === "super") {
+    let moduleSegs: string[];
+    if (head === "crate") {
+      moduleSegs = segs.slice(1);
+    } else {
+      let mod = moduleSegsOf(importerRel, importerCrate.srcRoot);
+      let i = 0;
+      while (segs[i] === "super" || segs[i] === "self") {
+        if (segs[i] === "super") mod = mod.slice(0, -1);
+        i++;
+      }
+      moduleSegs = [...mod, ...segs.slice(i)];
     }
-    moduleSegs = [...mod, ...segs.slice(i)];
-  } else {
-    return { external: head };
+    const file = resolveModule(importerCrate.srcRoot, moduleSegs, fileSet);
+    return file && file !== importerRel ? { file } : null;
   }
-  const file = resolveModule(root, moduleSegs, fileSet);
-  return file && file !== importerRel ? { file } : null;
+  // a sibling workspace crate: resolve within its own source tree
+  const match = matchWorkspacePackage(members, path, "::");
+  if (match) {
+    const sub = match.subpath ? match.subpath.split("::").filter(Boolean) : [];
+    const file = resolveModule(match.pkg.sourceRoot, sub, fileSet);
+    if (file && file !== importerRel) return { file };
+  }
+  return { external: head };
 }
 
 /** Snapshot a Rust working tree via tree-sitter. */
@@ -277,7 +352,7 @@ export async function snapshotRustWorkingTree(
     nodes.push({ id: `dir:${dir}`, type: "dir", path: dir });
 
   const fileSet = new Set(fileEntries.map((f) => f.rel));
-  const root = crateRoot(fileSet);
+  const { crates, members } = await detectCrates(repoPath, fileSet);
 
   for (const f of fileEntries) {
     const id = `file:${f.rel}`;
@@ -295,8 +370,9 @@ export async function snapshotRustWorkingTree(
     edges.push({ id: `contains:${parent}->${id}`, type: "contains", from: parent, to: id });
     // dedupe by resolved target / external crate (a file `use`s many items)
     const seen = new Set<string>();
+    const importerCrate = crateOf(f.rel, crates);
     for (const path of f.imports) {
-      const r = resolveUse(path, f.rel, root, fileSet);
+      const r = resolveUse(path, f.rel, importerCrate, members, fileSet);
       if (!r) continue;
       if ("file" in r) {
         if (seen.has(`f:${r.file}`)) continue;

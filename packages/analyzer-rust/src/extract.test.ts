@@ -39,3 +39,51 @@ describe("snapshotRustWorkingTree", () => {
     ).toBe(true);
   });
 });
+
+describe("cargo workspace cross-crate resolution", () => {
+  let ws: string;
+  beforeAll(async () => {
+    ws = await mkdtemp(join(tmpdir(), "rust-ws-"));
+    await writeFile(
+      join(ws, "Cargo.toml"),
+      `[workspace]\nmembers = ["crates/*"]\n`,
+    );
+    await mkdir(join(ws, "crates/mylib/src"), { recursive: true });
+    await writeFile(
+      join(ws, "crates/mylib/Cargo.toml"),
+      `[package]\nname = "mylib"\nversion = "0.1.0"\n`,
+    );
+    await writeFile(
+      join(ws, "crates/mylib/src/lib.rs"),
+      `pub struct Widget { pub id: u32 }\n`,
+    );
+    await mkdir(join(ws, "crates/app/src"), { recursive: true });
+    await writeFile(
+      join(ws, "crates/app/Cargo.toml"),
+      `[package]\nname = "app"\nversion = "0.1.0"\n`,
+    );
+    await writeFile(
+      join(ws, "crates/app/src/lib.rs"),
+      `use mylib::Widget;\nuse serde::Deserialize;\npub fn run() -> Widget { Widget { id: 1 } }\n`,
+    );
+  });
+  afterAll(async () => { await rm(ws, { recursive: true, force: true }); });
+
+  it("resolves a sibling-crate use to that crate's source, keeps externals external", async () => {
+    const snap = await snapshotRustWorkingTree(ws, commit, "demo");
+    const imports = snap.edges.filter((e) => e.type === "imports");
+    // mylib::Widget resolves to the mylib crate's lib.rs
+    expect(
+      imports.some(
+        (e) =>
+          e.from === "file:crates/app/src/lib.rs" &&
+          e.to === "file:crates/mylib/src/lib.rs" &&
+          e.resolved,
+      ),
+    ).toBe(true);
+    // a real external crate stays external
+    expect(
+      imports.some((e) => e.specifier?.startsWith("serde") && e.external),
+    ).toBe(true);
+  });
+});
