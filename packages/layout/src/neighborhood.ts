@@ -67,22 +67,38 @@ export function greedySwapAssignment(
   const current = [...assign];
   if (n < 2) return current;
   const indexOf = new Map(nodes.map((id, i) => [id, i]));
-  // constraint neighbors per node index (deduped, ignoring unknown ids)
-  const linked: Set<number>[] = Array.from({ length: n }, () => new Set());
+  // constraint neighbors per node index (deduped, ignoring unknown ids); kept
+  // as flat arrays so the inner realized-count loop iterates without Set overhead
+  const linkedSets: Set<number>[] = Array.from({ length: n }, () => new Set());
   for (const edge of edges) {
     const a = indexOf.get(edge.source);
     const b = indexOf.get(edge.target);
     if (a === undefined || b === undefined || a === b) continue;
-    linked[a]!.add(b);
-    linked[b]!.add(a);
+    linkedSets[a]!.add(b);
+    linkedSets[b]!.add(a);
+  }
+  const linked: number[][] = linkedSets.map((s) => [...s]);
+  // slot adjacency as a packed bitset: word `slotBits[s*W + (t>>5)]` bit (t&31)
+  // is set iff slot t borders slot s, so membership is a shift-and-mask
+  const W = (n + 31) >> 5;
+  const slotBits = new Uint32Array(n * W);
+  for (let s = 0; s < n; s++) {
+    const base = s * W;
+    for (const t of slotAdjacency[s]!) {
+      const idx = base + (t >> 5);
+      slotBits[idx] = slotBits[idx]! | (1 << (t & 31));
+    }
   }
 
   /** Realized links of node i if it sat on `slot` (j's slot read live). */
   const realizedAt = (i: number, slot: number, ignore: number): number => {
     let count = 0;
-    for (const j of linked[i]!) {
+    const links = linked[i]!;
+    const base = slot * W;
+    for (const j of links) {
       if (j === ignore) continue;
-      if (slotAdjacency[slot]!.has(current[j]!)) count++;
+      const c = current[j]!;
+      if ((slotBits[base + (c >> 5)]! >>> (c & 31)) & 1) count++;
     }
     return count;
   };
@@ -90,9 +106,8 @@ export function greedySwapAssignment(
   for (let pass = 0; pass < maxPasses; pass++) {
     let improvedInPass = false;
     for (let i = 0; i < n; i++) {
-      if (linked[i]!.size === 0) continue;
+      if (linked[i]!.length === 0) continue;
       for (let k = i + 1; k < n; k++) {
-        if (linked[i]!.size === 0 && linked[k]!.size === 0) continue;
         const si = current[i]!;
         const sk = current[k]!;
         // the i–k edge (if any) flips between slot pairs of identical
