@@ -24,6 +24,12 @@ function worktreeCommit(): SnapshotCommit {
 /** TypeScript / JavaScript provider, backed by the TS compiler API. */
 export const tsProvider: LanguageProvider = {
   id: "typescript",
+  matchesManifest(repoPath) {
+    return (
+      existsSync(join(repoPath, "tsconfig.json")) ||
+      existsSync(join(repoPath, "package.json"))
+    );
+  },
   async match(repoPath) {
     if (
       existsSync(join(repoPath, "tsconfig.json")) ||

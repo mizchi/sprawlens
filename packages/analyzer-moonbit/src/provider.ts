@@ -7,6 +7,9 @@ import { snapshotMoonbitWorkingTree } from "./extract.js";
 /** MoonBit provider (heuristic; tree-sitter when a grammar ships). */
 export const moonbitProvider: LanguageProvider = {
   id: "moonbit",
+  matchesManifest(repoPath) {
+    return existsSync(join(repoPath, "moon.mod.json"));
+  },
   async match(repoPath) {
     if (existsSync(join(repoPath, "moon.mod.json"))) return true;
     const hits = await fg("**/*.mbt", {

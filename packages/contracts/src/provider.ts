@@ -46,8 +46,14 @@ export interface IncrementalAnalyzer {
 export interface LanguageProvider {
   /** Stable id, e.g. "typescript", "go", "rust". */
   readonly id: string;
-  /** Does this provider handle the repo? (extensions / config files) */
+  /** Could this provider handle the repo? (root manifest OR source files) */
   match(repoPath: string): boolean | Promise<boolean>;
+  /**
+   * Does the repo's ROOT name this language definitively? (go.mod, Cargo.toml,
+   * package.json/tsconfig.json, moon.mod.json). A strong signal that wins over
+   * a mere `match` on stray source files in a subdirectory.
+   */
+  matchesManifest?(repoPath: string): boolean | Promise<boolean>;
   /** Snapshot the current working tree. */
   analyze(
     repoPath: string,
@@ -71,4 +77,30 @@ export async function selectProvider(
     if (await provider.match(repoPath)) return provider;
   }
   return null;
+}
+
+/**
+ * All providers that claim the repo, split into `strong` (the root manifest
+ * names the language) and the full `matched` set (manifest or stray source
+ * files). The caller picks: one strong winner is unambiguous; several strong
+ * (or none, with several weak matches) is a choice the user should make.
+ */
+export async function detectProviders(
+  providers: readonly LanguageProvider[],
+  repoPath: string,
+): Promise<{ matched: LanguageProvider[]; strong: LanguageProvider[] }> {
+  const matched: LanguageProvider[] = [];
+  const strong: LanguageProvider[] = [];
+  for (const provider of providers) {
+    const isStrong = provider.matchesManifest
+      ? await provider.matchesManifest(repoPath)
+      : false;
+    if (isStrong) {
+      strong.push(provider);
+      matched.push(provider);
+    } else if (await provider.match(repoPath)) {
+      matched.push(provider);
+    }
+  }
+  return { matched, strong };
 }

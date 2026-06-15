@@ -7,6 +7,9 @@ import { snapshotRustWorkingTree } from "./extract.js";
 /** Rust provider, backed by tree-sitter. */
 export const rustProvider: LanguageProvider = {
   id: "rust",
+  matchesManifest(repoPath) {
+    return existsSync(join(repoPath, "Cargo.toml"));
+  },
   async match(repoPath) {
     if (existsSync(join(repoPath, "Cargo.toml"))) return true;
     const hits = await fg("**/*.rs", {

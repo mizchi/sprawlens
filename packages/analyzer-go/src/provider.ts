@@ -7,6 +7,9 @@ import { snapshotGoWorkingTree } from "./extract.js";
 /** Go provider, backed by tree-sitter. */
 export const goProvider: LanguageProvider = {
   id: "go",
+  matchesManifest(repoPath) {
+    return existsSync(join(repoPath, "go.mod"));
+  },
   async match(repoPath) {
     if (existsSync(join(repoPath, "go.mod"))) return true;
     const hits = await fg("**/*.go", {

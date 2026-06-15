@@ -3,9 +3,11 @@ import { Command } from "commander";
 import { spawn } from "node:child_process";
 import { existsSync } from "node:fs";
 import { basename, dirname, resolve } from "node:path";
+import * as readline from "node:readline/promises";
 import { fileURLToPath } from "node:url";
 import { analyzeRepository, collectRepository } from "@sprawlens/analyzer-ts";
-import { PROVIDERS, selectProvider } from "@sprawlens/providers";
+import type { LanguageProvider } from "@sprawlens/schema";
+import { PROVIDERS, detectProviders } from "@sprawlens/providers";
 import { createAtlasServer } from "@sprawlens/server";
 
 const program = new Command();
@@ -20,17 +22,17 @@ program
   .description("analyze a repo and open its structure map in the browser")
   .argument("[repo]", "repository path", ".")
   .option("--port <n>", "port", (v) => Number.parseInt(v, 10), 4173)
+  .option("--lang <id>", "force a language provider (typescript|go|rust|moonbit)")
   .option("--no-open", "do not open the browser")
   .action(
     async (
       repo: string,
-      options: { port: number; open: boolean },
+      options: { port: number; open: boolean; lang?: string },
     ): Promise<void> => {
       const root = resolve(repo);
       const name = basename(root);
-      const provider = await selectProvider(PROVIDERS, root);
+      const provider = await chooseProvider(root, options.lang);
       if (!provider) {
-        console.error(`no language provider matched ${root}`);
         process.exitCode = 1;
         return;
       }
@@ -94,6 +96,70 @@ program.parseAsync().catch((error: unknown) => {
   console.error(error instanceof Error ? error.message : String(error));
   process.exitCode = 1;
 });
+
+/**
+ * Pick the language provider for a repo. `--lang` forces one; otherwise a
+ * single root-manifest match (go.mod / Cargo.toml / package.json / moon.mod.json)
+ * wins outright, and only a genuine tie — several manifests, or none plus stray
+ * source files of more than one language — falls through to the user: an
+ * interactive prompt on a TTY, or an error telling them to pass --lang.
+ */
+async function chooseProvider(
+  root: string,
+  lang: string | undefined,
+): Promise<LanguageProvider | null> {
+  if (lang) {
+    const forced = PROVIDERS.find((provider) => provider.id === lang);
+    if (!forced) {
+      console.error(
+        `unknown --lang "${lang}". available: ${PROVIDERS.map((p) => p.id).join(", ")}`,
+      );
+      return null;
+    }
+    return forced;
+  }
+  const { matched, strong } = await detectProviders(PROVIDERS, root);
+  if (strong.length === 1) return strong[0]!;
+  if (strong.length === 0 && matched.length === 1) return matched[0]!;
+  if (matched.length === 0) {
+    console.error(`no language provider matched ${root}`);
+    return null;
+  }
+  const candidates = strong.length > 1 ? strong : matched;
+  if (process.stdin.isTTY && process.stdout.isTTY) {
+    return promptProvider(candidates);
+  }
+  console.error(
+    `multiple languages detected (${candidates.map((p) => p.id).join(", ")}). ` +
+      `pass --lang <id> to choose.`,
+  );
+  return null;
+}
+
+/** Ask the user which detected language to use (TTY); default is the first. */
+async function promptProvider(
+  candidates: LanguageProvider[],
+): Promise<LanguageProvider | null> {
+  const rl = readline.createInterface({
+    input: process.stdin,
+    output: process.stdout,
+  });
+  try {
+    console.log("multiple languages detected:");
+    candidates.forEach((provider, i) => console.log(`  ${i + 1}) ${provider.id}`));
+    const answer = (
+      await rl.question(`choose [1-${candidates.length}] or id (default 1): `)
+    ).trim();
+    if (answer === "") return candidates[0]!;
+    const index = Number.parseInt(answer, 10) - 1;
+    if (Number.isInteger(index) && index >= 0 && index < candidates.length) {
+      return candidates[index]!;
+    }
+    return candidates.find((provider) => provider.id === answer) ?? candidates[0]!;
+  } finally {
+    rl.close();
+  }
+}
 
 /** Locate the built viz bundle (workspace dev path; published path later). */
 function resolveVizDist(): string | null {

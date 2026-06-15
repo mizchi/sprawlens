@@ -14,4 +14,4 @@ export const PROVIDERS: LanguageProvider[] = [
   tsProvider,
 ];
 
-export { selectProvider } from "@sprawlens/contracts";
+export { detectProviders, selectProvider } from "@sprawlens/contracts";

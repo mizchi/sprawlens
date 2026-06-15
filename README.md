@@ -21,11 +21,14 @@ pnpm cli serve <path-to-repo>
 
 `sprawlens [repo]` (default `.`) snapshots the working tree, starts a local
 server that serves the map + the snapshot + the detail endpoints, and opens the
-browser. `--port <n>`, `--no-open`.
+browser. `--port <n>`, `--no-open`, `--lang <id>`.
 
-Language detection: `go.mod` → Go, `Cargo.toml` → Rust, `moon.mod.json` →
-MoonBit, otherwise the TypeScript provider (any `package.json` / `tsconfig.json`
-/ `*.ts`).
+Language detection keys off the root manifest: `go.mod` → Go, `Cargo.toml` →
+Rust, `moon.mod.json` → MoonBit, `package.json` / `tsconfig.json` → TypeScript.
+A single manifest wins outright (stray source files of another language in a
+subdirectory don't override it). When the root genuinely names more than one
+language, sprawlens asks which to use (or errors with the choices off a TTY);
+`--lang typescript|go|rust|moonbit` forces it.
 
 ### What the map shows
 
