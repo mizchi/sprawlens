@@ -1121,6 +1121,54 @@ export function App() {
     setFrame((f) => f + 1);
   };
 
+  /**
+   * Apply a freshly re-analyzed snapshot from the live stream: refresh the
+   * symbol/edge/dep projections, then either cold-rebuild (symbol granularity,
+   * so new symbols get laid out) or warm-apply the graph delta in place (file
+   * granularity), keeping camera + positions. This is what makes fs edits show
+   * up — symbols and import edges, not just file sizes.
+   */
+  const applyServedSnapshot = (snap: SnapshotLike) => {
+    servedSnapRef.current = snap;
+    symbolsRef.current = snapshotSymbols(snap);
+    symbolEdgesRef.current = snapshotSymbolEdges(snap);
+    externalDepsRef.current = snapshotExternalDeps(snap);
+    const symbolGranularity =
+      granularityOf(
+        paramsRef.current.boundaries,
+        paramsRef.current.displayLevels,
+      ) === "symbol";
+    if (symbolGranularity) {
+      rebuild(paramsRef.current);
+      setFrame((f) => f + 1);
+      return;
+    }
+    const prev = graphRef.current;
+    const nextGraph = snapshotToAtlasGraph(snap);
+    const delta = diffGraphs(prev, nextGraph);
+    if (isEmptyDelta(delta)) return;
+    for (const node of delta.added) innerLayoutsRef.current.delete(node.id);
+    for (const node of delta.modified) innerLayoutsRef.current.delete(node.id);
+    for (const id of delta.removed) innerLayoutsRef.current.delete(id);
+    innerDirtyRef.current = true;
+    graphRef.current = nextGraph;
+    refreshGraphLookups();
+    if (ringsRef.current) {
+      ringsRef.current = applyRingsChanges(
+        ringsRef.current,
+        effectiveGraph(paramsRef.current),
+        ringsOptions(paramsRef.current),
+      );
+    } else if (treemapRef.current) {
+      treemapRef.current = applyTreemapChanges(
+        treemapRef.current,
+        effectiveGraph(paramsRef.current),
+        treemapOptions(paramsRef.current),
+      );
+    }
+    setFrame((f) => f + 1);
+  };
+
   const goToCommit = (index: number) => {
     const history = commitsRef.current;
     if (!history || index < 0 || index >= history.length) return;
@@ -1890,6 +1938,28 @@ export function App() {
     };
     return () => stream.close();
   }, [params.source, params.diffBase]);
+
+  // Live snapshot stream (CLI serve): the server re-analyzes on fs change and
+  // pushes a fresh snapshot, which we warm-apply so symbols + import edges
+  // update in place. Only the served source has a live analyzer; the baked and
+  // history sources have none, so the stream 404s and stays closed.
+  useEffect(() => {
+    if (params.source !== "served") return;
+    let failures = 0;
+    const stream = new EventSource(`/api/snapshot/stream?repo=${params.source}`);
+    stream.onmessage = (event) => {
+      failures = 0;
+      try {
+        applyServedSnapshot(JSON.parse(event.data) as SnapshotLike);
+      } catch (error) {
+        console.error("snapshot stream", error);
+      }
+    };
+    stream.onerror = () => {
+      if (++failures >= 3) stream.close();
+    };
+    return () => stream.close();
+  }, [params.source]);
 
   const allCells: CellResult[] = ringsRef.current
     ? [...ringsRef.current.leafLayouts.values()].flatMap((l) => l.cells)
