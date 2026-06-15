@@ -4,7 +4,11 @@ import { readFile } from "node:fs/promises";
 import { extname, posix } from "node:path";
 import fg from "fast-glob";
 import Parser from "web-tree-sitter";
-import { computeGraphMetrics, matchWorkspacePackage } from "@sprawlens/schema";
+import {
+  computeGraphMetrics,
+  matchWorkspacePackage,
+  resolveSymbolReferences,
+} from "@sprawlens/schema";
 import type {
   CodeEdge,
   CodeNode,
@@ -81,12 +85,17 @@ function symbolOf(
   };
 }
 
+/** A package import + the name it is referenced by (alias or last path segment). */
+type GoImport = { path: string; alias: string };
+/** A `pkg.Name` usage: the line, the package alias, and the selected name. */
+type GoSelector = { line: number; pkg: string; name: string };
+
 function symbolsAndImports(
   root: SyntaxNode,
   file: string,
-): { symbols: CodeSymbol[]; imports: string[] } {
+): { symbols: CodeSymbol[]; imports: GoImport[]; selectors: GoSelector[] } {
   const symbols: CodeSymbol[] = [];
-  const imports: string[] = [];
+  const imports: GoImport[] = [];
   for (let i = 0; i < root.namedChildCount; i++) {
     const node = root.namedChild(i)!;
     switch (node.type) {
@@ -128,8 +137,13 @@ function symbolsAndImports(
         while (stack.length) {
           const n = stack.pop()!;
           if (n.type === "import_spec") {
-            const path = n.childForFieldName("path")?.text;
-            if (path) imports.push(path.replace(/^["`]|["`]$/g, ""));
+            const raw = n.childForFieldName("path")?.text;
+            if (raw) {
+              const path = raw.replace(/^["`]|["`]$/g, "");
+              const alias =
+                n.childForFieldName("name")?.text ?? path.split("/").pop() ?? path;
+              imports.push({ path, alias });
+            }
           }
           for (let k = 0; k < n.namedChildCount; k++) stack.push(n.namedChild(k)!);
         }
@@ -137,7 +151,25 @@ function symbolsAndImports(
       }
     }
   }
-  return { symbols, imports };
+  // collect `pkg.Name` usages anywhere in the file (references to imports)
+  const selectors: GoSelector[] = [];
+  const stack: SyntaxNode[] = [root];
+  while (stack.length) {
+    const n = stack.pop()!;
+    if (n.type === "selector_expression") {
+      const operand = n.childForFieldName("operand");
+      const field = n.childForFieldName("field");
+      if (operand?.type === "identifier" && field) {
+        selectors.push({
+          line: n.startPosition.row + 1,
+          pkg: operand.text,
+          name: field.text,
+        });
+      }
+    }
+    for (let k = 0; k < n.namedChildCount; k++) stack.push(n.namedChild(k)!);
+  }
+  return { symbols, imports, selectors };
 }
 
 /** Snapshot a Go working tree via tree-sitter. Imports resolve to local module
@@ -172,15 +204,22 @@ export async function snapshotGoWorkingTree(
   const filesByDir = new Map<string, string[]>();
   let totalLoc = 0;
 
-  const fileEntries: { rel: string; symbols: CodeSymbol[]; imports: string[]; loc: number; bytes: number }[] = [];
+  const fileEntries: {
+    rel: string;
+    symbols: CodeSymbol[];
+    imports: GoImport[];
+    selectors: GoSelector[];
+    loc: number;
+    bytes: number;
+  }[] = [];
   for (const rel of files) {
     const source = await readFile(posix.join(repoPath, rel), "utf8");
     const tree = parser.parse(source);
     if (!tree) continue;
-    const { symbols, imports } = symbolsAndImports(tree.rootNode, rel);
+    const { symbols, imports, selectors } = symbolsAndImports(tree.rootNode, rel);
     const loc = source.split("\n").length;
     totalLoc += loc;
-    fileEntries.push({ rel, symbols, imports, loc, bytes: Buffer.byteLength(source) });
+    fileEntries.push({ rel, symbols, imports, selectors, loc, bytes: Buffer.byteLength(source) });
     // register dir chain + the package (file's own dir)
     const parts = rel.split("/");
     parts.pop();
@@ -205,6 +244,14 @@ export async function snapshotGoWorkingTree(
     return m ? [m.pkg.sourceRoot, m.subpath].filter(Boolean).join("/") : null;
   };
 
+  // exported symbols per file, by name — the target side of symbol references
+  const exportsByFile = new Map<string, Map<string, CodeSymbol>>();
+  for (const f of fileEntries) {
+    const byName = new Map<string, CodeSymbol>();
+    for (const symbol of f.symbols) if (symbol.exported) byName.set(symbol.name, symbol);
+    exportsByFile.set(f.rel, byName);
+  }
+
   for (const dir of [...dirs].sort())
     nodes.push({ id: `dir:${dir}`, type: "dir", path: dir });
 
@@ -223,13 +270,29 @@ export async function snapshotGoWorkingTree(
     const dir = f.rel.includes("/") ? f.rel.slice(0, f.rel.lastIndexOf("/")) : "";
     const parent = dir ? `dir:${dir}` : "repo";
     edges.push({ id: `contains:${parent}->${id}`, type: "contains", from: parent, to: id });
-    for (const spec of new Set(f.imports)) {
+    const seenImport = new Set<string>();
+    for (const imp of f.imports) {
+      if (seenImport.has(imp.path)) continue;
+      seenImport.add(imp.path);
+      const spec = imp.path;
       const localDir = localDirOf(spec);
       const localFiles = localDir !== null ? filesByDir.get(localDir) : undefined;
       if (localFiles && localFiles.length > 0) {
+        // `pkg.Name` usages of this package become symbol references; each
+        // resolves against the package file that exports that name
+        const refs = f.selectors
+          .filter((s) => s.pkg === imp.alias)
+          .map((s) => ({ line: s.line, name: s.name }));
         // a Go package is a directory: link the importer to every file in it
         for (const target of localFiles) {
           if (target === f.rel) continue;
+          const symbolImports = refs.length
+            ? resolveSymbolReferences(
+                refs,
+                f.symbols,
+                exportsByFile.get(target) ?? new Map(),
+              )
+            : [];
           edges.push({
             id: `imports:${id}->file:${target}:${spec}`,
             type: "imports",
@@ -237,6 +300,7 @@ export async function snapshotGoWorkingTree(
             to: `file:${target}`,
             specifier: spec,
             resolved: true,
+            ...(symbolImports.length > 0 ? { symbolImports } : {}),
           });
         }
       } else {

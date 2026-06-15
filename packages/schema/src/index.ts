@@ -12,4 +12,5 @@ export * from "./contracts/overlay.js";
 export * from "./core/ai.js";
 export * from "./core/diff.js";
 export * from "./core/metrics.js";
+export * from "./core/symbolRefs.js";
 export * from "./adapter.js";

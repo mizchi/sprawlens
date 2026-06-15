@@ -55,5 +55,14 @@ describe("snapshotGoWorkingTree", () => {
         (e) => e.from === "file:main.go" && e.to === "file:sub/sub.go" && e.resolved,
       ),
     ).toBe(true);
+    // `sub.Default` usage becomes a symbol reference to sub's exported Default
+    const subEdge = imports.find(
+      (e) => e.from === "file:main.go" && e.to === "file:sub/sub.go",
+    );
+    expect(
+      subEdge?.type === "imports"
+        ? subEdge.symbolImports?.some((s) => s.toSymbolName === "Default")
+        : false,
+    ).toBe(true);
   });
 });
