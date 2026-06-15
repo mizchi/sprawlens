@@ -1,0 +1,5 @@
+{
+  "is-main": false,
+  "import": ["moonbitlang/parser", "moonbitlang/parser/basic"],
+  "link": { "js": { "exports": ["extract"], "format": "esm" } }
+}

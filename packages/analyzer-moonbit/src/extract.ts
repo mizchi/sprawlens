@@ -15,6 +15,7 @@ import type {
   SnapshotCommit,
   WorkspacePackage,
 } from "@sprawlens/schema";
+import { extractMoonbitSymbols } from "./astExtract.js";
 
 /**
  * MoonBit has no published tree-sitter grammar yet, so this is a heuristic,
@@ -247,9 +248,12 @@ export async function snapshotMoonbitWorkingTree(
     const loc = source.split("\n").length;
     totalLoc += loc;
     const dir = rel.includes("/") ? rel.slice(0, rel.lastIndexOf("/")) : "";
+    // the real MoonBit parser gives precise symbols; fall back to the regex
+    // heuristic when it is unavailable or fails to parse the file
+    const astSymbols = await extractMoonbitSymbols(source, rel);
     entries.push({
       rel,
-      symbols: symbolsOf(source, rel),
+      symbols: astSymbols && astSymbols.length > 0 ? astSymbols : symbolsOf(source, rel),
       selectors: selectorsOf(source),
       loc,
       bytes: Buffer.byteLength(source),

@@ -31,6 +31,13 @@ await build({
 // fixtures (public-atlas/*, ~6MB): the CLI serves a real repo over /api/snapshot
 // and defaults to the "served" source, so the baked demo data is never used.
 const here = fileURLToPath(new URL(".", import.meta.url));
+// the MoonBit analyzer loads its vendored parser at runtime by URL, which the
+// bundler can't follow — copy it under dist/ so the bundled CLI finds it
+// (astExtract tries ./vendor too). Absent it, the analyzer falls back to regex.
+await cp(
+  resolve(here, "../analyzer-moonbit/vendor/moonbit-parser.js"),
+  resolve(here, "dist/vendor/moonbit-parser.js"),
+);
 const vizSrc = resolve(here, "../viz/dist");
 const vizOut = resolve(here, "dist/viz");
 const fixturesDir = resolve(vizSrc, "fixtures");
