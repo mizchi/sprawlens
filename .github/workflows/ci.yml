@@ -16,6 +16,7 @@ jobs:
           node-version: 24
           cache: pnpm
       - run: pnpm install --frozen-lockfile
+      - run: pnpm lint:layers
       - run: pnpm test
       - run: pnpm -r exec tsc --noEmit -p tsconfig.json
       - run: pnpm build

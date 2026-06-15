@@ -7,6 +7,7 @@
     "test": "vitest run",
     "bench": "vitest bench --run",
     "typecheck": "pnpm -r exec tsc --noEmit -p tsconfig.json",
+    "lint:layers": "node tools/check-layers.mjs",
     "dev": "pnpm --filter @sprawlens/viz dev",
     "build": "pnpm --filter @sprawlens/viz build && pnpm --filter @sprawlens/cli build",
     "dev:server": "pnpm --filter @sprawlens/cli dev:server",
