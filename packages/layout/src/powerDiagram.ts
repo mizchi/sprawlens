@@ -26,70 +26,133 @@ export type PowerCell = {
 
 const COINCIDENT_EPS = 1e-12;
 
-/** Vertex whose outgoing edge (to the next vertex) carries a provenance label. */
-type LabeledVertex = { x: number; y: number; edgeSource: string | null };
-
-/**
- * Sutherland–Hodgman against nx*x + ny*y <= c, tracking which plane created
- * each edge. The newly cut edge gets `planeId`; surviving edges keep theirs.
- * Valid for convex polygons (single entry/exit per plane).
- */
-function clipLabeled(
-  verts: LabeledVertex[],
-  nx: number,
-  ny: number,
-  c: number,
-  planeId: string,
-): LabeledVertex[] {
-  if (verts.length === 0) return [];
-  const out: LabeledVertex[] = [];
-  for (let i = 0; i < verts.length; i++) {
-    const cur = verts[i]!;
-    const next = verts[(i + 1) % verts.length]!;
-    const curDist = nx * cur.x + ny * cur.y - c;
-    const nextDist = nx * next.x + ny * next.y - c;
-    const curInside = curDist <= 0;
-    const nextInside = nextDist <= 0;
-    if (curInside && nextInside) {
-      out.push(cur);
-    } else if (curInside && !nextInside) {
-      out.push(cur);
-      const t = curDist / (curDist - nextDist);
-      out.push({
-        x: cur.x + (next.x - cur.x) * t,
-        y: cur.y + (next.y - cur.y) * t,
-        edgeSource: planeId,
-      });
-    } else if (!curInside && nextInside) {
-      const t = curDist / (curDist - nextDist);
-      out.push({
-        x: cur.x + (next.x - cur.x) * t,
-        y: cur.y + (next.y - cur.y) * t,
-        edgeSource: cur.edgeSource,
-      });
-    }
-  }
-  return out.length < 3 ? [] : out;
-}
-
 /** Below this site count the O(n²) loop beats the grid's bookkeeping. */
 const GRID_MIN_SITES = 64;
 
 /**
+ * A site's running cell as a struct-of-arrays convex polygon. Sutherland–
+ * Hodgman ping-pongs the vertices from the `a` buffers into the `b` buffers
+ * and swaps, so a clip allocates nothing — only the final PowerCell is built.
+ * xs/ys are flat Float64Arrays for locality; `src[i]` labels the edge leaving
+ * vertex i (the bisecting site id, or null for the clip boundary).
+ */
+type Cell = {
+  ax: Float64Array;
+  ay: Float64Array;
+  as: (string | null)[];
+  bx: Float64Array;
+  by: Float64Array;
+  bs: (string | null)[];
+  /** Live vertex count in the `a` buffers (0 means the cell was clipped away). */
+  n: number;
+  /** Farthest vertex from the site (squared); a bisector beyond it cannot cut. */
+  radius2: number;
+};
+
+/** Two ping-pong vertex buffers, reused across every site in one diagram. */
+function makeCell(capacity: number): Cell {
+  return {
+    ax: new Float64Array(capacity),
+    ay: new Float64Array(capacity),
+    as: new Array<string | null>(capacity).fill(null),
+    bx: new Float64Array(capacity),
+    by: new Float64Array(capacity),
+    bs: new Array<string | null>(capacity).fill(null),
+    n: 0,
+    radius2: 0,
+  };
+}
+
+/** Seed the cell with the clip ring and refresh its bounding radius². */
+function resetCell(cell: Cell, clip: Ring, site: PowerSite): void {
+  let max = 0;
+  for (let i = 0; i < clip.length; i++) {
+    const p = clip[i]!;
+    cell.ax[i] = p.x;
+    cell.ay[i] = p.y;
+    cell.as[i] = null;
+    const dx = p.x - site.x;
+    const dy = p.y - site.y;
+    const d2 = dx * dx + dy * dy;
+    if (d2 > max) max = d2;
+  }
+  cell.n = clip.length;
+  cell.radius2 = max;
+}
+
+function maxVertexDistance2(cell: Cell, site: PowerSite): number {
+  let max = 0;
+  const { ax, ay, n } = cell;
+  for (let i = 0; i < n; i++) {
+    const dx = ax[i]! - site.x;
+    const dy = ay[i]! - site.y;
+    const d2 = dx * dx + dy * dy;
+    if (d2 > max) max = d2;
+  }
+  return max;
+}
+
+/**
+ * Sutherland–Hodgman of the `a` buffers against nx*x + ny*y <= c, tracking
+ * which plane created each edge, writing into `b` and swapping. The newly cut
+ * edge gets `planeId`; surviving edges keep theirs. Valid for convex polygons
+ * (single entry/exit per plane). A result under 3 vertices clears the cell.
+ */
+function clipPlane(
+  cell: Cell,
+  nx: number,
+  ny: number,
+  c: number,
+  planeId: string,
+): void {
+  const { ax, ay, as, bx, by, bs, n } = cell;
+  let m = 0;
+  for (let i = 0; i < n; i++) {
+    const k = i + 1 === n ? 0 : i + 1;
+    const cx = ax[i]!;
+    const cy = ay[i]!;
+    const nxt = ax[k]!;
+    const nyt = ay[k]!;
+    const curDist = nx * cx + ny * cy - c;
+    const nextDist = nx * nxt + ny * nyt - c;
+    const curInside = curDist <= 0;
+    const nextInside = nextDist <= 0;
+    if (curInside) {
+      bx[m] = cx;
+      by[m] = cy;
+      bs[m] = as[i] ?? null;
+      m++;
+    }
+    if (curInside !== nextInside) {
+      const t = curDist / (curDist - nextDist);
+      bx[m] = cx + (nxt - cx) * t;
+      by[m] = cy + (nyt - cy) * t;
+      bs[m] = curInside ? planeId : (as[i] ?? null);
+      m++;
+    }
+  }
+  cell.ax = bx;
+  cell.ay = by;
+  cell.as = bs;
+  cell.bx = ax;
+  cell.by = ay;
+  cell.bs = as;
+  cell.n = m < 3 ? 0 : m;
+}
+
+/**
  * Apply site `other` (index j) as a half-plane to `site`'s running cell.
- * Returns the (possibly clipped) cell and its refreshed radius²; the
- * polygon clip only runs when the bisector actually reaches the cell, so
- * far pairs cost a handful of flops. The intersection is commutative, so
- * grid and brute-force enumeration of the same sites yield the same cell.
+ * The polygon clip only runs when the bisector actually reaches the cell, so
+ * far pairs cost a handful of flops. The intersection is commutative, so grid
+ * and brute-force enumeration of the same sites yield the same cell.
  */
 function clipAgainst(
-  cell: LabeledVertex[],
-  radius2: number,
+  cell: Cell,
   site: PowerSite,
   index: number,
   other: PowerSite,
   j: number,
-): { cell: LabeledVertex[]; radius2: number } {
+): void {
   const dx = other.x - site.x;
   const dy = other.y - site.y;
   const d2 = dx * dx + dy * dy;
@@ -99,12 +162,13 @@ function clipAgainst(
     const loses =
       site.weight < other.weight ||
       (site.weight === other.weight && index > j);
-    return { cell: loses ? [] : cell, radius2 };
+    if (loses) cell.n = 0;
+    return;
   }
   // cut distance along the pair axis is (d2 + Δw) / (2d); compare squared
   // against radius2 to keep sqrt out of the hot path
   const num = d2 + site.weight - other.weight;
-  if (num > 0 && num * num > 4 * d2 * radius2) return { cell, radius2 };
+  if (num > 0 && num * num > 4 * d2 * cell.radius2) return;
   const nx = 2 * dx;
   const ny = 2 * dy;
   const c =
@@ -113,32 +177,32 @@ function clipAgainst(
     (site.x * site.x + site.y * site.y) +
     site.weight -
     other.weight;
-  const before = cell.length;
-  const clipped = clipLabeled(cell, nx, ny, c, other.id);
-  return {
-    cell: clipped,
-    radius2:
-      clipped.length !== before ? maxVertexDistance2(site, clipped) : radius2,
-  };
+  const before = cell.n;
+  clipPlane(cell, nx, ny, c, other.id);
+  if (cell.n > 0 && cell.n !== before) {
+    cell.radius2 = maxVertexDistance2(cell, site);
+  }
 }
 
-function cellOf(
-  site: PowerSite,
-  cell: LabeledVertex[],
-): PowerCell {
-  const polygon: Ring = cell.map((v) => ({ x: v.x, y: v.y }));
-  const edges: CellEdge[] = cell.map((v, i) => {
-    const next = cell[(i + 1) % cell.length]!;
-    return {
-      a: { x: v.x, y: v.y },
-      b: { x: next.x, y: next.y },
-      neighborId: v.edgeSource,
+/** Materialize the running cell into the output polygon + labeled edges. */
+function finishCell(cell: Cell, site: PowerSite): PowerCell {
+  const n = cell.n;
+  const { ax, ay, as } = cell;
+  const polygon: Ring = new Array(n);
+  const edges: CellEdge[] = new Array(n);
+  for (let i = 0; i < n; i++) {
+    const k = i + 1 === n ? 0 : i + 1;
+    polygon[i] = { x: ax[i]!, y: ay[i]! };
+    edges[i] = {
+      a: { x: ax[i]!, y: ay[i]! },
+      b: { x: ax[k]!, y: ay[k]! },
+      neighborId: as[i] ?? null,
     };
-  });
+  }
   return {
     id: site.id,
     polygon,
-    area: polygon.length >= 3 ? signedArea(polygon) : 0,
+    area: n >= 3 ? signedArea(polygon) : 0,
     edges,
   };
 }
@@ -150,22 +214,15 @@ export function computePowerDiagram(
   if (sites.length >= GRID_MIN_SITES) {
     return computePowerDiagramGrid(sites, clip);
   }
+  // a cell can grow by at most one vertex per clip, so this bounds the peak
+  const cell = makeCell(clip.length + sites.length + 4);
   return sites.map((site, index) => {
-    let cell: LabeledVertex[] = clip.map((p) => ({
-      x: p.x,
-      y: p.y,
-      edgeSource: null,
-    }));
-    // farthest cell vertex from the site (squared): a bisector beyond it
-    // cannot cut, so most pairs skip the (allocating) polygon clip
-    let radius2 = maxVertexDistance2(site, cell);
-    for (let j = 0; j < sites.length && cell.length > 0; j++) {
+    resetCell(cell, clip, site);
+    for (let j = 0; j < sites.length && cell.n > 0; j++) {
       if (j === index) continue;
-      const result = clipAgainst(cell, radius2, site, index, sites[j]!, j);
-      cell = result.cell;
-      radius2 = result.radius2;
+      clipAgainst(cell, site, index, sites[j]!, j);
     }
-    return cellOf(site, cell);
+    return finishCell(cell, site);
   });
 }
 
@@ -209,28 +266,24 @@ function computePowerDiagramGrid(sites: PowerSite[], clip: Ring): PowerCell[] {
     buckets[gy(sites[i]!.y) * cols + gx(sites[i]!.x)]!.push(i);
   }
 
+  const cell = makeCell(clip.length + sites.length + 4);
   const maxRing = Math.max(cols, rows);
   return sites.map((site, index) => {
-    let cell: LabeledVertex[] = clip.map((p) => ({
-      x: p.x,
-      y: p.y,
-      edgeSource: null,
-    }));
-    let radius2 = maxVertexDistance2(site, cell);
+    resetCell(cell, clip, site);
     const cx = gx(site.x);
     const cy = gy(site.y);
-    for (let ring = 0; ring <= maxRing && cell.length > 0; ring++) {
+    for (let ring = 0; ring <= maxRing && cell.n > 0; ring++) {
       if (ring >= 2) {
         // nearest a site in this ring (or any farther one) can sit
         const dMin = (ring - 1) * cellSize;
         const num = dMin * dMin + site.weight - maxWeight;
-        if (num > 0 && num * num >= 4 * dMin * dMin * radius2) break;
+        if (num > 0 && num * num >= 4 * dMin * dMin * cell.radius2) break;
       }
       const x0 = Math.max(0, cx - ring);
       const x1 = Math.min(cols - 1, cx + ring);
       const y0 = Math.max(0, cy - ring);
       const y1 = Math.min(rows - 1, cy + ring);
-      for (let by = y0; by <= y1 && cell.length > 0; by++) {
+      for (let by = y0; by <= y1 && cell.n > 0; by++) {
         const onYedge = by === cy - ring || by === cy + ring;
         for (let bx = x0; bx <= x1; bx++) {
           // only the perimeter of the ring is new (interior done already)
@@ -238,26 +291,13 @@ function computePowerDiagramGrid(sites: PowerSite[], clip: Ring): PowerCell[] {
           const bucket = buckets[by * cols + bx]!;
           for (const j of bucket) {
             if (j === index) continue;
-            const result = clipAgainst(cell, radius2, site, index, sites[j]!, j);
-            cell = result.cell;
-            radius2 = result.radius2;
-            if (cell.length === 0) break;
+            clipAgainst(cell, site, index, sites[j]!, j);
+            if (cell.n === 0) break;
           }
-          if (cell.length === 0) break;
+          if (cell.n === 0) break;
         }
       }
     }
-    return cellOf(site, cell);
+    return finishCell(cell, site);
   });
-}
-
-function maxVertexDistance2(site: PowerSite, cell: LabeledVertex[]): number {
-  let max = 0;
-  for (const v of cell) {
-    const dx = v.x - site.x;
-    const dy = v.y - site.y;
-    const d2 = dx * dx + dy * dy;
-    if (d2 > max) max = d2;
-  }
-  return max;
 }
