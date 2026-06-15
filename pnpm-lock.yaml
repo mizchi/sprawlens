@@ -180,9 +180,6 @@ importers:
 
   packages/server:
     dependencies:
-      '@sprawlens/analyzer-ts':
-        specifier: workspace:*
-        version: link:../analyzer-ts
       '@sprawlens/schema':
         specifier: workspace:*
         version: link:../schema

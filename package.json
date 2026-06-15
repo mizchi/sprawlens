@@ -9,7 +9,7 @@
     "typecheck": "pnpm -r exec tsc --noEmit -p tsconfig.json",
     "dev": "pnpm --filter @sprawlens/viz dev",
     "build": "pnpm --filter @sprawlens/viz build && pnpm --filter @sprawlens/cli build",
-    "dev:server": "pnpm --filter @sprawlens/server dev",
+    "dev:server": "pnpm --filter @sprawlens/cli dev:server",
     "cli": "pnpm --filter @sprawlens/cli dev"
   },
   "dependencies": {

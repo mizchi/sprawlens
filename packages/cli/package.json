@@ -18,6 +18,7 @@
   },
   "scripts": {
     "dev": "tsx src/index.ts",
+    "dev:server": "tsx src/devServer.ts sprawlens=../..",
     "build": "node esbuild.config.mjs"
   },
   "bin": {

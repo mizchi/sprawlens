@@ -1,9 +1,13 @@
 import { existsSync } from "node:fs";
 import { resolve } from "node:path";
 import { tsDetail } from "@sprawlens/analyzer-ts";
-import { createAtlasServer } from "./serve.js";
+import { createAtlasServer } from "@sprawlens/server";
 
-// usage: tsx src/main.ts [--port N] name=path [name=path...]
+// Dev composition for the viz dev server: wire the TypeScript detail provider
+// (CFG / call hierarchy) onto repos served over /api. This lives in the cli —
+// the composition root that may know concrete analyzers — so @sprawlens/server
+// stays a neutral shell that only receives an injected detail.
+// usage: tsx src/devServer.ts [--port N] name=path [name=path...]
 const args = process.argv.slice(2);
 let port = 4710;
 const repos = new Map<string, string>();
