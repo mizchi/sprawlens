@@ -8,10 +8,17 @@ import { snapshotMoonbitWorkingTree } from "./extract.js";
 export const moonbitProvider: LanguageProvider = {
   id: "moonbit",
   matchesManifest(repoPath) {
-    return existsSync(join(repoPath, "moon.mod.json"));
+    return (
+      existsSync(join(repoPath, "moon.mod.json")) ||
+      existsSync(join(repoPath, "moon.mod"))
+    );
   },
   async match(repoPath) {
-    if (existsSync(join(repoPath, "moon.mod.json"))) return true;
+    if (
+      existsSync(join(repoPath, "moon.mod.json")) ||
+      existsSync(join(repoPath, "moon.mod"))
+    )
+      return true;
     const hits = await fg("**/*.mbt", {
       cwd: repoPath,
       ignore: ["**/target/**", "**/.mooncakes/**"],

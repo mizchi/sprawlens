@@ -110,8 +110,17 @@ function braceDelta(line: string): number {
 /** An imported package + the alias it is referenced by (`@alias.name`). */
 type MbImport = { path: string; alias: string };
 
-/** Imported packages declared in a moon.pkg.json (strings or {path, alias}). */
-function pkgImports(json: string): MbImport[] {
+/** Imported packages from a package manifest. MoonBit has two formats: the
+ * legacy JSON `moon.pkg.json` and the newer `moon.pkg` DSL — dispatch on the
+ * leading `{` (only the JSON object starts with one). */
+function pkgImports(content: string): MbImport[] {
+  return content.trimStart().startsWith("{")
+    ? pkgImportsJson(content)
+    : pkgImportsDsl(content);
+}
+
+/** Imports declared in a moon.pkg.json (strings or {path, alias}). */
+function pkgImportsJson(json: string): MbImport[] {
   try {
     const data = JSON.parse(json) as { import?: unknown };
     const list = Array.isArray(data.import) ? data.import : [];
@@ -131,6 +140,48 @@ function pkgImports(json: string): MbImport[] {
   } catch {
     return [];
   }
+}
+
+/**
+ * Imports declared in a moon.pkg DSL: `import { "a", "b" as c }` blocks. The
+ * `import { … } for "test"` block is test-only, so it is skipped (its deps
+ * would over-link the package's non-test files).
+ */
+function pkgImportsDsl(content: string): MbImport[] {
+  const out: MbImport[] = [];
+  const block = /import\s*\{([\s\S]*?)\}(\s*for\b[^\n]*)?/g;
+  const entry = /"([^"]+)"(?:\s+as\s+([A-Za-z_]\w*))?/g;
+  let b: RegExpExecArray | null;
+  while ((b = block.exec(content))) {
+    if (b[2]) continue; // `for "..."`-scoped (test) imports
+    entry.lastIndex = 0;
+    let e: RegExpExecArray | null;
+    while ((e = entry.exec(b[1]!))) {
+      const path = e[1]!;
+      out.push({ path, alias: e[2] || path.split("/").pop() || path });
+    }
+  }
+  return out;
+}
+
+/** The module name from moon.mod.json (JSON) or moon.mod (TOML), else "". */
+async function readModuleName(repoPath: string): Promise<string> {
+  try {
+    const mod = JSON.parse(
+      await readFile(posix.join(repoPath, "moon.mod.json"), "utf8"),
+    ) as { name?: unknown };
+    if (typeof mod.name === "string") return mod.name;
+  } catch {
+    // no JSON module file; try the TOML form
+  }
+  try {
+    const toml = await readFile(posix.join(repoPath, "moon.mod"), "utf8");
+    const m = toml.match(/^\s*name\s*=\s*"([^"]+)"/m);
+    if (m) return m[1]!;
+  } catch {
+    // no module file at all; everything stays external
+  }
+  return "";
 }
 
 /** `@alias.name` qualified usages in a file (heuristic, line-based). */
@@ -160,7 +211,8 @@ export async function snapshotMoonbitWorkingTree(
     suppressErrors: true,
   });
   files.sort();
-  const pkgFiles = await fg("**/moon.pkg.json", {
+  // both manifest spellings: legacy moon.pkg.json and the newer moon.pkg DSL
+  const pkgFiles = await fg(["**/moon.pkg.json", "**/moon.pkg"], {
     cwd: repoPath,
     ignore: ["**/target/**", "**/.mooncakes/**"],
     onlyFiles: true,
@@ -172,16 +224,8 @@ export async function snapshotMoonbitWorkingTree(
     const dir = pkg.includes("/") ? pkg.slice(0, pkg.lastIndexOf("/")) : "";
     importsByDir.set(dir, pkgImports(await readFile(posix.join(repoPath, pkg), "utf8")));
   }
-  // module name (moon.mod.json) lets us resolve imports under it to local dirs
-  let moduleName = "";
-  try {
-    const mod = JSON.parse(await readFile(posix.join(repoPath, "moon.mod.json"), "utf8")) as {
-      name?: unknown;
-    };
-    if (typeof mod.name === "string") moduleName = mod.name;
-  } catch {
-    // no module file; everything stays external
-  }
+  // module name (moon.mod.json / moon.mod) resolves imports under it to local dirs
+  const moduleName = await readModuleName(repoPath);
 
   const nodes: CodeNode[] = [{ id: "repo", type: "repo", name: repoName }];
   const edges: CodeEdge[] = [];
@@ -265,12 +309,15 @@ export async function snapshotMoonbitWorkingTree(
       const spec = imp.path;
       const localDir = localDirOf(spec);
       const localFiles = localDir !== null ? filesByDir.get(localDir) : undefined;
-      if (localFiles && localFiles.length > 0) {
+      // a package's test files (`*_test.mbt` / `*_wbtest.mbt`) are not part of
+      // its importable surface — never an import target
+      const importable = localFiles?.filter((t) => !/_(test|wbtest)\.mbt$/.test(t));
+      if (importable && importable.length > 0) {
         // `@alias.name` usages of this package become symbol references
         const refs = f.selectors
           .filter((s) => s.pkg === imp.alias)
           .map((s) => ({ line: s.line, name: s.name }));
-        for (const target of localFiles) {
+        for (const target of importable) {
           if (target === f.rel) continue;
           const symbolImports = refs.length
             ? resolveSymbolReferences(

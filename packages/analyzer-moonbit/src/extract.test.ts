@@ -48,3 +48,44 @@ describe("snapshotMoonbitWorkingTree", () => {
     ).toBe(true);
   });
 });
+
+// moonbitlang/core and other current modules use the newer manifest spelling:
+// moon.mod (TOML) + moon.pkg (DSL `import { … }`) instead of the JSON forms.
+describe("snapshotMoonbitWorkingTree (moon.mod / moon.pkg DSL format)", () => {
+  let dir2: string;
+  beforeAll(async () => {
+    dir2 = await mkdtemp(join(tmpdir(), "mbt-dsl-"));
+    await mkdir(join(dir2, "lib"), { recursive: true });
+    await mkdir(join(dir2, "util"), { recursive: true });
+    // TOML module manifest (no .json)
+    await writeFile(join(dir2, "moon.mod"), `name = "demo"\nversion = "0.1.0"\n`);
+    // DSL package manifests (no .json): main import + a test-scoped block
+    await writeFile(
+      join(dir2, "lib/moon.pkg"),
+      `import {\n  "demo/util",\n}\n\nimport {\n  "demo/util",\n} for "test"\n`,
+    );
+    await writeFile(join(dir2, "util/moon.pkg"), `import {\n}\n`);
+    await writeFile(join(dir2, "util/u.mbt"), `pub fn id() -> Int { 1 }\n`);
+    await writeFile(
+      join(dir2, "lib/g.mbt"),
+      `pub fn run() -> Int { @util.id() }\n`,
+    );
+  });
+  afterAll(async () => { await rm(dir2, { recursive: true, force: true }); });
+
+  it("reads the TOML module name and DSL imports, resolving local deps", async () => {
+    const snap = await snapshotMoonbitWorkingTree(dir2, commit, "demo");
+    const imports = snap.edges.filter((e) => e.type === "imports");
+    // demo/util resolves to its file via the TOML module name
+    const utilEdge = imports.find((e) => e.to === "file:util/u.mbt" && e.resolved);
+    expect(utilEdge).toBeTruthy();
+    // `@util.id()` in run() becomes a symbol reference to util's exported id
+    expect(
+      utilEdge?.type === "imports"
+        ? utilEdge.symbolImports?.some(
+            (s) => s.fromSymbolName === "run" && s.toSymbolName === "id",
+          )
+        : false,
+    ).toBe(true);
+  });
+});
