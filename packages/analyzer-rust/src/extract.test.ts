@@ -85,5 +85,18 @@ describe("cargo workspace cross-crate resolution", () => {
     expect(
       imports.some((e) => e.specifier?.startsWith("serde") && e.external),
     ).toBe(true);
+    // `Widget` usage in run() becomes a symbol reference to mylib's Widget
+    const crossEdge = imports.find(
+      (e) =>
+        e.from === "file:crates/app/src/lib.rs" &&
+        e.to === "file:crates/mylib/src/lib.rs",
+    );
+    expect(
+      crossEdge?.type === "imports"
+        ? crossEdge.symbolImports?.some(
+            (s) => s.fromSymbolName === "run" && s.toSymbolName === "Widget",
+          )
+        : false,
+    ).toBe(true);
   });
 });

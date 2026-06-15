@@ -3,7 +3,11 @@ import { readFile } from "node:fs/promises";
 import { extname, posix } from "node:path";
 import fg from "fast-glob";
 import Parser from "web-tree-sitter";
-import { computeGraphMetrics, matchWorkspacePackage } from "@sprawlens/schema";
+import {
+  computeGraphMetrics,
+  matchWorkspacePackage,
+  resolveSymbolReferences,
+} from "@sprawlens/schema";
 import type {
   CodeEdge,
   CodeNode,
@@ -83,11 +87,14 @@ function symbolOf(
   };
 }
 
+/** A `use` declaration: the resolvable path + the names it brings into scope. */
+type RustUse = { path: string; names: string[] };
+
 /** Recurse a scope (source_file / declaration_list), collecting symbols. */
 function walk(
   scope: SyntaxNode,
   file: string,
-  out: { symbols: CodeSymbol[]; imports: string[] },
+  out: { symbols: CodeSymbol[]; uses: RustUse[] },
   parentClass?: string,
 ): void {
   for (let i = 0; i < scope.namedChildCount; i++) {
@@ -144,7 +151,7 @@ function walk(
       }
       case "use_declaration": {
         const path = usePath(node);
-        if (path) out.imports.push(path);
+        if (path) out.uses.push({ path, names: useNamesOf(node) });
         break;
       }
     }
@@ -163,6 +170,47 @@ function usePath(node: SyntaxNode): string | null {
     .filter(Boolean)
     .join("::");
   return path || null;
+}
+
+/** The names a `use` brings into scope (last segment, group members, or alias). */
+function useNamesOf(node: SyntaxNode): string[] {
+  const arg = node.childForFieldName("argument") ?? node.namedChild(0);
+  if (!arg) return [];
+  const text = arg.text;
+  if (/::\*\s*$/.test(text)) return []; // glob: can't enumerate
+  const lastSegment = (segment: string): string => {
+    const asAt = segment.indexOf(" as ");
+    return (asAt >= 0 ? segment.slice(asAt + 4) : segment.split("::").pop() ?? "").trim();
+  };
+  const names = new Set<string>();
+  const group = text.match(/\{([^}]*)\}/);
+  if (group) {
+    for (const part of group[1]!.split(",")) {
+      const seg = part.trim();
+      if (seg && seg !== "self") names.add(lastSegment(seg));
+    }
+  } else {
+    const name = lastSegment(text);
+    if (name && name !== "*") names.add(name);
+  }
+  names.delete("");
+  return [...names];
+}
+
+/** All identifier / type usages in the tree (skipping the `use` declarations
+ * themselves), as {line, name} — the source side of symbol references. */
+function collectUsages(root: SyntaxNode): { line: number; name: string }[] {
+  const out: { line: number; name: string }[] = [];
+  const stack: SyntaxNode[] = [root];
+  while (stack.length) {
+    const n = stack.pop()!;
+    if (n.type === "use_declaration") continue; // its names are imports, not uses
+    if (n.type === "identifier" || n.type === "type_identifier") {
+      out.push({ line: n.startPosition.row + 1, name: n.text });
+    }
+    for (let i = 0; i < n.namedChildCount; i++) stack.push(n.namedChild(i)!);
+  }
+  return out;
 }
 
 /** `src` if the crate root lives there, else `` (repo root). */
@@ -326,7 +374,8 @@ export async function snapshotRustWorkingTree(
   const fileEntries: {
     rel: string;
     symbols: CodeSymbol[];
-    imports: string[];
+    uses: RustUse[];
+    usages: { line: number; name: string }[];
     loc: number;
     bytes: number;
   }[] = [];
@@ -334,11 +383,12 @@ export async function snapshotRustWorkingTree(
     const source = await readFile(posix.join(repoPath, rel), "utf8");
     const tree = parser.parse(source);
     if (!tree) continue;
-    const out = { symbols: [] as CodeSymbol[], imports: [] as string[] };
+    const out: { symbols: CodeSymbol[]; uses: RustUse[] } = { symbols: [], uses: [] };
     walk(tree.rootNode, rel, out);
+    const usages = collectUsages(tree.rootNode);
     const loc = source.split("\n").length;
     totalLoc += loc;
-    fileEntries.push({ rel, ...out, loc, bytes: Buffer.byteLength(source) });
+    fileEntries.push({ rel, ...out, usages, loc, bytes: Buffer.byteLength(source) });
     const parts = rel.split("/");
     parts.pop();
     let acc = "";
@@ -353,6 +403,14 @@ export async function snapshotRustWorkingTree(
 
   const fileSet = new Set(fileEntries.map((f) => f.rel));
   const { crates, members } = await detectCrates(repoPath, fileSet);
+
+  // exported symbols per file, by name — the target side of symbol references
+  const exportsByFile = new Map<string, Map<string, CodeSymbol>>();
+  for (const f of fileEntries) {
+    const byName = new Map<string, CodeSymbol>();
+    for (const symbol of f.symbols) if (symbol.exported) byName.set(symbol.name, symbol);
+    exportsByFile.set(f.rel, byName);
+  }
 
   for (const f of fileEntries) {
     const id = `file:${f.rel}`;
@@ -371,19 +429,28 @@ export async function snapshotRustWorkingTree(
     // dedupe by resolved target / external crate (a file `use`s many items)
     const seen = new Set<string>();
     const importerCrate = crateOf(f.rel, crates);
-    for (const path of f.imports) {
-      const r = resolveUse(path, f.rel, importerCrate, members, fileSet);
+    for (const use of f.uses) {
+      const r = resolveUse(use.path, f.rel, importerCrate, members, fileSet);
       if (!r) continue;
       if ("file" in r) {
         if (seen.has(`f:${r.file}`)) continue;
         seen.add(`f:${r.file}`);
+        // usages of the names this `use` brings in become symbol references,
+        // resolved against the symbols the target file exports
+        const refs = use.names.length
+          ? f.usages.filter((u) => use.names.includes(u.name))
+          : [];
+        const symbolImports = refs.length
+          ? resolveSymbolReferences(refs, f.symbols, exportsByFile.get(r.file) ?? new Map())
+          : [];
         edges.push({
-          id: `imports:${id}->file:${r.file}:${path}`,
+          id: `imports:${id}->file:${r.file}:${use.path}`,
           type: "imports",
           from: id,
           to: `file:${r.file}`,
-          specifier: path,
+          specifier: use.path,
           resolved: true,
+          ...(symbolImports.length > 0 ? { symbolImports } : {}),
         });
       } else {
         if (seen.has(`e:${r.external}`)) continue;

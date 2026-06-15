@@ -15,7 +15,7 @@ beforeAll(async () => {
   await writeFile(join(dir, "lib/moon.pkg.json"), `{"import":["moonbitlang/core/builtin","demo/util"]}`);
   await writeFile(
     join(dir, "lib/g.mbt"),
-    `pub struct Greeter {\n  name : String\n}\npub fn Greeter::hello(self : Greeter) -> String {\n  self.name\n}\nenum Mode { On; Off }\nfn helper() -> Int { 42 }\npub let answer : Int = 42\n`,
+    `pub struct Greeter {\n  name : String\n}\npub fn Greeter::hello(self : Greeter) -> String {\n  self.name\n}\nenum Mode { On; Off }\nfn helper() -> Int { @util.id() }\npub let answer : Int = 42\n`,
   );
 });
 afterAll(async () => { await rm(dir, { recursive: true, force: true }); });
@@ -37,5 +37,14 @@ describe("snapshotMoonbitWorkingTree", () => {
     expect(imports.some((e) => e.specifier === "moonbitlang/core/builtin" && !e.resolved)).toBe(true);
     // import of the local demo/util package resolves to its file
     expect(imports.some((e) => e.to === "file:util/u.mbt" && e.resolved)).toBe(true);
+    // `@util.id()` usage in helper() becomes a symbol reference to util's id
+    const utilEdge = imports.find((e) => e.to === "file:util/u.mbt");
+    expect(
+      utilEdge?.type === "imports"
+        ? utilEdge.symbolImports?.some(
+            (s) => s.fromSymbolName === "helper" && s.toSymbolName === "id",
+          )
+        : false,
+    ).toBe(true);
   });
 });

@@ -1,7 +1,11 @@
 import { readFile } from "node:fs/promises";
 import { extname, posix } from "node:path";
 import fg from "fast-glob";
-import { computeGraphMetrics, matchWorkspacePackage } from "@sprawlens/schema";
+import {
+  computeGraphMetrics,
+  matchWorkspacePackage,
+  resolveSymbolReferences,
+} from "@sprawlens/schema";
 import type {
   CodeEdge,
   CodeNode,
@@ -103,23 +107,45 @@ function braceDelta(line: string): number {
   return d;
 }
 
-/** Imported packages declared in a moon.pkg.json (strings or {path}). */
-function pkgImports(json: string): string[] {
+/** An imported package + the alias it is referenced by (`@alias.name`). */
+type MbImport = { path: string; alias: string };
+
+/** Imported packages declared in a moon.pkg.json (strings or {path, alias}). */
+function pkgImports(json: string): MbImport[] {
   try {
     const data = JSON.parse(json) as { import?: unknown };
     const list = Array.isArray(data.import) ? data.import : [];
-    return list
-      .map((e) =>
-        typeof e === "string"
-          ? e
-          : e && typeof e === "object" && "path" in e
-            ? String((e as { path: unknown }).path)
-            : "",
-      )
-      .filter(Boolean);
+    const out: MbImport[] = [];
+    for (const entry of list) {
+      let path = "";
+      let alias = "";
+      if (typeof entry === "string") path = entry;
+      else if (entry && typeof entry === "object" && "path" in entry) {
+        path = String((entry as { path: unknown }).path);
+        const a = (entry as { alias?: unknown }).alias;
+        if (typeof a === "string") alias = a;
+      }
+      if (path) out.push({ path, alias: alias || path.split("/").pop() || path });
+    }
+    return out;
   } catch {
     return [];
   }
+}
+
+/** `@alias.name` qualified usages in a file (heuristic, line-based). */
+const SELECTOR = /@([A-Za-z_]\w*)\s*\.\s*([A-Za-z_]\w*)/g;
+function selectorsOf(source: string): { line: number; pkg: string; name: string }[] {
+  const out: { line: number; pkg: string; name: string }[] = [];
+  const lines = source.split("\n");
+  for (let i = 0; i < lines.length; i++) {
+    SELECTOR.lastIndex = 0;
+    let m: RegExpExecArray | null;
+    while ((m = SELECTOR.exec(lines[i]!))) {
+      out.push({ line: i + 1, pkg: m[1]!, name: m[2]! });
+    }
+  }
+  return out;
 }
 
 export async function snapshotMoonbitWorkingTree(
@@ -141,7 +167,7 @@ export async function snapshotMoonbitWorkingTree(
     suppressErrors: true,
   });
   // dir -> imported packages
-  const importsByDir = new Map<string, string[]>();
+  const importsByDir = new Map<string, MbImport[]>();
   for (const pkg of pkgFiles) {
     const dir = pkg.includes("/") ? pkg.slice(0, pkg.lastIndexOf("/")) : "";
     importsByDir.set(dir, pkgImports(await readFile(posix.join(repoPath, pkg), "utf8")));
@@ -164,13 +190,27 @@ export async function snapshotMoonbitWorkingTree(
   const filesByDir = new Map<string, string[]>();
   let totalLoc = 0;
 
-  const entries: { rel: string; symbols: CodeSymbol[]; loc: number; bytes: number; dir: string }[] = [];
+  const entries: {
+    rel: string;
+    symbols: CodeSymbol[];
+    selectors: { line: number; pkg: string; name: string }[];
+    loc: number;
+    bytes: number;
+    dir: string;
+  }[] = [];
   for (const rel of files) {
     const source = await readFile(posix.join(repoPath, rel), "utf8");
     const loc = source.split("\n").length;
     totalLoc += loc;
     const dir = rel.includes("/") ? rel.slice(0, rel.lastIndexOf("/")) : "";
-    entries.push({ rel, symbols: symbolsOf(source, rel), loc, bytes: Buffer.byteLength(source), dir });
+    entries.push({
+      rel,
+      symbols: symbolsOf(source, rel),
+      selectors: selectorsOf(source),
+      loc,
+      bytes: Buffer.byteLength(source),
+      dir,
+    });
     (filesByDir.get(dir) ?? filesByDir.set(dir, []).get(dir)!).push(rel);
     const parts = rel.split("/");
     parts.pop();
@@ -196,6 +236,14 @@ export async function snapshotMoonbitWorkingTree(
   for (const dir of [...dirs].sort())
     nodes.push({ id: `dir:${dir}`, type: "dir", path: dir });
 
+  // exported symbols per file, by name — the target side of symbol references
+  const exportsByFile = new Map<string, Map<string, CodeSymbol>>();
+  for (const f of entries) {
+    const byName = new Map<string, CodeSymbol>();
+    for (const symbol of f.symbols) if (symbol.exported) byName.set(symbol.name, symbol);
+    exportsByFile.set(f.rel, byName);
+  }
+
   for (const f of entries) {
     const id = `file:${f.rel}`;
     nodes.push({
@@ -210,12 +258,27 @@ export async function snapshotMoonbitWorkingTree(
     const parent = f.dir ? `dir:${f.dir}` : "repo";
     edges.push({ id: `contains:${parent}->${id}`, type: "contains", from: parent, to: id });
     // package imports (from moon.pkg.json) apply to every file in the package
-    for (const spec of new Set(importsByDir.get(f.dir) ?? [])) {
+    const seenImport = new Set<string>();
+    for (const imp of importsByDir.get(f.dir) ?? []) {
+      if (seenImport.has(imp.path)) continue;
+      seenImport.add(imp.path);
+      const spec = imp.path;
       const localDir = localDirOf(spec);
       const localFiles = localDir !== null ? filesByDir.get(localDir) : undefined;
       if (localFiles && localFiles.length > 0) {
+        // `@alias.name` usages of this package become symbol references
+        const refs = f.selectors
+          .filter((s) => s.pkg === imp.alias)
+          .map((s) => ({ line: s.line, name: s.name }));
         for (const target of localFiles) {
           if (target === f.rel) continue;
+          const symbolImports = refs.length
+            ? resolveSymbolReferences(
+                refs,
+                f.symbols,
+                exportsByFile.get(target) ?? new Map(),
+              )
+            : [];
           edges.push({
             id: `imports:${id}->file:${target}:${spec}`,
             type: "imports",
@@ -223,6 +286,7 @@ export async function snapshotMoonbitWorkingTree(
             to: `file:${target}`,
             specifier: spec,
             resolved: true,
+            ...(symbolImports.length > 0 ? { symbolImports } : {}),
           });
         }
       } else {
