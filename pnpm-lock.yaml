@@ -170,13 +170,19 @@ importers:
         specifier: ^0.25.0
         version: 0.25.12
 
+  packages/contracts: {}
+
   packages/layout:
     dependencies:
-      '@sprawlens/schema':
+      '@sprawlens/contracts':
         specifier: workspace:*
-        version: link:../schema
+        version: link:../contracts
 
-  packages/schema: {}
+  packages/schema:
+    dependencies:
+      '@sprawlens/contracts':
+        specifier: workspace:*
+        version: link:../contracts
 
   packages/server:
     dependencies:

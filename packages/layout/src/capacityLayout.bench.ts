@@ -7,7 +7,7 @@ import {
 } from "./capacityLayout.js";
 import { transitiveWeights } from "./transitiveWeight.js";
 import { createRng } from "./rng.js";
-import type { AtlasEdge } from "@sprawlens/schema";
+import type { AtlasEdge } from "@sprawlens/contracts";
 
 const clip: ClipRegion = { kind: "rect", x: 0, y: 0, width: 800, height: 600 };
 

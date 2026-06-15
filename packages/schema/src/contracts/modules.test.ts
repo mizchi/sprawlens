@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import type { AtlasGraph } from "./graph.js";
+import type { AtlasGraph } from "@sprawlens/contracts";
 import { defaultModuleIdOf, deriveModules } from "./modules.js";
 
 function fileNode(id: string, loc: number) {

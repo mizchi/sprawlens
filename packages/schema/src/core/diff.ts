@@ -9,7 +9,7 @@ import type {
   ImportsEdge,
   Snapshot,
   SnapshotMetrics,
-} from "./types.js";
+} from "@sprawlens/contracts";
 
 export function diffSnapshots(before: Snapshot, after: Snapshot): GraphDiff {
   const beforeNodeIds = new Set(before.nodes.map((node) => node.id));

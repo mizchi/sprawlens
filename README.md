@@ -47,20 +47,23 @@ pnpm cli analyze <repo>                # diff consecutive snapshots
 
 ## Architecture
 
-A pnpm workspace split by responsibility. The neutral `Snapshot` is the
-contract between language analysis and the view.
+A pnpm workspace split into responsibility layers. Each package only depends
+on lower layers; `@sprawlens/contracts` (the `Snapshot` / `AtlasGraph` shapes)
+is the spine every other package agrees on, and only the cli — the composition
+root — knows the concrete analyzers.
 
-| package | responsibility |
-|---|---|
-| `@sprawlens/schema` | language-neutral contracts (`Snapshot`, `AtlasGraph`, hierarchy, `LanguageProvider`) + neutral computation + the snapshot→graph adapter |
-| `@sprawlens/layout` | geometry + graph layout kernel (rings, treemap, power diagram, force, ...) |
-| `@sprawlens/analyzer-ts` | TypeScript/JS provider — TS compiler for structure, LSP for CFG / call hierarchy |
-| `@sprawlens/analyzer-go` | Go provider — tree-sitter |
-| `@sprawlens/analyzer-rust` | Rust provider — tree-sitter |
-| `@sprawlens/analyzer-moonbit` | MoonBit provider — heuristic (until a tree-sitter grammar ships) |
-| `@sprawlens/server` | neutral HTTP shell: static viz, snapshot, working-tree diff (SSE), injected detail |
-| `@sprawlens/viz` | the Preact + SVG map |
-| `@sprawlens/cli` | language detection → analyze → serve → open |
+| layer | package | responsibility |
+|---|---|---|
+| L0 contract | `@sprawlens/contracts` | language-neutral data shapes only: `Snapshot`, `AtlasGraph`, the detail graph, the `LanguageProvider` / `LanguageDetail` interfaces. Zero dependencies |
+| L1 domain | `@sprawlens/schema` | neutral computation over the contracts: metrics, diff, the snapshot→graph adapter, hierarchy / layer / module / overlay / delta derivations |
+| L1 domain | `@sprawlens/layout` | geometry + graph layout kernel (rings, treemap, power diagram, force, ...) |
+| L2 capability | `@sprawlens/analyzer-ts` | TypeScript/JS provider — TS compiler for structure, LSP for CFG / call hierarchy |
+| L2 capability | `@sprawlens/analyzer-go` | Go provider — tree-sitter |
+| L2 capability | `@sprawlens/analyzer-rust` | Rust provider — tree-sitter |
+| L2 capability | `@sprawlens/analyzer-moonbit` | MoonBit provider — heuristic (until a tree-sitter grammar ships) |
+| L3 application | `@sprawlens/server` | neutral HTTP shell: static viz, snapshot, working-tree diff (SSE), injected detail. Depends on no analyzer |
+| L3 application | `@sprawlens/viz` | the Preact + SVG map |
+| L4 composition | `@sprawlens/cli` | language detection → analyze → serve → open; wires a provider's detail into the neutral server |
 
 A language provider implements `match` + `analyze(repo) → Snapshot` and an
 optional `detail` (CFG, call hierarchy). Adding a language is one package.

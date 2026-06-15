@@ -1,4 +1,4 @@
-import type { AtlasEdge } from "@sprawlens/schema";
+import type { AtlasEdge } from "@sprawlens/contracts";
 import type { CellResult } from "./capacityLayout.js";
 
 /**

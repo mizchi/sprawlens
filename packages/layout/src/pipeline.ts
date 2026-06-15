@@ -1,4 +1,4 @@
-import { locScorer, type AtlasGraph, type WeightScorer } from "@sprawlens/schema";
+import { locScorer, type AtlasGraph, type WeightScorer } from "@sprawlens/contracts";
 import {
   createCapacityLayout,
   type CapacityLayoutState,

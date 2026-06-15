@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import type { AtlasGraph } from "@sprawlens/schema";
+import type { AtlasGraph } from "@sprawlens/contracts";
 import { capacityStep, isConverged, type ClipRegion } from "./capacityLayout.js";
 import { createGraphLayout, embedSeedHints } from "./pipeline.js";
 

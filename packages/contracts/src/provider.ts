@@ -1,5 +1,5 @@
-import type { DetailGraph } from "./contracts/detail.js";
-import type { Snapshot, SnapshotCommit } from "./core/types.js";
+import type { DetailGraph } from "./detail.js";
+import type { Snapshot, SnapshotCommit } from "./types.js";
 
 /** A symbol referenced by a call-hierarchy result, repo-relative. */
 export type SymbolRef = { file: string; name: string; line: number };

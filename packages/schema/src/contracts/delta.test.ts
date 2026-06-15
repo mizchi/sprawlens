@@ -5,7 +5,7 @@ import {
   isEmptyDelta,
   type GraphDelta,
 } from "./delta.js";
-import type { AtlasGraph } from "./graph.js";
+import type { AtlasGraph } from "@sprawlens/contracts";
 
 const file = (id: string, loc: number, extra?: Partial<{ complexity: number; exported: boolean }>) => ({
   id,

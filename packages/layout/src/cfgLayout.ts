@@ -1,4 +1,4 @@
-import type { AtlasEdge, AtlasNode } from "@sprawlens/schema";
+import type { AtlasEdge, AtlasNode } from "@sprawlens/contracts";
 import type { Vec2 } from "./vec.js";
 
 /**

@@ -1,4 +1,4 @@
-import type { AtlasGraph, AtlasNode } from "./graph.js";
+import type { AtlasGraph, AtlasNode } from "@sprawlens/contracts";
 
 /**
  * Layer classification: tests live on a separate visual layer overlaid on

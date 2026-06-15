@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { computeGraphMetrics } from "./metrics.js";
-import type { CodeEdge, CodeNode } from "./types.js";
+import type { CodeEdge, CodeNode } from "@sprawlens/contracts";
 
 describe("computeGraphMetrics", () => {
   it("computes fan-in, fan-out, cyclic components, and largest connected component", () => {

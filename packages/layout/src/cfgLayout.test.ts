@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import type { AtlasEdge, AtlasNode } from "@sprawlens/schema";
+import type { AtlasEdge, AtlasNode } from "@sprawlens/contracts";
 import { layoutCfg } from "./cfgLayout.js";
 
 const block = (id: string): AtlasNode => ({

@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { diffSnapshots } from "./diff.js";
-import type { Snapshot } from "./types.js";
+import type { Snapshot } from "@sprawlens/contracts";
 
 function snapshot(hash: string, files: Array<{ path: string; loc: number }>, imports: Array<[string, string, string]>): Snapshot {
   return {

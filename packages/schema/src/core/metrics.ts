@@ -6,7 +6,7 @@ import type {
   ImportsEdge,
   MetricsComputation,
   SnapshotMetrics,
-} from "./types.js";
+} from "@sprawlens/contracts";
 
 function isFileNode(node: CodeNode): node is FileNode {
   return node.type === "file";

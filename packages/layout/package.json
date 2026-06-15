@@ -9,6 +9,6 @@
     ".": "./src/index.ts"
   },
   "dependencies": {
-    "@sprawlens/schema": "workspace:*"
+    "@sprawlens/contracts": "workspace:*"
   }
 }

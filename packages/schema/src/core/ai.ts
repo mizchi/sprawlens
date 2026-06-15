@@ -1,4 +1,4 @@
-import type { AIIndicator, CommitAIInfo, CommitMetadataInput } from "./types.js";
+import type { AIIndicator, CommitAIInfo, CommitMetadataInput } from "@sprawlens/contracts";
 
 const AI_PATTERNS: Array<{ indicator: AIIndicator; pattern: RegExp }> = [
   { indicator: "claude-code", pattern: /\bclaude\s+code\b/i },

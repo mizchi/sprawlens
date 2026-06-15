@@ -3,7 +3,7 @@ import type {
   AtlasGraph,
   AtlasNode,
   AtlasNodeKind,
-} from "./graph.js";
+} from "@sprawlens/contracts";
 import { defaultModuleIdOf, type ModuleIdOf } from "./modules.js";
 
 /**

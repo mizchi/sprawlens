@@ -1,7 +1,7 @@
 import { bench, describe } from "vitest";
 import { greedySwapAssignment } from "./neighborhood.js";
 import { createRng } from "./rng.js";
-import type { AtlasEdge } from "@sprawlens/schema";
+import type { AtlasEdge } from "@sprawlens/contracts";
 
 /**
  * A grid of n slots with 4-neighbor adjacency (like power-diagram cells), a
