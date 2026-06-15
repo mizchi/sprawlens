@@ -1,7 +1,7 @@
 import { createServer, type Server, type ServerResponse } from "node:http";
 import { readFile } from "node:fs/promises";
 import { extname, join, normalize } from "node:path";
-import type { LanguageDetail } from "@sprawlens/schema";
+import type { LanguageDetail, LayerManifestEntry } from "@sprawlens/schema";
 import {
   enrichWithLoc,
   isSafeRef,
@@ -31,6 +31,9 @@ export type AtlasServerOptions = {
   vizDist?: string;
   /** Language-specific CFG / call hierarchy; omit to disable those endpoints. */
   detail?: LanguageDetail;
+  /** Layer render manifest (from sprawlens.toml); served at GET /api/config so
+   * the viz knows which satellite planes to build and how. */
+  layers?: LayerManifestEntry[];
 };
 
 const MIME: Record<string, string> = {
@@ -45,7 +48,7 @@ const MIME: Record<string, string> = {
 };
 
 export function createAtlasServer(opts: AtlasServerOptions): Server {
-  const { repos, snapshots, analyzers, vizDist, detail } = opts;
+  const { repos, snapshots, analyzers, vizDist, detail, layers } = opts;
 
   type DiffStream = {
     clients: Set<ServerResponse>;
@@ -237,6 +240,14 @@ export function createAtlasServer(opts: AtlasServerOptions): Server {
       res
         .writeHead(200, { "content-type": "application/json" })
         .end(JSON.stringify(snap));
+      return;
+    }
+
+    // GET /api/config -> the layer render manifest (empty array if unset)
+    if (req.method === "GET" && url.pathname === "/api/config") {
+      res
+        .writeHead(200, { "content-type": "application/json" })
+        .end(JSON.stringify({ layers: layers ?? [] }));
       return;
     }
 

@@ -9,6 +9,10 @@
     ".": "./src/index.ts"
   },
   "dependencies": {
-    "@sprawlens/contracts": "workspace:*"
+    "@sprawlens/contracts": "workspace:*",
+    "picomatch": "^4.0.4"
+  },
+  "devDependencies": {
+    "@types/picomatch": "^4.0.3"
   }
 }

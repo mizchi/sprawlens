@@ -23,6 +23,14 @@ function testSubject(fileId: string): string {
 export const defaultLayerOf: LayerOf = (fileId) =>
   TEST_PATTERN.test(fileId) ? "test" : "source";
 
+/** Node-aware layer classifier: respects a stamped `layer`, else the default. */
+export type NodeLayerOf = (node: { id: string; layer?: string }) => string;
+
+/** A node's layer: its stamped `layer` (from applyLayers), else the path/id
+ * based default. The single classifier the viz and splitters should use. */
+export const layerOfNode: NodeLayerOf = (node) =>
+  node.layer ?? defaultLayerOf(node.id);
+
 export type LayerSplit = {
   /** Source-only graph: drives module derivation and the capacity layout. */
   source: AtlasGraph;
@@ -32,13 +40,16 @@ export type LayerSplit = {
 
 export function splitByLayer(
   graph: AtlasGraph,
-  layerOf: LayerOf = defaultLayerOf,
+  layerOf: NodeLayerOf = layerOfNode,
 ): LayerSplit {
   const test: AtlasNode[] = [];
   const sourceNodes: AtlasNode[] = [];
   for (const node of graph.nodes) {
-    if (layerOf(node.id) === "test") test.push(node);
-    else sourceNodes.push(node);
+    const layer = layerOf(node);
+    if (layer === "test") test.push(node);
+    else if (layer === "source") sourceNodes.push(node);
+    // other satellite layers (deps, docs, ...) are placed by their own plane
+    // builders, not the source layout — drop them from both here
   }
   const sourceIds = new Set(sourceNodes.map((n) => n.id));
   return {
@@ -59,10 +70,10 @@ export function splitByLayer(
  */
 export function matchTestTargets(
   graph: AtlasGraph,
-  layerOf: LayerOf = defaultLayerOf,
+  layerOf: NodeLayerOf = layerOfNode,
 ): Map<string, string> {
   const sourceIds = new Set(
-    graph.nodes.filter((n) => layerOf(n.id) === "source").map((n) => n.id),
+    graph.nodes.filter((n) => layerOf(n) === "source").map((n) => n.id),
   );
   // single pass over edges; per-test scans don't scale to monorepo sizes
   const importCounts = new Map<string, Map<string, number>>();
@@ -77,7 +88,7 @@ export function matchTestTargets(
   }
   const result = new Map<string, string>();
   for (const node of graph.nodes) {
-    if (layerOf(node.id) !== "test") continue;
+    if (layerOf(node) !== "test") continue;
     const nameMatch = testSubject(node.id);
     if (nameMatch !== node.id && sourceIds.has(nameMatch)) {
       result.set(node.id, nameMatch);

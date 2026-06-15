@@ -26,13 +26,22 @@ export type TiltParams = {
   enabled: boolean;
   theta: number;
   pitch: number;
-  /** Show the Tests plane below the source plane (drops tests off source). */
-  tests: boolean;
-  /** Show the Deps plane: external packages below their importers. */
-  deps: boolean;
+  /** Per-layer plane visibility (layer name -> shown). Names come from the
+   * server's layer manifest; "test" and "deps" are the built-in presets. */
+  layers: Record<string, boolean>;
   /** Vertical separation between stacked planes, in world units. */
   gap: number;
 };
+
+/** Whether a named satellite plane is toggled on. */
+export function planeShown(tilt: TiltParams, name: string): boolean {
+  return tilt.layers[name] === true;
+}
+
+/** Whether any satellite plane is toggled on. */
+export function anyPlaneShown(tilt: TiltParams): boolean {
+  return Object.values(tilt.layers).some(Boolean);
+}
 
 export type PlaygroundParams = {
   source: DataSource;

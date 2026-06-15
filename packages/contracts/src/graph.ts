@@ -48,6 +48,8 @@ export type AtlasNode = {
   exported?: boolean;
   /** Symbol declaration kind (function/class/...), when the node is a symbol. */
   symbolKind?: SymbolKind;
+  /** Visual layer (test, deps, ...) for a file node; absent = source plane. */
+  layer?: string;
 };
 
 /**

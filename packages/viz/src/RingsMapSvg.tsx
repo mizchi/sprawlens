@@ -11,7 +11,7 @@ import {
   type Affine,
 } from "@sprawlens/layout";
 import type { RingsState } from "./ringsController.ts";
-import type { TiltParams } from "./Controls.tsx";
+import { anyPlaneShown, type TiltParams } from "./Controls.tsx";
 
 import { CfgLayer, cfgAnchorsOf, type CfgEntry } from "./CfgLayer.tsx";
 import {
@@ -233,7 +233,7 @@ export function RingsMapSvg(props: Props) {
   // labels read `tiltAffine` to stay upright on top.
   const tiltActive =
     !!tilt?.enabled &&
-    (tilt.theta !== 0 || tilt.pitch !== 0 || tilt.tests || tilt.deps);
+    (tilt.theta !== 0 || tilt.pitch !== 0 || anyPlaneShown(tilt));
   const tiltOpts = tilt
     ? {
         theta: tilt.theta,

@@ -6,9 +6,11 @@ import { basename, dirname, resolve } from "node:path";
 import * as readline from "node:readline/promises";
 import { fileURLToPath } from "node:url";
 import { analyzeRepository, collectRepository } from "@sprawlens/analyzer-ts";
-import type { LanguageProvider } from "@sprawlens/schema";
+import type { LanguageProvider, Snapshot } from "@sprawlens/schema";
+import { applyLayers, layerManifest } from "@sprawlens/schema";
 import { PROVIDERS, detectProviders } from "@sprawlens/providers";
 import { createAtlasServer } from "@sprawlens/server";
+import { readSprawlensConfig } from "./config.js";
 
 const program = new Command();
 
@@ -31,18 +33,24 @@ program
     ): Promise<void> => {
       const root = resolve(repo);
       const name = basename(root);
-      const provider = await chooseProvider(root, options.lang);
+      // sprawlens.toml customizes the layer system and can force a language;
+      // an explicit --lang still wins over the config's lang.
+      const config = (await readSprawlensConfig(root)) ?? {};
+      const provider = await chooseProvider(root, options.lang ?? config.lang);
       if (!provider) {
         process.exitCode = 1;
         return;
       }
       console.log(`analyzing ${root} (${provider.id}) …`);
       // a live analyzer drives fs-watch updates: incremental (re-parse only
-      // changed files) when the provider supports it, else full re-analysis
+      // changed files) when the provider supports it, else full re-analysis.
+      // applyLayers stamps each snapshot (initial + live) from the toml config.
       const incremental = provider.createIncrementalAnalyzer?.(root);
-      const analyze = incremental
+      const rawAnalyze = incremental
         ? () => incremental.analyze()
         : () => provider.analyze(root);
+      const analyze = async (): Promise<Snapshot> =>
+        applyLayers(await rawAnalyze(), config);
       const snapshot = await analyze();
       const fileCount = snapshot.nodes.filter((n) => n.type === "file").length;
       console.log(
@@ -64,6 +72,7 @@ program
         analyzers: new Map([[name, analyze]]),
         vizDist,
         detail: provider.detail,
+        layers: layerManifest(config),
       });
       server.listen(options.port, "127.0.0.1", () => {
         const url = `http://127.0.0.1:${options.port}/`;

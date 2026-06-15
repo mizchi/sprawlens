@@ -279,12 +279,14 @@ const LEVEL_LABELS: Record<string, string> = {
 export function LayersMenu(props: {
   params: PlaygroundParams;
   availableScopes: string[];
+  /** Satellite plane names from the layer manifest (test, deps, customs). */
+  planes: string[];
   onChange: (params: PlaygroundParams) => void;
   /** View options (data / preset / layout / …) rendered as a trailing section. */
   children?: ComponentChildren;
 }) {
   const [open, setOpen] = useState(false);
-  const { params, availableScopes } = props;
+  const { params, availableScopes, planes } = props;
   const granularity = granularityOf(params.boundaries, params.displayLevels);
 
   const setBoundary = (level: BoundaryLevel, on: boolean) =>
@@ -309,14 +311,13 @@ export function LayersMenu(props: {
   // selecting a satellite plane (2+ layers incl. source) auto-tilts the view;
   // turning all of them off (source alone) lays it flat again. stacked planes
   // read best on the rings layout, so enabling one switches to it.
-  const setPlane = (key: "tests" | "deps", on: boolean) => {
-    const tests = key === "tests" ? on : params.tilt.tests;
-    const deps = key === "deps" ? on : params.tilt.deps;
-    const stacked = tests || deps;
+  const setPlane = (name: string, on: boolean) => {
+    const layers = { ...params.tilt.layers, [name]: on };
+    const stacked = Object.values(layers).some(Boolean);
     props.onChange({
       ...params,
       layout: stacked ? "rings" : params.layout,
-      tilt: { ...params.tilt, tests, deps, enabled: stacked },
+      tilt: { ...params.tilt, layers, enabled: stacked },
     });
   };
 
@@ -363,14 +364,14 @@ export function LayersMenu(props: {
             <span style={{ width: "13px" }} />
             <span style={{ flex: 1 }}>source</span>
           </div>
-          {(["tests", "deps"] as const).map((plane) => (
+          {planes.map((plane) => (
             <label
               key={plane}
               style={{ display: "flex", alignItems: "center", gap: "8px", height: "26px", fontSize: "12px", cursor: "pointer" }}
             >
               <input
                 type="checkbox"
-                checked={params.tilt[plane]}
+                checked={params.tilt.layers[plane] === true}
                 onInput={(e) =>
                   setPlane(plane, (e.target as HTMLInputElement).checked)
                 }

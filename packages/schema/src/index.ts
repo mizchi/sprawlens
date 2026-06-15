@@ -7,6 +7,7 @@ export * from "@sprawlens/contracts";
 export * from "./contracts/delta.js";
 export * from "./contracts/hierarchy.js";
 export * from "./contracts/layers.js";
+export * from "./contracts/layersConfig.js";
 export * from "./contracts/modules.js";
 export * from "./contracts/overlay.js";
 export * from "./core/ai.js";

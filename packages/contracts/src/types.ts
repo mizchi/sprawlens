@@ -52,6 +52,10 @@ export type FileNode = {
   loc: number;
   sizeBytes: number;
   symbols?: CodeSymbol[];
+  /** Visual layer this file belongs to: absent/"source" = the main map, any
+   * other value = a satellite plane (test, deps, docs, ...). Stamped by
+   * applyLayers from a LayersConfig; absent in raw analyzer output. */
+  layer?: string;
 };
 
 export type CodeNode = RepoNode | DirNode | FileNode;

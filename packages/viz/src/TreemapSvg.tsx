@@ -10,7 +10,7 @@ import {
   uprightAt,
   type Affine,
 } from "@sprawlens/layout";
-import type { TiltParams } from "./Controls.tsx";
+import { anyPlaneShown, type TiltParams } from "./Controls.tsx";
 import { CfgLayer, cfgAnchorsOf, type CfgEntry } from "./CfgLayer.tsx";
 import {
   ACTIVE_EDGE,
@@ -160,7 +160,7 @@ export function TreemapSvg(props: Props) {
   // `tiltAffine` to stay upright on top
   const tiltActive =
     !!tilt?.enabled &&
-    (tilt.theta !== 0 || tilt.pitch !== 0 || tilt.tests || tilt.deps);
+    (tilt.theta !== 0 || tilt.pitch !== 0 || anyPlaneShown(tilt));
   const tiltOpts = tilt
     ? {
         theta: tilt.theta,

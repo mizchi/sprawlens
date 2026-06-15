@@ -13,7 +13,10 @@ import { centroid, containsPoint, type Ring } from "@sprawlens/layout";
 import { createRng, type Rng } from "@sprawlens/layout";
 import { Controls, type PlaygroundParams } from "./Controls.tsx";
 import { CameraPanel, LayersMenu } from "./OverlayPanels.tsx";
-import { buildSatelliteLayers } from "./layerModel.ts";
+import {
+  buildSatelliteLayers,
+  DEFAULT_LAYER_MANIFEST,
+} from "./layerModel.ts";
 import {
   INK,
   makeTopAncestorOf,
@@ -31,6 +34,7 @@ import {
   snapshotSymbols,
   snapshotToAtlasGraph,
   type ExternalDep,
+  type LayerManifestEntry,
   type SnapshotLike,
 } from "@sprawlens/schema";
 import { apply, layerTransform } from "@sprawlens/layout";
@@ -70,7 +74,7 @@ import {
   type Grouping,
   type ModuleIdOf,
 } from "@sprawlens/schema";
-import { defaultLayerOf, matchTestTargets } from "@sprawlens/schema";
+import { layerOfNode, matchTestTargets } from "@sprawlens/schema";
 import {
   applySymbolBudget,
   buildApiGraph,
@@ -209,8 +213,9 @@ export function App() {
       enabled: false,
       theta: 0,
       pitch: 0.9,
-      tests: false,
-      deps: false,
+      // per-layer plane visibility (layer name -> shown); names come from the
+      // server's layer manifest (sprawlens.toml), test/deps are the built-ins
+      layers: {},
       // gap is a fraction of the plane's height, so the stack auto-scales with
       // the viewport instead of a fixed world distance
       gap: 0.7,
@@ -329,6 +334,11 @@ export function App() {
   const playwrightSnapRef = useRef<SnapshotLike | null>(null);
   /** Snapshot served by the CLI at /api/snapshot (fetched once). */
   const servedSnapRef = useRef<SnapshotLike | null>(null);
+  /** Layer render manifest from the server (sprawlens.toml); defaults to the
+   * built-in test/deps presets for demo / fixtures with no server config. */
+  const [layerManifest, setLayerManifest] = useState<LayerManifestEntry[]>(
+    DEFAULT_LAYER_MANIFEST,
+  );
   // launched by the CLI? a snapshot is served — adopt it as the default source
   // (cached here so the rebuild below doesn't refetch). No-ops in dev/demo.
   useEffect(() => {
@@ -339,6 +349,15 @@ export function App() {
         if (cancelled || !json) return;
         servedSnapRef.current = json;
         setParams((p) => (p.source === "sprawlens" ? { ...p, source: "served" } : p));
+      })
+      .catch(() => {});
+    // the layer manifest tells the panel which planes exist and how to lay
+    // each out; absent (dev/demo) keeps the built-in presets
+    fetch("/api/config")
+      .then((r) => (r.ok ? r.json() : null))
+      .then((json: { layers?: LayerManifestEntry[] } | null) => {
+        if (cancelled || !json?.layers || json.layers.length === 0) return;
+        setLayerManifest(json.layers);
       })
       .catch(() => {});
     return () => {
@@ -389,7 +408,7 @@ export function App() {
     locOfRef.current = new Map(graph.nodes.map((n) => [n.id, n.metrics.loc]));
     testFileIdsRef.current = new Set(
       graph.nodes
-        .filter((n) => defaultLayerOf(n.id) === "test")
+        .filter((n) => layerOfNode(n) === "test")
         .map((n) => n.id),
     );
     testTargetsRef.current = matchTestTargets(graph);
@@ -568,18 +587,24 @@ export function App() {
   /** Graph minus hidden display levels — what the layout subdivides. */
   const effectiveGraph = (p: PlaygroundParams): AtlasGraph => {
     let graph = graphRef.current;
-    // the Tests plane lifts test files onto their own layer, so the source
-    // plane is laid out without them (they reappear below, under their target)
+    // each enabled satellite plane lifts its files onto their own layer, so the
+    // source plane is laid out without them (they reappear below, under their
+    // targets). external-only planes (deps) have no source nodes to lift.
+    const shownPlanes = p.tilt.enabled
+      ? Object.entries(p.tilt.layers)
+          .filter(([, on]) => on)
+          .map(([name]) => name)
+      : [];
     const hiddenLayers =
-      p.tilt.enabled && p.tilt.tests
-        ? [...new Set([...hiddenLayersOf(p.omit), "test"])]
+      shownPlanes.length > 0
+        ? [...new Set([...hiddenLayersOf(p.omit), ...shownPlanes])]
         : hiddenLayersOf(p.omit);
     const omitScopes = new Set(p.omitModules);
     if (hiddenLayers.length || omitScopes.size) {
       const hidden = new Set(hiddenLayers);
       const nodes = graph.nodes.filter(
         (n) =>
-          !hidden.has(defaultLayerOf(n.id)) && !omitScopes.has(scopeOf(n.id)),
+          !hidden.has(layerOfNode(n)) && !omitScopes.has(scopeOf(n.id)),
       );
       const ids = new Set(nodes.map((n) => n.id));
       graph = {
@@ -845,7 +870,14 @@ export function App() {
   const structuralKey = `${params.source}|${params.layout}|${granularity}|${params.boundaries.join("+")}|${treemapSizeKey}`;
   // weight / filters re-flow warm (the diff animation); only granularity
   // and data swaps rebuild cold
-  const detailKey = `${params.omit.join("+")}|${params.omitModules.join(",")}|tests:${params.tilt.enabled && params.tilt.tests}`;
+  const shownPlanesKey = params.tilt.enabled
+    ? Object.entries(params.tilt.layers)
+        .filter(([, on]) => on)
+        .map(([name]) => name)
+        .sort()
+        .join("+")
+    : "";
+  const detailKey = `${params.omit.join("+")}|${params.omitModules.join(",")}|planes:${shownPlanesKey}`;
   const flowKey = `${detailKey}|${params.weight}`;
   const structuralRef = useRef(structuralKey);
   const flowKeyRef = useRef(flowKey);
@@ -1971,14 +2003,18 @@ export function App() {
   const testTargets = testTargetsRef.current;
   // every stacked plane below the source is a SolvedLayer built by the same
   // pipeline (layout + cross-layer links); adding a layer type is one builder
+  const enabledPlanesKey = Object.entries(params.tilt.layers)
+    .filter(([, on]) => on)
+    .map(([name]) => name)
+    .sort()
+    .join("+");
   const satelliteLayers = useMemo(() => {
-    if (!params.tilt.enabled || (!params.tilt.tests && !params.tilt.deps))
-      return [];
+    if (!params.tilt.enabled || enabledPlanesKey === "") return [];
     const ext =
       params.layout === "rings" ? { width: WIDTH, height: HEIGHT } : mapSize;
     return buildSatelliteLayers({
-      showTests: params.tilt.tests,
-      showDeps: params.tilt.deps,
+      manifest: layerManifest,
+      enabled: new Set(enabledPlanesKey.split("+")),
       graph: graphRef.current,
       externalDeps: externalDepsRef.current,
       ext,
@@ -1988,8 +2024,8 @@ export function App() {
   }, [
     leafGraph,
     params.tilt.enabled,
-    params.tilt.tests,
-    params.tilt.deps,
+    enabledPlanesKey,
+    layerManifest,
     params.layout,
     mapSize,
   ]);
@@ -2463,6 +2499,7 @@ export function App() {
         <LayersMenu
           params={params}
           availableScopes={availableScopes}
+          planes={layerManifest.map((l) => l.name)}
           onChange={onControlsChange}
         >
           <Controls

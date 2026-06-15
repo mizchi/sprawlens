@@ -1,17 +1,18 @@
-import type { AtlasGraph } from "@sprawlens/schema";
-import { defaultLayerOf } from "@sprawlens/schema";
+import type { AtlasGraph, LayerLayout, LayerManifestEntry } from "@sprawlens/schema";
+import { layerOfNode } from "@sprawlens/schema";
 import { circleToPolygon } from "@sprawlens/layout";
 import type { Vec2 } from "@sprawlens/layout";
-import { ringPlane, type PlacedNode } from "./planeLayers.ts";
+import { capacityPlane, ringPlane, type PlacedNode } from "./planeLayers.ts";
 import { createRingsState, stepRingsState } from "./ringsController.ts";
 import type { ExternalDep } from "@sprawlens/schema";
 
 /**
  * A solved stacked plane: source is plane 0 (rendered rich by the map itself),
- * the satellites (tests, deps, ...) are plane 1+. Every layer reduces to the
- * same shape — placed Voronoi/ring nodes, optional district outlines, a plane
- * index and a tint — so the renderer treats them uniformly and new layers are
- * a matter of adding one builder, not a new code path.
+ * the satellites (test, deps, docs, ...) are plane 1+. Every layer reduces to
+ * the same shape — placed Voronoi/ring nodes, optional district outlines, a
+ * plane index — so the renderer treats them uniformly. Which layers exist and
+ * how each is laid out comes from the LayerManifest (sprawlens.toml), not a
+ * hardcoded list: a custom layer is data, not a new code path.
  */
 export type SolvedLayer = {
   id: string;
@@ -29,36 +30,67 @@ const SOLVER = {
   lloydRate: 0.7,
 };
 
-/** Concentric-ring layout of the test files — the same engine as the source
- * map — modules as rings, files as weighted cells inside. Cross-plane links
- * follow the real test→source imports. */
-function solveTestLayer(
+/** Cross-plane links: edges from a layer's nodes to nodes outside it (the
+ * source files a test/doc references). */
+function outboundLinks(
   graph: AtlasGraph,
+  ids: ReadonlySet<string>,
+): Map<string, Set<string>> {
+  const importsBy = new Map<string, Set<string>>();
+  for (const e of graph.edges) {
+    if (!ids.has(e.source) || ids.has(e.target)) continue;
+    let set = importsBy.get(e.source);
+    if (!set) importsBy.set(e.source, (set = new Set()));
+    set.add(e.target);
+  }
+  return importsBy;
+}
+
+/**
+ * Lay out the files stamped with `layerName` on their own plane. "rings" runs
+ * the same module-grouped engine as the source map (modules as rings, files as
+ * weighted cells); "capacity" packs them as a flat capacity Voronoi. Cross-plane
+ * links follow the real layer→source imports.
+ */
+function solveNodeLayer(
+  graph: AtlasGraph,
+  layerName: string,
   ext: { width: number; height: number },
   labelOf: (id: string) => string,
   planeIndex: number,
+  layout: LayerLayout,
 ): SolvedLayer | null {
-  const testNodes = graph.nodes.filter((n) => defaultLayerOf(n.id) === "test");
-  if (testNodes.length === 0) return null;
-  const testIds = new Set(testNodes.map((n) => n.id));
-  const testEdges = graph.edges.filter(
-    (e) => testIds.has(e.source) && testIds.has(e.target),
+  const nodes = graph.nodes.filter((n) => layerOfNode(n) === layerName);
+  if (nodes.length === 0) return null;
+  const ids = new Set(nodes.map((n) => n.id));
+  const importsBy = outboundLinks(graph, ids);
+
+  if (layout === "capacity") {
+    const placed = capacityPlane(
+      nodes.map((n) => ({
+        id: n.id,
+        label: labelOf(n.id),
+        weight: Math.max(n.metrics.loc, 1),
+        sourceIds: [...(importsBy.get(n.id) ?? [])],
+      })),
+      { w: ext.width, h: ext.height },
+    );
+    if (placed.length === 0) return null;
+    return { id: layerName, planeIndex, placed, districts: [], extent: { w: ext.width, h: ext.height } };
+  }
+
+  // rings: module-grouped concentric layout, same as the source map
+  const layerEdges = graph.edges.filter(
+    (e) => ids.has(e.source) && ids.has(e.target),
   );
   let state = createRingsState(
-    { nodes: testNodes, edges: testEdges },
+    { nodes, edges: layerEdges },
     { width: ext.width, height: ext.height, ...SOLVER },
   );
   for (let i = 0; i < 200; i++) {
     const stepped = stepRingsState(state, 6);
     state = stepped.state;
     if (!stepped.active) break;
-  }
-  const importsBy = new Map<string, Set<string>>();
-  for (const e of graph.edges) {
-    if (!testIds.has(e.source) || testIds.has(e.target)) continue;
-    let set = importsBy.get(e.source);
-    if (!set) importsBy.set(e.source, (set = new Set()));
-    set.add(e.target);
   }
   const placed: PlacedNode[] = [];
   for (const layout of state.leafLayouts.values())
@@ -72,64 +104,68 @@ function solveTestLayer(
         sourceIds: [...(importsBy.get(c.id) ?? [])],
       });
     }
-  // districts trace the module circles and any inner boundary cells
   const districts: Vec2[][] = [];
   for (const circle of state.circles.values())
-    districts.push(
-      circleToPolygon({ cx: circle.cx, cy: circle.cy, r: circle.r }, 48),
-    );
+    districts.push(circleToPolygon({ cx: circle.cx, cy: circle.cy, r: circle.r }, 48));
   for (const level of state.innerLevels)
     for (const c of level.cells.values())
       if (c.polygon.length >= 3) districts.push(c.polygon);
-  return {
-    id: "tests",
-    planeIndex,
-    placed,
-    districts,
-    extent: { w: ext.width, h: ext.height },
-  };
+  if (placed.length === 0) return null;
+  return { id: layerName, planeIndex, placed, districts, extent: { w: ext.width, h: ext.height } };
 }
 
-/** External packages on concentric rings, rank/size by how depended-upon they
- * are (their importer count); cross-plane links go to every importer. */
+/**
+ * A deps-style plane: external packages on concentric rings, ranked by how
+ * depended-upon they are (importer count), plus any local files stamped with
+ * this layer (e.g. vendored code routed here by a glob). Cross-plane links go
+ * to every importer / referenced source file.
+ */
 function solveDepLayer(
+  layerName: string,
   externalDeps: readonly ExternalDep[],
+  graph: AtlasGraph,
   ext: { width: number; height: number },
+  labelOf: (id: string) => string,
   planeIndex: number,
 ): SolvedLayer | null {
-  if (externalDeps.length === 0) return null;
   const byPkg = new Map<string, string[]>();
   for (const { source, specifier } of externalDeps) {
     const list = byPkg.get(specifier);
     if (list) list.push(source);
     else byPkg.set(specifier, [source]);
   }
-  const placed = ringPlane(
-    [...byPkg].map(([spec, srcs]) => ({
+  const localNodes = graph.nodes.filter((n) => layerOfNode(n) === layerName);
+  const importsBy = outboundLinks(graph, new Set(localNodes.map((n) => n.id)));
+
+  const input = [
+    ...[...byPkg].map(([spec, srcs]) => ({
       id: `external:${spec}`,
       label: spec,
       weight: srcs.length,
       sourceIds: srcs,
     })),
-    { w: ext.width, h: ext.height },
-  );
+    ...localNodes.map((n) => ({
+      id: n.id,
+      label: labelOf(n.id),
+      weight: Math.max(n.metrics.loc, 1),
+      sourceIds: [...(importsBy.get(n.id) ?? [])],
+    })),
+  ];
+  if (input.length === 0) return null;
+  const placed = ringPlane(input, { w: ext.width, h: ext.height });
   if (placed.length === 0) return null;
-  return {
-    id: "deps",
-    planeIndex,
-    placed,
-    districts: [],
-    extent: { w: ext.width, h: ext.height },
-  };
+  return { id: layerName, planeIndex, placed, districts: [], extent: { w: ext.width, h: ext.height } };
 }
 
 /**
- * Build the enabled satellite layers in stacking order. Each toggle adds the
- * next plane index; adding a new layer type means one more builder call here.
+ * Build the enabled satellite layers in manifest order. Each entry the user
+ * enables adds the next plane index; `includeExternal` entries (deps) draw the
+ * external-package ring, the rest lay out their stamped files. Driven entirely
+ * by the manifest — adding a layer in sprawlens.toml needs no code here.
  */
 export function buildSatelliteLayers(opts: {
-  showTests: boolean;
-  showDeps: boolean;
+  manifest: readonly LayerManifestEntry[];
+  enabled: ReadonlySet<string>;
   graph: AtlasGraph;
   externalDeps: readonly ExternalDep[];
   ext: { width: number; height: number };
@@ -137,15 +173,11 @@ export function buildSatelliteLayers(opts: {
 }): SolvedLayer[] {
   const layers: SolvedLayer[] = [];
   let index = 1;
-  if (opts.showTests) {
-    const layer = solveTestLayer(opts.graph, opts.ext, opts.labelOf, index);
-    if (layer) {
-      layers.push(layer);
-      index++;
-    }
-  }
-  if (opts.showDeps) {
-    const layer = solveDepLayer(opts.externalDeps, opts.ext, index);
+  for (const entry of opts.manifest) {
+    if (!opts.enabled.has(entry.name)) continue;
+    const layer = entry.includeExternal
+      ? solveDepLayer(entry.name, opts.externalDeps, opts.graph, opts.ext, opts.labelOf, index)
+      : solveNodeLayer(opts.graph, entry.name, opts.ext, opts.labelOf, index, entry.layout);
     if (layer) {
       layers.push(layer);
       index++;
@@ -153,3 +185,10 @@ export function buildSatelliteLayers(opts: {
   }
   return layers;
 }
+
+/** The default manifest when no server config is present (demo / fixtures):
+ * the two built-in presets, so behavior matches the zero-config CLI. */
+export const DEFAULT_LAYER_MANIFEST: LayerManifestEntry[] = [
+  { name: "test", layout: "rings", includeExternal: false },
+  { name: "deps", layout: "rings", includeExternal: true },
+];
