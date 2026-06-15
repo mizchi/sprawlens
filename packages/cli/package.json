@@ -29,10 +29,8 @@
   ],
   "devDependencies": {
     "@sprawlens/schema": "workspace:*",
+    "@sprawlens/providers": "workspace:*",
     "@sprawlens/analyzer-ts": "workspace:*",
-    "@sprawlens/analyzer-go": "workspace:*",
-    "@sprawlens/analyzer-rust": "workspace:*",
-    "@sprawlens/analyzer-moonbit": "workspace:*",
     "@sprawlens/server": "workspace:*",
     "esbuild": "^0.25.0"
   },

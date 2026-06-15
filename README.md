@@ -61,12 +61,17 @@ root — knows the concrete analyzers.
 | L2 capability | `@sprawlens/analyzer-go` | Go provider — tree-sitter |
 | L2 capability | `@sprawlens/analyzer-rust` | Rust provider — tree-sitter |
 | L2 capability | `@sprawlens/analyzer-moonbit` | MoonBit provider — heuristic (until a tree-sitter grammar ships) |
+| L2 capability | `@sprawlens/providers` | the provider registry: the ordered `PROVIDERS` list + `selectProvider`, so the match order lives in one place |
 | L3 application | `@sprawlens/server` | neutral HTTP shell: static viz, snapshot, working-tree diff (SSE), injected detail. Depends on no analyzer |
 | L3 application | `@sprawlens/viz` | the Preact + SVG map |
 | L4 composition | `@sprawlens/cli` | language detection → analyze → serve → open; wires a provider's detail into the neutral server |
 
 A language provider implements `match` + `analyze(repo) → Snapshot` and an
 optional `detail` (CFG, call hierarchy). Adding a language is one package.
+
+`pnpm lint:layers` enforces this table: each package's `@sprawlens/*`
+dependencies must stay within its layer (e.g. the server may not reach a
+concrete analyzer). It runs in CI.
 
 ## Develop
 

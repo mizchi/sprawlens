@@ -1,0 +1,18 @@
+{
+  "name": "@sprawlens/providers",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "main": "./src/index.ts",
+  "types": "./src/index.ts",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "dependencies": {
+    "@sprawlens/contracts": "workspace:*",
+    "@sprawlens/analyzer-ts": "workspace:*",
+    "@sprawlens/analyzer-go": "workspace:*",
+    "@sprawlens/analyzer-rust": "workspace:*",
+    "@sprawlens/analyzer-moonbit": "workspace:*"
+  }
+}

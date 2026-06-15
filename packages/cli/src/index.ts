@@ -4,16 +4,9 @@ import { spawn } from "node:child_process";
 import { existsSync } from "node:fs";
 import { basename, dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
-import { analyzeRepository, collectRepository, tsProvider } from "@sprawlens/analyzer-ts";
-import { goProvider } from "@sprawlens/analyzer-go";
-import { rustProvider } from "@sprawlens/analyzer-rust";
-import { moonbitProvider } from "@sprawlens/analyzer-moonbit";
-import { selectProvider } from "@sprawlens/schema";
+import { analyzeRepository, collectRepository } from "@sprawlens/analyzer-ts";
+import { PROVIDERS, selectProvider } from "@sprawlens/providers";
 import { createAtlasServer } from "@sprawlens/server";
-
-// match order: language-specific signals (go.mod, Cargo.toml, moon.mod.json, ...)
-// before the broad TS fallback (which also claims any package.json).
-const PROVIDERS = [goProvider, rustProvider, moonbitProvider, tsProvider];
 
 const program = new Command();
 

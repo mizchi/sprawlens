@@ -148,18 +148,12 @@ importers:
         specifier: ^0.22.6
         version: 0.22.6
     devDependencies:
-      '@sprawlens/analyzer-go':
-        specifier: workspace:*
-        version: link:../analyzer-go
-      '@sprawlens/analyzer-moonbit':
-        specifier: workspace:*
-        version: link:../analyzer-moonbit
-      '@sprawlens/analyzer-rust':
-        specifier: workspace:*
-        version: link:../analyzer-rust
       '@sprawlens/analyzer-ts':
         specifier: workspace:*
         version: link:../analyzer-ts
+      '@sprawlens/providers':
+        specifier: workspace:*
+        version: link:../providers
       '@sprawlens/schema':
         specifier: workspace:*
         version: link:../schema
@@ -174,6 +168,24 @@ importers:
 
   packages/layout:
     dependencies:
+      '@sprawlens/contracts':
+        specifier: workspace:*
+        version: link:../contracts
+
+  packages/providers:
+    dependencies:
+      '@sprawlens/analyzer-go':
+        specifier: workspace:*
+        version: link:../analyzer-go
+      '@sprawlens/analyzer-moonbit':
+        specifier: workspace:*
+        version: link:../analyzer-moonbit
+      '@sprawlens/analyzer-rust':
+        specifier: workspace:*
+        version: link:../analyzer-rust
+      '@sprawlens/analyzer-ts':
+        specifier: workspace:*
+        version: link:../analyzer-ts
       '@sprawlens/contracts':
         specifier: workspace:*
         version: link:../contracts
