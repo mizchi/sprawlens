@@ -3,6 +3,7 @@ import { basename, join } from "node:path";
 import fg from "fast-glob";
 import type { LanguageProvider } from "@sprawlens/schema";
 import { snapshotMoonbitWorkingTree } from "./extract.js";
+import { moonbitDetail } from "./detail.js";
 
 /** MoonBit provider (heuristic; tree-sitter when a grammar ships). */
 export const moonbitProvider: LanguageProvider = {
@@ -39,4 +40,6 @@ export const moonbitProvider: LanguageProvider = {
     };
     return snapshotMoonbitWorkingTree(repoPath, commit, basename(repoPath));
   },
+  // compiler-aware detail via `moon ide`; no-ops when the toolchain is absent
+  detail: moonbitDetail,
 };
