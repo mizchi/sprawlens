@@ -143,6 +143,34 @@ export function isIgnoredPath(path: string): boolean {
 }
 
 /**
+ * fs.watch the tree with a trailing debounce, skipping ignored paths. Calls
+ * `onChange` once per settled burst of edits. Returns a stop function. The
+ * generic building block under both the working-diff and snapshot streams.
+ */
+export function watchDir(
+  root: string,
+  onChange: () => void,
+  debounceMs = 300,
+): () => void {
+  let timer: ReturnType<typeof setTimeout> | null = null;
+  const fire = () => {
+    if (timer) clearTimeout(timer);
+    timer = setTimeout(() => {
+      timer = null;
+      onChange();
+    }, debounceMs);
+  };
+  const watcher = watch(root, { recursive: true }, (_event, filename) => {
+    if (!filename || isIgnoredPath(filename)) return;
+    fire();
+  });
+  return () => {
+    watcher.close();
+    if (timer) clearTimeout(timer);
+  };
+}
+
+/**
  * Watches the working tree and pushes a fresh diff whenever it actually
  * changes: fs events are batched through a trailing debounce, then one
  * `git status` runs and the listener fires only when the result differs
@@ -154,13 +182,11 @@ export function watchWorkingDiff(
   debounceMs = 300,
   base?: string,
 ): () => void {
-  let timer: ReturnType<typeof setTimeout> | null = null;
   let lastJson: string | null = null;
   let stopped = false;
-  const refresh = () => {
-    if (timer) clearTimeout(timer);
-    timer = setTimeout(async () => {
-      timer = null;
+  const stop = watchDir(
+    root,
+    async () => {
       try {
         const diff = await workingDiff(root, base);
         const json = JSON.stringify(diff);
@@ -170,16 +196,21 @@ export function watchWorkingDiff(
       } catch {
         // git unavailable mid-operation (rebase etc.): retry on next event
       }
-    }, debounceMs);
-  };
-  const watcher = watch(root, { recursive: true }, (_event, filename) => {
-    if (!filename || isIgnoredPath(filename)) return;
-    refresh();
-  });
-  refresh();
+    },
+    debounceMs,
+  );
+  // emit the initial diff immediately (watchDir only fires on later changes)
+  void (async () => {
+    try {
+      const diff = await workingDiff(root, base);
+      lastJson = JSON.stringify(diff);
+      if (!stopped) listener(diff);
+    } catch {
+      // no git / not a repo: stay quiet until a change occurs
+    }
+  })();
   return () => {
     stopped = true;
-    watcher.close();
-    if (timer) clearTimeout(timer);
+    stop();
   };
 }

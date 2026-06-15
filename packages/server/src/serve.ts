@@ -5,6 +5,7 @@ import type { LanguageDetail } from "@sprawlens/schema";
 import {
   enrichWithLoc,
   isSafeRef,
+  watchDir,
   watchWorkingDiff,
   workingDiff,
 } from "./workingDiff.js";
@@ -20,6 +21,12 @@ export type AtlasServerOptions = {
   repos: Map<string, string>;
   /** name -> snapshot JSON (or a producer); served at GET /api/snapshot. */
   snapshots?: Map<string, unknown | (() => unknown | Promise<unknown>)>;
+  /**
+   * name -> re-analyze function for live updates. When present, the repo is
+   * watched and a fresh snapshot is streamed over /api/snapshot/stream on each
+   * change (incremental analyzers re-parse only what changed).
+   */
+  analyzers?: Map<string, () => unknown | Promise<unknown>>;
   /** Directory of the built viz to serve as static files (SPA fallback). */
   vizDist?: string;
   /** Language-specific CFG / call hierarchy; omit to disable those endpoints. */
@@ -38,7 +45,7 @@ const MIME: Record<string, string> = {
 };
 
 export function createAtlasServer(opts: AtlasServerOptions): Server {
-  const { repos, snapshots, vizDist, detail } = opts;
+  const { repos, snapshots, analyzers, vizDist, detail } = opts;
 
   type DiffStream = {
     clients: Set<ServerResponse>;
@@ -97,6 +104,77 @@ export function createAtlasServer(opts: AtlasServerOptions): Server {
     });
   };
 
+  // Snapshot stream: re-analyze on fs change and push the fresh snapshot (SSE).
+  type SnapStream = {
+    clients: Set<ServerResponse>;
+    last: string | null;
+    stop: () => void;
+    heartbeat: ReturnType<typeof setInterval>;
+  };
+  const snapStreams = new Map<string, SnapStream>();
+  const subscribeSnapshot = (
+    name: string,
+    root: string,
+    analyze: () => unknown | Promise<unknown>,
+    res: ServerResponse,
+  ) => {
+    let stream = snapStreams.get(name);
+    if (!stream) {
+      const created: SnapStream = {
+        clients: new Set(),
+        last: null,
+        stop: () => {},
+        heartbeat: setInterval(() => {
+          for (const client of created.clients) client.write(":hb\n\n");
+        }, 25_000),
+      };
+      let running = false;
+      let queued = false;
+      const reanalyze = async () => {
+        if (running) {
+          queued = true;
+          return;
+        }
+        running = true;
+        try {
+          const json = JSON.stringify(await analyze());
+          if (json !== created.last) {
+            created.last = json;
+            for (const client of created.clients) client.write(`data: ${json}\n\n`);
+          }
+        } catch (error) {
+          console.error(error);
+        } finally {
+          running = false;
+          if (queued) {
+            queued = false;
+            void reanalyze();
+          }
+        }
+      };
+      created.stop = watchDir(root, () => void reanalyze(), 300);
+      snapStreams.set(name, created);
+      stream = created;
+    }
+    stream.clients.add(res);
+    res.writeHead(200, {
+      "content-type": "text/event-stream",
+      "cache-control": "no-cache",
+      connection: "keep-alive",
+    });
+    if (stream.last !== null) res.write(`data: ${stream.last}\n\n`);
+    res.on("close", () => {
+      const current = snapStreams.get(name);
+      if (!current) return;
+      current.clients.delete(res);
+      if (current.clients.size === 0) {
+        current.stop();
+        clearInterval(current.heartbeat);
+        snapStreams.delete(name);
+      }
+    });
+  };
+
   const onlyRepo = repos.size === 1 ? [...repos.keys()][0]! : null;
 
   const serveStatic = async (urlPath: string, res: ServerResponse) => {
@@ -133,6 +211,19 @@ export function createAtlasServer(opts: AtlasServerOptions): Server {
     const url = new URL(req.url ?? "/", "http://localhost");
     const repoOf = (name: string | null) =>
       name && repos.has(name) ? name : (onlyRepo ?? "");
+
+    // GET /api/snapshot/stream?repo=name -> SSE of re-analyzed snapshots on change
+    if (req.method === "GET" && url.pathname === "/api/snapshot/stream") {
+      const name = repoOf(url.searchParams.get("repo"));
+      const root = repos.get(name);
+      const analyze = analyzers?.get(name);
+      if (!root || !analyze) {
+        res.writeHead(404).end(JSON.stringify({ error: "no live analyzer" }));
+        return;
+      }
+      subscribeSnapshot(name, root, analyze, res);
+      return;
+    }
 
     // GET /api/snapshot?repo=name -> analyzed snapshot JSON
     if (req.method === "GET" && url.pathname === "/api/snapshot") {

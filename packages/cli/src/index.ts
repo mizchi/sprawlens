@@ -35,9 +35,18 @@ program
         return;
       }
       console.log(`analyzing ${root} (${provider.id}) …`);
-      const snapshot = await provider.analyze(root);
+      // a live analyzer drives fs-watch updates: incremental (re-parse only
+      // changed files) when the provider supports it, else full re-analysis
+      const incremental = provider.createIncrementalAnalyzer?.(root);
+      const analyze = incremental
+        ? () => incremental.analyze()
+        : () => provider.analyze(root);
+      const snapshot = await analyze();
       const fileCount = snapshot.nodes.filter((n) => n.type === "file").length;
-      console.log(`  ${fileCount} files, ${snapshot.edges.length} edges`);
+      console.log(
+        `  ${fileCount} files, ${snapshot.edges.length} edges` +
+          (incremental ? " (live: incremental)" : " (live: full re-analyze)"),
+      );
 
       const vizDist = resolveVizDist();
       if (!vizDist) {
@@ -50,6 +59,7 @@ program
       const server = createAtlasServer({
         repos: new Map([[name, root]]),
         snapshots: new Map([[name, snapshot]]),
+        analyzers: new Map([[name, analyze]]),
         vizDist,
         detail: provider.detail,
       });
