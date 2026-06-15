@@ -18,6 +18,57 @@ async function withFixture(files: Record<string, string>, fn: (root: string) => 
   }
 }
 
+describe("workspace package imports", () => {
+  it("resolves a cross-package import to the target package's entry file", async () => {
+    await withFixture(
+      {
+        "pnpm-workspace.yaml": "packages:\n  - 'packages/*'\n",
+        "packages/schema/package.json": JSON.stringify({
+          name: "@acme/schema",
+          main: "./src/index.ts",
+        }),
+        "packages/schema/src/index.ts": "export type Foo = { x: number };\n",
+        "packages/app/package.json": JSON.stringify({
+          name: "@acme/app",
+          main: "./src/index.ts",
+        }),
+        "packages/app/src/index.ts":
+          "import type { Foo } from '@acme/schema';\nexport const f: Foo = { x: 1 };\n",
+      },
+      async (root) => {
+        const snapshot = await createSnapshotFromWorkingTree(root, { hash: "c", shortHash: "c", timestamp: "2026-06-09T00:00:00.000Z", authorName: "T", message: "m", aiIndicators: [] });
+        const edge = snapshot.edges.find(
+          (e) => e.type === "imports" && e.specifier === "@acme/schema",
+        );
+        // resolves to schema's entry file, not an external node
+        expect(edge).toMatchObject({
+          from: "file:packages/app/src/index.ts",
+          to: "file:packages/schema/src/index.ts",
+          resolved: true,
+        });
+        expect((edge as { external?: boolean }).external).toBeFalsy();
+      },
+    );
+  });
+
+  it("leaves a non-workspace bare import external", async () => {
+    await withFixture(
+      {
+        "pnpm-workspace.yaml": "packages:\n  - 'packages/*'\n",
+        "packages/app/package.json": JSON.stringify({ name: "@acme/app" }),
+        "packages/app/src/index.ts": "import { x } from 'lodash';\nexport const y = x;\n",
+      },
+      async (root) => {
+        const snapshot = await createSnapshotFromWorkingTree(root, { hash: "c", shortHash: "c", timestamp: "2026-06-09T00:00:00.000Z", authorName: "T", message: "m", aiIndicators: [] });
+        const edge = snapshot.edges.find(
+          (e) => e.type === "imports" && e.specifier === "lodash",
+        );
+        expect(edge).toMatchObject({ to: "external:lodash", external: true });
+      },
+    );
+  });
+});
+
 describe("createSnapshotFromWorkingTree", () => {
   it("creates file and directory nodes with contains edges", async () => {
     await withFixture(

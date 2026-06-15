@@ -2,7 +2,7 @@ import { readFile, stat } from "node:fs/promises";
 import path from "node:path";
 import fg from "fast-glob";
 import ts from "typescript";
-import { computeGraphMetrics } from "@sprawlens/schema";
+import { computeGraphMetrics, matchWorkspacePackage } from "@sprawlens/schema";
 import type {
   CodeEdge,
   CodeImportBinding,
@@ -14,7 +14,14 @@ import type {
   FileNode,
   Snapshot,
   SnapshotCommit,
+  WorkspacePackage,
 } from "@sprawlens/schema";
+
+/** A detected npm/pnpm workspace: member packages + each one's entry source. */
+type WorkspaceInfo = {
+  packages: WorkspacePackage[];
+  entryByName: Map<string, string>;
+};
 
 export const SOURCE_EXTENSIONS = [".ts", ".tsx", ".js", ".jsx", ".mts", ".cts", ".mjs", ".cjs"] as const;
 
@@ -87,9 +94,10 @@ export async function createSnapshotFromWorkingTree(
     ...fileNodes,
   ];
 
+  const workspace = await detectWorkspacePackages(root);
   const edges = [
     ...createContainsEdges(dirPaths, fileNodes.map((node) => node.path)),
-    ...createImportEdges(root, fileContents, fileSet, fileNodes),
+    ...createImportEdges(root, fileContents, fileSet, fileNodes, workspace),
   ];
   const { metrics } = computeGraphMetrics(nodes, edges);
 
@@ -179,7 +187,91 @@ type ExtractedImport = {
   bindings: CodeImportBinding[];
 };
 
-function createImportEdges(root: string, fileContents: Map<string, string>, fileSet: Set<string>, fileNodes: FileNode[]): CodeEdge[] {
+/** Member dir globs from pnpm-workspace.yaml, falling back to package.json. */
+async function workspaceGlobs(root: string): Promise<string[]> {
+  try {
+    const yaml = await readFile(path.join(root, "pnpm-workspace.yaml"), "utf8");
+    const out: string[] = [];
+    let inPackages = false;
+    for (const line of yaml.split("\n")) {
+      if (/^packages:/.test(line)) {
+        inPackages = true;
+        continue;
+      }
+      if (!inPackages) continue;
+      const m = line.match(/^\s*-\s*['"]?([^'"#\s]+)['"]?/);
+      if (m) out.push(m[1]!);
+      else if (/^\S/.test(line)) break; // next top-level key ends the list
+    }
+    if (out.length) return out;
+  } catch {
+    // no pnpm-workspace.yaml
+  }
+  try {
+    const json = JSON.parse(
+      await readFile(path.join(root, "package.json"), "utf8"),
+    ) as { workspaces?: unknown };
+    const ws = json.workspaces;
+    const arr = Array.isArray(ws)
+      ? ws
+      : (ws as { packages?: unknown } | undefined)?.packages;
+    if (Array.isArray(arr)) return arr.filter((g): g is string => typeof g === "string");
+  } catch {
+    // no package.json / no workspaces field
+  }
+  return [];
+}
+
+/** The package's entry source file (repo-relative), from types/exports/main. */
+function workspaceEntry(
+  dir: string,
+  json: { main?: string; types?: string; exports?: unknown },
+): string {
+  const dot =
+    json.exports && typeof json.exports === "object"
+      ? (json.exports as Record<string, unknown>)["."]
+      : undefined;
+  const fromExports =
+    typeof dot === "string"
+      ? dot
+      : dot && typeof dot === "object"
+        ? ((dot as Record<string, string>).types ??
+          (dot as Record<string, string>).import ??
+          (dot as Record<string, string>).default)
+        : undefined;
+  const rel = (json.types ?? fromExports ?? json.main ?? "src/index.ts").replace(
+    /^\.\//,
+    "",
+  );
+  return normalizePath(path.posix.join(dir, rel));
+}
+
+/** Detect an npm/pnpm workspace so cross-package imports resolve to files. */
+async function detectWorkspacePackages(root: string): Promise<WorkspaceInfo> {
+  const packages: WorkspacePackage[] = [];
+  const entryByName = new Map<string, string>();
+  const globs = await workspaceGlobs(root);
+  if (globs.length === 0) return { packages, entryByName };
+  const manifests = await fg(
+    globs.map((g) => `${g}/package.json`),
+    { cwd: root, onlyFiles: true, unique: true, ignore: DEFAULT_IGNORES },
+  );
+  for (const rel of manifests) {
+    let json: { name?: string; main?: string; types?: string; exports?: unknown };
+    try {
+      json = JSON.parse(await readFile(path.join(root, rel), "utf8"));
+    } catch {
+      continue;
+    }
+    if (!json.name) continue;
+    const dir = normalizePath(path.posix.dirname(normalizePath(rel)));
+    packages.push({ name: json.name, sourceRoot: dir });
+    entryByName.set(json.name, workspaceEntry(dir, json));
+  }
+  return { packages, entryByName };
+}
+
+function createImportEdges(root: string, fileContents: Map<string, string>, fileSet: Set<string>, fileNodes: FileNode[], workspace: WorkspaceInfo): CodeEdge[] {
   const edges = new Map<string, CodeEdge>();
   const fileByPath = new Map(fileNodes.map((file) => [file.path, file]));
 
@@ -189,9 +281,27 @@ function createImportEdges(root: string, fileContents: Map<string, string>, file
     for (const item of imports) {
       const { specifier, bindings } = item;
       const from = fileId(fromPath);
-      // bare specifiers are external packages: capture them as edges to a
-      // synthetic external node (no node emitted, like unresolved imports)
+      // bare specifiers are external packages — unless they name a workspace
+      // package, in which case the import resolves to that package's entry file
       if (!specifier.startsWith(".")) {
+        const match = matchWorkspacePackage(workspace.packages, specifier);
+        const entry = match ? workspace.entryByName.get(match.pkg.name) : undefined;
+        if (entry && fileSet.has(entry)) {
+          const to = fileId(entry);
+          const id = importId(from, to, specifier);
+          const symbolImports = resolveSymbolImports(bindings, usageByLocal, fileByPath.get(entry));
+          edges.set(id, {
+            id,
+            type: "imports",
+            from,
+            to,
+            specifier,
+            resolved: true,
+            bindings: bindings.length > 0 ? bindings : undefined,
+            symbolImports: symbolImports.length > 0 ? symbolImports : undefined,
+          });
+          continue;
+        }
         const to = externalId(specifier);
         const id = importId(from, to, specifier);
         // resolved: the package is known, just not a project file — so it
