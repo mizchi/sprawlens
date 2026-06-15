@@ -1,6 +1,41 @@
 import { describe, expect, it } from "vitest";
 import type { AtlasGraph } from "@sprawlens/contracts";
-import { defaultModuleIdOf, deriveModules } from "./modules.js";
+import { defaultModuleIdOf, deriveModuleIdOf, deriveModules } from "./modules.js";
+
+describe("deriveModuleIdOf (structural, language-neutral)", () => {
+  it("treats a top-level dir with no direct files as a container", () => {
+    // Rust crates / Go internal,pkg: the container's children are the modules
+    const m = deriveModuleIdOf([
+      "main.go",
+      "internal/api/api.go",
+      "internal/store/store.go",
+      "pkg/mathx/mathx.go",
+      "crates/app/src/main.rs",
+      "crates/core/src/lib.rs",
+    ]);
+    expect(m("main.go")).toBe("(root)");
+    expect(m("internal/api/api.go")).toBe("internal/api");
+    expect(m("internal/store/store.go")).toBe("internal/store");
+    expect(m("pkg/mathx/mathx.go")).toBe("pkg/mathx");
+    expect(m("crates/app/src/main.rs")).toBe("crates/app");
+    expect(m("crates/core/src/lib.rs")).toBe("crates/core");
+  });
+
+  it("treats a top-level dir that holds direct files as its own module", () => {
+    const m = deriveModuleIdOf(["src/index.ts", "src/core/a.ts"]);
+    expect(m("src/index.ts")).toBe("src");
+    expect(m("src/core/a.ts")).toBe("src"); // src is a real module, not a container
+  });
+
+  it("groups monorepo packages without any hard-coded dir names", () => {
+    const m = deriveModuleIdOf([
+      "packages/schema/src/index.ts",
+      "packages/layout/src/x.ts",
+    ]);
+    expect(m("packages/schema/src/index.ts")).toBe("packages/schema");
+    expect(m("packages/layout/src/x.ts")).toBe("packages/layout");
+  });
+});
 
 function fileNode(id: string, loc: number) {
   return { id, kind: "file" as const, label: id, metrics: { loc } };

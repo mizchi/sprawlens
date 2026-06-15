@@ -63,15 +63,15 @@ import {
 import type { AtlasEdge } from "@sprawlens/schema";
 import {
   classGrouping,
+  deriveModuleIdOf,
   directoryGrouping,
   moduleGrouping,
   parentFileOf as contractParentFileOf,
   type Grouping,
+  type ModuleIdOf,
 } from "@sprawlens/schema";
 import { defaultLayerOf, matchTestTargets } from "@sprawlens/schema";
-import { defaultModuleIdOf } from "@sprawlens/schema";
 import {
-  apiModuleIdOf,
   applySymbolBudget,
   buildApiGraph,
   splitApiBoundary,
@@ -397,6 +397,30 @@ export function App() {
     for (const node of graph.nodes) labels.set(node.id, node.label);
   };
 
+  // Module grouping derived from the actual directory tree (containers vs
+  // modules), so it works for any language layout, not just src/packages
+  // conventions. Memoized by graph identity — the file set only changes when
+  // graphRef.current is reassigned to a new object.
+  const moduleIdOfRef = useRef<{ graph: AtlasGraph | null; fn: ModuleIdOf }>({
+    graph: null,
+    fn: (id) => id,
+  });
+  const currentModuleIdOf = (): ModuleIdOf => {
+    const graph = graphRef.current;
+    if (moduleIdOfRef.current.graph !== graph) {
+      moduleIdOfRef.current = {
+        graph,
+        fn: deriveModuleIdOf(
+          graph.nodes.filter((node) => node.kind === "file").map((node) => node.id),
+        ),
+      };
+    }
+    return moduleIdOfRef.current.fn;
+  };
+  /** Module of any id (file/symbol) under the derived, language-neutral rule. */
+  const moduleOfId = (id: string): string =>
+    currentModuleIdOf()(contractParentFileOf(id));
+
   /** Subdivision rings above the leaf (module ⊃ directory); the leaf and
    * file outlines live on the display axis, not here. */
   const boundariesOf = (p: PlaygroundParams): Grouping[] => {
@@ -409,19 +433,20 @@ export function App() {
     // bucket is shared across directories and empties all but one
     const hasDirectory = p.boundaries.includes("directory");
     const dir = directoryGrouping(DIRECTORY_DEPTH);
+    const moduleIdOf = currentModuleIdOf();
     const groupings = p.boundaries.flatMap((level): Grouping[] => {
-      if (level === "module") return [moduleGrouping()];
+      if (level === "module") return [moduleGrouping(moduleIdOf)];
       if (level === "directory") return [dir];
       if (level === "class" && symbolLeaves)
         return [
           classGrouping(
-            undefined,
+            moduleIdOf,
             hasDirectory ? (id) => dir.groupOf(id) : undefined,
           ),
         ];
       return [];
     });
-    return groupings.length > 0 ? groupings : [moduleGrouping()];
+    return groupings.length > 0 ? groupings : [moduleGrouping(moduleIdOf)];
   };
 
   const ringsOptions = (p: PlaygroundParams) => ({
@@ -472,7 +497,7 @@ export function App() {
         : 0;
     const rings = ringsRef.current;
     if (!rings) return weight + changedBoost;
-    const circle = rings.circles.get(apiModuleIdOf(symbolId));
+    const circle = rings.circles.get(moduleOfId(symbolId));
     if (!circle) return weight + changedBoost;
     const view = viewInfoRef.current;
     const dx = circle.cx - view.x;
@@ -506,7 +531,7 @@ export function App() {
       // directory that swamps the real ones and collapses the layout)
       fillerKeyOf: paramsRef.current.boundaries.includes("directory")
         ? (id) => directoryGrouping(DIRECTORY_DEPTH).groupOf(id)
-        : undefined,
+        : moduleOfId,
       // cross-layer-referenced files always keep a cell so their edge lands and
       // they can be highlighted, no matter how the budget would rank them
       ensure:
@@ -522,12 +547,12 @@ export function App() {
     });
     for (const node of api.nodes) labelsRef.current.set(node.id, node.label);
     displayGraphRef.current = api;
-    const split = splitApiBoundary(api, apiModuleIdOf, symbolEdgesRef.current);
+    const split = splitApiBoundary(api, moduleOfId, symbolEdgesRef.current);
     apiBoundaryRef.current = split.boundaryByModule;
     const partners = new Map<string, Set<string>>();
     for (const edge of api.edges) {
-      const sourceModule = apiModuleIdOf(edge.source);
-      if (sourceModule === apiModuleIdOf(edge.target)) continue;
+      const sourceModule = moduleOfId(edge.source);
+      if (sourceModule === moduleOfId(edge.target)) continue;
       let set = partners.get(edge.target);
       if (!set) {
         set = new Set();
@@ -1582,10 +1607,6 @@ export function App() {
     const parts: { id: string; label: string }[] = [];
     const isSymbolId = (id: string) =>
       id.startsWith("symbol:") || id.includes("#");
-    const moduleOfId = (id: string) =>
-      granularity === "symbol"
-        ? apiModuleIdOf(id)
-        : defaultModuleIdOf(id);
     if (selectedId) {
       if (isModuleId(selectedId)) {
         parts.push({ id: selectedId, label: selectedId });
