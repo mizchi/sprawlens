@@ -4,7 +4,7 @@ import { readFile } from "node:fs/promises";
 import { extname, posix } from "node:path";
 import fg from "fast-glob";
 import Parser from "web-tree-sitter";
-import { computeGraphMetrics } from "@sprawlens/schema";
+import { computeGraphMetrics, matchWorkspacePackage } from "@sprawlens/schema";
 import type {
   CodeEdge,
   CodeNode,
@@ -12,6 +12,7 @@ import type {
   CodeSymbolKind,
   Snapshot,
   SnapshotCommit,
+  WorkspacePackage,
 } from "@sprawlens/schema";
 
 type SyntaxNode = Parser.SyntaxNode;
@@ -192,11 +193,16 @@ export async function snapshotGoWorkingTree(
     }
   }
 
+  // The go.mod module is a one-package workspace rooted at the repo: any import
+  // under the module path resolves to a local package dir (matchWorkspacePackage
+  // generalizes this to N named roots; Go just has one).
+  const workspace: WorkspacePackage[] = modulePath
+    ? [{ name: modulePath, sourceRoot: "" }]
+    : [];
   /** Local package dir for an import path under the module, else null. */
   const localDirOf = (spec: string): string | null => {
-    if (!modulePath || spec !== modulePath && !spec.startsWith(`${modulePath}/`))
-      return null;
-    return spec === modulePath ? "" : spec.slice(modulePath.length + 1);
+    const m = matchWorkspacePackage(workspace, spec);
+    return m ? [m.pkg.sourceRoot, m.subpath].filter(Boolean).join("/") : null;
   };
 
   for (const dir of [...dirs].sort())

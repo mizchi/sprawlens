@@ -6,3 +6,4 @@ export * from "./types.js";
 export * from "./graph.js";
 export * from "./detail.js";
 export * from "./provider.js";
+export * from "./workspace.js";

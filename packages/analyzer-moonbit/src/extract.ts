@@ -1,7 +1,7 @@
 import { readFile } from "node:fs/promises";
 import { extname, posix } from "node:path";
 import fg from "fast-glob";
-import { computeGraphMetrics } from "@sprawlens/schema";
+import { computeGraphMetrics, matchWorkspacePackage } from "@sprawlens/schema";
 import type {
   CodeEdge,
   CodeNode,
@@ -9,6 +9,7 @@ import type {
   CodeSymbolKind,
   Snapshot,
   SnapshotCommit,
+  WorkspacePackage,
 } from "@sprawlens/schema";
 
 /**
@@ -180,11 +181,16 @@ export async function snapshotMoonbitWorkingTree(
     }
   }
 
+  // The moon.mod.json module is a one-package workspace rooted at the repo;
+  // imports under its name resolve to local package dirs (same neutral matcher
+  // the other analyzers use, generalized here to a single named root).
+  const workspace: WorkspacePackage[] = moduleName
+    ? [{ name: moduleName, sourceRoot: "" }]
+    : [];
   /** Local package dir for an import under the module, else null. */
   const localDirOf = (spec: string): string | null => {
-    if (!moduleName || (spec !== moduleName && !spec.startsWith(`${moduleName}/`)))
-      return null;
-    return spec === moduleName ? "" : spec.slice(moduleName.length + 1);
+    const m = matchWorkspacePackage(workspace, spec);
+    return m ? [m.pkg.sourceRoot, m.subpath].filter(Boolean).join("/") : null;
   };
 
   for (const dir of [...dirs].sort())
