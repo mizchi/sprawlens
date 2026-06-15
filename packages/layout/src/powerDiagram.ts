@@ -189,13 +189,14 @@ function finishCell(cell: Cell, site: PowerSite): PowerCell {
   const n = cell.n;
   const { ax, ay, as } = cell;
   const polygon: Ring = new Array(n);
+  for (let i = 0; i < n; i++) polygon[i] = { x: ax[i]!, y: ay[i]! };
+  // edge i runs vertex i -> i+1, so reuse the polygon point objects rather
+  // than allocating fresh copies (consumers only ever read them)
   const edges: CellEdge[] = new Array(n);
   for (let i = 0; i < n; i++) {
-    const k = i + 1 === n ? 0 : i + 1;
-    polygon[i] = { x: ax[i]!, y: ay[i]! };
     edges[i] = {
-      a: { x: ax[i]!, y: ay[i]! },
-      b: { x: ax[k]!, y: ay[k]! },
+      a: polygon[i]!,
+      b: polygon[i + 1 === n ? 0 : i + 1]!,
       neighborId: as[i] ?? null,
     };
   }
