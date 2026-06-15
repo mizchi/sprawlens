@@ -12,24 +12,37 @@
 export function minCostAssignment(cost: readonly (readonly number[])[]): number[] {
   const n = cost.length;
   if (n === 0) return [];
+  // Flatten the cost matrix into one contiguous Float64Array (c[i*n + j]) for
+  // cache locality, and keep every working vector in a typed array. The inner
+  // augmenting-path loop is O(n³) overall, so the per-row scratch (minv/used)
+  // is reset in place rather than reallocated each row.
+  const c = new Float64Array(n * n);
+  for (let i = 0; i < n; i++) {
+    const row = cost[i]!;
+    for (let j = 0; j < n; j++) c[i * n + j] = row[j]!;
+  }
   // 1-based internals: p[j] = row matched to column j, 0 = free
-  const u = new Array<number>(n + 1).fill(0);
-  const v = new Array<number>(n + 1).fill(0);
-  const p = new Array<number>(n + 1).fill(0);
-  const way = new Array<number>(n + 1).fill(0);
+  const u = new Float64Array(n + 1);
+  const v = new Float64Array(n + 1);
+  const p = new Int32Array(n + 1);
+  const way = new Int32Array(n + 1);
+  const minv = new Float64Array(n + 1);
+  const used = new Uint8Array(n + 1);
   for (let i = 1; i <= n; i++) {
     p[0] = i;
     let j0 = 0;
-    const minv = new Array<number>(n + 1).fill(Infinity);
-    const used = new Array<boolean>(n + 1).fill(false);
+    minv.fill(Infinity);
+    used.fill(0);
     do {
-      used[j0] = true;
+      used[j0] = 1;
       const i0 = p[j0]!;
+      const rowBase = (i0 - 1) * n;
+      const ui0 = u[i0]!;
       let delta = Infinity;
       let j1 = 0;
       for (let j = 1; j <= n; j++) {
         if (used[j]) continue;
-        const cur = cost[i0 - 1]![j - 1]! - u[i0]! - v[j]!;
+        const cur = c[rowBase + j - 1]! - ui0 - v[j]!;
         if (cur < minv[j]!) {
           minv[j] = cur;
           way[j] = j0;
