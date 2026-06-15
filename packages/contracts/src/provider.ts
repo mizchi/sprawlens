@@ -27,6 +27,17 @@ export interface LanguageDetail {
 }
 
 /**
+ * A stateful analyzer that re-snapshots a single repo cheaply. `analyze()`
+ * returns the current snapshot; it keeps a per-file parse cache keyed by
+ * mtime/size, so on a re-run only the files that actually changed on disk are
+ * re-parsed (the edge resolution, which is cheap, runs over the full set). A
+ * file watcher calls `analyze()` again on each change to drive live updates.
+ */
+export interface IncrementalAnalyzer {
+  analyze(): Promise<Snapshot>;
+}
+
+/**
  * A language provider turns a repository's working tree into a neutral
  * Snapshot. Structure (files, symbols, imports) is the contract every language
  * fills via its own parser (TS compiler, tree-sitter, ...); deep detail (CFG,
@@ -42,6 +53,11 @@ export interface LanguageProvider {
     repoPath: string,
     options?: { commit?: SnapshotCommit },
   ): Promise<Snapshot>;
+  /**
+   * Optional incremental analyzer for live updates: re-parses only changed
+   * files across calls. Providers that omit it get full re-analysis instead.
+   */
+  createIncrementalAnalyzer?(repoPath: string): IncrementalAnalyzer;
   /** Optional deep detail (CFG, call hierarchy). */
   detail?: LanguageDetail;
 }

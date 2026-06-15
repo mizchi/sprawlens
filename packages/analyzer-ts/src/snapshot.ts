@@ -48,10 +48,46 @@ const DEFAULT_IGNORES = [
   "**/*.d.ts",
 ];
 
+/** Cached parse of one file; reused across snapshots when mtime+size match. */
+type ParsedFile = {
+  node: FileNode;
+  imports: ExtractedImport[];
+  usageByLocal: Map<string, CodeSymbol[]>;
+};
+
+/** Per-file parse cache for incremental re-analysis (path → mtime/size/parse). */
+export type ParseCache = Map<
+  string,
+  { mtimeMs: number; size: number; parsed: ParsedFile }
+>;
+
 type SnapshotOptions = {
   repoPath?: string;
   repoName?: string;
+  /** Reused across calls so only files whose mtime/size changed are re-parsed. */
+  cache?: ParseCache;
 };
+
+/** Parse one file into its node + imports + symbol usages (the heavy step). */
+function parseFile(relativePath: string, content: string, size: number): ParsedFile {
+  const imports = extractImports(content, relativePath);
+  const localNames = new Set(
+    imports.flatMap((item) => item.bindings.map((binding) => binding.local)),
+  );
+  return {
+    node: {
+      id: fileId(relativePath),
+      type: "file",
+      path: relativePath,
+      ext: sourceExtension(relativePath),
+      loc: countLoc(content),
+      sizeBytes: size,
+      symbols: extractTopLevelSymbols(content, relativePath),
+    },
+    imports,
+    usageByLocal: collectTopLevelSymbolUsages(content, relativePath, localNames),
+  };
+}
 
 export async function createSnapshotFromWorkingTree(
   workingTreePath: string,
@@ -69,23 +105,27 @@ export async function createSnapshotFromWorkingTree(
   })).sort();
 
   const fileSet = new Set(files.map(normalizePath));
-  const fileContents = new Map<string, string>();
+  const cache = options.cache;
+  const parsedByPath = new Map<string, ParsedFile>();
   const fileNodes: FileNode[] = [];
 
   for (const relativePath of files.map(normalizePath)) {
     const absolutePath = path.join(root, relativePath);
-    const [content, fileStat] = await Promise.all([readFile(absolutePath, "utf8"), stat(absolutePath)]);
-    fileContents.set(relativePath, content);
-    fileNodes.push({
-      id: fileId(relativePath),
-      type: "file",
-      path: relativePath,
-      ext: sourceExtension(relativePath),
-      loc: countLoc(content),
-      sizeBytes: fileStat.size,
-      symbols: extractTopLevelSymbols(content, relativePath),
-    });
+    const fileStat = await stat(absolutePath);
+    const hit = cache?.get(relativePath);
+    let parsed: ParsedFile;
+    if (hit && hit.mtimeMs === fileStat.mtimeMs && hit.size === fileStat.size) {
+      parsed = hit.parsed; // unchanged on disk — skip the re-parse
+    } else {
+      const content = await readFile(absolutePath, "utf8");
+      parsed = parseFile(relativePath, content, fileStat.size);
+      cache?.set(relativePath, { mtimeMs: fileStat.mtimeMs, size: fileStat.size, parsed });
+    }
+    parsedByPath.set(relativePath, parsed);
+    fileNodes.push(parsed.node);
   }
+  // drop deleted files from the cache so it tracks the working tree
+  if (cache) for (const key of [...cache.keys()]) if (!fileSet.has(key)) cache.delete(key);
 
   const dirPaths = collectDirectoryPaths(fileNodes.map((node) => node.path));
   const nodes: CodeNode[] = [
@@ -97,7 +137,7 @@ export async function createSnapshotFromWorkingTree(
   const workspace = await detectWorkspacePackages(root);
   const edges = [
     ...createContainsEdges(dirPaths, fileNodes.map((node) => node.path)),
-    ...createImportEdges(root, fileContents, fileSet, fileNodes, workspace),
+    ...createImportEdges(root, parsedByPath, fileSet, fileNodes, workspace),
   ];
   const { metrics } = computeGraphMetrics(nodes, edges);
 
@@ -271,13 +311,13 @@ async function detectWorkspacePackages(root: string): Promise<WorkspaceInfo> {
   return { packages, entryByName };
 }
 
-function createImportEdges(root: string, fileContents: Map<string, string>, fileSet: Set<string>, fileNodes: FileNode[], workspace: WorkspaceInfo): CodeEdge[] {
+function createImportEdges(root: string, parsedByPath: Map<string, ParsedFile>, fileSet: Set<string>, fileNodes: FileNode[], workspace: WorkspaceInfo): CodeEdge[] {
   const edges = new Map<string, CodeEdge>();
   const fileByPath = new Map(fileNodes.map((file) => [file.path, file]));
 
-  for (const [fromPath, content] of fileContents) {
-    const imports = extractImports(content, fromPath);
-    const usageByLocal = collectTopLevelSymbolUsages(content, fromPath, new Set(imports.flatMap((item) => item.bindings.map((binding) => binding.local))));
+  for (const [fromPath, parsed] of parsedByPath) {
+    const imports = parsed.imports;
+    const usageByLocal = parsed.usageByLocal;
     for (const item of imports) {
       const { specifier, bindings } = item;
       const from = fileId(fromPath);

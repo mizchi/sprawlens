@@ -1,9 +1,25 @@
 import { existsSync } from "node:fs";
 import { basename, join } from "node:path";
 import fg from "fast-glob";
-import type { LanguageProvider } from "@sprawlens/schema";
-import { SOURCE_EXTENSIONS, createSnapshotFromWorkingTree } from "./snapshot.js";
+import type { LanguageProvider, SnapshotCommit } from "@sprawlens/schema";
+import {
+  SOURCE_EXTENSIONS,
+  createSnapshotFromWorkingTree,
+  type ParseCache,
+} from "./snapshot.js";
 import { tsDetail } from "./detail.js";
+
+/** Synthetic commit for an uncommitted working-tree snapshot. */
+function worktreeCommit(): SnapshotCommit {
+  return {
+    hash: "WORKTREE",
+    shortHash: "worktree",
+    timestamp: new Date().toISOString(),
+    authorName: "Working Tree",
+    message: "Uncommitted working tree",
+    aiIndicators: [],
+  };
+}
 
 /** TypeScript / JavaScript provider, backed by the TS compiler API. */
 export const tsProvider: LanguageProvider = {
@@ -27,18 +43,23 @@ export const tsProvider: LanguageProvider = {
     return hits.length > 0;
   },
   analyze(repoPath, options) {
-    const commit = options?.commit ?? {
-      hash: "WORKTREE",
-      shortHash: "worktree",
-      timestamp: new Date().toISOString(),
-      authorName: "Working Tree",
-      message: "Uncommitted working tree",
-      aiIndicators: [],
-    };
-    return createSnapshotFromWorkingTree(repoPath, commit, {
+    return createSnapshotFromWorkingTree(repoPath, options?.commit ?? worktreeCommit(), {
       repoPath,
       repoName: basename(repoPath),
     });
+  },
+  createIncrementalAnalyzer(repoPath) {
+    // one cache per analyzer instance: re-runs re-parse only changed files
+    const cache: ParseCache = new Map();
+    return {
+      analyze() {
+        return createSnapshotFromWorkingTree(repoPath, worktreeCommit(), {
+          repoPath,
+          repoName: basename(repoPath),
+          cache,
+        });
+      },
+    };
   },
   detail: tsDetail,
 };
