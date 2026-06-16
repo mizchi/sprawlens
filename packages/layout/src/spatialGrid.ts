@@ -32,8 +32,10 @@ export function nearestNeighborSquared(
   }
   const width = Math.max(maxX - minX, 1e-12);
   const height = Math.max(maxY - minY, 1e-12);
-  // ~one point per cell keeps both bucketing and ring scans O(n) on average
-  const cell = Math.max(Math.sqrt((width * height) / n), 1e-12);
+  // Cell ~ longest-axis / sqrt(n): ~sqrt(n) cells along the long axis and O(n)
+  // total. Sizing by sqrt(area/n) collapses to ~0 for collinear points (one
+  // axis ≈ 0), which blew the grid up to millions of cells and hung.
+  const cell = Math.max(Math.max(width, height) / Math.ceil(Math.sqrt(n)), 1e-12);
   const cols = Math.max(1, Math.floor(width / cell) + 1);
   const rows = Math.max(1, Math.floor(height / cell) + 1);
   const colOf = (x: number) =>
