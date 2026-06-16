@@ -127,7 +127,7 @@ export function SymbolTag(props: {
 }
 
 /** Render a glyph as a screen-constant icon centered at (cx, cy) (world). */
-export function SymbolIcon(props: {
+function SymbolIcon(props: {
   glyph: SymbolGlyph;
   cx: number;
   cy: number;

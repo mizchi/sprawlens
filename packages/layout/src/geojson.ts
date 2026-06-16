@@ -5,7 +5,7 @@ import type { CellResult } from "./capacityLayout.js";
  * kernel keeps flat rings internally; this conversion is for persistence,
  * fixtures, turf-based verification and deck.gl interop.
  */
-export type CellFeatureProperties = {
+type CellFeatureProperties = {
   id: string;
   targetArea: number;
   actualArea: number;
@@ -14,7 +14,7 @@ export type CellFeatureProperties = {
   site: [number, number];
 };
 
-export type CellFeature = {
+type CellFeature = {
   type: "Feature";
   geometry: { type: "Polygon"; coordinates: number[][][] };
   properties: CellFeatureProperties;

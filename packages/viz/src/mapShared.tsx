@@ -30,12 +30,12 @@ import type { FocusView } from "./useMapViewport.ts";
 
 export const DIM = 0.1;
 /** Diff layer: changed files read from fill, not outline. */
-export let MODIFIED_FILL = "hsl(8 85% 78%)";
-export let ADDED_FILL = "hsl(150 55% 80%)";
+let MODIFIED_FILL = "hsl(8 85% 78%)";
+let ADDED_FILL = "hsl(150 55% 80%)";
 /** Cells of nodes caught in a dependency cycle: the tangles to break. */
-export let CYCLE_FILL = "hsl(0 70% 86%)";
+let CYCLE_FILL = "hsl(0 70% 86%)";
 /** Muted fill for test-layer cells: visible for ratio reading, not loud. */
-export let TEST_FILL = "hsl(210 10% 81%)";
+let TEST_FILL = "hsl(210 10% 81%)";
 /** Direction palette: what I depend on vs what depends on me. */
 export let DOWNSTREAM_COLOR = "#ea580c";
 export let UPSTREAM_COLOR = "#0891b2";
@@ -60,7 +60,7 @@ export let FILE_LABEL_INK = "#334155";
 export let TEST_LABEL_INK = "#10b981";
 /** Deps plane tint (external packages); distinct from the test grey. */
 export let DEPS_INK = "#22d3ee";
-export let WATERMARK_INK = "#334155";
+let WATERMARK_INK = "#334155";
 export let PORT_FILL = "#ffffff";
 /** Per-kind ink for the symbol classification icons, so each kind reads at a
  * glance (à la an editor's outline). Theme-switched below. Keyed by the
@@ -77,7 +77,7 @@ export let SYMBOL_KIND_COLORS: Record<string, string> = {
   property: "#ea580c",
 };
 /** Strong outline for class-boundary districts (request: easy to spot). */
-export let CLASS_BOUNDARY = "#d97706";
+let CLASS_BOUNDARY = "#d97706";
 export let EXPORTED_DOT = "#059669";
 /** Panel / page chrome, consumed by the App shell. */
 export let PAGE_BG = "#e2e8f0";
@@ -102,11 +102,11 @@ export const districtStroke = (id: string) =>
   `hsl(${moduleHue(id)} ${hueProfile.topStroke})`;
 export const districtLabelFill = (id: string) =>
   `hsl(${moduleHue(id)} ${hueProfile.topLabel})`;
-export const innerDistrictStroke = (id: string) =>
+const innerDistrictStroke = (id: string) =>
   `hsl(${moduleHue(id)} ${hueProfile.innerStroke})`;
-export const innerDistrictLabelFill = (id: string) =>
+const innerDistrictLabelFill = (id: string) =>
   `hsl(${moduleHue(id)} ${hueProfile.innerLabel})`;
-export const leafTint = (id: string) =>
+const leafTint = (id: string) =>
   `hsl(${moduleHue(id)} ${hueProfile.leafTint})`;
 
 export function setMapTheme(dark: boolean): void {
@@ -224,18 +224,18 @@ export function setMapTheme(dark: boolean): void {
 /** Past this natural screen size a cell's name becomes a translucent
  * watermark behind the detail (symbols, CFG) instead of a foreground
  * label fighting them for attention. */
-export const WATERMARK_PX = 140;
+const WATERMARK_PX = 140;
 
 /** On-screen px below which a boundary cell's outline is suppressed: the
  * fill texture still reads at macro zoom, but drawing every leaf/district
  * border there is noise (and overdraw). The border fades in as the cell
  * grows past this on screen. Districts use a larger gate than leaves. */
 export const LEAF_BORDER_MIN_PX = 14;
-export const DISTRICT_BORDER_MIN_PX = 44;
+const DISTRICT_BORDER_MIN_PX = 44;
 /** Class boundaries are deferred far past other districts: only a deep zoom
  * into the class shows the outline, so the overview isn't carved into class
  * regions. */
-export const CLASS_BORDER_MIN_PX = 170;
+const CLASS_BORDER_MIN_PX = 170;
 
 /** Zoom level at which individual symbols become interactive nodes. */
 export const SYMBOL_ZOOM = 2.2;
@@ -247,7 +247,7 @@ export let EXPORTED_LABEL = "#047857";
 export let INTERNAL_LABEL = "#5b21b6";
 
 /** Stable pastel per top-level group so the borders read as districts. */
-export function moduleHue(moduleId: string): number {
+function moduleHue(moduleId: string): number {
   let h = 0;
   for (let i = 0; i < moduleId.length; i++) {
     h = (h * 31 + moduleId.charCodeAt(i)) % 360;
@@ -705,7 +705,7 @@ export function ExitPreviewsLayer(props: {
 /* -------------------------------------------------------- satellite plane */
 
 /** Stroke for the faint stacked-plane outlines. */
-export let PLANE_OUTLINE = "#475569";
+let PLANE_OUTLINE = "#475569";
 
 const planePolyOf = (m: Affine, w: number, h: number) =>
   [
@@ -1055,7 +1055,7 @@ export function PlaneLayerView(props: {
 /* ----------------------------------------------------------- edge bundles */
 
 /** Catmull-Rom through the control points as a cubic-Bézier SVG path. */
-export function smoothPathD(points: readonly Vec2[]): string {
+function smoothPathD(points: readonly Vec2[]): string {
   if (points.length < 2) return "";
   if (points.length === 2) {
     return `M${points[0]!.x},${points[0]!.y}L${points[1]!.x},${points[1]!.y}`;

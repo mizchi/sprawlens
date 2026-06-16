@@ -23,7 +23,7 @@ export type Grouping = {
   labelOf?: (groupId: string) => string;
 };
 
-export type HierarchyLevel = {
+type HierarchyLevel = {
   kind: AtlasNodeKind;
   /** Group nodes; loc = sum of member leaf loc. */
   nodes: AtlasNode[];
@@ -310,12 +310,12 @@ export function classIdOf(id: string): string | null {
 }
 
 /** Short class name from a `class:<path>:<ClassName>` group id. */
-export function classNameOf(classId: string): string {
+function classNameOf(classId: string): string {
   return classId.slice(classId.lastIndexOf(":") + 1);
 }
 
 /** Per-module bucket id holding every non-class symbol of a module. */
-export function restBucketId(moduleId: string): string {
+function restBucketId(moduleId: string): string {
   return `(rest):${moduleId}`;
 }
 

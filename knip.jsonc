@@ -1,0 +1,20 @@
+{
+  "$schema": "https://unpkg.com/knip@6/schema.json",
+  // these packages are internal to the monorepo (only @sprawlens/cli ships),
+  // so an index re-export is "used" only when another workspace imports it.
+  // includeEntryExports makes knip analyse the index entry files too, which is
+  // how public-contract over-export surfaces.
+  "includeEntryExports": true,
+  "ignore": ["**/vendor/**", "**/dist/**", "**/public-atlas/**", "**/fixtures/**"],
+  "ignoreDependencies": [
+    // spawned as a CLI binary, not imported as a module
+    "typescript-language-server"
+  ],
+  // non-standard config name, so point knip's playwright plugin at it
+  "playwright": { "config": ["playwright.atlas.config.ts"] },
+  "workspaces": {
+    ".": {
+      "entry": ["scripts/*.mjs", "tools/*.mjs", "e2e/**/*.spec.ts"]
+    }
+  }
+}

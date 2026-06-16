@@ -9,9 +9,9 @@ import type { AtlasGraph } from "./graph.js";
  * inside file cells). Runtime traces (contracts/overlay.ts) lift onto the
  * same block ids, so an executed path can be drawn over the fetched CFG.
  */
-export type DetailKind = "ast" | "cfg";
+type DetailKind = "ast" | "cfg";
 
-export type DetailRequest = {
+type DetailRequest = {
   kind: DetailKind;
   /** The symbol whose interior is being expanded. */
   symbolId: string;
@@ -50,6 +50,6 @@ export type DetailGraph = AtlasGraph & {
 };
 
 /** Resolves on null when the symbol has no expandable interior. */
-export type DetailProvider = (
+type DetailProvider = (
   request: DetailRequest,
 ) => Promise<DetailGraph | null>;

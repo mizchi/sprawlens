@@ -85,7 +85,7 @@ const FORCE_SKIP_ABOVE = 700;
  * monorepo-scale graphs from blocking the build for seconds — above
  * {@link FORCE_SKIP_ABOVE} leaves it is dropped entirely.
  */
-export function constrainedForceIterations(nodeCount: number): number {
+function constrainedForceIterations(nodeCount: number): number {
   if (nodeCount === 0) return 0;
   if (nodeCount > FORCE_SKIP_ABOVE) return 0;
   return Math.max(
@@ -177,7 +177,7 @@ export function solveLevel(layout: CapacityLayoutState): CapacityLayoutState {
 }
 
 /** Leaves of every group (transitively), in graph order. */
-export function leavesOfGroups(
+function leavesOfGroups(
   graph: AtlasGraph,
   tree: LevelTree,
 ): Map<string, AtlasNode[]> {

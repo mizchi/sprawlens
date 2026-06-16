@@ -9,14 +9,14 @@ import {
   type WeightKind,
 } from "./viewConfig.ts";
 
-export type DataSource =
+type DataSource =
   | "synthetic"
   | "sprawlens"
   | "sprawlens-history"
   | "playwright"
   // a snapshot served by the CLI (`sprawlens <repo>`) at GET /api/snapshot
   | "served";
-export type LayoutKind = "rings" | "treemap";
+type LayoutKind = "rings" | "treemap";
 
 /** Affine tilt that lays the map flat as a stacked-plane view. `pitch` drives
  * the vertical squash (cos(pitch)); `theta` rotates the plane in-plane. The
@@ -34,7 +34,7 @@ export type TiltParams = {
 };
 
 /** Whether a named satellite plane is toggled on. */
-export function planeShown(tilt: TiltParams, name: string): boolean {
+function planeShown(tilt: TiltParams, name: string): boolean {
   return tilt.layers[name] === true;
 }
 

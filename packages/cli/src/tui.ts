@@ -238,7 +238,7 @@ export function neighbor(
 const BG: Record<ChangeKind, number> = { added: 22, modified: 58 }; // 256-color
 const HOVER_BG = 24; // distinct blue for the hovered tile
 
-export type Cell = { ch: string; bg: number | null };
+type Cell = { ch: string; bg: number | null };
 export type Grid = Cell[][];
 
 export function makeGrid(cols: number, rows: number): Grid {
@@ -325,7 +325,7 @@ export function drawPanel(
 }
 
 /** Paint tiles into a fresh grid and return the ANSI string (static render). */
-export function paintTiles(
+function paintTiles(
   tiles: readonly PlacedTile[],
   cols: number,
   rows: number,

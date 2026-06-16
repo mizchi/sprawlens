@@ -32,13 +32,13 @@ export type SnapshotCommit = {
   aiIndicators: AIIndicator[];
 };
 
-export type RepoNode = {
+type RepoNode = {
   id: string;
   type: "repo";
   name: string;
 };
 
-export type DirNode = {
+type DirNode = {
   id: string;
   type: "dir";
   path: string;
@@ -103,7 +103,7 @@ export type CodeSymbolImport = CodeImportBinding & {
   toSymbolName?: string;
 };
 
-export type ContainsEdge = {
+type ContainsEdge = {
   id: string;
   type: "contains";
   from: string;

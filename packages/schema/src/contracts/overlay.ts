@@ -6,7 +6,7 @@
  * it; liftOverlay re-expresses one at any displayed level.
  */
 
-export type FlowStep = {
+type FlowStep = {
   nodeId: string;
   /** Optional ordering timestamp (ms or any monotonic unit). */
   at?: number;

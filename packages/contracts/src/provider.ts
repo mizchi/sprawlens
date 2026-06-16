@@ -33,7 +33,7 @@ export interface LanguageDetail {
  * re-parsed (the edge resolution, which is cheap, runs over the full set). A
  * file watcher calls `analyze()` again on each change to drive live updates.
  */
-export interface IncrementalAnalyzer {
+interface IncrementalAnalyzer {
   analyze(): Promise<Snapshot>;
 }
 
@@ -66,17 +66,6 @@ export interface LanguageProvider {
   createIncrementalAnalyzer?(repoPath: string): IncrementalAnalyzer;
   /** Optional deep detail (CFG, call hierarchy). */
   detail?: LanguageDetail;
-}
-
-/** First provider that claims the repo, or null if none match. */
-export async function selectProvider(
-  providers: readonly LanguageProvider[],
-  repoPath: string,
-): Promise<LanguageProvider | null> {
-  for (const provider of providers) {
-    if (await provider.match(repoPath)) return provider;
-  }
-  return null;
 }
 
 /**

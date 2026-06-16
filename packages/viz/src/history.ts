@@ -17,7 +17,7 @@ export type GraphDiff = {
   removed: string[];
 };
 
-export type NodeChange = {
+type NodeChange = {
   index: number;
   kind: "added" | "modified" | "removed";
 };

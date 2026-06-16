@@ -25,7 +25,7 @@ export type GraphLayoutOptions = CapacityOptions & {
  * Embedding cost is O(n²) per iteration, so the budget shrinks with node
  * count; the embedding is a seed, the capacity solver owns final geometry.
  */
-export function embedIterationsFor(nodeCount: number): number {
+function embedIterationsFor(nodeCount: number): number {
   if (nodeCount === 0) return 0;
   return Math.max(
     30,

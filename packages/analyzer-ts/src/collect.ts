@@ -149,7 +149,7 @@ export async function analyzeRealtimeRepository(repoPath: string): Promise<Realt
   }
 }
 
-export async function readSnapshots(repoPath: string): Promise<Snapshot[]> {
+async function readSnapshots(repoPath: string): Promise<Snapshot[]> {
   const repo = path.resolve(repoPath);
   const commitsPath = path.join(codesprawlDir(repo), "commits.json");
 
@@ -168,7 +168,7 @@ export async function readSnapshots(repoPath: string): Promise<Snapshot[]> {
   }
 }
 
-export async function readDiffs(repoPath: string): Promise<GraphDiff[]> {
+async function readDiffs(repoPath: string): Promise<GraphDiff[]> {
   const repo = path.resolve(repoPath);
   const files = await readdir(diffsDir(repo)).catch(() => []);
   const diffs = await Promise.all(
@@ -180,15 +180,15 @@ export async function readDiffs(repoPath: string): Promise<GraphDiff[]> {
   return diffs;
 }
 
-export function codesprawlDir(repoPath: string): string {
+function codesprawlDir(repoPath: string): string {
   return path.join(path.resolve(repoPath), ".codesprawl");
 }
 
-export function snapshotsDir(repoPath: string): string {
+function snapshotsDir(repoPath: string): string {
   return path.join(codesprawlDir(repoPath), "snapshots");
 }
 
-export function diffsDir(repoPath: string): string {
+function diffsDir(repoPath: string): string {
   return path.join(codesprawlDir(repoPath), "diffs");
 }
 

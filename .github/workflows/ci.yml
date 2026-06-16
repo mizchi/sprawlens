@@ -17,6 +17,7 @@ jobs:
           cache: pnpm
       - run: pnpm install --frozen-lockfile
       - run: pnpm lint:layers
+      - run: pnpm lint:exports
       - run: pnpm test
       - run: pnpm -r exec tsc --noEmit -p tsconfig.json
       - run: pnpm build

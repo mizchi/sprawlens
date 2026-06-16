@@ -49,7 +49,7 @@ const edgeStroke = () => MACRO_EDGE;
 const MUTATION_BADGE = "#e11d48";
 const IO_BADGE = "#7c3aed";
 
-export const CFG_ARROW_ID = "cfg-arrow";
+const CFG_ARROW_ID = "cfg-arrow";
 
 function points(pairs: [number, number][]): string {
   return pairs.map(([x, y]) => `${x},${y}`).join(" ");
@@ -183,7 +183,7 @@ function CfgShape(props: {
   );
 }
 
-export type CfgGeometry = {
+type CfgGeometry = {
   layout: ReturnType<typeof layoutCfg>;
   at: (id: string) => Vec2 | null;
   rowH: number;
@@ -192,7 +192,7 @@ export type CfgGeometry = {
 
 /** World-space placement shared by the glyph renderer and the edge
  * anchoring in the host maps. */
-export function cfgGeometry(entry: CfgEntry): CfgGeometry {
+function cfgGeometry(entry: CfgEntry): CfgGeometry {
   const layout = layoutCfg(entry.graph.nodes, entry.graph.edges, {
     grid: entry.graph.grid,
   });

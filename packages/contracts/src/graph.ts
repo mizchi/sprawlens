@@ -17,7 +17,7 @@ export type AtlasNodeKind =
   | "symbol"
   | "block";
 
-export type AtlasNodeMetrics = {
+type AtlasNodeMetrics = {
   loc: number;
   /** Cyclomatic complexity (branch points + 1) when the producer measured
    * it; consumers fall back to a LOC-based estimate. */
@@ -58,7 +58,7 @@ export type AtlasNode = {
  * control-flow edge between CFG blocks. Lifted aggregates keep the kind
  * only when every contributing edge agrees.
  */
-export type AtlasEdgeKind = "import" | "call" | "flow";
+type AtlasEdgeKind = "import" | "call" | "flow";
 
 export type AtlasEdge = {
   source: string;

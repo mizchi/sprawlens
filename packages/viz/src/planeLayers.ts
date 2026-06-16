@@ -41,7 +41,7 @@ export type PlacedNode = {
   sourceIds: string[];
 };
 
-export type Extent = { w: number; h: number };
+type Extent = { w: number; h: number };
 export type PlaneLayout = (nodes: readonly LayerNode[], extent: Extent) => PlacedNode[];
 
 const SOLVE_MAX_STEPS = 200;

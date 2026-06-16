@@ -92,6 +92,6 @@ type TreemapScene = {
 export type MapScene = SceneCommon & (RingsScene | TreemapScene);
 
 /** A renderer: scene + handlers → a view. SVG today; the signature is the spec. */
-export type MapRenderer = (
+type MapRenderer = (
   props: { scene: MapScene } & MapHandlers,
 ) => import("preact").VNode | null;

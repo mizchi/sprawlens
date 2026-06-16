@@ -59,7 +59,7 @@ export type TreemapOptions = {
   moduleIdOf?: ModuleIdOf;
 };
 
-export type TreemapLevelCells = SubdivisionLevel;
+type TreemapLevelCells = SubdivisionLevel;
 
 export type TreemapState = {
   /** Boundary levels, outer → inner; levels[0] tiles the whole viewport. */
