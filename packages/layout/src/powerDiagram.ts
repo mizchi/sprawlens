@@ -130,6 +130,11 @@ function maxVertexDistance2(cell: Cell, site: PowerSite): number {
  * which plane created each edge, writing into `b` and swapping. The newly cut
  * edge gets `planeId`; surviving edges keep theirs. Valid for convex polygons
  * (single entry/exit per plane). A result under 3 vertices clears the cell.
+ *
+ * This is the build's single hottest loop (~half of total CPU), so each
+ * vertex's signed plane distance is computed exactly once and carried into the
+ * next edge as its `cur` value, rather than recomputing every vertex twice
+ * (once as `cur`, once as the previous edge's `next`). Halves the dot products.
  */
 function clipPlane(
   cell: Cell,
@@ -140,29 +145,37 @@ function clipPlane(
 ): void {
   const { ax, ay, as, bx, by, bs, n } = cell;
   let m = 0;
+  let cx = ax[0]!;
+  let cy = ay[0]!;
+  let cs = as[0] ?? null;
+  let curDist = nx * cx + ny * cy - c;
+  let curInside = curDist <= 0;
+  const dist0 = curDist;
   for (let i = 0; i < n; i++) {
     const k = i + 1 === n ? 0 : i + 1;
-    const cx = ax[i]!;
-    const cy = ay[i]!;
     const nxt = ax[k]!;
     const nyt = ay[k]!;
-    const curDist = nx * cx + ny * cy - c;
-    const nextDist = nx * nxt + ny * nyt - c;
-    const curInside = curDist <= 0;
+    // the wrap-around edge reuses vertex 0's distance instead of recomputing it
+    const nextDist = k === 0 ? dist0 : nx * nxt + ny * nyt - c;
     const nextInside = nextDist <= 0;
     if (curInside) {
       bx[m] = cx;
       by[m] = cy;
-      bs[m] = as[i] ?? null;
+      bs[m] = cs;
       m++;
     }
     if (curInside !== nextInside) {
       const t = curDist / (curDist - nextDist);
       bx[m] = cx + (nxt - cx) * t;
       by[m] = cy + (nyt - cy) * t;
-      bs[m] = curInside ? planeId : (as[i] ?? null);
+      bs[m] = curInside ? planeId : cs;
       m++;
     }
+    cx = nxt;
+    cy = nyt;
+    cs = as[k] ?? null;
+    curDist = nextDist;
+    curInside = nextInside;
   }
   cell.ax = bx;
   cell.ay = by;
