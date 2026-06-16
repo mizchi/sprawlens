@@ -260,9 +260,24 @@ function adaptWeights(
   return sites.map((site, i) => ({ ...site, weight: weights[i]! - meanWeight }));
 }
 
+/**
+ * Above this area error the cheap single-diagram step is used; below it the
+ * accurate two-diagram step takes over. Only the initial melt — where cells are
+ * wildly off their target areas and a precise post-move gradient buys nothing —
+ * runs on the 1-diagram path; the whole tail, and warm-starts (which begin near
+ * convergence), keep the accurate step. Set conservatively: lower thresholds
+ * cut more build time but slow the convergence tail enough to inflate
+ * warm-start re-convergence, which the live re-analysis path depends on.
+ */
+const FUSED_SWITCH = 0.5;
+
 export function capacityStep(
   state: CapacityLayoutState,
 ): CapacityLayoutState {
+  // Far from convergence the stale-gradient single-diagram step makes the same
+  // progress at half the power-diagram cost; only the precise tail needs the
+  // post-move gradient (see capacityStepFused).
+  if (state.maxRelativeError > FUSED_SWITCH) return capacityStepFused(state);
   const { options, clip, clipRing } = state;
 
   // Phase 1: Lloyd relaxation on the current diagram. Damped as area errors
@@ -302,6 +317,57 @@ export function capacityStep(
   return {
     ...state,
     sites: adapted,
+    cells,
+    iteration: state.iteration + 1,
+    maxRelativeError,
+  };
+}
+
+/**
+ * Single-diagram variant: derive both the Lloyd move and the weight update
+ * from the *same* current diagram (state.cells, consistent with state.sites),
+ * apply them together, then rebuild once — halving the power-diagram evaluations
+ * per step versus {@link capacityStep}, which re-solves the diagram between the
+ * move and the weight adapt. The gradient is one step stale (measured before
+ * the move) but, applied jointly, that costs convergence steps only if the move
+ * is large; the damped Lloyd rate keeps it small near convergence.
+ */
+function capacityStepFused(
+  state: CapacityLayoutState,
+): CapacityLayoutState {
+  const { options, clip, clipRing } = state;
+
+  // Weight update from the current diagram (positions still match state.cells).
+  const adapted = adaptWeights(
+    state.sites,
+    state.cells,
+    options.adaptationRate,
+    state.clipArea,
+  );
+
+  // Lloyd move from the same current diagram, damped as area errors shrink.
+  const lloydRate =
+    options.lloydRate * Math.min(1, 10 * state.maxRelativeError);
+  const cellById = new Map(state.cells.map((c) => [c.id, c]));
+  const rng = createRng(options.seed + state.iteration + 1);
+  const moved = adapted.map((site) => {
+    const cell = cellById.get(site.id)!;
+    let x = site.x;
+    let y = site.y;
+    if (cell.polygon.length >= 3) {
+      const c = centroid(cell.polygon);
+      x += (c.x - x) * lloydRate;
+      y += (c.y - y) * lloydRate;
+    }
+    const clamped = clampInto(clip, { x, y });
+    return { ...site, x: clamped.x, y: clamped.y };
+  });
+  separateCoincident(moved, clipScale(clip), rng);
+
+  const { cells, maxRelativeError } = computeCells(moved, clipRing);
+  return {
+    ...state,
+    sites: moved,
     cells,
     iteration: state.iteration + 1,
     maxRelativeError,
