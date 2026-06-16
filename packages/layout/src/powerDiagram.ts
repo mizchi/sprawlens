@@ -69,21 +69,48 @@ function makeCell(capacity: number): Cell {
   };
 }
 
-/** Seed the cell with the clip ring and refresh its bounding radius². */
-function resetCell(cell: Cell, clip: Ring, site: PowerSite): void {
+/**
+ * Seed the cell with the clip ring and refresh its bounding radius². The clip
+ * is the same for every site in a diagram, so its vertices are pre-unpacked
+ * into flat `clipX`/`clipY` arrays once by the caller — reading those typed
+ * arrays here (instead of the `{x,y}` ring objects) keeps this per-site reset,
+ * which the profile shows is a hot 8%, off the object-property path.
+ */
+function resetCell(
+  cell: Cell,
+  clipX: Float64Array,
+  clipY: Float64Array,
+  clipLen: number,
+  site: PowerSite,
+): void {
+  const { ax, ay, as } = cell;
+  const sx = site.x;
+  const sy = site.y;
   let max = 0;
-  for (let i = 0; i < clip.length; i++) {
-    const p = clip[i]!;
-    cell.ax[i] = p.x;
-    cell.ay[i] = p.y;
-    cell.as[i] = null;
-    const dx = p.x - site.x;
-    const dy = p.y - site.y;
+  for (let i = 0; i < clipLen; i++) {
+    const x = clipX[i]!;
+    const y = clipY[i]!;
+    ax[i] = x;
+    ay[i] = y;
+    as[i] = null;
+    const dx = x - sx;
+    const dy = y - sy;
     const d2 = dx * dx + dy * dy;
     if (d2 > max) max = d2;
   }
-  cell.n = clip.length;
+  cell.n = clipLen;
   cell.radius2 = max;
+}
+
+/** Unpack the clip ring into flat arrays reused across all of a diagram's sites. */
+function unpackClip(clip: Ring): { clipX: Float64Array; clipY: Float64Array } {
+  const clipX = new Float64Array(clip.length);
+  const clipY = new Float64Array(clip.length);
+  for (let i = 0; i < clip.length; i++) {
+    clipX[i] = clip[i]!.x;
+    clipY[i] = clip[i]!.y;
+  }
+  return { clipX, clipY };
 }
 
 function maxVertexDistance2(cell: Cell, site: PowerSite): number {
@@ -223,8 +250,9 @@ export function computePowerDiagram(
   }
   // a cell can grow by at most one vertex per clip, so this bounds the peak
   const cell = makeCell(clip.length + sites.length + 4);
+  const { clipX, clipY } = unpackClip(clip);
   return sites.map((site, index) => {
-    resetCell(cell, clip, site);
+    resetCell(cell, clipX, clipY, clip.length, site);
     for (let j = 0; j < sites.length && cell.n > 0; j++) {
       if (j === index) continue;
       clipAgainst(cell, site, index, sites[j]!, j);
@@ -274,9 +302,10 @@ function computePowerDiagramGrid(sites: PowerSite[], clip: Ring): PowerCell[] {
   }
 
   const cell = makeCell(clip.length + sites.length + 4);
+  const { clipX, clipY } = unpackClip(clip);
   const maxRing = Math.max(cols, rows);
   return sites.map((site, index) => {
-    resetCell(cell, clip, site);
+    resetCell(cell, clipX, clipY, clip.length, site);
     const cx = gx(site.x);
     const cy = gy(site.y);
     for (let ring = 0; ring <= maxRing && cell.n > 0; ring++) {
