@@ -17,6 +17,7 @@ import { SvgRenderer } from "./renderer/SvgRenderer.tsx";
 import type { MapHandlers } from "./renderer/contract.ts";
 import { buildScene } from "./engine/buildScene.ts";
 import { useSelection } from "./engine/useSelection.ts";
+import { useCamera, type Bounds } from "./engine/useCamera.ts";
 import { useViewportSize } from "./useViewportSize.ts";
 import { useAltKey } from "./useAltKey.ts";
 import { useColorScheme } from "./useColorScheme.ts";
@@ -239,14 +240,9 @@ export function App() {
     selectNode,
     selectEdgeState,
   } = useSelection();
-  const [focusRequest, setFocusRequest] = useState<FocusRequest | null>(null);
-  const [viewInfo, setViewInfo] = useState({
-    x: WIDTH / 2,
-    y: HEIGHT / 2,
-    zoom: 1,
-  });
-  const viewInfoRef = useRef(viewInfo);
-  viewInfoRef.current = viewInfo;
+  // camera: pending fly-to + settled view; focusBounds frames a world bbox
+  const { focusRequest, viewInfo, viewInfoRef, focusBounds, onViewSettle } =
+    useCamera({ width: WIDTH, height: HEIGHT });
   const [, setFrame] = useState(0);
 
   const graphRef = useRef<AtlasGraph>(null as unknown as AtlasGraph);
@@ -1246,27 +1242,6 @@ export function App() {
     return { x0, x1, y0, y1 };
   };
 
-  type Bounds = { x0: number; x1: number; y0: number; y1: number };
-
-  /** Fly the camera to a view rect framing a world-space bbox. The generic
-   * primitive every "focus on something" path goes through: a single id, an
-   * edge's two endpoints, any set of elements — all reduce to their union
-   * bbox and frame it here. */
-  const focusBounds = (bounds: Bounds, padding = 2.5) => {
-    // point geometry (ports) gets a fixed frame; padding then scales it
-    const w = bounds.x1 - bounds.x0 || 60;
-    const h = bounds.y1 - bounds.y0 || 60;
-    // frame the bbox with padding: at the default the target ends up
-    // ~40% of the view; larger paddings frame its neighborhood instead
-    const viewW = Math.max(w, (h * WIDTH) / HEIGHT) * padding;
-    setFocusRequest({
-      cx: (bounds.x0 + bounds.x1) / 2,
-      cy: (bounds.y0 + bounds.y1) / 2,
-      viewW,
-      token: (focusRequest?.token ?? 0) + 1,
-    });
-  };
-
   /** Union bbox of several elements' geometry; null if none resolve. */
   const boundsOfIds = (ids: readonly string[]): Bounds | null => {
     let acc: Bounds | null = null;
@@ -2165,8 +2140,7 @@ export function App() {
     onSelectEdge: selectEdge,
     onFocusId: jumpTo,
     onTiltDrag,
-    onViewSettle: (center, zoom) =>
-      setViewInfo({ x: center.x, y: center.y, zoom }),
+    onViewSettle,
   };
   const scene = buildScene({
     rings: ringsRef.current,
