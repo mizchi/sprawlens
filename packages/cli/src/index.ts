@@ -12,6 +12,7 @@ import { PROVIDERS, detectProviders } from "@sprawlens/providers";
 import { createAtlasServer, watchDir, workingDiff } from "@sprawlens/server";
 import { readSprawlensConfig } from "./config.js";
 import { renderTui, type ChangeKind } from "./tui.js";
+import { runTuiApp } from "./tuiApp.js";
 
 const program = new Command();
 
@@ -93,6 +94,7 @@ program
   .option("--cols <n>", "grid width (default: terminal width)", (v) => Number.parseInt(v, 10))
   .option("--rows <n>", "grid height (default: terminal height)", (v) => Number.parseInt(v, 10))
   .option("--watch", "re-render on file changes")
+  .option("-i, --interactive", "hover for full names, click/Enter to zoom")
   .option("--no-diff", "do not tint working-tree changes")
   .action(
     async (
@@ -102,6 +104,7 @@ program
         cols?: number;
         rows?: number;
         watch?: boolean;
+        interactive?: boolean;
         diff: boolean;
       },
     ): Promise<void> => {
@@ -118,17 +121,29 @@ program
         ? () => incremental.analyze()
         : () => provider.analyze(root);
 
+      const diffOf = async (): Promise<Map<string, ChangeKind> | undefined> => {
+        if (!options.diff) return undefined;
+        try {
+          const diff = await workingDiff(root);
+          return new Map(Object.entries(diff.changed));
+        } catch {
+          return undefined; // not a git repo, or git unavailable
+        }
+      };
+
+      if (options.interactive && process.stdin.isTTY) {
+        const snapshot = applyLayers(await analyze(), config);
+        await runTuiApp({
+          snapshot,
+          changed: await diffOf(),
+          repoName: basename(root),
+        });
+        return;
+      }
+
       const render = async (): Promise<void> => {
         const snapshot = applyLayers(await analyze(), config);
-        let changed: Map<string, ChangeKind> | undefined;
-        if (options.diff) {
-          try {
-            const diff = await workingDiff(root);
-            changed = new Map(Object.entries(diff.changed));
-          } catch {
-            // not a git repo, or git unavailable — render without tint
-          }
-        }
+        const changed = await diffOf();
         const cols = options.cols ?? process.stdout.columns ?? 80;
         const rows =
           options.rows ?? (process.stdout.rows ? process.stdout.rows - 1 : 30);

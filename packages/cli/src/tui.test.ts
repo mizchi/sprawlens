@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { CodeSymbol, Snapshot } from "@sprawlens/schema";
-import { renderTui } from "./tui.js";
+import { buildForest, layoutTiles, renderTui, tileAt } from "./tui.js";
 
 const commit = {
   hash: "W",
@@ -100,5 +100,34 @@ describe("renderTui", () => {
     const out = renderTui(snap([]), { cols: 10, rows: 4 });
     expect(stripAnsi(out).split("\n")).toHaveLength(4);
     expect(stripAnsi(out).trim()).toBe("");
+  });
+});
+
+describe("buildForest (interactive navigation)", () => {
+  it("assigns stable paths and parent links for zoom + breadcrumb", () => {
+    const { byPath, parentOf } = buildForest(
+      snap([{ path: "core/engine.ts", loc: 200, symbols: [sym("solve", 120)] }]),
+    );
+    expect(byPath.has("core")).toBe(true); // module
+    expect(byPath.has("core/engine.ts")).toBe(true); // file
+    expect(byPath.has("core/engine.ts#solve")).toBe(true); // symbol
+    expect(parentOf.get("core/engine.ts#solve")).toBe("core/engine.ts");
+    expect(parentOf.get("core/engine.ts")).toBe("core");
+    expect(parentOf.get("core")).toBe(""); // top
+  });
+});
+
+describe("tileAt (hit-testing)", () => {
+  it("returns the deepest tile under a point", () => {
+    const { modules } = buildForest(
+      snap([{ path: "core/engine.ts", loc: 200, symbols: [sym("solve", 180)] }]),
+    );
+    const tiles = layoutTiles(modules, { x: 0, y: 0, w: 60, h: 24 });
+    // a point well inside resolves to the innermost (symbol) tile, not the module
+    const center = tileAt(tiles, 30, 12);
+    expect(center).not.toBeNull();
+    expect(center!.node.path).toContain("core/engine.ts"); // file or symbol, not bare module
+    // outside the grid → nothing
+    expect(tileAt(tiles, 999, 999)).toBeNull();
   });
 });
