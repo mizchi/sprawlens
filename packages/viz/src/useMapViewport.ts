@@ -93,7 +93,22 @@ export function useMapViewport(options: {
   const commitView = () => {
     const v = { ...viewRef.current };
     setCommittedView(v);
-    onViewSettle?.({ x: v.x + v.w / 2, y: v.y + v.h / 2 }, width / v.w);
+    // The LOD focus is the world point under the *screen* center. With the
+    // plane tilted, that is not the viewBox center — invert the tilted group's
+    // CTM (viewBox + tilt affine) at the screen midpoint so the budget keeps
+    // prioritizing what's visually centered after a rotation, not before it.
+    let center = { x: v.x + v.w / 2, y: v.y + v.h / 2 };
+    const svg = svgRef.current;
+    const rect = svg?.getBoundingClientRect();
+    const ctm = contentRef.current?.getScreenCTM() ?? svg?.getScreenCTM();
+    if (rect && ctm) {
+      const p = new DOMPoint(
+        rect.left + rect.width / 2,
+        rect.top + rect.height / 2,
+      ).matrixTransform(ctm.inverse());
+      center = { x: p.x, y: p.y };
+    }
+    onViewSettle?.(center, width / v.w);
   };
   const applyView = () => {
     const v = viewRef.current;
@@ -263,7 +278,17 @@ export function useMapViewport(options: {
       if (drag?.pointerId === e.pointerId) {
         // ~5px of accumulated motion = a pan, not a click
         if (drag.moved > 5) suppressClickRef.current = true;
+        const tilted = drag.mode === "tilt" && drag.moved > 0;
         dragRef.current = null;
+        // a rotation moved where the screen center maps in world space; recommit
+        // so the LOD focus follows it, once the new affine has rendered
+        if (tilted) {
+          clearTimeout(commitTimer.current);
+          commitTimer.current = window.setTimeout(() => {
+            commitTimer.current = 0;
+            commitView();
+          }, COMMIT_MS);
+        }
       }
     },
   };
