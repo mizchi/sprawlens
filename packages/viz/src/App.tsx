@@ -15,6 +15,8 @@ import { Controls, type PlaygroundParams } from "./Controls.tsx";
 import { CameraPanel, LayersMenu } from "./OverlayPanels.tsx";
 import { SvgRenderer } from "./renderer/SvgRenderer.tsx";
 import type { MapHandlers, MapScene } from "./renderer/contract.ts";
+import { useViewportSize } from "./useViewportSize.ts";
+import { useAltKey } from "./useAltKey.ts";
 import {
   buildSatelliteLayers,
   DEFAULT_LAYER_MANIFEST,
@@ -278,35 +280,11 @@ export function App() {
   // The treemap lays out at the viewport's real pixel size so the map
   // maximizes the screen; resizes re-solve the layout, so they throttle
   // to one rebuild per pause. Rings keep the fixed canvas (radial scale).
-  const [mapSize, setMapSize] = useState({ width: WIDTH, height: HEIGHT });
-  const mapSizeRef = useRef(mapSize);
-  mapSizeRef.current = mapSize;
-  const mapContainerRef = useRef<HTMLDivElement>(null);
-  useEffect(() => {
-    const element = mapContainerRef.current;
-    if (!element) return;
-    let timer = 0;
-    const apply = () => {
-      const rect = element.getBoundingClientRect();
-      const width = Math.max(320, Math.round(rect.width));
-      const height = Math.max(240, Math.round(rect.height));
-      setMapSize((prev) =>
-        Math.abs(prev.width - width) < 2 && Math.abs(prev.height - height) < 2
-          ? prev
-          : { width, height },
-      );
-    };
-    apply();
-    const observer = new ResizeObserver(() => {
-      clearTimeout(timer);
-      timer = window.setTimeout(apply, 250);
-    });
-    observer.observe(element);
-    return () => {
-      observer.disconnect();
-      clearTimeout(timer);
-    };
-  }, []);
+  const {
+    size: mapSize,
+    sizeRef: mapSizeRef,
+    ref: mapContainerRef,
+  } = useViewportSize({ width: WIDTH, height: HEIGHT });
   // swap the live-binding palette before any child reads it this render
   setMapTheme(params.dark);
   /** Leaf unit, derived from the checked display levels. */
@@ -1867,21 +1845,8 @@ export function App() {
     return () => window.removeEventListener("keydown", onKey);
   }, []);
 
-  // hold alt to reveal every cross-layer edge at once (the default is hover-
-  // gated). a blur resets it so a lost keyup doesn't leave it stuck on.
-  const [altEdges, setAltEdges] = useState(false);
-  useEffect(() => {
-    const sync = (e: KeyboardEvent) => setAltEdges(e.altKey);
-    const clear = () => setAltEdges(false);
-    window.addEventListener("keydown", sync);
-    window.addEventListener("keyup", sync);
-    window.addEventListener("blur", clear);
-    return () => {
-      window.removeEventListener("keydown", sync);
-      window.removeEventListener("keyup", sync);
-      window.removeEventListener("blur", clear);
-    };
-  }, []);
+  // hold alt to reveal every cross-layer edge at once (default is hover-gated)
+  const altEdges = useAltKey();
 
   const selectedIdsRef = useRef(selectedIds);
   selectedIdsRef.current = selectedIds;
