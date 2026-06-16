@@ -146,8 +146,10 @@ export async function runTuiApp(opts: {
   };
   const zoomOut = () => {
     if (rootPath === "") return;
+    // re-select the box we were zoomed into, so backing out keeps your place
+    const leaving = rootPath;
     rootPath = forest.parentOf.get(rootPath) ?? "";
-    hoverPath = null;
+    hoverPath = leaving;
     render();
   };
 
