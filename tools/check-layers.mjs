@@ -36,6 +36,7 @@ const ALLOWED = {
   "@sprawlens/cli": [
     "@sprawlens/contracts",
     "@sprawlens/schema",
+    "@sprawlens/layout",
     "@sprawlens/providers",
     "@sprawlens/analyzer-ts",
     "@sprawlens/server",

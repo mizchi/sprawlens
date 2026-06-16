@@ -23,3 +23,4 @@ export * from "./scc.js";
 export * from "./topoRank.js";
 export * from "./transitiveWeight.js";
 export * from "./vec.js";
+export * from "./squarify.js";

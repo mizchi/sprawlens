@@ -9,6 +9,7 @@
     ".": "./src/index.ts"
   },
   "dependencies": {
+    "@sprawlens/layout": "workspace:^",
     "commander": "^14.0.0",
     "fast-glob": "^3.3.3",
     "smol-toml": "^1.6.1",

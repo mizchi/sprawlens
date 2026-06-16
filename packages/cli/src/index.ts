@@ -11,6 +11,7 @@ import { applyLayers, layerManifest } from "@sprawlens/schema";
 import { PROVIDERS, detectProviders } from "@sprawlens/providers";
 import { createAtlasServer } from "@sprawlens/server";
 import { readSprawlensConfig } from "./config.js";
+import { renderTui } from "./tui.js";
 
 const program = new Command();
 
@@ -79,6 +80,33 @@ program
         console.log(`sprawlens: ${url}`);
         if (options.open) openBrowser(url);
       });
+    },
+  );
+
+program
+  .command("tui")
+  .description("print the repository's module map as a treemap in the terminal")
+  .argument("[repo]", "repository path", ".")
+  .option("--lang <id>", "force a language provider (typescript|go|rust|moonbit)")
+  .option("--cols <n>", "grid width (default: terminal width)", (v) => Number.parseInt(v, 10))
+  .option("--rows <n>", "grid height (default: terminal height)", (v) => Number.parseInt(v, 10))
+  .action(
+    async (
+      repo: string,
+      options: { lang?: string; cols?: number; rows?: number },
+    ): Promise<void> => {
+      const root = resolve(repo);
+      const config = (await readSprawlensConfig(root)) ?? {};
+      const provider = await chooseProvider(root, options.lang ?? config.lang);
+      if (!provider) {
+        process.exitCode = 1;
+        return;
+      }
+      const snapshot = applyLayers(await provider.analyze(root), config);
+      const cols = options.cols ?? process.stdout.columns ?? 80;
+      const rows =
+        options.rows ?? (process.stdout.rows ? process.stdout.rows - 1 : 30);
+      console.log(renderTui(snapshot, { cols, rows }));
     },
   );
 
