@@ -60,6 +60,10 @@ export type PlaygroundParams = {
   showEdges: boolean;
   /** Dark map + chrome; defaults to the system preference. */
   dark: boolean;
+  /** Minimum on-screen px a symbol/directory label needs to be drawn. */
+  labelMinPx: number;
+  /** Multiplier on label font size. */
+  labelScale: number;
   /** Stacked-plane tilt; off keeps the flat top-down view. */
   tilt: TiltParams;
 };
@@ -194,6 +198,34 @@ export function Controls(props: Props) {
           checked={params.showEdges}
           onInput={(e) =>
             set("showEdges", (e.target as HTMLInputElement).checked)
+          }
+        />
+      </label>
+      <label style={row}>
+        <span style={{ width: "110px" }}>label min {params.labelMinPx}px</span>
+        <input
+          type="range"
+          min="3"
+          max="40"
+          step="1"
+          value={params.labelMinPx}
+          style={{ flex: 1 }}
+          onInput={(e) =>
+            set("labelMinPx", Number((e.target as HTMLInputElement).value))
+          }
+        />
+      </label>
+      <label style={row}>
+        <span style={{ width: "110px" }}>label size {params.labelScale.toFixed(2)}×</span>
+        <input
+          type="range"
+          min="0.5"
+          max="2.5"
+          step="0.05"
+          value={params.labelScale}
+          style={{ flex: 1 }}
+          onInput={(e) =>
+            set("labelScale", Number((e.target as HTMLInputElement).value))
           }
         />
       </label>

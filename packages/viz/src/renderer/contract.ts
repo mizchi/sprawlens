@@ -57,6 +57,10 @@ type SceneCommon = {
   width: number;
   height: number;
   tilt: TiltParams;
+  /** Minimum on-screen px a label needs to be drawn (slider-tunable). */
+  labelMinPx: number;
+  /** Label font-size multiplier (slider-tunable). */
+  labelScale: number;
 };
 
 /** Rings-specific affordances (concentric module layout, API ports, symbol net). */

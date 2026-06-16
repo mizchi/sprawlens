@@ -40,6 +40,8 @@ export function SvgRenderer({
         portNodes={scene.portNodes}
         width={scene.width}
         height={scene.height}
+        labelMinPx={scene.labelMinPx}
+        labelScale={scene.labelScale}
         tilt={scene.tilt}
         onTiltDrag={handlers.onTiltDrag}
         selectedId={handlers.selectedId}
@@ -74,6 +76,8 @@ export function SvgRenderer({
       focus={scene.focus}
       width={scene.width}
       height={scene.height}
+      labelMinPx={scene.labelMinPx}
+      labelScale={scene.labelScale}
       tilt={scene.tilt}
       onTiltDrag={handlers.onTiltDrag}
       selectedId={handlers.selectedId}

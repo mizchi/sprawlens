@@ -27,6 +27,8 @@ const base: SceneInput = {
   hiddenLayers: new Set(),
   showEdges: false,
   tilt: { enabled: false, theta: 0, pitch: 0, layers: {}, gap: 0 },
+  labelMinPx: 9,
+  labelScale: 1,
   ringsExtent: { width: 960, height: 640 },
   treemapExtent: { width: 800, height: 600 },
 };

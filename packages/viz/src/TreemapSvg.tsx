@@ -94,6 +94,10 @@ type Props = {
   visibleLevels?: ReadonlySet<string>;
   /** Kind of the leaf cells ("file" or "symbol"). */
   leafKind?: string;
+  /** Minimum on-screen px a label needs to be drawn (slider-tunable). */
+  labelMinPx?: number;
+  /** Label font-size multiplier (slider-tunable). */
+  labelScale?: number;
   /** Dynamic CFG diagrams hosted by symbol cells (zoom-gated). */
   cfgEntries?: CfgEntry[];
   width: number;
@@ -128,6 +132,14 @@ const MEMBER_TAG_MIN_PX = 55;
 
 export function TreemapSvg(props: Props) {
   const { state, width, height, tilt, onTiltDrag, selectedId, onSelect } = props;
+  // slider-tunable label sizing: floor (min on-screen px) + font multiplier;
+  // labelFactor (9px baseline) scales the visibility gates too
+  const labelMinPx = props.labelMinPx ?? 9;
+  const labelScale = props.labelScale ?? 1;
+  const labelFactor = labelMinPx / 9;
+  /** Font size (world units) clamped to [labelMinPx, maxPx] on screen, scaled. */
+  const labelFont = (worldBase: number, maxPx: number, zoom: number): number =>
+    (Math.min(Math.max(worldBase, labelMinPx / zoom), maxPx / zoom) * labelScale);
   const multiSelected = props.selectedIds ?? new Set<string>();
   const isSelected = (id: string): boolean =>
     id === selectedId || multiSelected.has(id);
@@ -634,15 +646,12 @@ export function TreemapSvg(props: Props) {
             const onScreen = Math.sqrt(cell.actualArea) * zoom;
             const roomy =
               zoom >= SYMBOL_ZOOM &&
-              onScreen >= (isMember ? MEMBER_TAG_MIN_PX : SYMBOL_ICON_MIN_PX);
+              onScreen >= (isMember ? MEMBER_TAG_MIN_PX : SYMBOL_ICON_MIN_PX) * labelFactor;
             const passes = isMember
               ? roomy || isSelected(cell.id)
               : fileSelected || dominant || roomy || isSelected(cell.id);
             if (!passes) return null;
-            const fontSize = Math.min(
-              Math.max(Math.sqrt(cell.actualArea) * 0.3, 9 / zoom),
-              13 / zoom,
-            );
+            const fontSize = labelFont(Math.sqrt(cell.actualArea) * 0.3, 13, zoom);
             return (
               <SymbolTag
                 key={cell.id}
@@ -795,10 +804,7 @@ export function TreemapSvg(props: Props) {
         {[...topCells.values()].map((cell) => {
           if (cell.polygon.length < 3) return null;
           // screen-px cap: district names stay readable, never dominant
-          const fontSize = Math.min(
-            Math.sqrt(cell.actualArea) * 0.18,
-            28 / zoom,
-          );
+          const fontSize = labelFont(Math.sqrt(cell.actualArea) * 0.18, 28, zoom);
           return (
             <text
               key={cell.id}
@@ -834,15 +840,12 @@ export function TreemapSvg(props: Props) {
           // members stay collapsed until their cell is large on screen
           const isMember = kind === "method" || kind === "property" ||
             kind === "static-method" || kind === "static-property";
-          if (px < (isMember ? MEMBER_TAG_MIN_PX : 28) && !isSelected(cell.id)) {
+          if (px < (isMember ? MEMBER_TAG_MIN_PX : 28) * labelFactor && !isSelected(cell.id)) {
             return null;
           }
           // screen-px cap (like rings): the name stays modest while
           // zooming until the watermark copy takes over
-          const fontSize = Math.min(
-            Math.max(Math.sqrt(cell.actualArea) * 0.14, 9 / zoom),
-            18 / zoom,
-          );
+          const fontSize = labelFont(Math.sqrt(cell.actualArea) * 0.14, 18, zoom);
           const glyph = symbolGlyphOf(kind, name);
           return (
             <SymbolTag

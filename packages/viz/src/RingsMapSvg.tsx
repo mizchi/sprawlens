@@ -118,6 +118,10 @@ type Props = {
   cyclicModuleIds?: Set<string>;
   width: number;
   height: number;
+  /** Minimum on-screen px a label needs to be drawn (slider-tunable). */
+  labelMinPx?: number;
+  /** Label font-size multiplier (slider-tunable). */
+  labelScale?: number;
   /** Stacked-plane tilt; when enabled the content group carries its affine. */
   tilt?: TiltParams;
   /** Alt+drag tilt deltas (screen px) bubbled up from the viewport. */
@@ -680,6 +684,13 @@ export function RingsMapSvg(props: Props) {
   // beyond symbol zoom, fixed screen-px caps make labels look tiny inside
   // huge cells; let the cap grow gently (sqrt, at most 2.5x)
   const labelGrowth = Math.min(2.5, Math.max(1, Math.sqrt(zoom / SYMBOL_ZOOM)));
+  // slider-tunable label sizing: labelMin is the minimum *drawn* on-screen px
+  // below which a label is dropped entirely (9px is the baseline), and
+  // labelScale multiplies the drawn font. labelFactor scales the secondary
+  // visibility thresholds (symbol roominess/dominance) in step with labelMin.
+  const labelMin = props.labelMinPx ?? 9;
+  const labelFactor = labelMin / 9;
+  const labelScale = props.labelScale ?? 1;
   const screenFont = (
     worldBase: number,
     min: number,
@@ -691,7 +702,11 @@ export function RingsMapSvg(props: Props) {
     // natural size beyond hideAbove means the viewport sits inside the cell;
     // its label is just noise there
     if ((screen < min || screen > hideAbove) && !force) return null;
-    return Math.min(Math.max(screen, min), max * labelGrowth) / zoom;
+    // final drawn size, clamped to the screen-px band then user-scaled
+    const px = labelScale * Math.min(Math.max(screen, min), max * labelGrowth);
+    // the user's minimum drawn size: anything smaller is just noise
+    if (px < labelMin) return null;
+    return px / zoom;
   };
   /** Screen-constant radius in world units. */
   const screenRadius = (px: number) => px / zoom;
@@ -837,6 +852,8 @@ export function RingsMapSvg(props: Props) {
         labels={labels}
         visibleLevels={props.visibleLevels}
         tilt={tiltAffine}
+        labelMinPx={props.labelMinPx}
+        labelScale={props.labelScale}
       />
       <g style={{ display: sourceVisible ? "" : "none" }}>
         {visibleFileCells.map((cell) => {
@@ -1428,7 +1445,7 @@ export function RingsMapSvg(props: Props) {
               const fileSelected = isSelected(parentFileOf(cell.id));
               const dominant =
                 Math.sqrt(cell.actualArea) * zoom >=
-                Math.min(width, height) * SYMBOL_DOMINANT_FRACTION;
+                Math.min(width, height) * SYMBOL_DOMINANT_FRACTION * labelFactor;
               const name = labels.get(cell.id) ?? fallbackLabel(cell.id);
               const kind = props.symbolKindOf?.(cell.id);
               const glyph = symbolGlyphOf(kind, name);
@@ -1438,7 +1455,8 @@ export function RingsMapSvg(props: Props) {
               const onScreen = Math.sqrt(cell.actualArea) * zoom;
               const roomy =
                 symbolMode &&
-                onScreen >= (isMember ? MEMBER_TAG_MIN_PX : SYMBOL_ICON_MIN_PX);
+                onScreen >=
+                  (isMember ? MEMBER_TAG_MIN_PX : SYMBOL_ICON_MIN_PX) * labelFactor;
               // members never ride the dominant/linked shortcut — only room
               const passes = isMember
                 ? roomy || cell.id === selectedId

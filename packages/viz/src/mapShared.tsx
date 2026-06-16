@@ -335,7 +335,12 @@ export function InnerLevelsLayer(props: {
   visibleLevels?: ReadonlySet<string>;
   /** Active plane tilt; district labels stay upright on the plane. */
   tilt?: Affine;
+  /** Slider-tunable label sizing: 9px baseline factor + font multiplier. */
+  labelMinPx?: number;
+  labelScale?: number;
 }) {
+  const labelFactor = (props.labelMinPx ?? 9) / 9;
+  const labelScale = props.labelScale ?? 1;
   const { levels, topAncestorOf, isSelected, onSelect, dim, zoom } = props;
   const visible = (kind: string) => props.visibleLevels?.has(kind) ?? true;
   return (
@@ -410,13 +415,15 @@ export function InnerLevelsLayer(props: {
             if (level.kind === "class" && !isClassGroup) return null;
             const px = Math.sqrt(cell.actualArea) * zoom;
             // class labels track their (deep-zoom) outline; others at 80px
-            const labelGate = isClassGroup ? CLASS_BORDER_MIN_PX : 80;
+            const labelGate =
+              (isClassGroup ? CLASS_BORDER_MIN_PX : 80) * labelFactor;
             if (px < labelGate && !isSelected(cell.id)) return null;
             const top = topAncestorOf(cell.id) ?? "";
-            const fontSize = Math.min(
-              Math.sqrt(cell.actualArea) * 0.12,
-              16 / zoom + 4,
-            );
+            const fontSize =
+              Math.min(Math.sqrt(cell.actualArea) * 0.12, 16 / zoom + 4) * labelScale;
+            // honour the user's minimum drawn size: drop labels smaller than it
+            if (fontSize * zoom < (props.labelMinPx ?? 9) && !isSelected(cell.id))
+              return null;
             const label =
               props.labels?.get(cell.id) ??
               (isClassGroup

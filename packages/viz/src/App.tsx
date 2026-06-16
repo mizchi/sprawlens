@@ -201,6 +201,9 @@ export function App() {
     diffBase: "",
     // ambient edges add noise; macro module deps are opt-in via this toggle
     showEdges: false,
+    // label visibility floor (on-screen px) + font multiplier, slider-tunable
+    labelMinPx: 9,
+    labelScale: 1,
     // flat top-down by default; the stacked-plane tilt is opt-in. when on, the
     // planes lie back (pitch) as axis-aligned rectangles — alt+drag tilts them.
     tilt: {
@@ -1950,6 +1953,8 @@ export function App() {
     hiddenLayers: new Set(hiddenLayersOf(params.omit)),
     showEdges: params.showEdges,
     tilt: params.tilt,
+    labelMinPx: params.labelMinPx,
+    labelScale: params.labelScale,
     ringsExtent: { width: WIDTH, height: HEIGHT },
     treemapExtent: mapSize,
   });

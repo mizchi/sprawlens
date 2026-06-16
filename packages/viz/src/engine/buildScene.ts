@@ -43,6 +43,8 @@ export type SceneInput = {
   /** `params.showEdges` toggle (symbol granularity forces edges on for rings). */
   showEdges: boolean;
   tilt: TiltParams;
+  labelMinPx: number;
+  labelScale: number;
   /** Rings keep a fixed canvas; the treemap follows the viewport. */
   ringsExtent: { width: number; height: number };
   treemapExtent: { width: number; height: number };
@@ -69,6 +71,8 @@ export function buildScene(i: SceneInput): MapScene | null {
     parentFileOf: i.parentFileOf,
     changedOf: i.changedOf,
     tilt: i.tilt,
+    labelMinPx: i.labelMinPx,
+    labelScale: i.labelScale,
   };
   if (i.rings) {
     return {
