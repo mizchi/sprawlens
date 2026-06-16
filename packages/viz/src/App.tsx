@@ -14,9 +14,11 @@ import { createRng, type Rng } from "@sprawlens/layout";
 import { Controls, type PlaygroundParams } from "./Controls.tsx";
 import { CameraPanel, LayersMenu } from "./OverlayPanels.tsx";
 import { SvgRenderer } from "./renderer/SvgRenderer.tsx";
-import type { MapHandlers, MapScene } from "./renderer/contract.ts";
+import type { MapHandlers } from "./renderer/contract.ts";
+import { buildScene } from "./engine/buildScene.ts";
 import { useViewportSize } from "./useViewportSize.ts";
 import { useAltKey } from "./useAltKey.ts";
+import { useColorScheme } from "./useColorScheme.ts";
 import {
   buildSatelliteLayers,
   DEFAULT_LAYER_MANIFEST,
@@ -255,28 +257,12 @@ export function App() {
   const paramsRef = useRef(params);
   paramsRef.current = params;
   // The OS color scheme drives dark mode: the initial value reads it, and
-  // this listener keeps the map in sync when the system flips (e.g. an auto
-  // day/night switch) — unless the user has taken manual control, which then
-  // wins until reload.
-  const darkOverriddenRef = useRef(false);
-  useEffect(() => {
-    if (typeof matchMedia === "undefined") return;
-    const query = matchMedia("(prefers-color-scheme: dark)");
-    const onSchemeChange = (event: MediaQueryListEvent) => {
-      if (darkOverriddenRef.current) return;
-      setParams((prev) =>
-        prev.dark === event.matches ? prev : { ...prev, dark: event.matches },
-      );
-    };
-    query.addEventListener("change", onSchemeChange);
-    return () => query.removeEventListener("change", onSchemeChange);
-  }, []);
-  /** Controls edits flow through here so a manual dark toggle pins the
-   * theme and stops the system listener from overriding it. */
-  const onControlsChange = (next: PlaygroundParams) => {
-    if (next.dark !== paramsRef.current.dark) darkOverriddenRef.current = true;
-    setParams(next);
-  };
+  // OS color-scheme sync (manual control pins the theme until reload); the
+  // returned wrapper records a manual dark toggle as the override.
+  const { onParamsChange: onControlsChange } = useColorScheme(
+    setParams,
+    () => paramsRef.current.dark,
+  );
   // The treemap lays out at the viewport's real pixel size so the map
   // maximizes the screen; resizes re-solve the layout, so they throttle
   // to one rebuild per pause. Rings keep the fixed canvas (radial scale).
@@ -2239,15 +2225,19 @@ export function App() {
     onViewSettle: (center, zoom) =>
       setViewInfo({ x: center.x, y: center.y, zoom }),
   };
-  const common = {
-    innerCells: granularity === "file" ? innerCells : [],
-    fileEdges:
-      granularity === "symbol"
-        ? displayGraphRef.current.edges
-        : graphRef.current.edges,
+  const scene = buildScene({
+    rings: ringsRef.current,
+    treemap: treemapRef.current,
+    granularity,
+    innerCells,
+    displayEdges: displayGraphRef.current.edges,
+    graphEdges: graphRef.current.edges,
+    symbolEdges: symbolEdgesRef.current,
+    lspEdges: lspOverlayEdges,
     visibleLevels,
     cfgEntries,
     cyclicIds,
+    cyclicModuleIds,
     labels,
     exportedIds,
     symbolKindOf,
@@ -2257,38 +2247,13 @@ export function App() {
     altEdges,
     parentFileOf,
     changedOf,
+    portNodes,
+    hiddenLayers: new Set(hiddenLayersOf(params.omit)),
+    showEdges: params.showEdges,
     tilt: params.tilt,
-  };
-  const scene: MapScene | null = ringsRef.current
-    ? {
-        ...common,
-        kind: "rings",
-        rings: ringsRef.current,
-        showEdges: params.showEdges || granularity === "symbol",
-        width: WIDTH,
-        height: HEIGHT,
-        symbolEdges:
-          granularity === "symbol"
-            ? displayGraphRef.current.edges
-            : symbolEdgesRef.current,
-        lspEdges: lspOverlayEdges,
-        showFiles: granularity !== "module" && visibleLevels.has(granularity),
-        compactModuleLabels: granularity === "symbol",
-        cyclicModuleIds,
-        portNodes,
-        hiddenLayers: new Set(hiddenLayersOf(params.omit)),
-      }
-    : treemapRef.current
-      ? {
-          ...common,
-          kind: "treemap",
-          state: treemapRef.current,
-          showEdges: params.showEdges,
-          width: mapSize.width,
-          height: mapSize.height,
-          leafKind: granularity === "symbol" ? "symbol" : "file",
-        }
-      : null;
+    ringsExtent: { width: WIDTH, height: HEIGHT },
+    treemapExtent: mapSize,
+  });
 
   return (
     <div
