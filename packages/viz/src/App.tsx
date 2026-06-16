@@ -13,6 +13,8 @@ import { centroid, containsPoint, type Ring } from "@sprawlens/layout";
 import { createRng, type Rng } from "@sprawlens/layout";
 import { Controls, type PlaygroundParams } from "./Controls.tsx";
 import { CameraPanel, LayersMenu } from "./OverlayPanels.tsx";
+import { SvgRenderer } from "./renderer/SvgRenderer.tsx";
+import type { MapHandlers, MapScene } from "./renderer/contract.ts";
 import {
   buildSatelliteLayers,
   DEFAULT_LAYER_MANIFEST,
@@ -51,14 +53,9 @@ import {
   stepTreemapState,
   type TreemapState,
 } from "./treemapController.ts";
-import { TreemapSvg } from "./TreemapSvg.tsx";
 import { reachSubgraph } from "@sprawlens/layout";
 import { cyclicComponents } from "@sprawlens/layout";
-import {
-  RingsMapSvg,
-  type FocusRequest,
-  type FocusView,
-} from "./RingsMapSvg.tsx";
+import type { FocusRequest, FocusView } from "./RingsMapSvg.tsx";
 import {
   createSyntheticGraph,
   synthesizeSymbolEdges,
@@ -2262,6 +2259,72 @@ export function App() {
     return "";
   };
 
+  // The renderer boundary: assemble the renderer-agnostic scene + interaction
+  // handlers, then hand them to a renderer (SVG today). Fields identical across
+  // layouts live in `common`; each layout adds its own geometry + affordances.
+  const handlers: MapHandlers = {
+    selectedId: activeId,
+    selectedIds: selectedIdSet,
+    selectedEdges,
+    focusRequest,
+    onSelect: selectNode,
+    onSelectEdge: selectEdge,
+    onFocusId: jumpTo,
+    onTiltDrag,
+    onViewSettle: (center, zoom) =>
+      setViewInfo({ x: center.x, y: center.y, zoom }),
+  };
+  const common = {
+    innerCells: granularity === "file" ? innerCells : [],
+    fileEdges:
+      granularity === "symbol"
+        ? displayGraphRef.current.edges
+        : graphRef.current.edges,
+    visibleLevels,
+    cfgEntries,
+    cyclicIds,
+    labels,
+    exportedIds,
+    symbolKindOf,
+    focus: focusView,
+    testFileIds,
+    layers: satelliteLayers,
+    altEdges,
+    parentFileOf,
+    changedOf,
+    tilt: params.tilt,
+  };
+  const scene: MapScene | null = ringsRef.current
+    ? {
+        ...common,
+        kind: "rings",
+        rings: ringsRef.current,
+        showEdges: params.showEdges || granularity === "symbol",
+        width: WIDTH,
+        height: HEIGHT,
+        symbolEdges:
+          granularity === "symbol"
+            ? displayGraphRef.current.edges
+            : symbolEdgesRef.current,
+        lspEdges: lspOverlayEdges,
+        showFiles: granularity !== "module" && visibleLevels.has(granularity),
+        compactModuleLabels: granularity === "symbol",
+        cyclicModuleIds,
+        portNodes,
+        hiddenLayers: new Set(hiddenLayersOf(params.omit)),
+      }
+    : treemapRef.current
+      ? {
+          ...common,
+          kind: "treemap",
+          state: treemapRef.current,
+          showEdges: params.showEdges,
+          width: mapSize.width,
+          height: mapSize.height,
+          leafKind: granularity === "symbol" ? "symbol" : "file",
+        }
+      : null;
+
   return (
     <div
       style={{
@@ -2284,93 +2347,7 @@ export function App() {
           overflow: "hidden",
         }}
       >
-        {ringsRef.current ? (
-          <RingsMapSvg
-            rings={ringsRef.current}
-            innerCells={granularity === "file" ? innerCells : []}
-            fileEdges={
-              granularity === "symbol"
-                ? displayGraphRef.current.edges
-                : graphRef.current.edges
-            }
-            symbolEdges={
-              granularity === "symbol"
-                ? displayGraphRef.current.edges
-                : symbolEdgesRef.current
-            }
-            lspEdges={lspOverlayEdges}
-            showEdges={params.showEdges || granularity === "symbol"}
-            showFiles={granularity !== "module" && visibleLevels.has(granularity)}
-            visibleLevels={visibleLevels}
-            cfgEntries={cfgEntries}
-            compactModuleLabels={granularity === "symbol"}
-            cyclicIds={cyclicIds}
-            cyclicModuleIds={cyclicModuleIds}
-            labels={labels}
-            exportedIds={exportedIds}
-            symbolKindOf={symbolKindOf}
-            focus={focusView}
-            testFileIds={testFileIds}
-            layers={satelliteLayers}
-            altEdges={altEdges}
-            hiddenLayers={new Set(hiddenLayersOf(params.omit))}
-            parentFileOf={parentFileOf}
-            changedOf={changedOf}
-            portNodes={portNodes}
-            width={WIDTH}
-            height={HEIGHT}
-            tilt={params.tilt}
-            onTiltDrag={onTiltDrag}
-            selectedId={activeId}
-            selectedIds={selectedIdSet}
-            selectedEdges={selectedEdges}
-            onSelect={selectNode}
-            onSelectEdge={selectEdge}
-            onFocusId={jumpTo}
-            focusRequest={focusRequest}
-            onViewSettle={(center, zoom) =>
-              setViewInfo({ x: center.x, y: center.y, zoom })
-            }
-          />
-        ) : treemapRef.current ? (
-          <TreemapSvg
-            state={treemapRef.current}
-            innerCells={granularity === "file" ? innerCells : []}
-            exportedIds={exportedIds}
-            symbolKindOf={symbolKindOf}
-            parentFileOf={parentFileOf}
-            fileEdges={
-              granularity === "symbol"
-                ? displayGraphRef.current.edges
-                : graphRef.current.edges
-            }
-            showEdges={params.showEdges}
-            visibleLevels={visibleLevels}
-            cfgEntries={cfgEntries}
-            leafKind={granularity === "symbol" ? "symbol" : "file"}
-            labels={labels}
-            changedOf={changedOf}
-            cyclicIds={cyclicIds}
-            testFileIds={testFileIds}
-            layers={satelliteLayers}
-            altEdges={altEdges}
-            focus={focusView}
-            width={mapSize.width}
-            height={mapSize.height}
-            tilt={params.tilt}
-            onTiltDrag={onTiltDrag}
-            selectedId={activeId}
-            selectedIds={selectedIdSet}
-            selectedEdges={selectedEdges}
-            onSelect={selectNode}
-            onSelectEdge={selectEdge}
-            onFocusId={jumpTo}
-            focusRequest={focusRequest}
-            onViewSettle={(center, zoom) =>
-              setViewInfo({ x: center.x, y: center.y, zoom })
-            }
-          />
-        ) : null}
+        {scene ? <SvgRenderer scene={scene} {...handlers} /> : null}
         {/* hierarchy breadcrumb: selection path, or the crosshair target */}
         {breadcrumb.length > 0 ? (
           <div
