@@ -85,6 +85,39 @@ function symbolOf(
   };
 }
 
+/** The module paths in a go.mod's `require` directives (single + block form). */
+function goRequires(goMod: string): string[] {
+  const mods: string[] = [];
+  // single-line: `require example.com/m v1.2.3`
+  for (const m of goMod.matchAll(/^\s*require\s+(\S+)\s+v\S+/gm)) mods.push(m[1]!);
+  // block: `require (` … `example.com/m v1.2.3 // indirect` … `)`
+  for (const block of goMod.matchAll(/require\s*\(([\s\S]*?)\)/g)) {
+    for (const line of block[1]!.split("\n")) {
+      const m = line.match(/^\s*(\S+)\s+v\S+/);
+      if (m) mods.push(m[1]!);
+    }
+  }
+  // longest module first, so prefix matching picks the most specific
+  return [...new Set(mods)].sort((a, b) => b.length - a.length);
+}
+
+/**
+ * Classify an external import path: the standard library (no dot in the first
+ * path segment — `fmt`, `path/filepath`) versus a third-party dependency,
+ * grouped to its go.mod module (`github.com/x/y/sub` → `github.com/x/y`) so the
+ * deps view shows modules, not every sub-package.
+ */
+function classifyGoExternal(
+  path: string,
+  requires: readonly string[],
+): { group: string; stdlib: boolean } {
+  if (!path.split("/")[0]!.includes(".")) return { group: path, stdlib: true };
+  const mod = requires.find((m) => path === m || path.startsWith(`${m}/`));
+  // fall back to host/org/repo when the module isn't pinned in go.mod
+  const group = mod ?? path.split("/").slice(0, 3).join("/");
+  return { group, stdlib: false };
+}
+
 /** A package import + the name it is referenced by (alias or last path segment). */
 type GoImport = { path: string; alias: string };
 /** A `pkg.Name` usage: the line, the package alias, and the selected name. */
@@ -188,13 +221,15 @@ export async function snapshotGoWorkingTree(
   });
   files.sort();
 
-  // go.mod module path lets us resolve imports under it to local packages
+  // go.mod gives the module path (for local resolution) and the require list
+  // (the project's third-party dependencies, for grouping external imports)
   let modulePath = "";
+  let requires: string[] = [];
   if (existsSync(posix.join(repoPath, "go.mod"))) {
-    const m = (await readFile(posix.join(repoPath, "go.mod"), "utf8")).match(
-      /^\s*module\s+(\S+)/m,
-    );
+    const goMod = await readFile(posix.join(repoPath, "go.mod"), "utf8");
+    const m = goMod.match(/^\s*module\s+(\S+)/m);
     if (m) modulePath = m[1]!;
+    requires = goRequires(goMod);
   }
 
   const nodes: CodeNode[] = [{ id: "repo", type: "repo", name: repoName }];
@@ -271,6 +306,7 @@ export async function snapshotGoWorkingTree(
     const parent = dir ? `dir:${dir}` : "repo";
     edges.push({ id: `contains:${parent}->${id}`, type: "contains", from: parent, to: id });
     const seenImport = new Set<string>();
+    const seenExternal = new Set<string>();
     for (const imp of f.imports) {
       if (seenImport.has(imp.path)) continue;
       seenImport.add(imp.path);
@@ -304,14 +340,20 @@ export async function snapshotGoWorkingTree(
           });
         }
       } else {
+        // group sub-packages to their go.mod module and tag stdlib, then dedupe
+        // so each dependency/stdlib package is one edge per file
+        const { group, stdlib } = classifyGoExternal(spec, requires);
+        if (seenExternal.has(group)) continue;
+        seenExternal.add(group);
         edges.push({
-          id: `imports:${id}->external:${spec}:${spec}`,
+          id: `imports:${id}->external:${group}:${group}`,
           type: "imports",
           from: id,
-          to: `external:${spec}`,
-          specifier: spec,
+          to: `external:${group}`,
+          specifier: group,
           resolved: false,
           external: true,
+          ...(stdlib ? { stdlib: true } : {}),
         });
       }
     }

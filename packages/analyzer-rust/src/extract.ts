@@ -87,6 +87,15 @@ function symbolOf(
   };
 }
 
+/** The implicit standard-library crates: external, but not project deps. */
+const RUST_STDLIB: ReadonlySet<string> = new Set([
+  "std",
+  "core",
+  "alloc",
+  "proc_macro",
+  "test",
+]);
+
 /** A `use` declaration: the resolvable path + the names it brings into scope. */
 type RustUse = { path: string; names: string[] };
 
@@ -463,6 +472,7 @@ export async function snapshotRustWorkingTree(
           specifier: r.external,
           resolved: false,
           external: true,
+          ...(RUST_STDLIB.has(r.external) ? { stdlib: true } : {}),
         });
       }
     }

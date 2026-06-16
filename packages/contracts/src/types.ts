@@ -118,8 +118,13 @@ export type ImportsEdge = {
   specifier: string;
   resolved: boolean;
   /** An import of an external package (bare specifier); `to` is a synthetic
-   * `external:<specifier>` id with no node, like unresolved imports. */
+   * `external:<specifier>` id with no node, like unresolved imports. The
+   * specifier is grouped to the dependency unit (the go.mod module, the Cargo
+   * crate), not the raw sub-path. */
   external?: boolean;
+  /** A standard-library import (Go stdlib, Rust std/core/alloc, ...): external
+   * but not a project dependency, so the deps view excludes it by default. */
+  stdlib?: boolean;
   bindings?: CodeImportBinding[];
   symbolImports?: CodeSymbolImport[];
 };

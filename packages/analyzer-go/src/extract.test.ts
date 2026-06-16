@@ -66,3 +66,40 @@ describe("snapshotGoWorkingTree", () => {
     ).toBe(true);
   });
 });
+
+describe("Go external dependency classification", () => {
+  let dir2: string;
+  beforeAll(async () => {
+    dir2 = await mkdtemp(join(tmpdir(), "go-deps-"));
+    await writeFile(
+      join(dir2, "go.mod"),
+      "module demo\ngo 1.22\n\nrequire github.com/foo/bar v1.2.3\n\nrequire (\n\tgithub.com/baz/qux/v2 v2.0.0 // indirect\n)\n",
+    );
+    await writeFile(
+      join(dir2, "main.go"),
+      `package main\nimport (\n\t"fmt"\n\t"path/filepath"\n\t"github.com/foo/bar/sub"\n\t"github.com/foo/bar/other"\n\t"github.com/baz/qux/v2/deep"\n)\nvar _ = fmt.Println\nvar _ = filepath.Join\nvar _ = sub.X\nvar _ = other.Y\nvar _ = deep.Z\nfunc main() {}\n`,
+    );
+  });
+  afterAll(async () => {
+    await rm(dir2, { recursive: true, force: true });
+  });
+
+  it("tags stdlib, groups sub-packages to the go.mod module, dedupes", async () => {
+    const snap = await snapshotGoWorkingTree(dir2, commit, "demo");
+    const ext = snap.edges.flatMap((e) =>
+      e.type === "imports" && e.external ? [e] : [],
+    );
+    const bySpec = new Map(ext.map((e) => [e.specifier, e]));
+    // stdlib imports are tagged
+    expect(bySpec.get("fmt")?.stdlib).toBe(true);
+    expect(bySpec.get("path/filepath")?.stdlib).toBe(true);
+    // two sub-packages of github.com/foo/bar collapse to one module edge, not stdlib
+    const bar = ext.filter((e) => e.specifier === "github.com/foo/bar");
+    expect(bar.length).toBe(1);
+    expect(bar[0]?.stdlib).toBeUndefined();
+    // the /v2 module keeps its version suffix
+    expect(bySpec.has("github.com/baz/qux/v2")).toBe(true);
+    // no raw sub-paths leak into the deps
+    expect(ext.some((e) => e.specifier === "github.com/foo/bar/sub")).toBe(false);
+  });
+});

@@ -30,7 +30,10 @@ describe("snapshotRustWorkingTree", () => {
     expect(by("helper")?.exported).toBe(false);
     expect(syms.some((s) => s.parentClass === "Greeter" && s.name === "new" && s.kind === "method")).toBe(true);
     const imports = snap.edges.filter((e) => e.type === "imports");
-    expect(imports.some((e) => e.specifier === "std" && !e.resolved)).toBe(true);
+    const stdEdge = imports.find((e) => e.specifier === "std" && !e.resolved);
+    expect(stdEdge).toBeTruthy();
+    // std/core/alloc are the standard library, tagged so the deps view hides them
+    expect(stdEdge?.type === "imports" ? stdEdge.stdlib : undefined).toBe(true);
     // use crate::util resolves to the module file
     expect(
       imports.some(
