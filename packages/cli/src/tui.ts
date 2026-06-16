@@ -17,6 +17,10 @@ export type TreeNode = {
   weight: number;
   changed?: ChangeKind;
   children?: TreeNode[];
+  /** Set on symbol leaves: the source span, for the code preview. */
+  file?: string;
+  startLine?: number;
+  endLine?: number;
 };
 
 /** A placed box: a node mapped to integer grid coordinates. `leaf` = it did not
@@ -60,10 +64,13 @@ function symbolChildren(
 ): TreeNode[] | undefined {
   if (symbols.length === 0) return undefined;
   const children: TreeNode[] = symbols.map((s) => ({
-    path: `${filePath}#${s.name}`,
+    path: `${filePath}#${s.name}:${s.startLine}`,
     label: s.name,
     weight: Math.max(s.loc, 1),
     changed,
+    file: filePath,
+    startLine: s.startLine,
+    endLine: s.endLine,
   }));
   const covered = children.reduce((s, c) => s + c.weight, 0);
   if (fileLoc - covered > 0)
@@ -160,64 +167,158 @@ export function tileAt(tiles: readonly PlacedTile[], x: number, y: number): Plac
   return hit;
 }
 
+export type Direction = "up" | "down" | "left" | "right";
+
+/**
+ * The leaf tile to move to from `fromPath` in a direction (arrow-key nav).
+ * Considers only innermost (leaf) boxes — the selectable cells — picking the
+ * nearest whose center lies in that direction, biased toward axis alignment.
+ * Returns the first leaf when nothing is selected yet, or `fromPath` if there's
+ * nothing that way.
+ */
+export function neighbor(
+  tiles: readonly PlacedTile[],
+  fromPath: string | null,
+  dir: Direction,
+): string | null {
+  const leaves = tiles.filter((t) => t.leaf);
+  if (leaves.length === 0) return null;
+  const cur = leaves.find((t) => t.node.path === fromPath);
+  if (!cur) return leaves[0]!.node.path;
+  const cx = (cur.x0 + cur.x1) / 2;
+  const cy = (cur.y0 + cur.y1) / 2;
+  let best: string | null = null;
+  let bestScore = Infinity;
+  for (const t of leaves) {
+    if (t === cur) continue;
+    const dx = (t.x0 + t.x1) / 2 - cx;
+    const dy = (t.y0 + t.y1) / 2 - cy;
+    let primary: number;
+    let perp: number;
+    if (dir === "right") {
+      if (dx <= 0.5) continue;
+      primary = dx;
+      perp = Math.abs(dy);
+    } else if (dir === "left") {
+      if (dx >= -0.5) continue;
+      primary = -dx;
+      perp = Math.abs(dy);
+    } else if (dir === "down") {
+      if (dy <= 0.5) continue;
+      primary = dy;
+      perp = Math.abs(dx);
+    } else {
+      if (dy >= -0.5) continue;
+      primary = -dy;
+      perp = Math.abs(dx);
+    }
+    const score = primary + perp * 2; // aligned first, then nearest
+    if (score < bestScore) {
+      bestScore = score;
+      best = t.node.path;
+    }
+  }
+  return best ?? fromPath;
+}
+
 const BG: Record<ChangeKind, number> = { added: 22, modified: 58 }; // 256-color
 const HOVER_BG = 24; // distinct blue for the hovered tile
 
-type Cell = { ch: string; bg: number | null };
+export type Cell = { ch: string; bg: number | null };
+export type Grid = Cell[][];
 
-/** Paint placed tiles into a `cols × rows` grid, returning the ANSI string. The
- * hovered tile is filled with a highlight background; changed leaves are tinted. */
-export function paintTiles(
-  tiles: readonly PlacedTile[],
-  cols: number,
-  rows: number,
-  hoverPath?: string | null,
-): string {
-  const grid: Cell[][] = Array.from({ length: rows }, () =>
+export function makeGrid(cols: number, rows: number): Grid {
+  return Array.from({ length: rows }, () =>
     Array.from({ length: cols }, () => ({ ch: " ", bg: null }) as Cell),
   );
-  const at = (x: number, y: number): Cell | null =>
-    x >= 0 && x < cols && y >= 0 && y < rows ? grid[y]![x]! : null;
-  const put = (x: number, y: number, ch: string) => {
-    const cell = at(x, y);
-    if (cell) cell.ch = ch;
-  };
-  const write = (x: number, y: number, text: string, max: number) => {
-    const cut =
-      text.length <= max
-        ? text
-        : max >= 2
-          ? `${text.slice(0, max - 1)}…`
-          : text.slice(0, max);
-    for (let i = 0; i < cut.length; i++) put(x + i, y, cut[i]!);
-  };
+}
 
+const cellAt = (grid: Grid, x: number, y: number): Cell | null =>
+  y >= 0 && y < grid.length && x >= 0 && x < (grid[0]?.length ?? 0) ? grid[y]![x]! : null;
+const putCh = (grid: Grid, x: number, y: number, ch: string) => {
+  const cell = cellAt(grid, x, y);
+  if (cell) cell.ch = ch;
+};
+const clipText = (text: string, max: number): string =>
+  text.length <= max ? text : max >= 2 ? `${text.slice(0, max - 1)}…` : text.slice(0, max);
+const writeText = (grid: Grid, x: number, y: number, text: string, max: number) => {
+  const cut = clipText(text, max);
+  for (let i = 0; i < cut.length; i++) putCh(grid, x + i, y, cut[i]!);
+};
+
+/** Paint placed tiles into `grid`. The hovered tile is filled with a highlight
+ * background; changed leaves are tinted. Tiles outside the grid are clipped. */
+export function paintTilesInto(
+  grid: Grid,
+  tiles: readonly PlacedTile[],
+  hoverPath?: string | null,
+): void {
   for (const t of tiles) {
     const hovered = hoverPath != null && t.node.path === hoverPath;
     const bg = hovered ? HOVER_BG : t.leaf && t.node.changed ? BG[t.node.changed] : null;
     if (bg !== null) {
       for (let yy = t.y0; yy < t.y1; yy++)
         for (let xx = t.x0; xx < t.x1; xx++) {
-          const cell = at(xx, yy);
+          const cell = cellAt(grid, xx, yy);
           if (cell) cell.bg = bg;
         }
     }
     for (let xx = t.x0; xx < t.x1; xx++) {
-      put(xx, t.y0, "─");
-      put(xx, t.y1 - 1, "─");
+      putCh(grid, xx, t.y0, "─");
+      putCh(grid, xx, t.y1 - 1, "─");
     }
     for (let yy = t.y0; yy < t.y1; yy++) {
-      put(t.x0, yy, "│");
-      put(t.x1 - 1, yy, "│");
+      putCh(grid, t.x0, yy, "│");
+      putCh(grid, t.x1 - 1, yy, "│");
     }
-    put(t.x0, t.y0, "┌");
-    put(t.x1 - 1, t.y0, "┐");
-    put(t.x0, t.y1 - 1, "└");
-    put(t.x1 - 1, t.y1 - 1, "┘");
+    putCh(grid, t.x0, t.y0, "┌");
+    putCh(grid, t.x1 - 1, t.y0, "┐");
+    putCh(grid, t.x0, t.y1 - 1, "└");
+    putCh(grid, t.x1 - 1, t.y1 - 1, "┘");
     const innerW = t.x1 - t.x0 - 2;
     if (innerW >= 1 && t.y1 - t.y0 >= 3 && t.node.label)
-      write(t.x0 + 1, t.y0 + 1, t.node.label, innerW);
+      writeText(grid, t.x0 + 1, t.y0 + 1, t.node.label, innerW);
   }
+}
+
+/** Draw a titled text panel (the symbol code preview) into a grid sub-rect. */
+export function drawPanel(
+  grid: Grid,
+  x0: number,
+  y0: number,
+  x1: number,
+  y1: number,
+  title: string,
+  lines: readonly string[],
+): void {
+  if (x1 - x0 < 2 || y1 - y0 < 2) return;
+  for (let xx = x0; xx < x1; xx++) {
+    putCh(grid, xx, y0, "─");
+    putCh(grid, xx, y1 - 1, "─");
+  }
+  for (let yy = y0; yy < y1; yy++) {
+    putCh(grid, x0, yy, "│");
+    putCh(grid, x1 - 1, yy, "│");
+  }
+  putCh(grid, x0, y0, "┌");
+  putCh(grid, x1 - 1, y0, "┐");
+  putCh(grid, x0, y1 - 1, "└");
+  putCh(grid, x1 - 1, y1 - 1, "┘");
+  const innerW = x1 - x0 - 2;
+  if (innerW >= 1) writeText(grid, x0 + 1, y0, ` ${title} `, innerW);
+  for (let i = 0; i < lines.length && y0 + 1 + i < y1 - 1; i++)
+    writeText(grid, x0 + 1, y0 + 1 + i, lines[i]!, innerW);
+}
+
+/** Paint tiles into a fresh grid and return the ANSI string (static render). */
+export function paintTiles(
+  tiles: readonly PlacedTile[],
+  cols: number,
+  rows: number,
+  hoverPath?: string | null,
+): string {
+  const grid = makeGrid(cols, rows);
+  paintTilesInto(grid, tiles, hoverPath);
   return gridToString(grid);
 }
 
@@ -231,7 +332,7 @@ export function renderTui(snapshot: Snapshot, opts: TuiOptions = {}): string {
 }
 
 /** Emit the grid, coalescing same-background runs into ANSI escapes. */
-function gridToString(grid: Cell[][]): string {
+export function gridToString(grid: Grid): string {
   const lines: string[] = [];
   for (const row of grid) {
     let line = "";

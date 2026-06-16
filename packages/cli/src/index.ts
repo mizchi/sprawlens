@@ -137,6 +137,7 @@ program
           snapshot,
           changed: await diffOf(),
           repoName: basename(root),
+          repoRoot: root,
         });
         return;
       }

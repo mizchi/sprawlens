@@ -1,15 +1,23 @@
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
 import type { Snapshot } from "@sprawlens/schema";
 import {
   buildForest,
+  drawPanel,
+  gridToString,
   layoutTiles,
-  paintTiles,
+  makeGrid,
+  neighbor,
+  paintTilesInto,
   tileAt,
   type ChangeKind,
+  type Direction,
   type PlacedTile,
   type TreeNode,
 } from "./tui.js";
 
 type Forest = ReturnType<typeof buildForest>;
+export type CodePreview = { title: string; lines: string[] };
 
 /**
  * Compose one interactive frame: a breadcrumb of the current zoom path, the
@@ -19,7 +27,7 @@ type Forest = ReturnType<typeof buildForest>;
  */
 export function composeFrame(
   forest: Forest,
-  state: { rootPath: string; hoverPath: string | null },
+  state: { rootPath: string; hoverPath: string | null; code?: CodePreview },
   size: { cols: number; rows: number },
   repoName: string,
 ): { frame: string; tiles: PlacedTile[] } {
@@ -27,8 +35,13 @@ export function composeFrame(
   const gridRows = Math.max(size.rows - 2, 1);
   const root = state.rootPath === "" ? null : forest.byPath.get(state.rootPath);
   const nodes: TreeNode[] = root ? (root.children ?? []) : forest.modules;
-  const tiles = layoutTiles(nodes, { x: 0, y: 0, w: cols, h: gridRows });
-  const grid = paintTiles(tiles, cols, gridRows, state.hoverPath);
+  // a selected symbol splits the view: treemap left, its source on the right
+  const mapW = state.code ? Math.max(Math.floor(cols * 0.55), 16) : cols;
+  const tiles = layoutTiles(nodes, { x: 0, y: 0, w: mapW, h: gridRows });
+  const cells = makeGrid(cols, gridRows);
+  paintTilesInto(cells, tiles, state.hoverPath);
+  if (state.code) drawPanel(cells, mapW, 0, cols, gridRows, state.code.title, state.code.lines);
+  const grid = gridToString(cells);
 
   const chain: string[] = [];
   let p = state.rootPath;
@@ -48,16 +61,18 @@ export function composeFrame(
 }
 
 /**
- * Interactive terminal viewer over the treemap. Mouse motion hovers a box and
- * shows its full name in the status line (labels are otherwise culled to fit);
- * Enter or a left click zooms into the hovered box (re-rooting the treemap);
- * Esc / Backspace zooms back out. The breadcrumb at the top shows the current
- * path. Runs in the alternate screen and restores the terminal on exit.
+ * Interactive terminal viewer over the treemap. Mouse motion or the arrow keys
+ * move the selection between boxes; the status line shows the selected box's
+ * full name (labels in the map are culled to fit). Selecting a symbol opens its
+ * source in a side panel. Enter / left click zooms into the selected box
+ * (re-rooting the treemap); Esc / Backspace zooms back out; the breadcrumb shows
+ * the path. Runs in the alternate screen and restores the terminal on exit.
  */
 export async function runTuiApp(opts: {
   snapshot: Snapshot;
   changed?: Map<string, ChangeKind>;
   repoName: string;
+  repoRoot: string;
 }): Promise<void> {
   const forest = buildForest(opts.snapshot, opts.changed);
   const out = process.stdout;
@@ -67,15 +82,50 @@ export async function runTuiApp(opts: {
   let hoverPath: string | null = null;
   let tiles: PlacedTile[] = [];
 
+  // the selected symbol's source, read on demand and cached by file
+  const fileLines = new Map<string, string[]>();
+  const linesOf = (file: string): string[] => {
+    let lines = fileLines.get(file);
+    if (!lines) {
+      try {
+        lines = readFileSync(join(opts.repoRoot, file), "utf8").split("\n");
+      } catch {
+        lines = [];
+      }
+      fileLines.set(file, lines);
+    }
+    return lines;
+  };
+  const codeFor = (path: string | null): CodePreview | undefined => {
+    const node = path ? forest.byPath.get(path) : null;
+    if (!node?.file || node.startLine == null || node.endLine == null) return undefined;
+    const all = linesOf(node.file);
+    if (all.length === 0) return undefined;
+    const start = Math.max(node.startLine, 1);
+    const end = Math.min(node.endLine, all.length);
+    const budget = Math.max((out.rows ?? 30) - 4, 4);
+    const numW = String(end).length;
+    const lines = all
+      .slice(start - 1, end)
+      .slice(0, budget)
+      .map((ln, i) => `${String(start + i).padStart(numW)}│${ln}`);
+    return { title: `${node.label} — ${node.file}`, lines };
+  };
+
   const render = () => {
     const composed = composeFrame(
       forest,
-      { rootPath, hoverPath },
+      { rootPath, hoverPath, code: codeFor(hoverPath) },
       { cols: out.columns ?? 80, rows: out.rows ?? 30 },
       opts.repoName,
     );
     tiles = composed.tiles;
     out.write(`\x1b[H${composed.frame}`);
+  };
+
+  const move = (dir: Direction) => {
+    hoverPath = neighbor(tiles, hoverPath, dir);
+    render();
   };
 
   const zoomIn = (path: string | null) => {
@@ -123,9 +173,13 @@ export async function runTuiApp(opts: {
         return;
       }
       if (s === "\x03" || s === "q") return quit();
+      // arrow keys move the selection between boxes
+      if (s === "\x1b[A" || s === "\x1bOA") return move("up");
+      if (s === "\x1b[B" || s === "\x1bOB") return move("down");
+      if (s === "\x1b[C" || s === "\x1bOC") return move("right");
+      if (s === "\x1b[D" || s === "\x1bOD") return move("left");
       if (s === "\r" || s === "\n") return zoomIn(hoverPath);
-      if (s === "\x1b" || s === "\x7f" || s === "\b" || s === "\x1b[D")
-        return zoomOut();
+      if (s === "\x7f" || s === "\b" || s === "\x1b") return zoomOut(); // back
     };
 
     out.write("\x1b[?1049h\x1b[?25l\x1b[2J\x1b[?1003h\x1b[?1006h");

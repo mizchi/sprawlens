@@ -1,6 +1,13 @@
 import { describe, expect, it } from "vitest";
 import type { CodeSymbol, Snapshot } from "@sprawlens/schema";
-import { buildForest, layoutTiles, renderTui, tileAt } from "./tui.js";
+import {
+  buildForest,
+  layoutTiles,
+  neighbor,
+  renderTui,
+  tileAt,
+  type PlacedTile,
+} from "./tui.js";
 
 const commit = {
   hash: "W",
@@ -110,10 +117,34 @@ describe("buildForest (interactive navigation)", () => {
     );
     expect(byPath.has("core")).toBe(true); // module
     expect(byPath.has("core/engine.ts")).toBe(true); // file
-    expect(byPath.has("core/engine.ts#solve")).toBe(true); // symbol
-    expect(parentOf.get("core/engine.ts#solve")).toBe("core/engine.ts");
+    expect(byPath.has("core/engine.ts#solve:1")).toBe(true); // symbol
+    expect(parentOf.get("core/engine.ts#solve:1")).toBe("core/engine.ts");
     expect(parentOf.get("core/engine.ts")).toBe("core");
     expect(parentOf.get("core")).toBe(""); // top
+  });
+});
+
+describe("neighbor (arrow-key navigation)", () => {
+  const tile = (path: string, x0: number, y0: number, x1: number, y1: number): PlacedTile => ({
+    node: { path, label: path, weight: 1 },
+    x0,
+    y0,
+    x1,
+    y1,
+    leaf: true,
+  });
+  // a (top-left), b (right of a), c (below a)
+  const tiles = [tile("a", 0, 0, 10, 5), tile("b", 10, 0, 20, 5), tile("c", 0, 5, 10, 10)];
+
+  it("moves to the nearest box in a direction", () => {
+    expect(neighbor(tiles, "a", "right")).toBe("b");
+    expect(neighbor(tiles, "a", "down")).toBe("c");
+    expect(neighbor(tiles, "b", "left")).toBe("a");
+    expect(neighbor(tiles, "c", "up")).toBe("a");
+  });
+  it("stays put when there's nothing that way, and seeds from the first box", () => {
+    expect(neighbor(tiles, "a", "left")).toBe("a");
+    expect(neighbor(tiles, null, "right")).toBe("a");
   });
 });
 

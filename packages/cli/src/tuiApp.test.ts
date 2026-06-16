@@ -80,4 +80,17 @@ describe("composeFrame", () => {
     expect(tiles.length).toBeGreaterThan(0);
     expect(tiles.some((t) => t.node.path === "packages/viz")).toBe(true);
   });
+
+  it("opens a code panel beside a narrower map when a symbol is selected", () => {
+    const code = { title: "solve — packages/viz/App.tsx", lines: ["12│const x = 1", "13│return x"] };
+    const { frame } = composeFrame(
+      forest,
+      { rootPath: "", hoverPath: "packages/viz/App.tsx#solve:1", code },
+      size,
+      "demo",
+    );
+    const body = stripAnsi(frame);
+    expect(body).toContain("solve — packages/viz/App.tsx");
+    expect(body).toContain("const x = 1");
+  });
 });
