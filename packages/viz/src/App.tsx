@@ -21,6 +21,7 @@ import { useCamera, type Bounds } from "./engine/useCamera.ts";
 import { useViewportSize } from "./useViewportSize.ts";
 import { useAltKey } from "./useAltKey.ts";
 import { useColorScheme } from "./useColorScheme.ts";
+import { useEventSource } from "./useEventSource.ts";
 import {
   buildSatelliteLayers,
   DEFAULT_LAYER_MANIFEST,
@@ -1765,99 +1766,97 @@ export function App() {
   const recentChangesRef = useRef<
     { id: string; kind: "added" | "modified"; at: number }[]
   >([]);
-  useEffect(() => {
-    // live working-tree diff for the dev server (sprawlens) and the CLI
-    // (served). The server resolves an unknown repo name to its only repo.
-    if (params.source !== "sprawlens" && params.source !== "served") return;
-    // drop any stale diff carried over from a previous source (e.g. history)
-    if (changedFilesRef.current.size > 0) {
-      changedFilesRef.current = new Map();
-      setFrame((f) => f + 1);
-    }
-    let firstPush = true;
-    let failures = 0;
-    const seen = new Set<string>();
-    const stream = new EventSource(
-      `/api/working-diff/stream?repo=${params.source}&base=${encodeURIComponent(params.diffBase)}`,
-    );
-    stream.onmessage = (event) => {
-      failures = 0;
-      const diff = JSON.parse(event.data) as {
-        changed: Record<string, "added" | "modified">;
-        removed: string[];
-        loc?: Record<string, number>;
-      };
-      // incremental recompute: turn the working-tree diff into a graph
-      // delta and warm-apply it so edited files re-flow in place. Gated by
-      // followChanges — off keeps the highlight-only behavior. The camera
-      // jump below stays gated the same way.
-      if (paramsRef.current.followChanges) {
-        applyWorkingTreeDiff(diff);
-      }
-      const known = new Set(graphRef.current.nodes.map((n) => n.id));
-      const next = new Map(
-        Object.entries(diff.changed).filter(([id]) => known.has(id)),
-      );
-      const fresh = [...next.keys()].filter((id) => !seen.has(id));
-      seen.clear();
-      for (const id of next.keys()) seen.add(id);
-      const previous = changedFilesRef.current;
-      const dirty =
-        previous.size !== next.size ||
-        [...next].some(([id, kind]) => previous.get(id) !== kind);
-      if (dirty) {
-        changedFilesRef.current = next;
-        // at symbol granularity a warm reflow leaves the changed (esp. private)
-        // symbols folded, so the diff never shows; a cold rebuild lays them out
-        // with the keep/priority boost. file granularity recolors in place.
-        if (
-          granularityOf(
-            paramsRef.current.boundaries,
-            paramsRef.current.displayLevels,
-          ) === "symbol"
-        ) {
-          rebuild(paramsRef.current);
+  // per-connection bookkeeping for the working-diff handler (reset on each
+  // (re)subscribe via onOpen); the handler itself stays here as it drives the
+  // data pipeline (warm-apply / rebuild / camera follow).
+  const firstPushRef = useRef(true);
+  const seenChangesRef = useRef(new Set<string>());
+  // live working-tree diff for the dev server (sprawlens) and the CLI (served);
+  // the server resolves an unknown repo name to its only repo.
+  const liveDiff = params.source === "sprawlens" || params.source === "served";
+  useEventSource(
+    liveDiff
+      ? `/api/working-diff/stream?repo=${params.source}&base=${encodeURIComponent(params.diffBase)}`
+      : null,
+    {
+      onOpen: () => {
+        firstPushRef.current = true;
+        seenChangesRef.current = new Set();
+        // drop any stale diff carried over from a previous source (e.g. history)
+        if (changedFilesRef.current.size > 0) {
+          changedFilesRef.current = new Map();
+          setFrame((f) => f + 1);
         }
-        setFrame((f) => f + 1);
-      }
-      if (!firstPush && fresh.length > 0) {
-        const now = Date.now();
-        recentChangesRef.current = [
-          ...fresh.map((id) => ({ id, kind: next.get(id)!, at: now })),
-          ...recentChangesRef.current.filter((e) => !fresh.includes(e.id)),
-        ].slice(0, 20);
-        // follow saves as they happen, but not the backlog at page load
-        if (paramsRef.current.followChanges) jumpTo(fresh[0]!, 6);
-      }
-      firstPush = false;
-    };
-    stream.onerror = () => {
-      if (++failures >= 3) stream.close();
-    };
-    return () => stream.close();
-  }, [params.source, params.diffBase]);
+      },
+      onMessage: (data) => {
+        const diff = JSON.parse(data) as {
+          changed: Record<string, "added" | "modified">;
+          removed: string[];
+          loc?: Record<string, number>;
+        };
+        // incremental recompute: turn the working-tree diff into a graph delta
+        // and warm-apply it so edited files re-flow in place. Gated by
+        // followChanges — off keeps the highlight-only behavior.
+        if (paramsRef.current.followChanges) {
+          applyWorkingTreeDiff(diff);
+        }
+        const known = new Set(graphRef.current.nodes.map((n) => n.id));
+        const next = new Map(
+          Object.entries(diff.changed).filter(([id]) => known.has(id)),
+        );
+        const seen = seenChangesRef.current;
+        const fresh = [...next.keys()].filter((id) => !seen.has(id));
+        seen.clear();
+        for (const id of next.keys()) seen.add(id);
+        const previous = changedFilesRef.current;
+        const dirty =
+          previous.size !== next.size ||
+          [...next].some(([id, kind]) => previous.get(id) !== kind);
+        if (dirty) {
+          changedFilesRef.current = next;
+          // at symbol granularity a warm reflow leaves the changed (esp. private)
+          // symbols folded, so the diff never shows; a cold rebuild lays them out
+          // with the keep/priority boost. file granularity recolors in place.
+          if (
+            granularityOf(
+              paramsRef.current.boundaries,
+              paramsRef.current.displayLevels,
+            ) === "symbol"
+          ) {
+            rebuild(paramsRef.current);
+          }
+          setFrame((f) => f + 1);
+        }
+        if (!firstPushRef.current && fresh.length > 0) {
+          const now = Date.now();
+          recentChangesRef.current = [
+            ...fresh.map((id) => ({ id, kind: next.get(id)!, at: now })),
+            ...recentChangesRef.current.filter((e) => !fresh.includes(e.id)),
+          ].slice(0, 20);
+          // follow saves as they happen, but not the backlog at page load
+          if (paramsRef.current.followChanges) jumpTo(fresh[0]!, 6);
+        }
+        firstPushRef.current = false;
+      },
+    },
+  );
 
   // Live snapshot stream (CLI serve): the server re-analyzes on fs change and
   // pushes a fresh snapshot, which we warm-apply so symbols + import edges
   // update in place. Only the served source has a live analyzer; the baked and
   // history sources have none, so the stream 404s and stays closed.
-  useEffect(() => {
-    if (params.source !== "served") return;
-    let failures = 0;
-    const stream = new EventSource(`/api/snapshot/stream?repo=${params.source}`);
-    stream.onmessage = (event) => {
-      failures = 0;
-      try {
-        applyServedSnapshot(JSON.parse(event.data) as SnapshotLike);
-      } catch (error) {
-        console.error("snapshot stream", error);
-      }
-    };
-    stream.onerror = () => {
-      if (++failures >= 3) stream.close();
-    };
-    return () => stream.close();
-  }, [params.source]);
+  useEventSource(
+    params.source === "served" ? `/api/snapshot/stream?repo=${params.source}` : null,
+    {
+      onMessage: (data) => {
+        try {
+          applyServedSnapshot(JSON.parse(data) as SnapshotLike);
+        } catch (error) {
+          console.error("snapshot stream", error);
+        }
+      },
+    },
+  );
 
   const allCells: CellResult[] = ringsRef.current
     ? [...ringsRef.current.leafLayouts.values()].flatMap((l) => l.cells)
