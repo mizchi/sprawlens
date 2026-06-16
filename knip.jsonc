@@ -15,6 +15,12 @@
   "workspaces": {
     ".": {
       "entry": ["scripts/*.mjs", "tools/*.mjs", "e2e/**/*.spec.ts"]
+    },
+    "packages/cli": {
+      // the CLI bundles @sprawlens/* with esbuild and leaves node_modules deps
+      // external, so the bundled output requires these at runtime even though no
+      // CLI *source* file imports them (the inlined analyzers do).
+      "ignoreDependencies": ["web-tree-sitter", "tree-sitter-wasms", "fast-glob"]
     }
   }
 }

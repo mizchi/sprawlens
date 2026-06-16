@@ -15,28 +15,13 @@
     "cli": "pnpm --filter @sprawlens/cli dev"
   },
   "dependencies": {
-    "@deck.gl/core": "^9.3.3",
-    "@deck.gl/layers": "^9.3.3",
-    "@egjs/hammerjs": "^2.0.17",
-    "commander": "^14.0.0",
-    "component-emitter": "^2.0.0",
-    "fast-glob": "^3.3.3",
-    "keycharm": "^0.4.0",
     "preact": "^10.29.2",
-    "three": "^0.184.0",
-    "tree-sitter-wasms": "^0.1.13",
-    "typescript": "^5.7.2",
-    "uuid": "^14.0.0",
-    "vis-data": "^8.0.4",
-    "vis-util": "^6.0.0",
-    "web-tree-sitter": "0.22.6"
+    "typescript": "^5.7.2"
   },
   "devDependencies": {
     "@playwright/test": "^1.60.0",
     "@preact/preset-vite": "^2.10.5",
     "@types/node": "^22.10.2",
-    "@types/three": "^0.184.1",
-    "esbuild": "^0.28.1",
     "knip": "^6.17.1",
     "tsx": "^4.19.2",
     "typescript-language-server": "^5.3.0",

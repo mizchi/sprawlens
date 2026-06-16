@@ -9,6 +9,7 @@
     ".": "./src/index.ts"
   },
   "dependencies": {
-    "@sprawlens/schema": "workspace:*"
+    "@sprawlens/schema": "workspace:*",
+    "fast-glob": "^3.3.3"
   }
 }
