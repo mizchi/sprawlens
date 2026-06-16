@@ -9,9 +9,9 @@ import { analyzeRepository, collectRepository } from "@sprawlens/analyzer-ts";
 import type { LanguageProvider, Snapshot } from "@sprawlens/schema";
 import { applyLayers, layerManifest } from "@sprawlens/schema";
 import { PROVIDERS, detectProviders } from "@sprawlens/providers";
-import { createAtlasServer } from "@sprawlens/server";
+import { createAtlasServer, watchDir, workingDiff } from "@sprawlens/server";
 import { readSprawlensConfig } from "./config.js";
-import { renderTui } from "./tui.js";
+import { renderTui, type ChangeKind } from "./tui.js";
 
 const program = new Command();
 
@@ -85,15 +85,25 @@ program
 
 program
   .command("tui")
-  .description("print the repository's module map as a treemap in the terminal")
+  .description(
+    "print the repo's module/file/symbol treemap in the terminal (diff-tinted)",
+  )
   .argument("[repo]", "repository path", ".")
   .option("--lang <id>", "force a language provider (typescript|go|rust|moonbit)")
   .option("--cols <n>", "grid width (default: terminal width)", (v) => Number.parseInt(v, 10))
   .option("--rows <n>", "grid height (default: terminal height)", (v) => Number.parseInt(v, 10))
+  .option("--watch", "re-render on file changes")
+  .option("--no-diff", "do not tint working-tree changes")
   .action(
     async (
       repo: string,
-      options: { lang?: string; cols?: number; rows?: number },
+      options: {
+        lang?: string;
+        cols?: number;
+        rows?: number;
+        watch?: boolean;
+        diff: boolean;
+      },
     ): Promise<void> => {
       const root = resolve(repo);
       const config = (await readSprawlensConfig(root)) ?? {};
@@ -102,11 +112,40 @@ program
         process.exitCode = 1;
         return;
       }
-      const snapshot = applyLayers(await provider.analyze(root), config);
-      const cols = options.cols ?? process.stdout.columns ?? 80;
-      const rows =
-        options.rows ?? (process.stdout.rows ? process.stdout.rows - 1 : 30);
-      console.log(renderTui(snapshot, { cols, rows }));
+      // incremental re-analysis keeps watch cheap when the provider supports it
+      const incremental = provider.createIncrementalAnalyzer?.(root);
+      const analyze = incremental
+        ? () => incremental.analyze()
+        : () => provider.analyze(root);
+
+      const render = async (): Promise<void> => {
+        const snapshot = applyLayers(await analyze(), config);
+        let changed: Map<string, ChangeKind> | undefined;
+        if (options.diff) {
+          try {
+            const diff = await workingDiff(root);
+            changed = new Map(Object.entries(diff.changed));
+          } catch {
+            // not a git repo, or git unavailable — render without tint
+          }
+        }
+        const cols = options.cols ?? process.stdout.columns ?? 80;
+        const rows =
+          options.rows ?? (process.stdout.rows ? process.stdout.rows - 1 : 30);
+        const out = renderTui(snapshot, { cols, rows, changed });
+        if (options.watch) process.stdout.write("\x1b[2J\x1b[H"); // clear + home
+        process.stdout.write(`${out}\n`);
+      };
+
+      await render();
+      if (options.watch) {
+        const stop = watchDir(root, () => void render(), 300);
+        process.on("SIGINT", () => {
+          stop();
+          process.exit(0);
+        });
+        await new Promise(() => {}); // keep the watcher alive until Ctrl-C
+      }
     },
   );
 
