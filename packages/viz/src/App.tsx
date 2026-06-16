@@ -16,6 +16,7 @@ import { CameraPanel, LayersMenu } from "./OverlayPanels.tsx";
 import { SvgRenderer } from "./renderer/SvgRenderer.tsx";
 import type { MapHandlers } from "./renderer/contract.ts";
 import { buildScene } from "./engine/buildScene.ts";
+import { useSelection } from "./engine/useSelection.ts";
 import { useViewportSize } from "./useViewportSize.ts";
 import { useAltKey } from "./useAltKey.ts";
 import { useColorScheme } from "./useColorScheme.ts";
@@ -222,23 +223,22 @@ export function App() {
       gap: 0.7,
     },
   });
-  // multi-select: ordered ids, last one is the primary (drives the detail
-  // panel, breadcrumb, and labels); shift+click toggles membership
-  const [selectedIds, setSelectedIds] = useState<string[]>([]);
-  // edges are selectable elements alongside nodes; a selection can hold both.
-  // shift+click toggles membership (see selectNode / selectEdge), a plain
-  // click on either replaces the whole selection.
-  const [selectedEdges, setSelectedEdges] = useState<
-    { source: string; target: string }[]
-  >([]);
-  const edgeKey = (e: { source: string; target: string }) =>
-    `${e.source} ${e.target}`;
-  const selectedId = selectedIds[selectedIds.length - 1] ?? null;
-  const setSelectedId = (id: string | null) => {
-    setSelectedEdges([]);
-    setSelectedIds(id === null ? [] : [id]);
-  };
-  const [focusId, setFocusId] = useState<string | null>(null);
+  // selection state machine (nodes + edges + dependency-path focus root); the
+  // host composes camera framing (selectEdge / jumpTo) around its primitives
+  const {
+    selectedIds,
+    selectedEdges,
+    focusId,
+    selectedId,
+    selectedIdSet,
+    selectedIdsRef,
+    setFocusId,
+    setSelectedId,
+    promoteToPrimary,
+    deselect,
+    selectNode,
+    selectEdgeState,
+  } = useSelection();
   const [focusRequest, setFocusRequest] = useState<FocusRequest | null>(null);
   const [viewInfo, setViewInfo] = useState({
     x: WIDTH / 2,
@@ -1725,7 +1725,6 @@ export function App() {
   })();
 
   const activeId = selectedId;
-  const selectedIdSet = useMemo(() => new Set(selectedIds), [selectedIds]);
   /** Strata visibility set fed to the map components (level kinds). */
   const visibleLevels = useMemo(
     // the leaf always draws even though "file" lives on the boundary axis,
@@ -1772,70 +1771,14 @@ export function App() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [leafGraph]);
 
-  const selectNode = (id: string | null, additive = false) => {
-    if (id === null) {
-      setSelectedIds([]);
-      setSelectedEdges([]);
-      // the dependency-path focus always tracks the selection — a stale
-      // path over a different selection reads as a broken state
-      setFocusId(null);
-      return;
-    }
-    const resolved = id;
-    if (additive) {
-      // toggle this node, keep any selected edges
-      setSelectedIds(
-        selectedIds.includes(resolved)
-          ? selectedIds.filter((x) => x !== resolved)
-          : [...selectedIds, resolved],
-      );
-      if (focusId !== null) setFocusId(resolved);
-      return;
-    }
-    // plain click replaces the whole selection with this node
-    setSelectedEdges([]);
-    setSelectedIds([resolved]);
-    if (focusId !== null) setFocusId(resolved);
-  };
-
-  /** Pick an edge as a selectable element. Shift+click toggles it into the
-   * mixed selection; a plain click replaces the selection and frames the
-   * edge's endpoints. */
+  // pick an edge, then frame its endpoints on a plain (replacing) click — the
+  // camera half of the selection lives here where the geometry does
   const selectEdge = (source: string, target: string, additive = false) => {
-    const edge = { source, target };
-    if (additive) {
-      setSelectedEdges(
-        selectedEdges.some((e) => edgeKey(e) === edgeKey(edge))
-          ? selectedEdges.filter((e) => edgeKey(e) !== edgeKey(edge))
-          : [...selectedEdges, edge],
-      );
-      return;
-    }
-    setSelectedIds([]);
-    setFocusId(null);
-    setSelectedEdges([edge]);
-    // zoom to the bbox spanning the two endpoints (generic multi-element fit)
-    focusOnIds([source, target], 1.4);
+    if (selectEdgeState(source, target, additive)) focusOnIds([source, target], 1.4);
   };
-
-  // Esc drops the explicit selection (zoom focus takes over again)
-  useEffect(() => {
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape") {
-        setSelectedIds([]);
-        setSelectedEdges([]);
-        setFocusId(null);
-      }
-    };
-    window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
-  }, []);
 
   // hold alt to reveal every cross-layer edge at once (default is hover-gated)
   const altEdges = useAltKey();
-
-  const selectedIdsRef = useRef(selectedIds);
-  selectedIdsRef.current = selectedIds;
 
   // Working-tree diff: the dev server fs-watches the repo and pushes a
   // batched diff over SSE whenever it changes. Uncommitted files highlight
@@ -2498,9 +2441,7 @@ export function App() {
               >
                 <div style={{ display: "flex", alignItems: "flex-start", gap: "8px" }}>
                   <button
-                    onClick={() =>
-                      setSelectedIds([...selectedIds.filter((x) => x !== id), id])
-                    }
+                    onClick={() => promoteToPrimary(id)}
                     style={{
                       flex: "1",
                       minWidth: "0",
@@ -2533,9 +2474,7 @@ export function App() {
                   </button>
                   <button
                     title="close"
-                    onClick={() =>
-                      setSelectedIds(selectedIds.filter((x) => x !== id))
-                    }
+                    onClick={() => deselect(id)}
                     style={{
                       flex: "none",
                       background: "none",
