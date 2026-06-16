@@ -26,8 +26,14 @@ export type PowerCell = {
 
 const COINCIDENT_EPS = 1e-12;
 
-/** Below this site count the O(n²) loop beats the grid's bookkeeping. */
-const GRID_MIN_SITES = 64;
+/**
+ * Below this site count the O(n²) loop beats the grid's bookkeeping. Tuned
+ * against the real build workload (rings/treemap on the 1.4k-file playwright
+ * snapshot, whose cells cluster at 16–120 sites): the spatially-pruned grid
+ * already wins from ~20 sites up, where most per-step diagrams land, so the
+ * old threshold of 64 was leaving the medium cells on the brute-force path.
+ */
+const GRID_MIN_SITES = 20;
 
 /**
  * A site's running cell as a struct-of-arrays convex polygon. Sutherland–
