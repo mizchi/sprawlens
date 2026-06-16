@@ -12,6 +12,7 @@ import {
   type PowerSite,
 } from "./powerDiagram.js";
 import { createRng, type Rng } from "./rng.js";
+import { nearestNeighborSquared } from "./spatialGrid.js";
 import type { Vec2 } from "./vec.js";
 
 export type { ClipRegion } from "./clip.js";
@@ -205,16 +206,15 @@ function adaptWeights(
 
   // Nearest-neighbor distance per site; bounds every weight move so a single
   // step can never swallow a neighbor (Nocaj & Brandes-style stabilization).
-  const nearest = new Array<number>(n).fill(Infinity);
+  // Exact, but via a uniform grid rather than the O(n²) all-pairs scan that
+  // dominated the inner loop.
+  const xs = new Float64Array(n);
+  const ys = new Float64Array(n);
   for (let i = 0; i < n; i++) {
-    for (let j = i + 1; j < n; j++) {
-      const a = sites[i]!;
-      const b = sites[j]!;
-      const d2 = (a.x - b.x) ** 2 + (a.y - b.y) ** 2;
-      if (d2 < nearest[i]!) nearest[i] = d2;
-      if (d2 < nearest[j]!) nearest[j] = d2;
-    }
+    xs[i] = sites[i]!.x;
+    ys[i] = sites[i]!.y;
   }
+  const nearest = nearestNeighborSquared(xs, ys);
 
   const weights = sites.map((site, i) => {
     const cell = cellById.get(site.id)!;
