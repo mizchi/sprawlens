@@ -32,6 +32,9 @@ export type PlacedTile = {
   x1: number;
   y1: number;
   leaf: boolean;
+  /** Nesting below the laid-out scope: 0 = a direct child (the selectable unit),
+   * 1+ = deeper boxes shown for context only. */
+  depth: number;
 };
 
 /** Structural module key: the top two path segments, or "(root)" for a bare file. */
@@ -130,7 +133,7 @@ export function layoutTiles(
   rect: { x: number; y: number; w: number; h: number },
 ): PlacedTile[] {
   const out: PlacedTile[] = [];
-  const place = (node: TreeNode, x: number, y: number, w: number, h: number) => {
+  const place = (node: TreeNode, x: number, y: number, w: number, h: number, depth: number) => {
     const x0 = Math.round(x);
     const y0 = Math.round(y);
     const x1 = Math.round(x + w);
@@ -141,20 +144,20 @@ export function layoutTiles(
     const iw = x1 - 1 - ix;
     const ih = y1 - 1 - iy;
     const descends = !!node.children && iw >= 5 && ih >= 3;
-    out.push({ node, x0, y0, x1, y1, leaf: !descends });
+    out.push({ node, x0, y0, x1, y1, leaf: !descends, depth });
     if (descends) {
       for (const t of squarify(
         node.children!.map((c, i) => ({ id: String(i), weight: c.weight, node: c })),
         { x: ix, y: iy, w: iw, h: ih },
       ))
-        place(t.item.node, t.x, t.y, t.w, t.h);
+        place(t.item.node, t.x, t.y, t.w, t.h, depth + 1);
     }
   };
   for (const t of squarify(
     nodes.map((c, i) => ({ id: String(i), weight: c.weight, node: c })),
     rect,
   ))
-    place(t.item.node, t.x, t.y, t.w, t.h);
+    place(t.item.node, t.x, t.y, t.w, t.h, 0);
   return out;
 }
 
@@ -165,6 +168,15 @@ export function tileAt(tiles: readonly PlacedTile[], x: number, y: number): Plac
     if (x >= t.x0 && x < t.x1 && y >= t.y0 && y < t.y1) hit = t; // last wins = deepest
   }
   return hit;
+}
+
+/** The selectable unit (depth-0 box — the current scope's direct child)
+ * containing a grid cell. Deeper boxes are preview-only and aren't selectable. */
+export function selectAt(tiles: readonly PlacedTile[], x: number, y: number): PlacedTile | null {
+  for (const t of tiles) {
+    if (t.depth === 0 && x >= t.x0 && x < t.x1 && y >= t.y0 && y < t.y1) return t;
+  }
+  return null;
 }
 
 export type Direction = "up" | "down" | "left" | "right";
@@ -181,15 +193,17 @@ export function neighbor(
   fromPath: string | null,
   dir: Direction,
 ): string | null {
-  const leaves = tiles.filter((t) => t.leaf);
-  if (leaves.length === 0) return null;
-  const cur = leaves.find((t) => t.node.path === fromPath);
-  if (!cur) return leaves[0]!.node.path;
+  // navigate between selectable units (the scope's direct children), not the
+  // deeper preview boxes
+  const units = tiles.filter((t) => t.depth === 0);
+  if (units.length === 0) return null;
+  const cur = units.find((t) => t.node.path === fromPath);
+  if (!cur) return units[0]!.node.path;
   const cx = (cur.x0 + cur.x1) / 2;
   const cy = (cur.y0 + cur.y1) / 2;
   let best: string | null = null;
   let bestScore = Infinity;
-  for (const t of leaves) {
+  for (const t of units) {
     if (t === cur) continue;
     const dx = (t.x0 + t.x1) / 2 - cx;
     const dy = (t.y0 + t.y1) / 2 - cy;

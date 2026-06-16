@@ -5,6 +5,7 @@ import {
   layoutTiles,
   neighbor,
   renderTui,
+  selectAt,
   tileAt,
   type PlacedTile,
 } from "./tui.js";
@@ -132,6 +133,7 @@ describe("neighbor (arrow-key navigation)", () => {
     x1,
     y1,
     leaf: true,
+    depth: 0,
   });
   // a (top-left), b (right of a), c (below a)
   const tiles = [tile("a", 0, 0, 10, 5), tile("b", 10, 0, 20, 5), tile("c", 0, 5, 10, 10)];
@@ -160,5 +162,16 @@ describe("tileAt (hit-testing)", () => {
     expect(center!.node.path).toContain("core/engine.ts"); // file or symbol, not bare module
     // outside the grid → nothing
     expect(tileAt(tiles, 999, 999)).toBeNull();
+  });
+
+  it("selectAt picks the scope unit (depth 0), not the deeper preview boxes", () => {
+    const { modules } = buildForest(
+      snap([{ path: "core/engine.ts", loc: 200, symbols: [sym("solve", 180)] }]),
+    );
+    const tiles = layoutTiles(modules, { x: 0, y: 0, w: 60, h: 24 });
+    const unit = selectAt(tiles, 30, 12);
+    expect(unit).not.toBeNull();
+    expect(unit!.depth).toBe(0);
+    expect(unit!.node.path).toBe("core"); // the module, though symbols are shown nested
   });
 });

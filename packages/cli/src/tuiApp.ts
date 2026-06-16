@@ -9,7 +9,7 @@ import {
   makeGrid,
   neighbor,
   paintTilesInto,
-  tileAt,
+  selectAt,
   type ChangeKind,
   type Direction,
   type PlacedTile,
@@ -173,7 +173,8 @@ export async function runTuiApp(opts: {
         const col = Number(m[2]) - 1;
         const row = Number(m[3]) - 1;
         const gridY = row - 1; // the breadcrumb occupies the first line
-        const hit = tileAt(tiles, col, gridY);
+        // select the scope unit (file/module), not a deeper preview box
+        const hit = selectAt(tiles, col, gridY);
         hoverPath = hit?.node.path ?? null;
         // a left press (button 0, no motion flag) on a box zooms into it
         if (m[4] === "M" && (button & 0b1100011) === 0) zoomIn(hoverPath);
