@@ -9,7 +9,7 @@ const base: SceneInput = {
   displayEdges: [{ source: "a", target: "b" }],
   graphEdges: [{ source: "x", target: "y" }],
   symbolEdges: [{ source: "s", target: "t" }],
-  lspEdges: [],
+  detailEdges: [],
   visibleLevels: new Set(["file"]),
   cfgEntries: [],
   cyclicIds: new Set(),

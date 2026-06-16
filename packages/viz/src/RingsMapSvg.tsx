@@ -81,7 +81,7 @@ type Props = {
   /** Symbol references; endpoints may be symbol ids or file ids. */
   symbolEdges: AtlasEdge[];
   /** LSP call-hierarchy overlay for the selection — drawn dashed. */
-  lspEdges?: AtlasEdge[];
+  detailEdges?: AtlasEdge[];
   showEdges: boolean;
   labels: Map<string, string>;
   exportedIds: Set<string>;
@@ -203,7 +203,7 @@ export function RingsMapSvg(props: Props) {
     props.visibleLevels?.has(kind) ?? true;
   const compactModuleLabels = props.compactModuleLabels ?? false;
   const multiSelected = props.selectedIds ?? new Set<string>();
-  const lspEdges = props.lspEdges ?? [];
+  const detailEdges = props.detailEdges ?? [];
   const isSelected = (id: string | null): boolean =>
     id !== null && (id === selectedId || multiSelected.has(id));
   const cyclicIds = props.cyclicIds ?? new Set<string>();
@@ -591,7 +591,7 @@ export function RingsMapSvg(props: Props) {
     parentFileOf,
   });
   const lspDirections = selectionDirections({
-    edges: noSelection ? [] : lspEdges,
+    edges: noSelection ? [] : detailEdges,
     isSelected: (id) => isSelected(id),
     parentFileOf,
   });

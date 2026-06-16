@@ -19,7 +19,7 @@ export function SvgRenderer({
         innerCells={scene.innerCells}
         fileEdges={scene.fileEdges}
         symbolEdges={scene.symbolEdges}
-        lspEdges={scene.lspEdges}
+        detailEdges={scene.detailEdges}
         showEdges={scene.showEdges}
         showFiles={scene.showFiles}
         visibleLevels={scene.visibleLevels}

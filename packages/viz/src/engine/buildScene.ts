@@ -24,7 +24,7 @@ export type SceneInput = {
   displayEdges: AtlasEdge[];
   graphEdges: AtlasEdge[];
   symbolEdges: AtlasEdge[];
-  lspEdges: AtlasEdge[];
+  detailEdges: AtlasEdge[];
   visibleLevels: ReadonlySet<string>;
   cfgEntries: CfgEntry[];
   cyclicIds: Set<string>;
@@ -79,7 +79,7 @@ export function buildScene(i: SceneInput): MapScene | null {
       width: i.ringsExtent.width,
       height: i.ringsExtent.height,
       symbolEdges: i.granularity === "symbol" ? i.displayEdges : i.symbolEdges,
-      lspEdges: i.lspEdges,
+      detailEdges: i.detailEdges,
       showFiles: i.granularity !== "module" && i.visibleLevels.has(i.granularity),
       compactModuleLabels: i.granularity === "symbol",
       cyclicModuleIds: i.cyclicModuleIds,

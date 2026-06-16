@@ -22,6 +22,7 @@ import { useViewportSize } from "./useViewportSize.ts";
 import { useAltKey } from "./useAltKey.ts";
 import { useColorScheme } from "./useColorScheme.ts";
 import { useEventSource } from "./useEventSource.ts";
+import { useSymbolDetail } from "./engine/useSymbolDetail.ts";
 import {
   buildSatelliteLayers,
   DEFAULT_LAYER_MANIFEST,
@@ -90,10 +91,6 @@ import {
   reweightByTransitiveComplexity,
   showsSymbolLevels,
 } from "./viewConfig.ts";
-import { fetchCallHierarchy, refsToEdges } from "./callHierarchyClient.ts";
-import { cfgRequestOf, fetchCfg } from "./cfgClient.ts";
-import type { CfgEntry } from "./CfgLayer.tsx";
-import type { DetailGraph } from "@sprawlens/schema";
 import { diffGraphs, isEmptyDelta } from "@sprawlens/schema";
 import {
   buildHistoryIndex,
@@ -121,12 +118,7 @@ const SYMBOL_KIND_SET: ReadonlySet<string> = new Set([
 const SYMBOL_BUDGET = 600;
 /** Upper bound on the zoom-scaled symbol budget (perf cap on cell count). */
 const SYMBOL_BUDGET_MAX = 2500;
-/** The selected symbol's CFG draws once its cell fills this many px. */
-const CFG_MIN_PX = 64;
 const CONVERGENCE_TOLERANCE = 0.02;
-/** Zoom past this implicitly focuses the crosshair target (no selection). */
-/** Call-hierarchy roots kept in memory; older unselected ones evict. */
-const LSP_CACHE_MAX = 8;
 /** Solver parameters: long-stable knobs, hardcoded out of the UI. */
 const SEED = 1;
 const SYNTH_COUNT = 120;
@@ -333,11 +325,9 @@ export function App() {
    * surfaces to be linked + highlighted. Empty when no planes are shown. */
   const referencedFilesRef = useRef<Set<string>>(new Set());
   const lastDiffRef = useRef({ added: 0, modified: 0, removed: 0 });
-  /** Symbols whose call hierarchy was already fetched from the LSP server. */
-  const fetchedHierarchyRef = useRef(new Set<string>());
-  /** LSP call-hierarchy edges per fetched root; bounded, display-only. */
-  const lspEdgesRef = useRef(new Map<string, AtlasEdge[]>());
-  const [hierarchyVersion, setHierarchyVersion] = useState(0);
+  // symbol-detail caches reset on a cold rebuild; the hook (which needs the
+  // solved cells) is created below, so rebuild reaches it through this ref
+  const resetDetailRef = useRef<() => void>(() => {});
   // Graph-derived lookups, rebuilt only when the graph changes. Recomputing
   // these per render allocated heavily and drove major-GC pauses during
   // zoom gestures (lightbringer drilldown: GC marking dominated the spans).
@@ -799,8 +789,7 @@ export function App() {
     // registers the symbol labels, which a later wipe would erase
     innerLayoutsRef.current = new Map();
     symbolMetaRef.current = new Map();
-    fetchedHierarchyRef.current = new Set();
-    lspEdgesRef.current = new Map();
+    resetDetailRef.current();
     labelsRef.current = new Map();
     exportedIdsRef.current = new Set();
     innerCellsRef.current = [];
@@ -1708,36 +1697,6 @@ export function App() {
     () => new Set<string>([...params.displayLevels, granularity]),
     [params.displayLevels, granularity],
   );
-  // --- dynamic CFG detail: fetched per symbol once it fills enough of the
-  // screen, cached for the session; failures (no server) cache as null ---
-  const cfgCacheRef = useRef(
-    new Map<string, DetailGraph | null | "pending">(),
-  );
-  const [cfgVersion, setCfgVersion] = useState(0);
-  // only the selected symbols carry a CFG — full-viewport CFG sweeps were
-  // both heavy and visually inconsistent
-  useEffect(() => {
-    const p = paramsRef.current;
-    if (!p.displayLevels.includes("cfg")) return;
-    if (p.source === "synthetic" || p.source === "sprawlens-history") return;
-    const wanted = new Set(selectedIds);
-    if (activeId) wanted.add(activeId);
-    for (const id of wanted) {
-      if (cfgCacheRef.current.has(id)) continue;
-      const request = cfgRequestOf(id);
-      if (!request) {
-        cfgCacheRef.current.set(id, null);
-        continue;
-      }
-      cfgCacheRef.current.set(id, "pending");
-      fetchCfg(p.source, request.file, request.line).then((graph) => {
-        cfgCacheRef.current.set(id, graph);
-        if (graph) setCfgVersion((v) => v + 1);
-      });
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [activeId, selectedIds, params.displayLevels, params.source]);
-
   /** Top-level scopes present in the loaded graph — the include-list
    * candidates. Derived from the raw graph so excluded scopes stay
    * listed. */
@@ -1866,6 +1825,32 @@ export function App() {
   const allInnerCells = innerCellsRef.current;
   const testFileIds = testFileIdsRef.current;
   const testTargets = testTargetsRef.current;
+  // per-symbol detail (call hierarchy + CFG), fetched from the provider's
+  // neutral detail endpoints — LSP today, tree-sitter / moon ide tomorrow
+  const {
+    detailOverlayEdges,
+    cfgEntries,
+    hierarchyVersion,
+    resetDetail,
+    detailEdgesOf,
+  } = useSymbolDetail({
+    activeId,
+    selectedIds,
+    selectedIdsRef,
+    granularity,
+    visibleLevels,
+    zoom: viewInfo.zoom,
+    allCells,
+    allInnerCells,
+    paramsRef,
+    graphRef,
+    symbolsRef,
+    displayGraphRef,
+    symbolEdgesRef,
+    source: params.source,
+    displayLevels: params.displayLevels,
+  });
+  resetDetailRef.current = resetDetail;
   // every stacked plane below the source is a SolvedLayer built by the same
   // pipeline (layout + cross-layer links); adding a layer type is one builder
   const enabledPlanesKey = Object.entries(params.tilt.layers)
@@ -1985,8 +1970,8 @@ export function App() {
       ) === "symbol"
         ? displayGraphRef.current.edges
         : symbolEdgesRef.current),
-      // display-only LSP overlay of the active root
-      ...(lspEdgesRef.current.get(activeId) ?? []),
+      // display-only call-hierarchy overlay of the active root
+      ...detailEdgesOf(activeId),
     ];
     return {
       incoming: [
@@ -2002,107 +1987,9 @@ export function App() {
     };
   }, [activeId, hierarchyVersion, granularity]);
 
-  // Phase 3: on-demand call hierarchy from the LSP server. Static
-  // symbolImports only know file→symbol; the LSP upgrades the selection to
-  // real symbol→symbol caller/callee edges. They are a display-only
-  // overlay (dashed): merging them into the structural edge set meant
-  // every fetch re-projected the network and re-flowed the map, and the
-  // set only ever grew — too heavy at monorepo scale.
-  useEffect(() => {
-    const id = activeId;
-    if (!id || !id.startsWith("symbol:")) return;
-    const repo = paramsRef.current.source;
-    // history snapshots don't match the working tree the LSP sees
-    if (repo === "synthetic" || repo === "sprawlens-history") return;
-    if (fetchedHierarchyRef.current.has(id)) return;
-    fetchedHierarchyRef.current.add(id);
-    const parts = id.split(":"); // symbol:<path>:<kind>:<name>:<line>
-    fetchCallHierarchy(repo, parts[1]!, parts[3]!)
-      .then((response) => {
-        const symbolsByFile = symbolsRef.current ?? new Map();
-        const fileIds = new Set(graphRef.current.nodes.map((n) => n.id));
-        lspEdgesRef.current.set(
-          id,
-          refsToEdges(id, response, symbolsByFile, fileIds),
-        );
-        // bounded cache: evict the oldest roots nobody has selected
-        const selected = new Set(selectedIdsRef.current);
-        for (const key of lspEdgesRef.current.keys()) {
-          if (lspEdgesRef.current.size <= LSP_CACHE_MAX) break;
-          if (selected.has(key) || key === id) continue;
-          lspEdgesRef.current.delete(key);
-          fetchedHierarchyRef.current.delete(key);
-        }
-        setHierarchyVersion((v) => v + 1);
-      })
-      .catch(() => {
-        // server not running or transient failure: allow a later retry
-        fetchedHierarchyRef.current.delete(id);
-      });
-  }, [activeId]);
-  // the overlay shown right now: hierarchy edges of the active selection,
-  // minus anything the static projection already draws solid
-  const lspOverlayEdges = (() => {
-    const roots = selectedIds.length > 0 ? selectedIds : activeId ? [activeId] : [];
-    const out: AtlasEdge[] = [];
-    const seen = new Set(
-      (granularity === "symbol"
-        ? displayGraphRef.current.edges
-        : symbolEdgesRef.current
-      ).map((e) => `${e.source}->${e.target}`),
-    );
-    for (const root of roots) {
-      for (const edge of lspEdgesRef.current.get(root) ?? []) {
-        const key = `${edge.source}->${edge.target}`;
-        if (seen.has(key)) continue;
-        seen.add(key);
-        out.push(edge);
-      }
-    }
-    return out;
-  })();
   const innerCells = showsSymbolLevels(params.displayLevels)
     ? allInnerCells
     : [];
-  /** CFG diagrams for the selected symbols only (load + coherence). The
-   * host partition is used even when the symbol level itself is hidden. */
-  const cfgEntries = useMemo(() => {
-    if (!visibleLevels.has("cfg")) return [] as CfgEntry[];
-    const wanted = new Set(selectedIds);
-    if (activeId) wanted.add(activeId);
-    const cells =
-      granularity === "symbol" ? allCells : allInnerCells;
-    const out: CfgEntry[] = [];
-    for (const cell of cells) {
-      if (!wanted.has(cell.id)) continue;
-      if (cell.polygon.length < 3) continue;
-      if (Math.sqrt(cell.actualArea) * viewInfo.zoom < CFG_MIN_PX) continue;
-      const graph = cfgCacheRef.current.get(cell.id);
-      if (!graph || graph === "pending") continue;
-      let x0 = Infinity;
-      let y0 = Infinity;
-      let x1 = -Infinity;
-      let y1 = -Infinity;
-      for (const p of cell.polygon) {
-        x0 = Math.min(x0, p.x);
-        x1 = Math.max(x1, p.x);
-        y0 = Math.min(y0, p.y);
-        y1 = Math.max(y1, p.y);
-      }
-      out.push({ id: cell.id, x0, y0, x1, y1, polygon: cell.polygon, graph });
-    }
-    return out;
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [
-    allCells,
-    allInnerCells,
-    viewInfo,
-    cfgVersion,
-    visibleLevels,
-    granularity,
-    activeId,
-    selectedIds,
-  ]);
   /** Alt+drag on the map: horizontal rotates the plane, vertical pitches it.
    * Auto-enables tilt so the gesture is self-explanatory. */
   const onTiltDrag = (dxPx: number, dyPx: number) => {
@@ -2149,7 +2036,7 @@ export function App() {
     displayEdges: displayGraphRef.current.edges,
     graphEdges: graphRef.current.edges,
     symbolEdges: symbolEdgesRef.current,
-    lspEdges: lspOverlayEdges,
+    detailEdges: detailOverlayEdges,
     visibleLevels,
     cfgEntries,
     cyclicIds,

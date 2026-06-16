@@ -64,7 +64,9 @@ type RingsScene = {
   kind: "rings";
   rings: RingsState;
   symbolEdges: AtlasEdge[];
-  lspEdges: AtlasEdge[];
+  /** Call-hierarchy overlay for the selection (from the provider's detail
+   * backend — LSP / tree-sitter / moon ide); drawn dashed. */
+  detailEdges: AtlasEdge[];
   showFiles: boolean;
   compactModuleLabels: boolean;
   cyclicModuleIds: Set<string>;
