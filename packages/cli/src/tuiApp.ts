@@ -33,14 +33,17 @@ export function composeFrame(
 ): { frame: string; tiles: PlacedTile[] } {
   const cols = Math.max(size.cols, 1);
   const gridRows = Math.max(size.rows - 2, 1);
-  const root = state.rootPath === "" ? null : forest.byPath.get(state.rootPath);
-  const nodes: TreeNode[] = root ? (root.children ?? []) : forest.modules;
-  // a selected symbol splits the view: treemap left, its source on the right
-  const mapW = state.code ? Math.max(Math.floor(cols * 0.55), 16) : cols;
-  const tiles = layoutTiles(nodes, { x: 0, y: 0, w: mapW, h: gridRows });
   const cells = makeGrid(cols, gridRows);
-  paintTilesInto(cells, tiles, state.hoverPath);
-  if (state.code) drawPanel(cells, mapW, 0, cols, gridRows, state.code.title, state.code.lines);
+  let tiles: PlacedTile[] = [];
+  if (state.code) {
+    // zoomed into a symbol: its source fills the scope (no nested treemap)
+    drawPanel(cells, 0, 0, cols, gridRows, state.code.title, state.code.lines);
+  } else {
+    const root = state.rootPath === "" ? null : forest.byPath.get(state.rootPath);
+    const nodes: TreeNode[] = root ? (root.children ?? []) : forest.modules;
+    tiles = layoutTiles(nodes, { x: 0, y: 0, w: cols, h: gridRows });
+    paintTilesInto(cells, tiles, state.hoverPath);
+  }
   const grid = gridToString(cells);
 
   const chain: string[] = [];
@@ -63,9 +66,9 @@ export function composeFrame(
 /**
  * Interactive terminal viewer over the treemap. Mouse motion or the arrow keys
  * move the selection between boxes; the status line shows the selected box's
- * full name (labels in the map are culled to fit). Selecting a symbol opens its
- * source in a side panel. Enter / left click zooms into the selected box
- * (re-rooting the treemap); Esc / Backspace zooms back out; the breadcrumb shows
+ * full name (labels in the map are culled to fit). Enter / left click zooms into
+ * the selected box (module → file → symbol); zooming into a symbol fills the
+ * scope with its source. Esc / Backspace zooms back out; the breadcrumb shows
  * the path. Runs in the alternate screen and restores the terminal on exit.
  */
 export async function runTuiApp(opts: {
@@ -113,9 +116,11 @@ export async function runTuiApp(opts: {
   };
 
   const render = () => {
+    // when the zoomed scope is a symbol, its source fills the scope
+    const code = rootPath ? codeFor(rootPath) : undefined;
     const composed = composeFrame(
       forest,
-      { rootPath, hoverPath, code: codeFor(hoverPath) },
+      { rootPath, hoverPath, code },
       { cols: out.columns ?? 80, rows: out.rows ?? 30 },
       opts.repoName,
     );
@@ -131,7 +136,10 @@ export async function runTuiApp(opts: {
   const zoomIn = (path: string | null) => {
     if (!path) return;
     const node = forest.byPath.get(path);
-    if (!node?.children?.length) return; // leaves have nothing to zoom into
+    if (!node) return;
+    // zoom into a box with children, or into a symbol (whose scope is its code)
+    const hasCode = node.file != null && node.startLine != null;
+    if (!node.children?.length && !hasCode) return;
     rootPath = path;
     hoverPath = null;
     render();

@@ -81,16 +81,18 @@ describe("composeFrame", () => {
     expect(tiles.some((t) => t.node.path === "packages/viz")).toBe(true);
   });
 
-  it("opens a code panel beside a narrower map when a symbol is selected", () => {
+  it("fills the scope with source when zoomed into a symbol", () => {
     const code = { title: "solve — packages/viz/App.tsx", lines: ["12│const x = 1", "13│return x"] };
-    const { frame } = composeFrame(
+    const { frame, tiles } = composeFrame(
       forest,
-      { rootPath: "", hoverPath: "packages/viz/App.tsx#solve:1", code },
+      { rootPath: "packages/viz/App.tsx#solve:1", hoverPath: null, code },
       size,
       "demo",
     );
     const body = stripAnsi(frame);
     expect(body).toContain("solve — packages/viz/App.tsx");
     expect(body).toContain("const x = 1");
+    // the code fills the scope — no nested treemap to hit-test
+    expect(tiles).toHaveLength(0);
   });
 });
