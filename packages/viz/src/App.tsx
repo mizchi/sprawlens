@@ -1830,8 +1830,13 @@ export function App() {
       }
     }
     focusBounds({ x0, y0, x1, y1 }, 1.04);
+    // depend on the layer *count*, not the satelliteLayers array identity: the
+    // array is rebuilt on every re-analysis snapshot (it tracks leafGraph), and
+    // refitting then would stomp the user's zoom/pan on every live update. The
+    // refit only needs to fire when a plane is added/removed (count changes) or
+    // the viewport/layout/tilt changes — never on a same-shape data refresh.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [satelliteLayers, params.tilt.enabled, params.layout, mapSize]);
+  }, [satelliteLayers.length, params.tilt.enabled, params.layout, mapSize]);
   const selected = useMemo(
     () =>
       allCells.find((c) => c.id === activeId) ??
