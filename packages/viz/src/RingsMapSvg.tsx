@@ -5,6 +5,7 @@ import type { CellResult } from "@sprawlens/layout";
 import type { Vec2 } from "@sprawlens/layout";
 import {
   apply,
+  containsPoint,
   layerTransform,
   toMatrixString,
   uprightAt,
@@ -142,6 +143,8 @@ type Props = {
   focusRequest: FocusRequest | null;
   /** Fired when a view settles (LOD commit); world center + zoom. */
   onViewSettle?: (center: Vec2, zoom: number) => void;
+  /** Pointer entered/left a symbol cell; client coords drive the host tooltip. */
+  onSymbolHover?: (symbolId: string | null, screen: Vec2 | null) => void;
 };
 
 /** Short fallback label: symbol ids reduce to the bare symbol name —
@@ -337,6 +340,8 @@ export function RingsMapSvg(props: Props) {
     target: string;
   } | null>(null);
   const hoveredEdgeRef = useRef<{ source: string; target: string } | null>(null);
+  /** Last symbol cell the cursor was over, so hover fires only on change. */
+  const hoverSymRef = useRef<string | null>(null);
 
   // rings keeps its identity once converged, innerCells once settled — these
   // memos stop per-commit Map/array rebuilds (a major GC-pressure source)
@@ -685,6 +690,40 @@ export function RingsMapSvg(props: Props) {
     if (cur?.source !== next?.source || cur?.target !== next?.target) {
       hoveredEdgeRef.current = next;
       setHoveredEdge(next);
+    }
+    // LSP hover tooltip: hit-test the cell under the cursor by geometry (not
+    // per-cell onMouseEnter, which the renderer/granularity stacking made
+    // unreliable). The deepest match wins — nested symbol cells, then the leaf
+    // cells of every group (symbols at symbol granularity, files otherwise) —
+    // using the authoritative layout cells the breadcrumb also hit-tests, so it
+    // doesn't depend on the showFiles render gate. The host ignores non-symbols.
+    if (props.onSymbolHover) {
+      const world = clientToWorld(clientX, clientY);
+      let sym: string | null = null;
+      if (world) {
+        const hits = (cell: CellResult): boolean =>
+          cell.polygon.length >= 3 && containsPoint(cell.polygon, world);
+        for (const cell of innerCells) {
+          if (hits(cell)) {
+            sym = cell.id;
+            break;
+          }
+        }
+        if (!sym) {
+          outer: for (const layout of rings.leafLayouts.values()) {
+            for (const cell of layout.cells) {
+              if (hits(cell)) {
+                sym = cell.id;
+                break outer;
+              }
+            }
+          }
+        }
+      }
+      if (sym !== hoverSymRef.current) {
+        hoverSymRef.current = sym;
+        props.onSymbolHover(sym, sym ? { x: clientX, y: clientY } : null);
+      }
     }
   };
   // nodes one reference away from the selection, keyed by direction —

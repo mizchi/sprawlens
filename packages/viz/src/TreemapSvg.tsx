@@ -5,6 +5,7 @@ import type { CellResult } from "@sprawlens/layout";
 import type { Vec2 } from "@sprawlens/layout";
 import {
   apply,
+  containsPoint,
   layerTransform,
   toMatrixString,
   uprightAt,
@@ -119,6 +120,8 @@ type Props = {
   focusRequest?: FocusRequest | null;
   /** Fired when a view settles (LOD commit); world center + zoom. */
   onViewSettle?: (center: Vec2, zoom: number) => void;
+  /** Pointer entered/left a symbol cell; client coords drive the host tooltip. */
+  onSymbolHover?: (symbolId: string | null, screen: Vec2 | null) => void;
 };
 
 /** Cells smaller than this on screen are not worth a polygon. */
@@ -272,6 +275,8 @@ export function TreemapSvg(props: Props) {
     target: string;
   } | null>(null);
   const hoveredEdgeRef = useRef<{ source: string; target: string } | null>(null);
+  /** Last symbol cell the cursor was over, so hover fires only on change. */
+  const hoverSymRef = useRef<string | null>(null);
 
   const topCells = state.levels[0]!.cells;
   const innerLevels = state.levels.slice(1);
@@ -428,6 +433,36 @@ export function TreemapSvg(props: Props) {
     if (cur?.source !== next?.source || cur?.target !== next?.target) {
       hoveredEdgeRef.current = next;
       setHoveredEdge(next);
+    }
+    // LSP hover tooltip: hit-test the cell under the cursor by geometry (the
+    // same approach RingsMapSvg uses). The host ignores non-symbol ids.
+    if (props.onSymbolHover) {
+      const world = clientToWorld(clientX, clientY);
+      let sym: string | null = null;
+      if (world) {
+        const hits = (cell: CellResult): boolean =>
+          cell.polygon.length >= 3 && containsPoint(cell.polygon, world);
+        for (const cell of props.innerCells ?? []) {
+          if (hits(cell)) {
+            sym = cell.id;
+            break;
+          }
+        }
+        if (!sym) {
+          outer: for (const layout of state.leafLayouts.values()) {
+            for (const cell of layout.cells) {
+              if (hits(cell)) {
+                sym = cell.id;
+                break outer;
+              }
+            }
+          }
+        }
+      }
+      if (sym !== hoverSymRef.current) {
+        hoverSymRef.current = sym;
+        props.onSymbolHover(sym, sym ? { x: clientX, y: clientY } : null);
+      }
     }
   };
 

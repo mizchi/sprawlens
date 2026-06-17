@@ -42,3 +42,28 @@ export async function fetchCfg(
     return null;
   }
 }
+
+/**
+ * LSP hover (signature/type/doc) for a symbol, as a markdown string. Null when
+ * there's no server, no LSP detail provider for the language (tree-sitter-only
+ * languages have none), or the symbol has no hover — the tooltip just stays
+ * hidden.
+ */
+export async function fetchHover(
+  repo: string,
+  file: string,
+  symbol: string,
+): Promise<string | null> {
+  try {
+    const response = await fetch("/api/hover", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ repo, file, symbol }),
+    });
+    if (!response.ok) return null;
+    const info = (await response.json()) as { markdown: string } | null;
+    return info?.markdown ?? null;
+  } catch {
+    return null;
+  }
+}

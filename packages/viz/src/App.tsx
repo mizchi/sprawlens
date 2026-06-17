@@ -9,11 +9,12 @@ import {
   type CellResult,
   type ClipRegion,
 } from "@sprawlens/layout";
-import { centroid, containsPoint, type Ring } from "@sprawlens/layout";
+import { centroid, containsPoint, type Ring, type Vec2 } from "@sprawlens/layout";
 import { createRng, type Rng } from "@sprawlens/layout";
 import { Controls, type PlaygroundParams } from "./Controls.tsx";
 import { CameraPanel, LayersMenu } from "./OverlayPanels.tsx";
 import { SvgRenderer } from "./renderer/SvgRenderer.tsx";
+import { fetchHover } from "./cfgClient.ts";
 import type { MapHandlers } from "./renderer/contract.ts";
 import { buildScene } from "./engine/buildScene.ts";
 import { useSelection } from "./engine/useSelection.ts";
@@ -238,6 +239,44 @@ export function App() {
   const { focusRequest, viewInfo, viewInfoRef, focusBounds, onViewSettle } =
     useCamera({ width: WIDTH, height: HEIGHT });
   const [, setFrame] = useState(0);
+
+  // LSP hover tooltip: hovering a symbol cell fetches textDocument/hover from
+  // the server's detail provider (TS today; tree-sitter-only languages have
+  // none, so it just stays hidden) and shows it at the cursor. Cached per
+  // symbol and debounced so map panning doesn't spam the server.
+  // pinned top-right (below the header), not at the cursor, so it never sits
+  // under the mouse you're pointing with
+  const [hoverTip, setHoverTip] = useState<string | null>(null);
+  const hoverCacheRef = useRef(new Map<string, string | null>());
+  const hoverTimerRef = useRef(0);
+  const hoveredSymbolRef = useRef<string | null>(null);
+  const onSymbolHover = (id: string | null, _screen: Vec2 | null) => {
+    window.clearTimeout(hoverTimerRef.current);
+    hoveredSymbolRef.current = id;
+    if (!id) {
+      setHoverTip(null);
+      return;
+    }
+    // /api/hover is only meaningful for a CLI-served repo; the fixture sources
+    // have no server, so skip those (a failed fetch resolves to null anyway,
+    // but this avoids a request per hover on the static deploy)
+    const src = paramsRef.current.source;
+    if (src === "synthetic" || src === "sprawlens-history") return;
+    const parts = id.split(":"); // symbol:<path>:<kind>:<name>:<line>
+    if (parts[0] !== "symbol" || !parts[1] || !parts[3]) return;
+    const [file, name] = [parts[1], parts[3]];
+    const cached = hoverCacheRef.current.get(id);
+    if (cached !== undefined) {
+      setHoverTip(cached ?? null);
+      return;
+    }
+    hoverTimerRef.current = window.setTimeout(() => {
+      void fetchHover(paramsRef.current.source, file, name).then((md) => {
+        hoverCacheRef.current.set(id, md);
+        if (hoveredSymbolRef.current === id) setHoverTip(md ?? null);
+      });
+    }, 220);
+  };
 
   const graphRef = useRef<AtlasGraph>(null as unknown as AtlasGraph);
   const ringsRef = useRef<RingsState | null>(null);
@@ -1940,6 +1979,7 @@ export function App() {
     onFocusId: jumpTo,
     onTiltDrag,
     onViewSettle,
+    onSymbolHover,
   };
   const scene = buildScene({
     rings: ringsRef.current,
@@ -1996,6 +2036,34 @@ export function App() {
         }}
       >
         {scene ? <SvgRenderer scene={scene} {...handlers} /> : null}
+        {/* LSP hover tooltip, pinned top-right below the header so it never
+            sits under the cursor; ```lang fences stripped */}
+        {hoverTip ? (
+          <div
+            style={{
+              position: "absolute",
+              top: "48px",
+              right: "12px",
+              maxWidth: "420px",
+              maxHeight: "60vh",
+              overflow: "auto",
+              background: PANEL_BG,
+              color: INK,
+              border: `1px solid ${PANEL_BORDER}`,
+              borderRadius: "6px",
+              padding: "8px 10px",
+              fontSize: "11px",
+              lineHeight: "1.45",
+              whiteSpace: "pre-wrap",
+              wordBreak: "break-word",
+              pointerEvents: "none",
+              zIndex: 60,
+              boxShadow: "0 4px 16px rgba(0,0,0,0.35)",
+            }}
+          >
+            {hoverTip.replace(/```[a-z]*\n?/g, "").trim()}
+          </div>
+        ) : null}
         {/* hierarchy breadcrumb: selection path, or the crosshair target */}
         {breadcrumb.length > 0 ? (
           <div

@@ -34,6 +34,9 @@ export type MapHandlers = {
   onFocusId: (id: string) => void;
   onTiltDrag: (dxPx: number, dyPx: number) => void;
   onViewSettle: (center: Vec2, zoom: number) => void;
+  /** Pointer entered (id + client coords) or left (both null) a symbol cell,
+   * for the LSP hover tooltip the host fetches and positions. */
+  onSymbolHover?: (symbolId: string | null, screen: Vec2 | null) => void;
 };
 
 /** Visual state every renderer draws, independent of the layout that placed it. */
