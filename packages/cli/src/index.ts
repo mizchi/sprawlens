@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 import { Command } from "commander";
 import { spawn } from "node:child_process";
-import { existsSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
 import { createRequire } from "node:module";
 import { basename, dirname, join, resolve } from "node:path";
 import * as readline from "node:readline/promises";
@@ -19,12 +19,23 @@ import { readSprawlensConfig } from "./config.js";
 import { renderTui, type ChangeKind } from "./tui.js";
 import { runTuiApp } from "./tuiApp.js";
 
+// read our own version so `--version` always matches the published package
+// (../package.json relative to both src/index.ts in dev and dist/index.js when built)
+const version = ((): string => {
+  try {
+    const url = new URL("../package.json", import.meta.url);
+    return JSON.parse(readFileSync(url, "utf8")).version as string;
+  } catch {
+    return "0.0.0";
+  }
+})();
+
 const program = new Command();
 
 program
   .name("sprawlens")
   .description("Visualize the structure of a code repository")
-  .version("0.0.0");
+  .version(version);
 
 program
   .command("serve", { isDefault: true })
