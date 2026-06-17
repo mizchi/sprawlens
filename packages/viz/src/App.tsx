@@ -2151,7 +2151,7 @@ export function App() {
             color: INK,
           }}
         >
-          <div style={{ fontWeight: "600", marginBottom: "4px" }}>変更履歴</div>
+          <div style={{ fontWeight: "600", marginBottom: "4px" }}>Change history</div>
           <div style={{ display: "flex", flexDirection: "column", gap: "2px" }}>
             {recentChangesRef.current.map((entry) => (
               <button
@@ -2279,7 +2279,7 @@ export function App() {
             historyIndexRef.current?.nodeHistory.has(activeId) ? (
               <div style={{ marginTop: "6px" }}>
                 <div style={{ fontWeight: "600" }}>
-                  変更履歴 (
+                  Change history (
                   {historyIndexRef.current.nodeHistory.get(activeId)!.length}
                   )
                 </div>
@@ -2402,8 +2402,8 @@ export function App() {
               }}
             >
               {focusId
-                ? "全体表示に戻す"
-                : `依存経路を抽出 (${selectedIds.length})`}
+                ? "Back to full view"
+                : `Extract dependency paths (${selectedIds.length})`}
             </button>
           </div>
         </div>

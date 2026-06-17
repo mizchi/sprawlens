@@ -1,7 +1,7 @@
 import type { CodeSymbol, CodeSymbolImport } from "@sprawlens/contracts";
 
 /**
- * Symbol-level references (参照 / 被参照). An analyzer that resolves a file
+ * Symbol-level references (uses / used-by). An analyzer that resolves a file
  * import also knows which exported symbols of the target are actually used and
  * where; turning that into the neutral `symbolImports` contract lets the view
  * draw symbol→symbol edges (and, by reversing them, "referenced-by") for any
