@@ -6,7 +6,11 @@ import { createRequire } from "node:module";
 import { basename, dirname, join, resolve } from "node:path";
 import * as readline from "node:readline/promises";
 import { fileURLToPath } from "node:url";
-import { analyzeRepository, collectRepository } from "@sprawlens/analyzer-ts";
+import {
+  analyzeRepository,
+  collectRepository,
+  createLspDetail,
+} from "@sprawlens/analyzer-ts";
 import type { LanguageProvider, Snapshot } from "@sprawlens/schema";
 import { applyLayers, layerManifest } from "@sprawlens/schema";
 import { PROVIDERS, detectProviders } from "@sprawlens/providers";
@@ -69,12 +73,21 @@ program
         process.exitCode = 1;
         return;
       }
+      // prefer an LSP for deep detail when one is installed: TS already drives
+      // its own (LSP + compiler CFG); the others ship a static tree-sitter
+      // detail that we upgrade to an LSP (hover + call hierarchy) here.
+      let detail = provider.detail;
+      const lsp = LSP_SERVERS[provider.id];
+      if (lsp && provider.id !== "typescript" && lspAvailable(lsp.command)) {
+        detail = createLspDetail(lsp);
+        console.log(`  detail: ${lsp.command} (LSP: hover · call-hierarchy)`);
+      }
       const server = createAtlasServer({
         repos: new Map([[name, root]]),
         snapshots: new Map([[name, snapshot]]),
         analyzers: new Map([[name, analyze]]),
         vizDist,
-        detail: provider.detail,
+        detail,
         layers: layerManifest(config),
       });
       server.listen(options.port, "127.0.0.1", () => {
@@ -198,18 +211,18 @@ program
       return;
     }
     for (const p of matched) {
-      const bin = LSP_SERVERS[p.id];
+      const bin = LSP_SERVERS[p.id]?.command;
       const found = bin ? lspAvailable(bin) : false;
       const backend = p.detail?.backend; // "lsp" | "static" | undefined
       const tag = strong.includes(p) ? " (root manifest)" : "";
       const detail =
         backend === "lsp"
           ? found
-            ? "LSP wired ✓  (hover · CFG · call-hierarchy)"
+            ? "LSP ✓  (hover · CFG · call-hierarchy)"
             : "LSP wired, but the server isn't installed — source-preview hover"
           : backend === "static"
             ? found
-              ? `tree-sitter detail (call-hierarchy); ${bin} is installed but LSP hover/CFG aren't wired yet`
+              ? "LSP ✓ used when serving (hover · call-hierarchy); tree-sitter is the fallback"
               : "tree-sitter detail (call-hierarchy) — source-preview hover"
             : "tree-sitter baseline — source-preview hover";
       console.log(`• ${p.id}${tag}`);
@@ -228,15 +241,21 @@ program.parseAsync().catch((error: unknown) => {
 });
 
 /**
- * The language server each provider's deep detail rides on. Only TypeScript is
- * wired today (the others fall back to a source-preview hover); `doctor` reports
- * which servers are installed so the wiring can follow.
+ * The language server each provider can use for deep detail (hover + call
+ * hierarchy). TypeScript drives its own (LSP + compiler CFG); for the others
+ * the server is spawned at serve time when installed, otherwise the
+ * tree-sitter baseline + a source-preview hover stand in.
  */
-const LSP_SERVERS: Record<string, string> = {
-  typescript: "typescript-language-server",
-  rust: "rust-analyzer",
-  go: "gopls",
-  moonbit: "moonbit-lsp",
+type LspSpec = { command: string; args: string[]; languageId: string };
+const LSP_SERVERS: Record<string, LspSpec> = {
+  typescript: {
+    command: "typescript-language-server",
+    args: ["--stdio"],
+    languageId: "typescript",
+  },
+  rust: { command: "rust-analyzer", args: [], languageId: "rust" },
+  go: { command: "gopls", args: [], languageId: "go" },
+  moonbit: { command: "moonbit-lsp", args: [], languageId: "moonbit" },
 };
 
 /** Whether a language server is reachable: a bundled node dep, or a PATH binary. */

@@ -1,4 +1,5 @@
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
+import { createRequire } from "node:module";
 import { fileURLToPath } from "node:url";
 import { dirname, resolve } from "node:path";
 import { callHierarchy } from "./callHierarchyProvider.js";
@@ -10,7 +11,10 @@ const repoRoot = resolve(dirname(fileURLToPath(import.meta.url)), "../../..");
 let client: LspClient;
 
 beforeAll(async () => {
-  client = await LspClient.start(repoRoot);
+  const cli = createRequire(import.meta.url)
+    .resolve("typescript-language-server/package.json")
+    .replace(/package\.json$/, "lib/cli.mjs");
+  client = await LspClient.start(repoRoot, process.execPath, [cli, "--stdio"]);
 }, 30_000);
 
 afterAll(() => {
@@ -31,6 +35,7 @@ describe("callHierarchy (integration)", () => {
         repoRoot,
         "packages/analyzer-ts/src/snapshot.ts",
         "createSnapshotFromWorkingTree",
+        "typescript",
       );
       expect(
         result.incoming.some(
@@ -54,6 +59,7 @@ describe("callHierarchy (integration)", () => {
         repoRoot,
         "packages/analyzer-ts/src/collect.ts",
         "doesNotExist",
+        "typescript",
       );
       expect(result.incoming).toEqual([]);
       expect(result.outgoing).toEqual([]);

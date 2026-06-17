@@ -49,9 +49,10 @@ export async function callHierarchy(
   rootDir: string,
   relativeFile: string,
   symbolName: string,
+  languageId: string,
 ): Promise<CallHierarchyResult> {
   const absolute = resolve(rootDir, relativeFile);
-  client.openDocument(absolute);
+  client.openDocument(absolute, languageId);
   const uri = pathToFileURL(absolute).href;
 
   let symbols: DocumentSymbol[] = [];

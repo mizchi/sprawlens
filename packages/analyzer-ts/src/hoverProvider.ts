@@ -48,9 +48,10 @@ export async function hover(
   rootDir: string,
   relativeFile: string,
   symbolName: string,
+  languageId: string,
 ): Promise<HoverInfo | null> {
   const absolute = resolve(rootDir, relativeFile);
-  client.openDocument(absolute);
+  client.openDocument(absolute, languageId);
   const uri = pathToFileURL(absolute).href;
 
   let symbols: DocumentSymbol[] = [];

@@ -1,14 +1,13 @@
 import { spawn, type ChildProcess } from "node:child_process";
 import { readFileSync } from "node:fs";
-import { createRequire } from "node:module";
 import { pathToFileURL } from "node:url";
 import { encodeMessage, JsonRpcReader } from "./jsonRpc.js";
 
 /**
- * Minimal LSP client speaking to `typescript-language-server --stdio`.
- * Only what the call-hierarchy provider needs; intentionally not a general
- * LSP implementation. The same interface can front other language servers
- * (MoonBit etc.) later.
+ * Minimal LSP client over stdio: documentSymbol, call hierarchy and hover —
+ * what the detail providers need, not a general LSP implementation. It spawns
+ * whatever server command it's given, so it fronts typescript-language-server,
+ * rust-analyzer, gopls, etc. alike.
  */
 export class LspClient {
   private nextId = 1;
@@ -29,13 +28,13 @@ export class LspClient {
     });
   }
 
-  static async start(rootDir: string): Promise<LspClient> {
-    const require = createRequire(import.meta.url);
-    const packageJsonPath = require.resolve(
-      "typescript-language-server/package.json",
-    );
-    const cli = packageJsonPath.replace(/package\.json$/, "lib/cli.mjs");
-    const child = spawn(process.execPath, [cli, "--stdio"], {
+  /** Spawn `command args…` as the language server, cwd'd at the repo root. */
+  static async start(
+    rootDir: string,
+    command: string,
+    args: readonly string[],
+  ): Promise<LspClient> {
+    const child = spawn(command, [...args], {
       cwd: rootDir,
       stdio: ["pipe", "pipe", "ignore"],
     });
@@ -58,7 +57,25 @@ export class LspClient {
     return client;
   }
 
-  request<T>(method: string, params: unknown): Promise<T> {
+  /**
+   * Send an LSP request. While a server is still indexing it may answer with
+   * `ContentModified` (-32801) — "ask again later", not a real failure — so we
+   * retry those a few times before giving up. (typescript-language-server signals
+   * the same not-ready state by returning an empty result; rust-analyzer errors.)
+   */
+  async request<T>(method: string, params: unknown, retries = 8): Promise<T> {
+    for (let attempt = 0; ; attempt++) {
+      try {
+        return await this.send<T>(method, params);
+      } catch (error) {
+        const code = (error as { code?: number }).code;
+        if (code !== -32801 || attempt >= retries) throw error;
+        await new Promise((r) => setTimeout(r, 400));
+      }
+    }
+  }
+
+  private send<T>(method: string, params: unknown): Promise<T> {
     const id = this.nextId++;
     const promise = new Promise<T>((resolve, reject) => {
       this.pending.set(id, {
@@ -77,15 +94,13 @@ export class LspClient {
   }
 
   /** didOpen the file (once); the server loads its project lazily from it. */
-  openDocument(absolutePath: string): void {
+  openDocument(absolutePath: string, languageId: string): void {
     if (this.openDocuments.has(absolutePath)) return;
     this.openDocuments.add(absolutePath);
     this.notify("textDocument/didOpen", {
       textDocument: {
         uri: pathToFileURL(absolutePath).href,
-        languageId: /\.tsx$/.test(absolutePath)
-          ? "typescriptreact"
-          : "typescript",
+        languageId,
         version: 1,
         text: readFileSync(absolutePath, "utf8"),
       },
@@ -113,7 +128,9 @@ export class LspClient {
       if (!pending) return;
       this.pending.delete(msg.id);
       if (msg.error) {
-        pending.reject(new Error(`${msg.method ?? "lsp"}: ${msg.error.message}`));
+        const error = new Error(`${msg.method ?? "lsp"}: ${msg.error.message}`);
+        (error as { code?: number }).code = msg.error.code;
+        pending.reject(error);
       } else {
         pending.resolve(msg.result);
       }
