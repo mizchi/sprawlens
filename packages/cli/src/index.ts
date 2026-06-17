@@ -2,7 +2,8 @@
 import { Command } from "commander";
 import { spawn } from "node:child_process";
 import { existsSync } from "node:fs";
-import { basename, dirname, resolve } from "node:path";
+import { createRequire } from "node:module";
+import { basename, dirname, join, resolve } from "node:path";
 import * as readline from "node:readline/promises";
 import { fileURLToPath } from "node:url";
 import { analyzeRepository, collectRepository } from "@sprawlens/analyzer-ts";
@@ -184,10 +185,77 @@ program
     console.log(`Analyzed ${result.snapshots.length} snapshots and wrote ${result.diffs.length} diffs`);
   });
 
+program
+  .command("doctor")
+  .description("report language detection, LSP availability, and detail features")
+  .argument("[repo]", "repository path", ".")
+  .action(async (repo: string): Promise<void> => {
+    const root = resolve(repo);
+    const { matched, strong } = await detectProviders(PROVIDERS, root);
+    console.log(`sprawlens doctor — ${root}\n`);
+    if (matched.length === 0) {
+      console.log("  no language provider matched this repo");
+      return;
+    }
+    for (const p of matched) {
+      const bin = LSP_SERVERS[p.id];
+      const found = bin ? lspAvailable(bin) : false;
+      const backend = p.detail?.backend; // "lsp" | "static" | undefined
+      const tag = strong.includes(p) ? " (root manifest)" : "";
+      const detail =
+        backend === "lsp"
+          ? found
+            ? "LSP wired ✓  (hover · CFG · call-hierarchy)"
+            : "LSP wired, but the server isn't installed — source-preview hover"
+          : backend === "static"
+            ? found
+              ? `tree-sitter detail (call-hierarchy); ${bin} is installed but LSP hover/CFG aren't wired yet`
+              : "tree-sitter detail (call-hierarchy) — source-preview hover"
+            : "tree-sitter baseline — source-preview hover";
+      console.log(`• ${p.id}${tag}`);
+      console.log(
+        `    language server : ${
+          bin ? `${bin} — ${found ? "found ✓" : "not installed ✗"}` : "—"
+        }`,
+      );
+      console.log(`    deep detail     : ${detail}\n`);
+    }
+  });
+
 program.parseAsync().catch((error: unknown) => {
   console.error(error instanceof Error ? error.message : String(error));
   process.exitCode = 1;
 });
+
+/**
+ * The language server each provider's deep detail rides on. Only TypeScript is
+ * wired today (the others fall back to a source-preview hover); `doctor` reports
+ * which servers are installed so the wiring can follow.
+ */
+const LSP_SERVERS: Record<string, string> = {
+  typescript: "typescript-language-server",
+  rust: "rust-analyzer",
+  go: "gopls",
+  moonbit: "moonbit-lsp",
+};
+
+/** Whether a language server is reachable: a bundled node dep, or a PATH binary. */
+function lspAvailable(bin: string): boolean {
+  try {
+    createRequire(import.meta.url).resolve(`${bin}/package.json`);
+    return true; // shipped as a dependency (typescript-language-server)
+  } catch {
+    /* not a node module — look on PATH */
+  }
+  const sep = process.platform === "win32" ? ";" : ":";
+  return (process.env.PATH ?? "")
+    .split(sep)
+    .some(
+      (d) =>
+        d.length > 0 &&
+        (existsSync(join(d, bin)) || existsSync(join(d, `${bin}.exe`))),
+    );
+}
 
 /**
  * Pick the language provider for a repo. `--lang` forces one; otherwise a

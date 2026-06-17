@@ -19,6 +19,7 @@ function clientFor(repoRoot: string): Promise<LspClient> {
 
 /** TS/JS deep detail: CFG from the compiler, call hierarchy from the LSP. */
 export const tsDetail: LanguageDetail = {
+  backend: "lsp",
   async cfg(repoRoot, file, line) {
     const source = await readFile(join(repoRoot, file), "utf8");
     return extractCfg(source, line);

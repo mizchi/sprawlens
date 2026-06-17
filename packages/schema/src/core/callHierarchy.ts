@@ -76,6 +76,7 @@ export function createStaticDetail(
     return pending;
   };
   return {
+    backend: "static",
     cfg: () => null,
     async callHierarchy(repoRoot, file, symbol) {
       try {

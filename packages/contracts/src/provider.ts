@@ -17,6 +17,10 @@ export type HoverInfo = { markdown: string };
  * still shows structure. Paths are repo-relative; `repoRoot` is absolute.
  */
 export interface LanguageDetail {
+  /** What backs this detail: a language server ("lsp") or static tree-sitter
+   * analysis ("static"). Lets `doctor` report whether an LSP is actually wired
+   * vs the tree-sitter baseline. */
+  readonly backend?: "lsp" | "static";
   cfg(
     repoRoot: string,
     file: string,
