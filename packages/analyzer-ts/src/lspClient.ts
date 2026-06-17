@@ -50,6 +50,7 @@ export class LspClient {
         textDocument: {
           documentSymbol: { hierarchicalDocumentSymbolSupport: true },
           callHierarchy: {},
+          hover: { contentFormat: ["markdown", "plaintext"] },
         },
       },
     });

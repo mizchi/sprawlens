@@ -3,6 +3,7 @@ import { join } from "node:path";
 import type { LanguageDetail } from "@sprawlens/schema";
 import { callHierarchy } from "./callHierarchyProvider.js";
 import { extractCfg } from "./cfgProvider.js";
+import { hover } from "./hoverProvider.js";
 import { LspClient } from "./lspClient.js";
 
 /** One language server per repo root, started lazily. */
@@ -24,5 +25,8 @@ export const tsDetail: LanguageDetail = {
   },
   async callHierarchy(repoRoot, file, symbol) {
     return callHierarchy(await clientFor(repoRoot), repoRoot, file, symbol);
+  },
+  async hover(repoRoot, file, symbol) {
+    return hover(await clientFor(repoRoot), repoRoot, file, symbol);
   },
 };

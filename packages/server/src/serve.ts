@@ -352,6 +352,43 @@ export function createAtlasServer(opts: AtlasServerOptions): Server {
       return;
     }
 
+    if (req.method === "POST" && url.pathname === "/api/hover") {
+      try {
+        const chunks: Buffer[] = [];
+        for await (const chunk of req) chunks.push(chunk as Buffer);
+        const body = JSON.parse(Buffer.concat(chunks).toString("utf8")) as {
+          repo: string;
+          file: string;
+          symbol: string;
+        };
+        const root = repos.get(repoOf(body.repo));
+        if (!root || !detail?.hover) {
+          res
+            .writeHead(root ? 404 : 400)
+            .end(
+              JSON.stringify({
+                error: root ? "no hover provider" : "unknown repo",
+              }),
+            );
+          return;
+        }
+        if (body.file.includes("..") || body.file.startsWith("/")) {
+          res.writeHead(400).end(JSON.stringify({ error: "invalid file" }));
+          return;
+        }
+        // await before writing headers (see the cfg handler) so a rejection
+        // returns a clean 500 instead of crashing the server
+        const result = await detail.hover(root, body.file, body.symbol);
+        res
+          .writeHead(200, { "content-type": "application/json" })
+          .end(JSON.stringify(result));
+      } catch (error) {
+        console.error(error);
+        res.writeHead(500).end(JSON.stringify({ error: "hover failed" }));
+      }
+      return;
+    }
+
     if (req.method === "GET" && !url.pathname.startsWith("/api/")) {
       await serveStatic(url.pathname, res);
       return;

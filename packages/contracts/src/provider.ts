@@ -8,6 +8,9 @@ export type CallHierarchyResult = {
   outgoing: SymbolRef[];
 };
 
+/** LSP hover for a symbol, flattened to one markdown string (signature/type/doc). */
+export type HoverInfo = { markdown: string };
+
 /**
  * Deep, on-demand detail for a symbol — control-flow graph and call hierarchy.
  * Language-specific (LSP / native parser); a provider may omit it and the map
@@ -24,6 +27,12 @@ export interface LanguageDetail {
     file: string,
     symbol: string,
   ): Promise<CallHierarchyResult>;
+  /** Optional LSP hover (signature/type/doc) for a symbol; null when none. */
+  hover?(
+    repoRoot: string,
+    file: string,
+    symbol: string,
+  ): Promise<HoverInfo | null>;
 }
 
 /**
