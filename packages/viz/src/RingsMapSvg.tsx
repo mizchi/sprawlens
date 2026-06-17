@@ -417,8 +417,35 @@ export function RingsMapSvg(props: Props) {
     for (const cell of fileCells) map.set(cell.id, cell.site);
     for (const cell of innerCells) map.set(cell.id, cell.site);
     for (const port of portNodes) map.set(port.id, { x: port.x, y: port.y });
+    // Reference edges point at symbols; at module/file zoom (or when the symbol
+    // budget folds it away) the endpoint symbol has no cell of its own, and the
+    // bundler needs *both* ends placed or it drops the edge. Anchor every
+    // unplaced reference endpoint to its parent file cell, walking up to the
+    // owning module circle if the file isn't drawn either — so selecting a
+    // symbol still shows its references landing where the targets live.
+    const anchor = (id: string) => {
+      if (map.has(id)) return;
+      let cur: string | null = parentFileOf(id);
+      const seen = new Set<string>();
+      while (cur && !seen.has(cur)) {
+        seen.add(cur);
+        const at = map.get(cur);
+        if (at) {
+          map.set(id, at);
+          return;
+        }
+        cur = rings.parentOf.get(cur) ?? null;
+      }
+    };
+    for (const edge of symbolEdges) {
+      anchor(edge.source);
+      anchor(edge.target);
+    }
     return map;
-  }, [rings, fileCells, innerCells, portNodes]);
+    // parentFileOf is a fresh closure each render but structurally stable, so
+    // it's left out of the deps to keep this off the per-render path
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [rings, fileCells, innerCells, portNodes, symbolEdges]);
   const bundleOf = useMemo(
     () =>
       makeEdgeBundler({
