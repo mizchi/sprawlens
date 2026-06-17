@@ -213,18 +213,18 @@ program
     for (const p of matched) {
       const bin = LSP_SERVERS[p.id]?.command;
       const found = bin ? lspAvailable(bin) : false;
-      const backend = p.detail?.backend; // "lsp" | "static" | undefined
       const tag = strong.includes(p) ? " (root manifest)" : "";
+      // mirror the serve-time upgrade: TypeScript drives its own bundled LSP
+      // (plus compiler CFG); every other provider is upgraded to its language
+      // server when the binary is installed, otherwise its static detail stands in.
       const detail =
-        backend === "lsp"
-          ? found
-            ? "LSP ✓  (hover · CFG · call-hierarchy)"
-            : "LSP wired, but the server isn't installed — source-preview hover"
-          : backend === "static"
-            ? found
-              ? "LSP ✓ used when serving (hover · call-hierarchy); tree-sitter is the fallback"
-              : "tree-sitter detail (call-hierarchy) — source-preview hover"
-            : "tree-sitter baseline — source-preview hover";
+        p.detail?.backend === "lsp"
+          ? "LSP ✓  (hover · CFG · call-hierarchy)"
+          : bin && found
+            ? "LSP ✓ used when serving (hover · call-hierarchy); static detail is the fallback"
+            : p.detail
+              ? "static detail (call-hierarchy) — source-preview hover"
+              : "source-preview hover only";
       console.log(`• ${p.id}${tag}`);
       console.log(
         `    language server : ${

@@ -2,33 +2,18 @@ import { resolve } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import type { LspClient } from "./lspClient.js";
 import type { CallHierarchyResult, SymbolRef } from "@sprawlens/schema";
-
-/** Repo-relative reference to a symbol; lines are 1-based. */
-
+import {
+  type DocumentSymbol,
+  findSymbol,
+  namePosition,
+} from "./symbolPosition.js";
 
 type LspRange = { start: { line: number; character: number } };
-type DocumentSymbol = {
-  name: string;
-  selectionRange: LspRange;
-  children?: DocumentSymbol[];
-};
 type CallHierarchyItem = {
   name: string;
   uri: string;
   selectionRange: LspRange;
 };
-
-function findSymbol(
-  symbols: DocumentSymbol[],
-  name: string,
-): DocumentSymbol | null {
-  for (const symbol of symbols) {
-    if (symbol.name === name) return symbol;
-    const child = symbol.children && findSymbol(symbol.children, name);
-    if (child) return child;
-  }
-  return null;
-}
 
 function toRef(rootDir: string, item: CallHierarchyItem): SymbolRef {
   const absolute = fileURLToPath(item.uri);
@@ -70,7 +55,7 @@ export async function callHierarchy(
 
   const items = await client.request<CallHierarchyItem[] | null>(
     "textDocument/prepareCallHierarchy",
-    { textDocument: { uri }, position: symbol.selectionRange.start },
+    { textDocument: { uri }, position: namePosition(absolute, symbol) },
   );
   const item = items?.[0];
   if (!item) return { incoming: [], outgoing: [] };

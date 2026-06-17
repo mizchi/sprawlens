@@ -2,30 +2,17 @@ import { resolve } from "node:path";
 import { pathToFileURL } from "node:url";
 import type { HoverInfo } from "@sprawlens/schema";
 import type { LspClient } from "./lspClient.js";
+import {
+  type DocumentSymbol,
+  findSymbol,
+  namePosition,
+} from "./symbolPosition.js";
 
-type LspPosition = { line: number; character: number };
-type DocumentSymbol = {
-  name: string;
-  selectionRange: { start: LspPosition };
-  children?: DocumentSymbol[];
-};
 /** LSP hover contents: MarkupContent, a MarkedString, or an array of them. */
 type MarkedString = string | { language: string; value: string };
 type HoverResult = {
   contents: { kind: string; value: string } | MarkedString | MarkedString[];
 } | null;
-
-function findSymbol(
-  symbols: DocumentSymbol[],
-  name: string,
-): DocumentSymbol | null {
-  for (const symbol of symbols) {
-    if (symbol.name === name) return symbol;
-    const child = symbol.children && findSymbol(symbol.children, name);
-    if (child) return child;
-  }
-  return null;
-}
 
 /** Flatten the several hover-content shapes into one markdown string. */
 function flatten(contents: NonNullable<HoverResult>["contents"]): string {
@@ -69,7 +56,7 @@ export async function hover(
 
   const result = await client.request<HoverResult>("textDocument/hover", {
     textDocument: { uri },
-    position: symbol.selectionRange.start,
+    position: namePosition(absolute, symbol),
   });
   if (!result || !result.contents) return null;
   const markdown = flatten(result.contents);
