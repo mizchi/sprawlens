@@ -2,6 +2,7 @@ import { createServer, type Server, type ServerResponse } from "node:http";
 import { readFile } from "node:fs/promises";
 import { extname, join, normalize } from "node:path";
 import type { LanguageDetail, LayerManifestEntry } from "@sprawlens/schema";
+import { definitionPreview } from "./definitionPreview.js";
 import {
   enrichWithLoc,
   isSafeRef,
@@ -360,16 +361,11 @@ export function createAtlasServer(opts: AtlasServerOptions): Server {
           repo: string;
           file: string;
           symbol: string;
+          line?: number;
         };
         const root = repos.get(repoOf(body.repo));
-        if (!root || !detail?.hover) {
-          res
-            .writeHead(root ? 404 : 400)
-            .end(
-              JSON.stringify({
-                error: root ? "no hover provider" : "unknown repo",
-              }),
-            );
+        if (!root) {
+          res.writeHead(400).end(JSON.stringify({ error: "unknown repo" }));
           return;
         }
         if (body.file.includes("..") || body.file.startsWith("/")) {
@@ -377,8 +373,15 @@ export function createAtlasServer(opts: AtlasServerOptions): Server {
           return;
         }
         // await before writing headers (see the cfg handler) so a rejection
-        // returns a clean 500 instead of crashing the server
-        const result = await detail.hover(root, body.file, body.symbol);
+        // returns a clean 500 instead of crashing the server. Prefer the LSP
+        // hover (rich, resolved types); fall back to reading the declaration
+        // from source for languages with no LSP detail provider.
+        let result = detail?.hover
+          ? await detail.hover(root, body.file, body.symbol)
+          : null;
+        if (!result && body.line) {
+          result = await definitionPreview(root, body.file, body.line);
+        }
         res
           .writeHead(200, { "content-type": "application/json" })
           .end(JSON.stringify(result));

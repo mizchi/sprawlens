@@ -53,12 +53,13 @@ export async function fetchHover(
   repo: string,
   file: string,
   symbol: string,
+  line: number,
 ): Promise<string | null> {
   try {
     const response = await fetch("/api/hover", {
       method: "POST",
       headers: { "content-type": "application/json" },
-      body: JSON.stringify({ repo, file, symbol }),
+      body: JSON.stringify({ repo, file, symbol, line }),
     });
     if (!response.ok) return null;
     const info = (await response.json()) as { markdown: string } | null;

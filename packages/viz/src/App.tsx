@@ -265,13 +265,14 @@ export function App() {
     const parts = id.split(":"); // symbol:<path>:<kind>:<name>:<line>
     if (parts[0] !== "symbol" || !parts[1] || !parts[3]) return;
     const [file, name] = [parts[1], parts[3]];
+    const line = Number(parts[parts.length - 1]) || 0;
     const cached = hoverCacheRef.current.get(id);
     if (cached !== undefined) {
       setHoverTip(cached ?? null);
       return;
     }
     hoverTimerRef.current = window.setTimeout(() => {
-      void fetchHover(paramsRef.current.source, file, name).then((md) => {
+      void fetchHover(paramsRef.current.source, file, name, line).then((md) => {
         hoverCacheRef.current.set(id, md);
         if (hoveredSymbolRef.current === id) setHoverTip(md ?? null);
       });
