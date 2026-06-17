@@ -227,6 +227,15 @@ describe("applySymbolBudget", () => {
     expect(out.nodes).toHaveLength(4); // 3 kept + 1 filler
   });
 
+  it("drops the folded filler entirely when dropFolded is set", () => {
+    const out = applySymbolBudget(big, { budget: 3, dropFolded: true });
+    expect(out.nodes).toHaveLength(3); // 3 kept, no filler
+    expect(
+      out.nodes.find((n) => n.id === moduleScopeId("src/core")),
+    ).toBeUndefined();
+    expect(out.nodes.every((n) => n.label !== "(module scope)")).toBe(true);
+  });
+
   it("honors a custom priority (focus weighting overrides size)", () => {
     // prioritize the lightest symbols
     const out = applySymbolBudget(big, {

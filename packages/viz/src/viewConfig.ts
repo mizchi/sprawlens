@@ -66,10 +66,13 @@ export const UNAVAILABLE_LEVELS: ReadonlySet<DisplayLevel> = new Set(["ast"]);
  * Include scopes: content categories the map shows, orthogonal to both
  * depth and boundaries. Unchecking excludes — internally the state stays
  * an exclusion set so newly appearing scopes default to included. "test"
- * is the test-file layer, "local" the non-exported symbols.
+ * is the test-file layer, "local" the non-exported symbols, "scope" the
+ * "(module scope)" fillers that pool a file's non-symbol lines (imports, docs,
+ * macro bodies an analyzer didn't name) — unchecking sizes cells by real
+ * symbols only.
  */
-export type OmitScope = "test" | "local";
-export const OMIT_SCOPES: readonly OmitScope[] = ["test", "local"];
+export type OmitScope = "test" | "local" | "scope";
+export const OMIT_SCOPES: readonly OmitScope[] = ["test", "local", "scope"];
 
 /** Layers (contracts/layers.ts) hidden by the omit selection. */
 export function hiddenLayersOf(omit: readonly OmitScope[]): string[] {

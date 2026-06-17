@@ -172,6 +172,9 @@ export type SymbolBudget = {
    * otherwise the per-module filler becomes one giant directory that swamps the
    * real ones. */
   fillerKeyOf?: (id: string) => string;
+  /** Drop the folded "(module scope)" fillers entirely instead of pooling the
+   * dropped area: cells then size by the kept symbols alone. */
+  dropFolded?: boolean;
 };
 
 /**
@@ -188,6 +191,7 @@ export function applySymbolBudget(
     priorityOf = (_, w) => w,
     ensure,
     fillerKeyOf = apiModuleIdOf,
+    dropFolded = false,
   }: SymbolBudget,
 ): AtlasGraph {
   if (graph.nodes.length <= budget) return graph;
@@ -211,10 +215,12 @@ export function applySymbolBudget(
     }
   }
   const fillerLoc = new Map<string, number>();
-  for (const { node } of ranked.slice(budget)) {
-    if (keptIds.has(node.id)) continue; // ensure-promoted: not folded
-    const key = fillerKeyOf(node.id);
-    fillerLoc.set(key, (fillerLoc.get(key) ?? 0) + node.metrics.loc);
+  if (!dropFolded) {
+    for (const { node } of ranked.slice(budget)) {
+      if (keptIds.has(node.id)) continue; // ensure-promoted: not folded
+      const key = fillerKeyOf(node.id);
+      fillerLoc.set(key, (fillerLoc.get(key) ?? 0) + node.metrics.loc);
+    }
   }
   const fillers: AtlasNode[] = [...fillerLoc].map(([key, loc]) => ({
     id: moduleScopeId(key),

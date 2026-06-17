@@ -494,6 +494,10 @@ export function App() {
     const api = applySymbolBudget(full, {
       budget,
       priorityOf: symbolPriorityOf,
+      // "scope" unchecked → drop the "(module scope)" fillers so cells size by
+      // real symbols (useful for Rust, where docs/macros/imports pool into a
+      // huge module-scope blob)
+      dropFolded: paramsRef.current.omit.includes("scope"),
       // with a directory boundary, fold per directory so each keeps its own
       // scope filler (a single per-module filler would become one giant
       // directory that swamps the real ones and collapses the layout)
@@ -640,6 +644,11 @@ export function App() {
           synthesizeSymbols(cell.id, loc, 1);
         if (paramsRef.current.omit.includes("local")) {
           symbols = symbols.filter((s) => s.exported === true);
+        }
+        // "scope" unchecked → drop the per-file "(module scope)" remainder cell
+        // so the named symbols fill the file instead of a non-symbol blob
+        if (paramsRef.current.omit.includes("scope")) {
+          symbols = symbols.filter((s) => !s.id.endsWith("#rest"));
         }
         for (const symbol of symbols) {
           symbolMetaRef.current.set(symbol.id, {
