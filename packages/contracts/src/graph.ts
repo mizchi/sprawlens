@@ -33,6 +33,8 @@ export type SymbolKind =
   | "type"
   | "interface"
   | "enum"
+  // a macro definition (Rust `macro_rules!` etc.)
+  | "macro"
   // class members; static- variants are the static counterparts
   | "method"
   | "property"

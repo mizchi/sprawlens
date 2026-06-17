@@ -10,7 +10,7 @@ beforeAll(async () => {
   await mkdir(join(dir, "src"), { recursive: true });
   await writeFile(
     join(dir, "src/lib.rs"),
-    `mod util;\nuse std::fmt;\nuse crate::util::Thing;\npub struct Greeter { pub name: String }\npub trait Hello { fn hello(&self) -> String; }\nimpl Greeter { pub fn new() -> Self { Greeter { name: String::new() } } fn secret(&self) -> u32 { 1 } }\npub enum Mode { On, Off }\nfn helper() -> i32 { 42 }\n`,
+    `mod util;\nuse std::fmt;\nuse crate::util::Thing;\nmacro_rules! greet { () => { "hi" }; }\npub struct Greeter { pub name: String }\npub trait Hello { fn hello(&self) -> String; }\nimpl Greeter { pub fn new() -> Self { Greeter { name: String::new() } } fn secret(&self) -> u32 { 1 } }\npub enum Mode { On, Off }\nfn helper() -> i32 { 42 }\n`,
   );
   await writeFile(join(dir, "src/util.rs"), `pub struct Thing { v: i32 }\n`);
 });
@@ -27,6 +27,7 @@ describe("snapshotRustWorkingTree", () => {
     expect(by("Greeter")?.exported).toBe(true);
     expect(by("Hello")?.kind).toBe("interface");
     expect(by("Mode")?.kind).toBe("enum");
+    expect(by("greet")?.kind).toBe("macro");
     expect(by("helper")?.exported).toBe(false);
     expect(syms.some((s) => s.parentClass === "Greeter" && s.name === "new" && s.kind === "method")).toBe(true);
     const imports = snap.edges.filter((e) => e.type === "imports");

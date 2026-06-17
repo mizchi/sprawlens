@@ -67,6 +67,9 @@ export type CodeSymbolKind =
   | "enum"
   | "type"
   | "variable"
+  // a macro definition (e.g. Rust `macro_rules!`); declares a callable unit
+  // that is not a function
+  | "macro"
   // class members; static- variants are the static counterparts
   | "method"
   | "property"

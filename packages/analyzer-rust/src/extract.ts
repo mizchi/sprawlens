@@ -147,6 +147,14 @@ function walk(
         if (name) out.symbols.push(symbolOf(file, "variable", name, node));
         break;
       }
+      case "macro_definition": {
+        // `macro_rules! foo { … }` — otherwise its (often large) span falls into
+        // the file's "(module scope)" remainder. Macro-heavy files (preludes,
+        // ISLE, derive helpers) are almost entirely this.
+        const name = node.childForFieldName("name")?.text;
+        if (name) out.symbols.push(symbolOf(file, "macro", name, node));
+        break;
+      }
       case "impl_item": {
         const typeName = node.childForFieldName("type")?.text ?? parentClass;
         const body = node.childForFieldName("body");

@@ -16,7 +16,8 @@ export type SymbolGlyph =
   | "interface"
   | "enum"
   | "method"
-  | "property";
+  | "property"
+  | "macro";
 
 /** Map a producer kind + name to a glyph. CamelCase functions/values read as
  * components (React etc.); class members collapse to method/property (the
@@ -39,9 +40,9 @@ export function isStaticKind(kind: SymbolKind | undefined): boolean {
 }
 
 // Codicon paths (16×16, fill="currentColor").
-// component and method are drawn as custom strokes (below), not fill paths
+// component, method and macro are drawn as custom strokes (below), not fill paths
 const GLYPH_PATHS: Record<
-  Exclude<SymbolGlyph, "component" | "method">,
+  Exclude<SymbolGlyph, "component" | "method" | "macro">,
   string[]
 > = {
   function: [
@@ -166,6 +167,23 @@ function SymbolIcon(props: {
     return (
       <g transform={transform} style={{ pointerEvents: "none" }}>
         <circle cx={8} cy={8} r={5.3} fill="none" stroke={color} stroke-width={2} />
+        {badge}
+      </g>
+    );
+  }
+  if (glyph === "macro") {
+    // a bold "!" — Rust macros are invoked as `name!`
+    return (
+      <g transform={transform} style={{ pointerEvents: "none" }}>
+        <g
+          fill="none"
+          stroke={color}
+          stroke-width={2.2}
+          stroke-linecap="round"
+        >
+          <path d="M8 2.6 L8 9.4" />
+          <path d="M8 12.6 L8 13.0" />
+        </g>
         {badge}
       </g>
     );
