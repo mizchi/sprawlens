@@ -298,9 +298,14 @@ export function createAtlasServer(opts: AtlasServerOptions): Server {
           res.writeHead(400).end(JSON.stringify({ error: "invalid file" }));
           return;
         }
+        // resolve the graph BEFORE writing headers: writing 200 first commits
+        // the response, so a rejection here would make the catch's writeHead(500)
+        // throw ERR_HTTP_HEADERS_SENT and crash the process (taking the whole
+        // server, not just this request, down)
+        const graph = await detail.cfg(root, body.file, body.line);
         res
           .writeHead(200, { "content-type": "application/json" })
-          .end(JSON.stringify(await detail.cfg(root, body.file, body.line)));
+          .end(JSON.stringify(graph));
       } catch (error) {
         console.error(error);
         res.writeHead(500).end(JSON.stringify({ error: "cfg failed" }));
@@ -328,9 +333,12 @@ export function createAtlasServer(opts: AtlasServerOptions): Server {
           res.writeHead(400).end(JSON.stringify({ error: "invalid file" }));
           return;
         }
+        // await before writing headers (see the cfg handler above) so a
+        // rejection returns a clean 500 instead of crashing the server
+        const result = await detail.callHierarchy(root, body.file, body.symbol);
         res
           .writeHead(200, { "content-type": "application/json" })
-          .end(JSON.stringify(await detail.callHierarchy(root, body.file, body.symbol)));
+          .end(JSON.stringify(result));
       } catch (error) {
         console.error(error);
         res
