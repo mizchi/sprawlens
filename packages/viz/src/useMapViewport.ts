@@ -90,6 +90,14 @@ export function useMapViewport(options: {
    * picking inverts viewBox and tilt in one shot. Falls back to the svg. */
   const contentRef = useRef<SVGGElement>(null);
 
+  // While zooming, the LOD focus follows the wheel cursor, not the screen
+  // center: a wheel zoom anchors on the cursor, so the world point under the
+  // *center* drifts away from what you are zooming into (badly so when tilted,
+  // where the squash amplifies the vertical drift), which would pull the detail
+  // budget off the district you are diving into. null = focus the screen center
+  // (panning, camera flights, resize).
+  const wheelFocusRef = useRef<Vec2 | null>(null);
+
   const commitView = () => {
     const v = { ...viewRef.current };
     setCommittedView(v);
@@ -98,15 +106,19 @@ export function useMapViewport(options: {
     // CTM (viewBox + tilt affine) at the screen midpoint so the budget keeps
     // prioritizing what's visually centered after a rotation, not before it.
     let center = { x: v.x + v.w / 2, y: v.y + v.h / 2 };
-    const svg = svgRef.current;
-    const rect = svg?.getBoundingClientRect();
-    const ctm = contentRef.current?.getScreenCTM() ?? svg?.getScreenCTM();
-    if (rect && ctm) {
-      const p = new DOMPoint(
-        rect.left + rect.width / 2,
-        rect.top + rect.height / 2,
-      ).matrixTransform(ctm.inverse());
-      center = { x: p.x, y: p.y };
+    if (wheelFocusRef.current) {
+      center = wheelFocusRef.current;
+    } else {
+      const svg = svgRef.current;
+      const rect = svg?.getBoundingClientRect();
+      const ctm = contentRef.current?.getScreenCTM() ?? svg?.getScreenCTM();
+      if (rect && ctm) {
+        const p = new DOMPoint(
+          rect.left + rect.width / 2,
+          rect.top + rect.height / 2,
+        ).matrixTransform(ctm.inverse());
+        center = { x: p.x, y: p.y };
+      }
     }
     onViewSettle?.(center, width / v.w);
   };
@@ -135,6 +147,9 @@ export function useMapViewport(options: {
   useEffect(() => {
     if (!focusRequest) return;
     cancelFlight();
+    // a flight frames its target at the screen center, so the LOD focus should
+    // track the center again, not a stale wheel-cursor pin
+    wheelFocusRef.current = null;
     const from = { ...viewRef.current };
     const fromCx = from.x + from.w / 2;
     const fromCy = from.y + from.h / 2;
@@ -216,6 +231,11 @@ export function useMapViewport(options: {
       h: v.h * scale,
     };
     applyView();
+    // pin the LOD focus to the world point under the cursor (the zoom anchor),
+    // read after the viewBox update so the CTM is current; falls back to the
+    // screen center if the pick fails
+    wheelFocusRef.current =
+      clientToWorld(event.clientX, event.clientY) ?? wheelFocusRef.current;
   };
 
   /** Spread onto the <svg>; the component adds its own onClick(deselect). */
@@ -248,6 +268,13 @@ export function useMapViewport(options: {
         mode: tilt ? "tilt" : "pan",
       };
       (e.target as Element).setPointerCapture(e.pointerId);
+      // panning moves what sits at the screen center, so drop the wheel focus
+      // pin and let the LOD follow the center again
+      wheelFocusRef.current = null;
+      // closed-hand cursor for the duration of the drag. Set imperatively so it
+      // takes effect without a re-render (the gesture path deliberately avoids
+      // re-rendering); the next commit re-asserts the rendered cursor.
+      if (svgRef.current) svgRef.current.style.cursor = "grabbing";
     },
     onPointerMove: (e: PointerEvent) => {
       const drag = dragRef.current;
@@ -280,6 +307,10 @@ export function useMapViewport(options: {
         if (drag.moved > 5) suppressClickRef.current = true;
         const tilted = drag.mode === "tilt" && drag.moved > 0;
         dragRef.current = null;
+        // release the closed hand; resting cursor is the open grab, which the
+        // component's style prop re-asserts (and upgrades to a pointer on edge
+        // hover) on its next render
+        if (svgRef.current) svgRef.current.style.cursor = "grab";
         // a rotation moved where the screen center maps in world space; recommit
         // so the LOD focus follows it, once the new affine has rendered
         if (tilted) {
