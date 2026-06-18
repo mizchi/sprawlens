@@ -1,6 +1,10 @@
 import { describe, expect, it } from "vitest";
 import type { RawResource } from "@sprawlens/contracts";
-import { resolveServices, serviceFileMap } from "./services.js";
+import {
+  matchResourceFiles,
+  resolveServices,
+  serviceFileMap,
+} from "./services.js";
 
 /** Terse RawResource builder. */
 function res(
@@ -145,6 +149,46 @@ describe("resolveServices", () => {
     );
     expect(pair).toHaveLength(1);
     expect(pair[0]!.kind).toBe("queue"); // typed wins over depends
+  });
+
+  it("exposes per-resource detail with the code source each resource implements", () => {
+    const graph = resolveServices([
+      { ...res("aws_lambda_function.orders"), source: "services/orders" },
+      res("aws_iam_role.orders_role", [], undefined),
+      { ...res("aws_lambda_function.billing"), source: "services/billing" },
+    ], {
+      services: [
+        { name: "orders", terraform: ["aws_lambda_function.orders", "aws_iam_role.orders_role"] },
+        { name: "billing", terraform: ["aws_lambda_function.billing"] },
+      ],
+    });
+    const resources = graph.resources ?? [];
+    expect(resources.find((r) => r.address === "aws_lambda_function.orders")).toEqual({
+      address: "aws_lambda_function.orders",
+      type: "aws_lambda_function",
+      service: "orders",
+      source: "services/orders",
+    });
+    // a glue resource is listed under its service, with no code source
+    expect(resources.find((r) => r.address === "aws_iam_role.orders_role")).toEqual({
+      address: "aws_iam_role.orders_role",
+      type: "aws_iam_role",
+      service: "orders",
+    });
+  });
+
+  it("matchResourceFiles globs a source dir and a source file", () => {
+    const files = [
+      "services/orders/handler.ts",
+      "services/orders/db/repo.ts",
+      "services/billing/index.ts",
+      "lib/util.ts",
+    ];
+    expect(matchResourceFiles(files, "services/orders").sort()).toEqual([
+      "services/orders/db/repo.ts",
+      "services/orders/handler.ts",
+    ]);
+    expect(matchResourceFiles(files, "lib/util.ts")).toEqual(["lib/util.ts"]);
   });
 
   it("maps file paths to services by their source globs (first match wins)", () => {

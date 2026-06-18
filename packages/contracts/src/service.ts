@@ -43,6 +43,26 @@ export type ServiceEdge = {
   weight?: number;
 };
 
+/**
+ * One terraform resource within a service, with the code it points to. Lets the
+ * services view expand a service node into its resources and place each
+ * resource's implementing code inside it. `source` is auto-extracted by the
+ * analyzer from terraform attributes (source_dir / module source / …); `files`
+ * and `loc` are filled by the cli by matching the snapshot against `source`.
+ */
+export type ServiceResource = {
+  address: string;
+  type: string;
+  /** Owning service id. */
+  service: string;
+  /** Repo-root-relative code path/glob the resource implements, if any. */
+  source?: string;
+  /** Snapshot file paths under `source` (filled by the cli). */
+  files?: string[];
+  /** Total LOC of `files`, for sizing the resource cell (filled by the cli). */
+  loc?: number;
+};
+
 export type ServiceGraph = {
   services: ServiceNode[];
   edges: ServiceEdge[];
@@ -50,6 +70,9 @@ export type ServiceGraph = {
    * Drives Phase B nesting (the module map inside each service node). Absent
    * until the composition root (cli) matches files against the mappings. */
   fileServices?: Record<string, string>;
+  /** Per-resource detail for the services view's expand-a-service drill-down:
+   * the terraform resources behind each service and the code they implement. */
+  resources?: ServiceResource[];
 };
 
 /**
@@ -77,4 +100,8 @@ export type RawResource = {
   module?: string;
   /** Referenced addresses found in attribute interpolations. */
   references: ResourceRef[];
+  /** Local code path the resource implements, from a literal attribute
+   * (source_dir / source_path / local module source / filename). Repo-root-
+   * relative once `analyzeTerraform` resolves it; raw from `parseTerraform`. */
+  source?: string;
 };

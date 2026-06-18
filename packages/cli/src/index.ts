@@ -11,11 +11,17 @@ import {
   collectRepository,
   createLspDetail,
 } from "@sprawlens/analyzer-ts";
-import type { LanguageProvider, LayersConfig, Snapshot } from "@sprawlens/schema";
+import type {
+  LanguageProvider,
+  LayersConfig,
+  ServiceGraph,
+  Snapshot,
+} from "@sprawlens/schema";
 import {
   applyLayers,
   computeGraphMetrics,
   layerManifest,
+  matchResourceFiles,
   resolveServices,
   serviceFileMap,
 } from "@sprawlens/schema";
@@ -118,17 +124,32 @@ program
       // edits. Empty graph when the repo has no terraform. `fileServices` maps
       // code files to services (from the [[service]].source globs) so the viz
       // can nest the module map inside each service node (Phase B).
-      const filePaths = snapshot.nodes
-        .filter((n) => n.type === "file")
-        .map((n) => (n as Extract<typeof n, { type: "file" }>).path);
+      const fileNodes = snapshot.nodes.filter(
+        (n): n is Extract<typeof n, { type: "file" }> => n.type === "file",
+      );
+      const filePaths = fileNodes.map((n) => n.path);
+      const fileLoc = new Map(fileNodes.map((n) => [n.path, n.loc ?? 0]));
       const fileServices = serviceFileMap(filePaths, config.services ?? []);
+      // attach the code each terraform resource implements (its source-matched
+      // snapshot files + their LOC) so the services view can place code inside
+      // the resource when a service is expanded.
+      const withResourceCode = (graph: ServiceGraph): ServiceGraph => ({
+        ...graph,
+        resources: graph.resources?.map((r) => {
+          if (!r.source) return r;
+          const files = matchResourceFiles(filePaths, r.source);
+          const loc = files.reduce((sum, f) => sum + (fileLoc.get(f) ?? 0), 0);
+          return { ...r, files, loc };
+        }),
+      });
       const services = terraformPresent
-        ? async () => ({
-            ...resolveServices(await analyzeTerraform(root, tfRoot), {
-              services: config.services,
-            }),
-            fileServices,
-          })
+        ? async () =>
+            withResourceCode({
+              ...resolveServices(await analyzeTerraform(root, tfRoot), {
+                services: config.services,
+              }),
+              fileServices,
+            })
         : undefined;
       if (services) {
         const graph = await services();

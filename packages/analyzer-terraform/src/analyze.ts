@@ -1,5 +1,5 @@
 import { readFile } from "node:fs/promises";
-import { join } from "node:path";
+import { dirname, join, relative, resolve } from "node:path";
 import fg from "fast-glob";
 import type { RawResource } from "@sprawlens/contracts";
 import { parseTerraform } from "./extract.js";
@@ -40,7 +40,16 @@ export async function analyzeTerraform(
   const out: RawResource[] = [];
   for (const file of files) {
     const content = await readFile(file, "utf8");
-    out.push(...(await parseTerraform(file, content)));
+    const dir = dirname(file);
+    for (const r of await parseTerraform(file, content)) {
+      // a resource's source path is relative to its own .tf file; resolve it to
+      // repo-root-relative so it matches the snapshot's file paths.
+      if (r.source) {
+        out.push({ ...r, source: relative(root, resolve(dir, r.source)) });
+      } else {
+        out.push(r);
+      }
+    }
   }
   return out;
 }

@@ -80,6 +80,42 @@ describe("parseTerraform", () => {
     });
   });
 
+  it("extracts a code source path from terraform attributes", async () => {
+    const resources = await parseTerraform(
+      "s.tf",
+      `module "orders" {
+         source = "./services/orders"
+       }
+       resource "aws_lambda_function" "billing" {
+         function_name = "billing"
+         source_dir    = "./services/billing"
+       }
+       module "lambda" {
+         source      = "terraform-aws-modules/lambda/aws"
+         source_path = "./services/worker"
+       }`,
+    );
+    const by = new Map(resources.map((r) => [r.address, r]));
+    expect(by.get("module.orders")?.source).toBe("./services/orders");
+    expect(by.get("aws_lambda_function.billing")?.source).toBe("./services/billing");
+    // a registry module source is not local code, but source_path is
+    expect(by.get("module.lambda")?.source).toBe("./services/worker");
+  });
+
+  it("ignores non-local / zip source attributes", async () => {
+    const resources = await parseTerraform(
+      "z.tf",
+      `module "registry" { source = "terraform-aws-modules/vpc/aws" }
+       resource "aws_lambda_function" "z" {
+         function_name = "z"
+         filename      = "dist/z.zip"
+       }`,
+    );
+    const by = new Map(resources.map((r) => [r.address, r]));
+    expect(by.get("module.registry")?.source).toBeUndefined();
+    expect(by.get("aws_lambda_function.z")?.source).toBeUndefined();
+  });
+
   it("ignores var/local/data references", async () => {
     const resources = await parseTerraform(
       "v.tf",
