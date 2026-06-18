@@ -62,4 +62,40 @@ describe("readSprawlensConfig", () => {
     const config = await readSprawlensConfig(root);
     expect(config?.layers).toBeUndefined();
   });
+
+  it("parses [terraform] and [[service]] tables", async () => {
+    const root = await withToml(
+      [
+        `[terraform]`,
+        `root = "infra/"`,
+        ``,
+        `[[service]]`,
+        `name = "orders"`,
+        `terraform = ["aws_lambda_function.orders*", "module.orders"]`,
+        `source = ["services/orders/**"]`,
+        ``,
+        `[[service]]`,
+        `name = "billing"`,
+        `terraform = ["aws_lambda_function.billing"]`,
+      ].join("\n"),
+    );
+    const config = await readSprawlensConfig(root);
+    expect(config?.terraform).toEqual({ root: "infra/" });
+    expect(config?.services).toEqual([
+      {
+        name: "orders",
+        terraform: ["aws_lambda_function.orders*", "module.orders"],
+        source: ["services/orders/**"],
+      },
+      { name: "billing", terraform: ["aws_lambda_function.billing"] },
+    ]);
+  });
+
+  it("drops service entries without a name", async () => {
+    const root = await withToml(
+      [`[[service]]`, `terraform = ["x.y"]`].join("\n"),
+    );
+    const config = await readSprawlensConfig(root);
+    expect(config?.services).toBeUndefined();
+  });
 });

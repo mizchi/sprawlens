@@ -4,6 +4,7 @@
 // LanguageProvider/LanguageDetail interfaces every other package agrees on.
 export * from "./types.js";
 export * from "./graph.js";
+export * from "./service.js";
 export * from "./detail.js";
 export * from "./provider.js";
 export * from "./workspace.js";

@@ -24,6 +24,22 @@ export type LayerRule = {
   includeExternal?: boolean;
 };
 
+/** Terraform service settings (the `[terraform]` table). */
+export type TerraformConfig = {
+  /** Directory under the repo to scan for `.tf` (default: repo root). */
+  root?: string;
+};
+
+/** One `[[service]]` mapping: which terraform resources form a service, and
+ * which code dirs it maps to (the latter captured for Phase B nesting). */
+export type ServiceMapping = {
+  name: string;
+  /** Address globs (picomatch) claiming terraform resources for this service. */
+  terraform?: string[];
+  /** Code-dir globs backing this service (rendered when modules nest). */
+  source?: string[];
+};
+
 /** The `sprawlens.toml` layer settings, parsed. */
 export type LayersConfig = {
   layers?: LayerRule[];
@@ -31,6 +47,10 @@ export type LayersConfig = {
   ignore?: string[];
   /** Force a language provider id (same effect as --lang). */
   lang?: string;
+  /** Terraform service-layer settings. */
+  terraform?: TerraformConfig;
+  /** Explicit terraform-resource → service mappings. */
+  services?: ServiceMapping[];
 };
 
 /** What the viz needs to render each non-source plane. */

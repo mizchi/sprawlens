@@ -10,6 +10,8 @@ export * from "./contracts/layers.js";
 export * from "./contracts/layersConfig.js";
 export * from "./contracts/modules.js";
 export * from "./contracts/overlay.js";
+export * from "./contracts/serviceRules.js";
+export * from "./contracts/services.js";
 export * from "./core/ai.js";
 export * from "./core/diff.js";
 export * from "./core/metrics.js";
