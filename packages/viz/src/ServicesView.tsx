@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from "preact/hooks";
+import { useEffect, useMemo, useState } from "preact/hooks";
 import type { ServiceEdge, ServiceGraph, ServiceNode } from "@sprawlens/schema";
 import {
   createForceLayout,
@@ -6,22 +6,17 @@ import {
   type ClipRegion,
   type Vec2,
 } from "@sprawlens/layout";
+import { useMapViewport } from "./useMapViewport.ts";
+import { SERVICE_EDGE_COLORS } from "./mapShared.tsx";
 
 /**
  * The upper "service" layer: the terraform-derived service graph rendered as a
  * standalone force-directed plane (nodes = services sized by their resource
- * count, edges styled by communication kind). Self-contained — it fetches
- * /api/services, runs the force layout to convergence, and owns its own
- * pan/zoom. Phase B will fold this into the hierarchy as the top boundary.
+ * count, edges styled by communication kind). It shares the map's zoom/pan
+ * (useMapViewport) and edge palette (mapShared) instead of reimplementing them;
+ * only the force layout itself is local. Phase B folds this into the hierarchy
+ * as the top boundary.
  */
-
-const EDGE_COLOR: Record<ServiceEdge["kind"], string> = {
-  depends: "#64748b",
-  invoke: "#ea580c",
-  queue: "#0891b2",
-  event: "#7c3aed",
-  http: "#16a34a",
-};
 
 const EDGE_LABEL: Record<ServiceEdge["kind"], string> = {
   depends: "depends on",
@@ -31,26 +26,32 @@ const EDGE_LABEL: Record<ServiceEdge["kind"], string> = {
   http: "http →",
 };
 
+/** Fixed logical canvas the graph is fit into; useMapViewport frames it as the
+ * initial viewBox and letterboxes it to the container (as the rings map does). */
+const CANVAS_W = 960;
+const CANVAS_H = 640;
+const MARGIN = 70;
+
 const CLIP: ClipRegion = { kind: "circle", cx: 0, cy: 0, r: 320 };
 const ITERATIONS = 600;
 
-/** Display radius for a service node. Independent of the force layout's
- * area-filling radii (which balloon for a sparse graph and overlap); we just
- * use the solved positions and draw compact, well-separated circles. */
+const edgeColor = (kind: ServiceEdge["kind"]): string =>
+  SERVICE_EDGE_COLORS[kind] ?? "#64748b";
+
+/** Display radius for a service node, before canvas fitting. Independent of the
+ * force layout's area-filling radii (which balloon for a sparse graph and
+ * overlap); we use the solved positions and draw compact circles. */
 function displayRadius(resources: number): number {
   return 16 + 11 * Math.sqrt(Math.max(resources, 1));
 }
 
 type Placed = { node: ServiceNode; pos: Vec2; r: number };
-type Layout = {
-  placed: Placed[];
-  posOf: Map<string, Vec2>;
-  edges: ServiceEdge[];
-  view: ViewBox;
-};
-type ViewBox = { x: number; y: number; w: number; h: number };
+type Layout = { placed: Placed[]; posOf: Map<string, Vec2>; edges: ServiceEdge[] };
 
-/** Run the force layout to convergence and frame it. */
+/**
+ * Run the force layout to convergence, then fit it (aspect-preserving) into the
+ * fixed CANVAS_W×CANVAS_H so the shared viewport's initial viewBox frames it.
+ */
 function layoutServices(graph: ServiceGraph): Layout {
   const nodes = graph.services.map((s) => ({
     id: s.id,
@@ -70,36 +71,40 @@ function layoutServices(graph: ServiceGraph): Layout {
   for (let i = 0; i < ITERATIONS; i++) state = forceStep(state);
 
   const byId = new Map(graph.services.map((s) => [s.id, s]));
-  const placed: Placed[] = [];
+  const solved: Placed[] = [];
   for (const [id, pos] of state.positions) {
     const node = byId.get(id);
-    if (node) placed.push({ node, pos, r: displayRadius(node.metrics.resources) });
+    if (node) solved.push({ node, pos, r: displayRadius(node.metrics.resources) });
   }
-  // frame the bbox with padding so labels are not clipped
+
+  // bbox of the solved graph, then a single scale/offset to center it in the
+  // canvas content box (CANVAS minus MARGIN), so labels never clip the edges.
   let minX = Infinity;
   let minY = Infinity;
   let maxX = -Infinity;
   let maxY = -Infinity;
-  for (const p of placed) {
+  for (const p of solved) {
     minX = Math.min(minX, p.pos.x - p.r);
     minY = Math.min(minY, p.pos.y - p.r);
     maxX = Math.max(maxX, p.pos.x + p.r);
     maxY = Math.max(maxY, p.pos.y + p.r);
   }
   if (!Number.isFinite(minX)) {
-    minX = -10;
-    minY = -10;
-    maxX = 10;
-    maxY = 10;
+    minX = -1;
+    minY = -1;
+    maxX = 1;
+    maxY = 1;
   }
-  const pad = Math.max(maxX - minX, maxY - minY) * 0.15 + 40;
-  const view: ViewBox = {
-    x: minX - pad,
-    y: minY - pad,
-    w: maxX - minX + pad * 2,
-    h: maxY - minY + pad * 2,
-  };
-  return { placed, posOf: state.positions, edges: graph.edges, view };
+  const boxW = CANVAS_W - MARGIN * 2;
+  const boxH = CANVAS_H - MARGIN * 2;
+  const scale = Math.min(boxW / (maxX - minX || 1), boxH / (maxY - minY || 1));
+  const offX = MARGIN + (boxW - (maxX - minX) * scale) / 2 - minX * scale;
+  const offY = MARGIN + (boxH - (maxY - minY) * scale) / 2 - minY * scale;
+  const fit = (p: Vec2): Vec2 => ({ x: p.x * scale + offX, y: p.y * scale + offY });
+
+  const placed = solved.map((p) => ({ ...p, pos: fit(p.pos), r: p.r * scale }));
+  const posOf = new Map(placed.map((p) => [p.node.id, p.pos]));
+  return { placed, posOf, edges: graph.edges };
 }
 
 export function ServicesView(props: {
@@ -124,18 +129,17 @@ export function ServicesView(props: {
 
   const layout = useMemo(() => (graph ? layoutServices(graph) : null), [graph]);
 
-  // pan/zoom over the fitted viewBox
-  const [view, setView] = useState<ViewBox | null>(null);
-  useEffect(() => {
-    if (layout) setView(layout.view);
-  }, [layout]);
-  const drag = useRef<{ x: number; y: number } | null>(null);
-  const svgRef = useRef<SVGSVGElement>(null);
+  // shared map zoom/pan: wheel-to-cursor zoom, drag pan, LOD-committed view.
+  const { svgProps, committedView } = useMapViewport({
+    width: CANVAS_W,
+    height: CANVAS_H,
+  });
+  const view = committedView;
 
   if (error) {
     return <Centered ink={ink}>service graph unavailable ({error})</Centered>;
   }
-  if (!graph || !layout || !view) {
+  if (!graph || !layout) {
     return <Centered ink={ink}>loading services…</Centered>;
   }
   if (graph.services.length === 0) {
@@ -147,57 +151,21 @@ export function ServicesView(props: {
     );
   }
 
-  const onWheel = (e: WheelEvent): void => {
-    e.preventDefault();
-    const svg = svgRef.current;
-    if (!svg) return;
-    const rect = svg.getBoundingClientRect();
-    const fx = (e.clientX - rect.left) / rect.width;
-    const fy = (e.clientY - rect.top) / rect.height;
-    const k = e.deltaY > 0 ? 1.1 : 1 / 1.1;
-    const w = view.w * k;
-    const h = view.h * k;
-    setView({
-      x: view.x + (view.w - w) * fx,
-      y: view.y + (view.h - h) * fy,
-      w,
-      h,
-    });
-  };
-  const onPointerDown = (e: PointerEvent): void => {
-    drag.current = { x: e.clientX, y: e.clientY };
-    (e.target as Element).setPointerCapture?.(e.pointerId);
-  };
-  const onPointerMove = (e: PointerEvent): void => {
-    if (!drag.current || !svgRef.current) return;
-    const rect = svgRef.current.getBoundingClientRect();
-    const dx = ((e.clientX - drag.current.x) / rect.width) * view.w;
-    const dy = ((e.clientY - drag.current.y) / rect.height) * view.h;
-    drag.current = { x: e.clientX, y: e.clientY };
-    setView({ ...view, x: view.x - dx, y: view.y - dy });
-  };
-  const onPointerUp = (): void => {
-    drag.current = null;
-  };
-
+  // zoom-responsive sizing: world units scaled by the committed view width keep
+  // strokes / labels roughly constant on screen as you zoom.
   const fontFor = (r: number): number =>
     Math.max(view.w / 56, Math.min(r * 0.7, view.w / 22));
 
   return (
     <svg
-      ref={svgRef}
+      {...svgProps}
       width="100%"
       height="100%"
-      viewBox={`${view.x} ${view.y} ${view.w} ${view.h}`}
-      style={{ cursor: drag.current ? "grabbing" : "grab", touchAction: "none" }}
-      onWheel={onWheel}
-      onPointerDown={onPointerDown}
-      onPointerMove={onPointerMove}
-      onPointerUp={onPointerUp}
-      onPointerLeave={onPointerUp}
+      preserveAspectRatio="xMidYMid meet"
+      style={{ cursor: "grab", touchAction: "none" }}
     >
       <defs>
-        {Object.entries(EDGE_COLOR).map(([kind, color]) => (
+        {Object.keys(EDGE_LABEL).map((kind) => (
           <marker
             key={kind}
             id={`svc-arrow-${kind}`}
@@ -208,7 +176,7 @@ export function ServicesView(props: {
             markerHeight="6"
             orient="auto-start-reverse"
           >
-            <path d="M0 0 L10 5 L0 10 z" fill={color} />
+            <path d="M0 0 L10 5 L0 10 z" fill={edgeColor(kind as ServiceEdge["kind"])} />
           </marker>
         ))}
       </defs>
@@ -217,7 +185,6 @@ export function ServicesView(props: {
         const a = layout.posOf.get(e.source);
         const b = layout.posOf.get(e.target);
         if (!a || !b) return null;
-        const color = EDGE_COLOR[e.kind];
         const dim = hover !== null && hover !== e.source && hover !== e.target;
         return (
           <line
@@ -226,7 +193,7 @@ export function ServicesView(props: {
             y1={a.y}
             x2={b.x}
             y2={b.y}
-            stroke={color}
+            stroke={edgeColor(e.kind)}
             strokeWidth={Math.max(view.w / 600, (e.weight ?? 1) * (view.w / 900))}
             strokeOpacity={dim ? 0.1 : 0.7}
             markerEnd={`url(#svc-arrow-${e.kind})`}
@@ -274,7 +241,7 @@ export function ServicesView(props: {
           </g>
         );
       })}
-      {/* legend */}
+      {/* legend — pinned to the current viewport's top-left corner */}
       <g transform={`translate(${view.x + view.w * 0.02} ${view.y + view.h * 0.04})`}>
         {Object.entries(EDGE_LABEL).map(([kind, label], i) => (
           <g key={kind} transform={`translate(0 ${i * (view.h / 26)})`}>
@@ -283,7 +250,7 @@ export function ServicesView(props: {
               y1={0}
               x2={view.w / 28}
               y2={0}
-              stroke={EDGE_COLOR[kind as ServiceEdge["kind"]]}
+              stroke={edgeColor(kind as ServiceEdge["kind"])}
               strokeWidth={view.w / 500}
             />
             <text
@@ -298,7 +265,7 @@ export function ServicesView(props: {
           </g>
         ))}
       </g>
-      {/* count badge */}
+      {/* count badge — pinned to the current viewport's top-right corner */}
       <text
         x={view.x + view.w * 0.98}
         y={view.y + view.h * 0.04}

@@ -76,6 +76,16 @@ export let SYMBOL_KIND_COLORS: Record<string, string> = {
   method: "#16a34a", // class members get their own hue, distinct from fns
   property: "#ea580c",
 };
+/** Per-kind ink for the terraform service-layer communication edges, so the
+ * upper service plane reads with the same palette discipline as the code map.
+ * Keyed by ServiceEdge["kind"]. Theme-switched below. */
+export let SERVICE_EDGE_COLORS: Record<string, string> = {
+  depends: "#64748b",
+  invoke: "#ea580c",
+  queue: "#0891b2",
+  event: "#7c3aed",
+  http: "#16a34a",
+};
 /** Strong outline for class-boundary districts (request: easy to spot). */
 let CLASS_BOUNDARY = "#d97706";
 export let EXPORTED_DOT = "#059669";
@@ -146,6 +156,13 @@ export function setMapTheme(dark: boolean): void {
       method: "#86efac", // members: green, clearly not a plain function
       property: "#fdba74",
     };
+    SERVICE_EDGE_COLORS = {
+      depends: "#94a3b8",
+      invoke: "#fb923c",
+      queue: "#22d3ee",
+      event: "#a78bfa",
+      http: "#4ade80",
+    };
     CLASS_BOUNDARY = "#fbbf24";
     EXPORTED_DOT = "#34d399";
     EXPORTED_LABEL = "#34d399";
@@ -193,6 +210,13 @@ export function setMapTheme(dark: boolean): void {
       enum: "#4d7c0f",
       method: "#16a34a",
       property: "#ea580c",
+    };
+    SERVICE_EDGE_COLORS = {
+      depends: "#64748b",
+      invoke: "#ea580c",
+      queue: "#0891b2",
+      event: "#7c3aed",
+      http: "#16a34a",
     };
     CLASS_BOUNDARY = "#d97706";
     MODULE_LABEL_INK = "#0f172a";
