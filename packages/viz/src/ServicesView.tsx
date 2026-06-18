@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "preact/hooks";
+import { useMemo, useState } from "preact/hooks";
 import type { ServiceEdge, ServiceGraph, ServiceNode } from "@sprawlens/schema";
 import {
   createForceLayout,
@@ -13,9 +13,10 @@ import { SERVICE_EDGE_COLORS } from "./mapShared.tsx";
  * The upper "service" layer: the terraform-derived service graph rendered as a
  * standalone force-directed plane (nodes = services sized by their resource
  * count, edges styled by communication kind). It shares the map's zoom/pan
- * (useMapViewport) and edge palette (mapShared) instead of reimplementing them;
- * only the force layout itself is local. Phase B folds this into the hierarchy
- * as the top boundary.
+ * (useMapViewport) and edge palette (mapShared) instead of reimplementing them,
+ * and the service graph is fetched once by the host (App) and handed in, so the
+ * /api/services endpoint isn't hit twice. Only the force layout itself is local.
+ * Phase B folds this into the hierarchy as the top boundary.
  */
 
 const EDGE_LABEL: Record<ServiceEdge["kind"], string> = {
@@ -108,24 +109,13 @@ function layoutServices(graph: ServiceGraph): Layout {
 }
 
 export function ServicesView(props: {
+  /** Fetched once by the host; null until it resolves. */
+  graph: ServiceGraph | null;
   dark: boolean;
   ink: string;
 }): preact.JSX.Element {
-  const { ink } = props;
-  const [graph, setGraph] = useState<ServiceGraph | null>(null);
-  const [error, setError] = useState<string | null>(null);
+  const { graph, ink } = props;
   const [hover, setHover] = useState<string | null>(null);
-
-  useEffect(() => {
-    let live = true;
-    fetch("/api/services")
-      .then((r) => (r.ok ? r.json() : Promise.reject(new Error(`${r.status}`))))
-      .then((json: ServiceGraph) => live && setGraph(json))
-      .catch((e: unknown) => live && setError(String(e)));
-    return () => {
-      live = false;
-    };
-  }, []);
 
   const layout = useMemo(() => (graph ? layoutServices(graph) : null), [graph]);
 
@@ -136,9 +126,6 @@ export function ServicesView(props: {
   });
   const view = committedView;
 
-  if (error) {
-    return <Centered ink={ink}>service graph unavailable ({error})</Centered>;
-  }
   if (!graph || !layout) {
     return <Centered ink={ink}>loading services…</Centered>;
   }

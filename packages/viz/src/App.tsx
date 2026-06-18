@@ -337,8 +337,11 @@ export function App() {
   /** Snapshot served by the CLI at /api/snapshot (fetched once). */
   const servedSnapRef = useRef<SnapshotLike | null>(null);
   /** Terraform service graph from /api/services (fetched once): drives the
-   * "group by service" nesting (fileServices) and the service-level edges. */
+   * "group by service" nesting (fileServices) and the service-level edges. The
+   * ref is for the synchronous reads in boundariesOf/nativeEdges; the state
+   * feeds the standalone ServicesView so it doesn't re-fetch the same endpoint. */
   const serviceGraphRef = useRef<ServiceGraph | null>(null);
+  const [serviceGraph, setServiceGraph] = useState<ServiceGraph | null>(null);
   /** Layer render manifest from the server (sprawlens.toml); defaults to the
    * built-in test/deps presets for demo / fixtures with no server config. */
   const [layerManifest, setLayerManifest] = useState<LayerManifestEntry[]>(
@@ -372,6 +375,7 @@ export function App() {
       .then((json: ServiceGraph | null) => {
         if (cancelled || !json) return;
         serviceGraphRef.current = json;
+        setServiceGraph(json);
         // if the user already enabled nesting before this resolved, rebuild
         if (paramsRef.current.groupByService) rebuild(paramsRef.current);
       })
@@ -2094,7 +2098,7 @@ export function App() {
         {/* upper service layer (terraform): a full-map overlay when toggled on */}
         {servicesMode ? (
           <div style={{ position: "absolute", inset: "0", background: MAP_BG }}>
-            <ServicesView dark={params.dark} ink={INK} />
+            <ServicesView graph={serviceGraph} dark={params.dark} ink={INK} />
           </div>
         ) : null}
         {/* toggle: code map ⇄ services (terraform upper layer) */}
