@@ -43,7 +43,14 @@ export type ServiceEdge = {
   weight?: number;
 };
 
-export type ServiceGraph = { services: ServiceNode[]; edges: ServiceEdge[] };
+export type ServiceGraph = {
+  services: ServiceNode[];
+  edges: ServiceEdge[];
+  /** Code file path → owning service id, from the services' `source` globs.
+   * Drives Phase B nesting (the module map inside each service node). Absent
+   * until the composition root (cli) matches files against the mappings. */
+  fileServices?: Record<string, string>;
+};
 
 /**
  * The analyzer→schema boundary: one parsed Terraform resource (or module call),

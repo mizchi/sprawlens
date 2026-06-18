@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { RawResource } from "@sprawlens/contracts";
-import { resolveServices } from "./services.js";
+import { resolveServices, serviceFileMap } from "./services.js";
 
 /** Terse RawResource builder. */
 function res(
@@ -145,6 +145,34 @@ describe("resolveServices", () => {
     );
     expect(pair).toHaveLength(1);
     expect(pair[0]!.kind).toBe("queue"); // typed wins over depends
+  });
+
+  it("maps file paths to services by their source globs (first match wins)", () => {
+    const map = serviceFileMap(
+      [
+        "services/orders/handler.ts",
+        "services/billing/index.ts",
+        "shared/util.ts",
+      ],
+      [
+        { name: "orders", source: ["services/orders/**"] },
+        { name: "billing", source: ["services/billing/**"] },
+      ],
+    );
+    expect(map).toEqual({
+      "services/orders/handler.ts": "orders",
+      "services/billing/index.ts": "billing",
+    });
+    // unmapped files are omitted (not forced into a bucket)
+    expect(map["shared/util.ts"]).toBeUndefined();
+  });
+
+  it("serviceFileMap ignores services without a source mapping", () => {
+    const map = serviceFileMap(
+      ["a.ts"],
+      [{ name: "orders", terraform: ["aws_lambda_function.x"] }],
+    );
+    expect(map).toEqual({});
   });
 
   it("resolves module references to a module service", () => {

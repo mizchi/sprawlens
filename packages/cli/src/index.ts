@@ -17,6 +17,7 @@ import {
   computeGraphMetrics,
   layerManifest,
   resolveServices,
+  serviceFileMap,
 } from "@sprawlens/schema";
 import { analyzeTerraform, hasTerraform } from "@sprawlens/analyzer-terraform";
 import { PROVIDERS, detectProviders } from "@sprawlens/providers";
@@ -114,12 +115,20 @@ program
       }
       // the upper "service" layer: parse terraform (independent of the code
       // language) into a service graph, re-derived per request for live .tf
-      // edits. Empty graph when the repo has no terraform.
+      // edits. Empty graph when the repo has no terraform. `fileServices` maps
+      // code files to services (from the [[service]].source globs) so the viz
+      // can nest the module map inside each service node (Phase B).
+      const filePaths = snapshot.nodes
+        .filter((n) => n.type === "file")
+        .map((n) => (n as Extract<typeof n, { type: "file" }>).path);
+      const fileServices = serviceFileMap(filePaths, config.services ?? []);
       const services = terraformPresent
-        ? async () =>
-            resolveServices(await analyzeTerraform(root, tfRoot), {
+        ? async () => ({
+            ...resolveServices(await analyzeTerraform(root, tfRoot), {
               services: config.services,
-            })
+            }),
+            fileServices,
+          })
         : undefined;
       if (services) {
         const graph = await services();

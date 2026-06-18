@@ -58,6 +58,8 @@ export type PlaygroundParams = {
   /** Diff comparison base (no UI yet; git tooling will own this). */
   diffBase: string;
   showEdges: boolean;
+  /** Nest the module map inside terraform service nodes (the upper layer). */
+  groupByService: boolean;
   /** Dark map + chrome; defaults to the system preference. */
   dark: boolean;
   /** Minimum on-screen px a symbol/directory label needs to be drawn. */
@@ -198,6 +200,16 @@ export function Controls(props: Props) {
           checked={params.showEdges}
           onInput={(e) =>
             set("showEdges", (e.target as HTMLInputElement).checked)
+          }
+        />
+      </label>
+      <label style={row} title="nest the module map inside terraform services">
+        <span style={{ width: "110px" }}>group by service</span>
+        <input
+          type="checkbox"
+          checked={params.groupByService}
+          onInput={(e) =>
+            set("groupByService", (e.target as HTMLInputElement).checked)
           }
         />
       </label>

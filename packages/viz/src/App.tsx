@@ -48,6 +48,7 @@ import {
   snapshotToAtlasGraph,
   type ExternalDep,
   type LayerManifestEntry,
+  type ServiceGraph,
   type SnapshotLike,
 } from "@sprawlens/schema";
 import { apply, layerTransform } from "@sprawlens/layout";
@@ -77,6 +78,7 @@ import {
   directoryGrouping,
   moduleGrouping,
   parentFileOf as contractParentFileOf,
+  serviceGrouping,
   type Grouping,
   type ModuleIdOf,
 } from "@sprawlens/schema";
@@ -123,6 +125,8 @@ const CONVERGENCE_TOLERANCE = 0.02;
 /** Solver parameters: long-stable knobs, hardcoded out of the UI. */
 const SEED = 1;
 const SYNTH_COUNT = 120;
+/** Bucket for files that match no service's source globs, when nesting by service. */
+const UNASSIGNED_SERVICE = "(no service)";
 const ADAPTATION_RATE = 0.8;
 const LLOYD_RATE = 0.7;
 /** Directory boundary: dirname truncated to this many path segments. */
@@ -203,6 +207,9 @@ export function App() {
     diffBase: "",
     // ambient edges add noise; macro module deps are opt-in via this toggle
     showEdges: false,
+    // nest the module map inside terraform service nodes; opt-in, needs a
+    // sprawlens.toml [[service]] source mapping to have anything to nest
+    groupByService: false,
     // label visibility floor (on-screen px) + font multiplier, slider-tunable
     labelMinPx: 9,
     labelScale: 1,
@@ -329,6 +336,9 @@ export function App() {
   const playwrightSnapRef = useRef<SnapshotLike | null>(null);
   /** Snapshot served by the CLI at /api/snapshot (fetched once). */
   const servedSnapRef = useRef<SnapshotLike | null>(null);
+  /** Terraform service graph from /api/services (fetched once): drives the
+   * "group by service" nesting (fileServices) and the service-level edges. */
+  const serviceGraphRef = useRef<ServiceGraph | null>(null);
   /** Layer render manifest from the server (sprawlens.toml); defaults to the
    * built-in test/deps presets for demo / fixtures with no server config. */
   const [layerManifest, setLayerManifest] = useState<LayerManifestEntry[]>(
@@ -353,6 +363,17 @@ export function App() {
       .then((json: { layers?: LayerManifestEntry[] } | null) => {
         if (cancelled || !json?.layers || json.layers.length === 0) return;
         setLayerManifest(json.layers);
+      })
+      .catch(() => {});
+    // the terraform service graph (upper layer): cached so "group by service"
+    // can nest the module map inside services. Empty/absent in dev/demo.
+    fetch("/api/services")
+      .then((r) => (r.ok ? r.json() : null))
+      .then((json: ServiceGraph | null) => {
+        if (cancelled || !json) return;
+        serviceGraphRef.current = json;
+        // if the user already enabled nesting before this resolved, rebuild
+        if (paramsRef.current.groupByService) rebuild(paramsRef.current);
       })
       .catch(() => {});
     return () => {
@@ -458,7 +479,34 @@ export function App() {
         ];
       return [];
     });
-    return groupings.length > 0 ? groupings : [moduleGrouping(moduleIdOf)];
+    const inner = groupings.length > 0 ? groupings : [moduleGrouping(moduleIdOf)];
+    // the upper "service" layer (Phase B): nest the whole module map inside
+    // terraform service nodes by prepending a service boundary. Only when the
+    // toggle is on and a sprawlens.toml source mapping gave us file→service.
+    const fileServices = serviceGraphRef.current?.fileServices;
+    if (p.groupByService && fileServices && Object.keys(fileServices).length > 0) {
+      const serviceOf = (file: string): string =>
+        fileServices[file] ?? UNASSIGNED_SERVICE;
+      return [serviceGrouping(serviceOf), ...inner];
+    }
+    return inner;
+  };
+
+  /** Service-to-service communication edges (terraform flow), keyed for the
+   * service boundary level. Endpoints are service ids = serviceOf values. */
+  const serviceNativeEdges = (
+    p: PlaygroundParams,
+  ): ReadonlyMap<string, readonly AtlasEdge[]> | undefined => {
+    const graph = serviceGraphRef.current;
+    if (!p.groupByService || !graph?.fileServices) return undefined;
+    const edges: AtlasEdge[] = graph.edges.map((e) => ({
+      source: e.source,
+      target: e.target,
+      kind: "flow",
+      ...(e.weight !== undefined ? { weight: e.weight } : {}),
+      ...(e.via ? { refs: [e.via] } : {}),
+    }));
+    return new Map([["service", edges]]);
   };
 
   const ringsOptions = (p: PlaygroundParams) => ({
@@ -468,6 +516,7 @@ export function App() {
     adaptationRate: ADAPTATION_RATE,
     lloydRate: LLOYD_RATE,
     boundaries: boundariesOf(p),
+    nativeEdges: serviceNativeEdges(p),
   });
 
   const treemapOptions = (p: PlaygroundParams) => ({
@@ -477,6 +526,7 @@ export function App() {
     adaptationRate: ADAPTATION_RATE,
     lloydRate: LLOYD_RATE,
     boundaries: boundariesOf(p),
+    nativeEdges: serviceNativeEdges(p),
   });
 
   const symbolsForFile = (fileId: string): AtlasNode[] => {
