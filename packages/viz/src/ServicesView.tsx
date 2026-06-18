@@ -322,6 +322,7 @@ export function ServicesView(props: {
   const serviceLabelSize = view.w / 45;
 
   return (
+    <div style={{ position: "relative", width: "100%", height: "100%" }}>
     <svg
       {...svgProps}
       width="100%"
@@ -393,30 +394,6 @@ export function ServicesView(props: {
           />
         );
       })}
-      {/* legend — pinned to the current viewport's top-left corner */}
-      <g transform={`translate(${view.x + view.w * 0.02} ${view.y + view.h * 0.04})`}>
-        {Object.entries(EDGE_LABEL).map(([kind, label], i) => (
-          <g key={kind} transform={`translate(0 ${i * (view.h / 26)})`}>
-            <line
-              x1={0}
-              y1={0}
-              x2={view.w / 28}
-              y2={0}
-              stroke={edgeColor(kind as ServiceEdge["kind"])}
-              stroke-width={view.w / 500}
-            />
-            <text
-              x={view.w / 24}
-              y={view.h / 90}
-              font-size={view.w / 64}
-              fill={ink}
-              opacity={0.7}
-            >
-              {label}
-            </text>
-          </g>
-        ))}
-      </g>
       {/* count badge — pinned to the current viewport's top-right corner */}
       <text
         x={view.x + view.w * 0.98}
@@ -429,6 +406,38 @@ export function ServicesView(props: {
         {graph.services.length} services · {graph.edges.length} links
       </text>
     </svg>
+      {/* edge-kind legend: screen-fixed at the bottom-left, does not pan/zoom */}
+      <div
+        style={{
+          position: "absolute",
+          left: "12px",
+          bottom: "12px",
+          display: "flex",
+          flexDirection: "column",
+          gap: "5px",
+          fontSize: "11px",
+          color: ink,
+          opacity: 0.85,
+          pointerEvents: "none",
+          userSelect: "none",
+        }}
+      >
+        {Object.entries(EDGE_LABEL).map(([kind, label]) => (
+          <div
+            key={kind}
+            style={{ display: "flex", alignItems: "center", gap: "8px" }}
+          >
+            <span
+              style={{
+                width: "22px",
+                borderTop: `2px solid ${edgeColor(kind as ServiceEdge["kind"])}`,
+              }}
+            />
+            <span>{label}</span>
+          </div>
+        ))}
+      </div>
+    </div>
   );
 }
 
