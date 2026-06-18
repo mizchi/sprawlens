@@ -1,6 +1,14 @@
 # Terraform service layer
 
-Status: Phase A done (2026-06-18). Phase B (nest modules inside services) pending.
+Status: Phase A + Phase B done (2026-06-18).
+
+Phase B shipped: a "group by service" toggle prepends `serviceGrouping` as the
+outermost hierarchy boundary, nesting the module map inside each terraform
+service. `serviceFileMap` (schema) matches snapshot files to services by their
+`source` globs, served as `ServiceGraph.fileServices`; the viz builds `serviceOf`
+from it and feeds the terraform edges in as `nativeEdges["service"]`. Files
+matching no service collect in a single `(no service)` bucket. Kept orthogonal to
+the boundary/granularity axes (additive, gated behind the toggle).
 
 ## Goal
 

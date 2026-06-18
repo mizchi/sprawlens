@@ -63,6 +63,11 @@ source = ["services/orders/**"]   # code dir backing the service
 
 Without any `[[service]]` rules, each service-like resource is its own service.
 
+With a `source` mapping, toggle **group by service** to nest the module map
+inside each service node — services become the outer containers, the code lives
+inside, and the service-to-service links ride on top. Files outside every
+service's `source` collect in a `(no service)` bucket.
+
 ## Requirements
 
 - Node.js >= 24
