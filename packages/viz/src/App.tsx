@@ -40,6 +40,7 @@ import {
   SELECT_STROKE,
   setMapTheme,
 } from "./mapShared.tsx";
+import { ServicesView } from "./ServicesView.tsx";
 import {
   snapshotExternalDeps,
   snapshotSymbolEdges,
@@ -247,6 +248,9 @@ export function App() {
   // pinned top-right (below the header), not at the cursor, so it never sits
   // under the mouse you're pointing with
   const [hoverTip, setHoverTip] = useState<string | null>(null);
+  // the upper "service" layer (terraform): a standalone force-directed plane,
+  // toggled over the code map. Independent of the hierarchy engine for now.
+  const [servicesMode, setServicesMode] = useState(false);
   const hoverCacheRef = useRef(new Map<string, string | null>());
   const hoverTimerRef = useRef(0);
   const hoveredSymbolRef = useRef<string | null>(null);
@@ -2037,6 +2041,34 @@ export function App() {
         }}
       >
         {scene ? <SvgRenderer scene={scene} {...handlers} /> : null}
+        {/* upper service layer (terraform): a full-map overlay when toggled on */}
+        {servicesMode ? (
+          <div style={{ position: "absolute", inset: "0", background: MAP_BG }}>
+            <ServicesView dark={params.dark} ink={INK} />
+          </div>
+        ) : null}
+        {/* toggle: code map ⇄ services (terraform upper layer) */}
+        <button
+          onClick={() => setServicesMode((v) => !v)}
+          title="toggle the terraform service layer"
+          style={{
+            position: "absolute",
+            top: "8px",
+            left: "50%",
+            transform: "translateX(-50%)",
+            zIndex: 70,
+            padding: "4px 12px",
+            fontSize: "11px",
+            fontFamily: "inherit",
+            cursor: "pointer",
+            borderRadius: "999px",
+            border: `1px solid ${PANEL_BORDER}`,
+            background: servicesMode ? "#0891b2" : PANEL_BG,
+            color: servicesMode ? "#fff" : INK,
+          }}
+        >
+          {servicesMode ? "● services" : "○ services"}
+        </button>
         {/* LSP hover tooltip, pinned top-right below the header so it never
             sits under the cursor; ```lang fences stripped */}
         {hoverTip ? (

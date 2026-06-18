@@ -12,7 +12,12 @@ import {
   createLspDetail,
 } from "@sprawlens/analyzer-ts";
 import type { LanguageProvider, LayersConfig, Snapshot } from "@sprawlens/schema";
-import { applyLayers, layerManifest, resolveServices } from "@sprawlens/schema";
+import {
+  applyLayers,
+  computeGraphMetrics,
+  layerManifest,
+  resolveServices,
+} from "@sprawlens/schema";
 import { analyzeTerraform, hasTerraform } from "@sprawlens/analyzer-terraform";
 import { PROVIDERS, detectProviders } from "@sprawlens/providers";
 import { createAtlasServer, watchDir, workingDiff } from "@sprawlens/server";
@@ -56,25 +61,47 @@ program
       // an explicit --lang still wins over the config's lang.
       const config = (await readSprawlensConfig(root)) ?? {};
       const provider = await chooseProvider(root, options.lang ?? config.lang);
-      if (!provider) {
+      const tfRoot = config.terraform?.root;
+      const terraformPresent = await hasTerraform(root, tfRoot);
+      // an infra-only repo (terraform, no code) still gets the service layer;
+      // only bail when neither a language provider nor terraform is present.
+      if (!provider && !terraformPresent) {
         process.exitCode = 1;
         return;
       }
-      console.log(`analyzing ${root} (${provider.id}) …`);
+
       // a live analyzer drives fs-watch updates: incremental (re-parse only
       // changed files) when the provider supports it, else full re-analysis.
       // applyLayers stamps each snapshot (initial + live) from the toml config.
-      const incremental = provider.createIncrementalAnalyzer?.(root);
-      const rawAnalyze = incremental
-        ? () => incremental.analyze()
-        : () => provider.analyze(root);
-      const analyze = async (): Promise<Snapshot> =>
-        applyLayers(await rawAnalyze(), config);
-      const snapshot = await analyze();
+      let analyze: (() => Promise<Snapshot>) | undefined;
+      let detail = provider?.detail;
+      if (provider) {
+        const p = provider;
+        console.log(`analyzing ${root} (${p.id}) …`);
+        const incremental = p.createIncrementalAnalyzer?.(root);
+        const rawAnalyze = incremental
+          ? () => incremental.analyze()
+          : () => p.analyze(root);
+        analyze = async (): Promise<Snapshot> =>
+          applyLayers(await rawAnalyze(), config);
+        // prefer an LSP for deep detail when one is installed: TS already drives
+        // its own (LSP + compiler CFG); the others ship a static tree-sitter
+        // detail that we upgrade to an LSP (hover + call hierarchy) here.
+        const lsp = LSP_SERVERS[p.id];
+        if (lsp && p.id !== "typescript" && lspAvailable(lsp.command)) {
+          detail = createLspDetail(lsp);
+          console.log(`  detail: ${lsp.command} (LSP: hover · call-hierarchy)`);
+        }
+      } else {
+        console.log(
+          `no language provider matched ${root}; serving the terraform service layer only`,
+        );
+      }
+      const snapshot = analyze ? await analyze() : emptySnapshot(root, name);
       const fileCount = snapshot.nodes.filter((n) => n.type === "file").length;
       console.log(
         `  ${fileCount} files, ${snapshot.edges.length} edges` +
-          (incremental ? " (live: incremental)" : " (live: full re-analyze)"),
+          (analyze ? " (live)" : " (terraform-only)"),
       );
 
       const vizDist = resolveVizDist();
@@ -85,20 +112,10 @@ program
         process.exitCode = 1;
         return;
       }
-      // prefer an LSP for deep detail when one is installed: TS already drives
-      // its own (LSP + compiler CFG); the others ship a static tree-sitter
-      // detail that we upgrade to an LSP (hover + call hierarchy) here.
-      let detail = provider.detail;
-      const lsp = LSP_SERVERS[provider.id];
-      if (lsp && provider.id !== "typescript" && lspAvailable(lsp.command)) {
-        detail = createLspDetail(lsp);
-        console.log(`  detail: ${lsp.command} (LSP: hover · call-hierarchy)`);
-      }
       // the upper "service" layer: parse terraform (independent of the code
       // language) into a service graph, re-derived per request for live .tf
       // edits. Empty graph when the repo has no terraform.
-      const tfRoot = config.terraform?.root;
-      const services = (await hasTerraform(root, tfRoot))
+      const services = terraformPresent
         ? async () =>
             resolveServices(await analyzeTerraform(root, tfRoot), {
               services: config.services,
@@ -113,7 +130,7 @@ program
       const server = createAtlasServer({
         repos: new Map([[name, root]]),
         snapshots: new Map([[name, snapshot]]),
-        analyzers: new Map([[name, analyze]]),
+        analyzers: analyze ? new Map([[name, analyze]]) : undefined,
         vizDist,
         detail,
         layers: layerManifest(config),
@@ -265,6 +282,28 @@ program
       console.log(`    deep detail     : ${detail}\n`);
     }
   });
+
+/** A degenerate snapshot for an infra-only repo (terraform, no code): just the
+ * repo node, so the viz loads and the service-layer overlay does the talking. */
+function emptySnapshot(root: string, name: string): Snapshot {
+  const nodes: Snapshot["nodes"] = [{ id: "repo", type: "repo", name }];
+  const { metrics } = computeGraphMetrics(nodes, []);
+  return {
+    schemaVersion: 1,
+    repoPath: root,
+    commit: {
+      hash: "WORKTREE",
+      shortHash: "worktree",
+      timestamp: new Date().toISOString(),
+      authorName: "Working Tree",
+      message: "Uncommitted working tree",
+      aiIndicators: [],
+    },
+    nodes,
+    edges: [],
+    metrics: { ...metrics, loc: 0 },
+  };
+}
 
 /** doctor: report the terraform service layer (the upper layer). */
 async function reportTerraform(
