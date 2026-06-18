@@ -51,8 +51,16 @@ function displayRadius(resources: number): number {
   return 16 + 11 * Math.sqrt(Math.max(resources, 1));
 }
 
-/** World radius an expanded service grows to (to host its resources + code). */
-const EXPAND_R = 130;
+/** Detail thresholds on a service's on-screen size (world radius / view width):
+ * resources fade in from R1, the code cells from R2. Zooming in shrinks the view
+ * width, so the ratio grows and detail appears — semantic zoom, no clicks. */
+const RES_FADE: [number, number] = [0.05, 0.09];
+const CODE_FADE: [number, number] = [0.11, 0.16];
+
+/** Clamp a value's position within [lo, hi] to a 0..1 ramp. */
+function ramp(x: number, lo: number, hi: number): number {
+  return Math.max(0, Math.min(1, (x - lo) / (hi - lo)));
+}
 
 /** Place the i-th of `count` children on a ring; a single child sits centered. */
 function ringPlace(i: number, count: number, ringR: number): Vec2 {
@@ -143,102 +151,128 @@ function layoutServices(graph: ServiceGraph): Layout {
 }
 
 /**
- * An expanded service: an enlarged disc holding its terraform resources, each
- * resource holding the code (files) it implements as small cells. This is the
- * "place code inside the resource" drill-down. Click to collapse.
+ * One service in the plane. Its terraform resources — and inside each, the code
+ * (files) it implements — are laid out within the service's own circle and
+ * revealed by zoom: when the circle is small on screen it is just a labeled
+ * disc; zoom in and the resources fade in, zoom further and the code cells do.
+ * `resOpacity` / `codeOpacity` are the LOD ramps the host computes from zoom.
  */
-function ExpandedService(props: {
+function ServiceCell(props: {
   service: ServiceNode;
   resources: ServiceResource[];
   pos: Vec2;
+  r: number;
   dark: boolean;
   ink: string;
   labelSize: number;
-  onCollapse: () => void;
+  resLabelSize: number;
+  strokeW: number;
+  dim: boolean;
+  resOpacity: number;
+  codeOpacity: number;
+  onHover: (id: string | null) => void;
 }): preact.JSX.Element {
-  const { service, resources, pos, dark, ink, labelSize } = props;
-  const R = EXPAND_R;
+  const { service, resources, pos, r, dark, ink, labelSize, resLabelSize, strokeW } =
+    props;
   const count = resources.length;
-  const ringR = count > 1 ? R * 0.5 : 0;
-  const resR = count > 1 ? R * 0.3 : R * 0.6;
+  const ringR = count > 1 ? r * 0.5 : 0;
+  const resR = count > 1 ? r * 0.3 : r * 0.58;
   return (
-    <g transform={`translate(${pos.x} ${pos.y})`} style={{ cursor: "zoom-out" }}>
+    <g
+      transform={`translate(${pos.x} ${pos.y})`}
+      opacity={props.dim ? 0.35 : 1}
+      onPointerEnter={() => props.onHover(service.id)}
+      onPointerLeave={() => props.onHover(null)}
+      style={{ cursor: "pointer" }}
+    >
       <circle
-        r={R}
-        fill={dark ? "rgba(15,23,42,0.96)" : "rgba(248,250,252,0.96)"}
+        r={r}
+        fill={dark ? "#1e293b" : "#e2e8f0"}
         stroke="#0891b2"
-        strokeWidth={1.2}
-        onClick={props.onCollapse}
+        stroke-width={strokeW}
       />
       <text
-        y={-R - 5}
-        textAnchor="middle"
-        fontSize={labelSize}
-        fontWeight="600"
+        y={r + labelSize + 1}
+        text-anchor="middle"
+        font-size={labelSize}
         fill={ink}
         style={{ pointerEvents: "none", userSelect: "none" }}
       >
         {service.label}
       </text>
-      {resources.map((res, i) => {
-        const c = ringPlace(i, count, ringR);
-        const files = res.files ?? [];
-        return (
-          <g key={res.address} transform={`translate(${c.x} ${c.y})`}>
-            <circle
-              r={resR}
-              fill={dark ? "#1e293b" : "#e2e8f0"}
-              stroke="#64748b"
-              strokeWidth={0.6}
-            >
-              <title>
-                {res.address}
-                {res.source ? `\n→ ${res.source}` : "\n(no code source)"}
-                {`\n${files.length} file(s)${res.loc ? `, ${res.loc} loc` : ""}`}
-              </title>
-            </circle>
-            <text
-              y={resR + resR * 0.32}
-              textAnchor="middle"
-              fontSize={resR * 0.22}
-              fill={ink}
-              opacity={0.85}
-              style={{ pointerEvents: "none", userSelect: "none" }}
-            >
-              {shortAddress(res.address)}
-            </text>
-            {/* the resource's code: one cell per source file */}
-            {files.map((f, j) => {
-              const cell = gridCell(j, files.length, resR * 1.25);
-              return (
-                <rect
-                  key={f}
-                  x={cell.x - cell.size / 2}
-                  y={cell.y - cell.size / 2}
-                  width={cell.size}
-                  height={cell.size}
-                  rx={cell.size * 0.18}
-                  fill={dark ? "#475569" : "#94a3b8"}
+      <title>
+        {service.id}
+        {service.resourceType ? `\n${service.resourceType}` : ""}
+        {`\n${service.metrics.resources} resource(s) — zoom in for code`}
+      </title>
+      {props.resOpacity > 0 ? (
+        <g opacity={props.resOpacity}>
+          {resources.map((res, i) => {
+            const c = ringPlace(i, count, ringR);
+            const files = res.files ?? [];
+            return (
+              <g key={res.address} transform={`translate(${c.x} ${c.y})`}>
+                <circle
+                  r={resR}
+                  fill={dark ? "#0f172a" : "#f1f5f9"}
+                  stroke="#64748b"
+                  stroke-width={strokeW * 0.6}
                 >
-                  <title>{baseName(f)}</title>
-                </rect>
-              );
-            })}
-            {files.length === 0 ? (
-              <text
-                textAnchor="middle"
-                dominantBaseline="middle"
-                fontSize={resR * 0.22}
-                fill={ink}
-                opacity={0.4}
-                style={{ pointerEvents: "none" }}
-              >
-                infra
-              </text>
-            ) : null}
-          </g>
-        );
-      })}
+                  <title>
+                    {res.address}
+                    {res.source ? `\n→ ${res.source}` : "\n(no code source)"}
+                    {`\n${files.length} file(s)${res.loc ? `, ${res.loc} loc` : ""}`}
+                  </title>
+                </circle>
+                {/* the resource's code: one cell per source file */}
+                {props.codeOpacity > 0 ? (
+                  <g opacity={props.codeOpacity}>
+                    {files.map((f, j) => {
+                      const cell = gridCell(j, files.length, resR * 1.25);
+                      return (
+                        <rect
+                          key={f}
+                          x={cell.x - cell.size / 2}
+                          y={cell.y - cell.size / 2}
+                          width={cell.size}
+                          height={cell.size}
+                          rx={cell.size * 0.18}
+                          fill={dark ? "#475569" : "#94a3b8"}
+                        >
+                          <title>{baseName(f)}</title>
+                        </rect>
+                      );
+                    })}
+                    {files.length === 0 ? (
+                      <text
+                        text-anchor="middle"
+                        dominant-baseline="middle"
+                        font-size={resLabelSize}
+                        fill={ink}
+                        opacity={0.4}
+                        style={{ pointerEvents: "none" }}
+                      >
+                        infra
+                      </text>
+                    ) : (
+                      <text
+                        y={resR + resLabelSize + 1}
+                        text-anchor="middle"
+                        font-size={resLabelSize}
+                        fill={ink}
+                        opacity={0.8}
+                        style={{ pointerEvents: "none", userSelect: "none" }}
+                      >
+                        {shortAddress(res.address)}
+                      </text>
+                    )}
+                  </g>
+                ) : null}
+              </g>
+            );
+          })}
+        </g>
+      ) : null}
     </g>
   );
 }
@@ -251,14 +285,6 @@ export function ServicesView(props: {
 }): preact.JSX.Element {
   const { graph, ink } = props;
   const [hover, setHover] = useState<string | null>(null);
-  // services the user drilled into: each shows its resources + their code.
-  const [expanded, setExpanded] = useState<ReadonlySet<string>>(new Set());
-  const toggleExpand = (id: string): void =>
-    setExpanded((prev) => {
-      const next = new Set(prev);
-      next.has(id) ? next.delete(id) : next.add(id);
-      return next;
-    });
 
   const layout = useMemo(() => (graph ? layoutServices(graph) : null), [graph]);
   const resourcesByService = useMemo(() => {
@@ -290,10 +316,10 @@ export function ServicesView(props: {
     );
   }
 
-  // zoom-responsive sizing: world units scaled by the committed view width keep
-  // strokes / labels roughly constant on screen as you zoom.
-  const fontFor = (r: number): number =>
-    Math.max(view.w / 56, Math.min(r * 0.7, view.w / 22));
+  // the service label stays a roughly constant on-screen size at any zoom (world
+  // units scale with the view width); internal resource labels are world-fixed
+  // so they only become legible once you've zoomed into the service.
+  const serviceLabelSize = view.w / 45;
 
   return (
     <svg
@@ -333,9 +359,9 @@ export function ServicesView(props: {
             x2={b.x}
             y2={b.y}
             stroke={edgeColor(e.kind)}
-            strokeWidth={Math.max(view.w / 600, (e.weight ?? 1) * (view.w / 900))}
-            strokeOpacity={dim ? 0.1 : 0.7}
-            markerEnd={`url(#svc-arrow-${e.kind})`}
+            stroke-width={Math.max(view.w / 600, (e.weight ?? 1) * (view.w / 900))}
+            stroke-opacity={dim ? 0.1 : 0.7}
+            marker-end={`url(#svc-arrow-${e.kind})`}
           >
             <title>
               {e.source} {EDGE_LABEL[e.kind]} {e.target}
@@ -344,61 +370,29 @@ export function ServicesView(props: {
           </line>
         );
       })}
-      {/* collapsed service nodes (click to expand into resources + code) */}
-      {layout.placed
-        .filter((p) => !expanded.has(p.node.id))
-        .map((p) => {
-          const dim =
-            (hover !== null && hover !== p.node.id) || expanded.size > 0;
-          return (
-            <g
-              key={p.node.id}
-              transform={`translate(${p.pos.x} ${p.pos.y})`}
-              opacity={dim ? 0.35 : 1}
-              onPointerEnter={() => setHover(p.node.id)}
-              onPointerLeave={() => setHover(null)}
-              onClick={() => toggleExpand(p.node.id)}
-              style={{ cursor: "zoom-in" }}
-            >
-              <circle
-                r={p.r}
-                fill={props.dark ? "#1e293b" : "#e2e8f0"}
-                stroke="#0891b2"
-                strokeWidth={view.w / 700}
-              />
-              <text
-                y={p.r + fontFor(p.r) + 1}
-                textAnchor="middle"
-                fontSize={fontFor(p.r)}
-                fill={ink}
-                style={{ pointerEvents: "none", userSelect: "none" }}
-              >
-                {p.node.label}
-              </text>
-              <title>
-                {p.node.id}
-                {p.node.resourceType ? `\n${p.node.resourceType}` : ""}
-                {`\n${p.node.metrics.resources} resource(s) — click to expand`}
-                {p.node.source ? `\n→ ${p.node.source.join(", ")}` : ""}
-              </title>
-            </g>
-          );
-        })}
-      {/* expanded services drawn on top: resources + their code */}
-      {layout.placed
-        .filter((p) => expanded.has(p.node.id))
-        .map((p) => (
-          <ExpandedService
+      {/* service nodes: their resources + code fade in as you zoom (semantic
+          zoom). on-screen size = world radius / view width. */}
+      {layout.placed.map((p) => {
+        const relSize = p.r / view.w;
+        return (
+          <ServiceCell
             key={p.node.id}
             service={p.node}
             resources={resourcesByService.get(p.node.id) ?? []}
             pos={p.pos}
+            r={p.r}
             dark={props.dark}
             ink={ink}
-            labelSize={fontFor(p.r)}
-            onCollapse={() => toggleExpand(p.node.id)}
+            labelSize={serviceLabelSize}
+            resLabelSize={view.w / 78}
+            strokeW={view.w / 700}
+            dim={hover !== null && hover !== p.node.id}
+            resOpacity={ramp(relSize, RES_FADE[0], RES_FADE[1])}
+            codeOpacity={ramp(relSize, CODE_FADE[0], CODE_FADE[1])}
+            onHover={setHover}
           />
-        ))}
+        );
+      })}
       {/* legend — pinned to the current viewport's top-left corner */}
       <g transform={`translate(${view.x + view.w * 0.02} ${view.y + view.h * 0.04})`}>
         {Object.entries(EDGE_LABEL).map(([kind, label], i) => (
@@ -409,12 +403,12 @@ export function ServicesView(props: {
               x2={view.w / 28}
               y2={0}
               stroke={edgeColor(kind as ServiceEdge["kind"])}
-              strokeWidth={view.w / 500}
+              stroke-width={view.w / 500}
             />
             <text
               x={view.w / 24}
               y={view.h / 90}
-              fontSize={view.w / 64}
+              font-size={view.w / 64}
               fill={ink}
               opacity={0.7}
             >
@@ -427,8 +421,8 @@ export function ServicesView(props: {
       <text
         x={view.x + view.w * 0.98}
         y={view.y + view.h * 0.04}
-        textAnchor="end"
-        fontSize={view.w / 64}
+        text-anchor="end"
+        font-size={view.w / 64}
         fill={ink}
         opacity={0.6}
       >
