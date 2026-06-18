@@ -37,6 +37,32 @@ source-declaration preview.
 
 Run `npx @sprawlens/cli doctor` to see what's detected in a given repo.
 
+## Terraform service layer
+
+When a repo has `.tf` files, sprawlens parses them (via `@cdktf/hcl2json`, no
+`terraform` CLI needed) into a **service graph** — the upper layer above the code
+modules. Service-like resources (`aws_lambda_function`, `aws_ecs_service`,
+`google_cloud_run_service`, …) become nodes; their wiring becomes edges, typed by
+communication kind: queue (`aws_lambda_event_source_mapping`), event
+(`aws_sns_topic_subscription`), http (API Gateway integrations), and plain
+`depends` for any other cross-service reference. Toggle the **services** plane at
+the top of the map.
+
+Map terraform resources to services (and, later, to their code dirs) in
+`sprawlens.toml`:
+
+```toml
+[terraform]
+root = "infra/"            # where to scan for .tf (default: repo root)
+
+[[service]]
+name = "orders-api"
+terraform = ["aws_lambda_function.orders*", "module.orders"]
+source = ["services/orders/**"]   # code dir backing the service
+```
+
+Without any `[[service]]` rules, each service-like resource is its own service.
+
 ## Requirements
 
 - Node.js >= 24

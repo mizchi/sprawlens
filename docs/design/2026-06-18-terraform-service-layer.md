@@ -1,6 +1,6 @@
 # Terraform service layer
 
-Status: approved, Phase A in progress (2026-06-18)
+Status: Phase A done (2026-06-18). Phase B (nest modules inside services) pending.
 
 ## Goal
 
