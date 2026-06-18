@@ -219,6 +219,64 @@ describe("resolveServices", () => {
     expect(map).toEqual({});
   });
 
+  it("shows an external store (S3) referenced by a service as its own node + edge", () => {
+    const graph = resolveServices([
+      res("aws_lambda_function.api", [["env", "aws_s3_bucket.assets"]]),
+      res("aws_s3_bucket.assets"),
+    ]);
+    // the bucket is a store node, not a service
+    expect(graph.services.map((s) => s.id)).toEqual(["aws_lambda_function.api"]);
+    expect(graph.stores).toEqual([
+      {
+        id: "aws_s3_bucket.assets",
+        address: "aws_s3_bucket.assets",
+        type: "aws_s3_bucket",
+        label: "assets",
+      },
+    ]);
+    expect(graph.storeEdges).toEqual([
+      {
+        service: "aws_lambda_function.api",
+        store: "aws_s3_bucket.assets",
+        via: "aws_lambda_function.api",
+        weight: 1,
+      },
+    ]);
+  });
+
+  it("dedupes store edges from many services to one shared store", () => {
+    const graph = resolveServices([
+      res("aws_lambda_function.a", [["env", "aws_dynamodb_table.t"]]),
+      res("aws_lambda_function.b", [["env", "aws_dynamodb_table.t"]]),
+      res("aws_dynamodb_table.t"),
+    ]);
+    expect(graph.stores?.map((s) => s.id)).toEqual(["aws_dynamodb_table.t"]);
+    expect(graph.storeEdges?.map((e) => `${e.service}->${e.store}`).sort()).toEqual([
+      "aws_lambda_function.a->aws_dynamodb_table.t",
+      "aws_lambda_function.b->aws_dynamodb_table.t",
+    ]);
+  });
+
+  it("treats a config-grouped store as a service member, not a store node", () => {
+    const graph = resolveServices(
+      [
+        res("aws_lambda_function.api", [["env", "aws_s3_bucket.assets"]]),
+        res("aws_s3_bucket.assets"),
+      ],
+      {
+        services: [
+          { name: "api", terraform: ["aws_lambda_function.api", "aws_s3_bucket.assets"] },
+        ],
+      },
+    );
+    // explicit config grouping wins: the bucket belongs to the service
+    expect(graph.stores ?? []).toEqual([]);
+    expect(graph.storeEdges ?? []).toEqual([]);
+    expect(graph.services.find((s) => s.id === "api")?.resources).toContain(
+      "aws_s3_bucket.assets",
+    );
+  });
+
   it("resolves module references to a module service", () => {
     const graph = resolveServices([
       res("aws_lambda_function.api", [["queue_url", "module.queue"]]),

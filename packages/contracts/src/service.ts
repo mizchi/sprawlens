@@ -63,9 +63,33 @@ export type ServiceResource = {
   loc?: number;
 };
 
+/** An external data/storage resource (S3 bucket, DynamoDB table, RDS, …) that
+ * services reference but that is not a service itself. Drawn as its own node so
+ * shared infrastructure and its consumers are visible. */
+export type ServiceStore = {
+  /** = address. */
+  id: string;
+  address: string;
+  type: string;
+  label: string;
+};
+
+/** A reference from a service to an external store (a service uses the store). */
+export type ServiceStoreEdge = {
+  service: string;
+  store: string;
+  /** The terraform resource/attribute creating the reference, for a tooltip. */
+  via?: string;
+  weight?: number;
+};
+
 export type ServiceGraph = {
   services: ServiceNode[];
   edges: ServiceEdge[];
+  /** External data/storage resources referenced by services (S3, DynamoDB, …). */
+  stores?: ServiceStore[];
+  /** service → store references (a service uses the store). */
+  storeEdges?: ServiceStoreEdge[];
   /** Code file path → owning service id, from the services' `source` globs.
    * Drives Phase B nesting (the module map inside each service node). Absent
    * until the composition root (cli) matches files against the mappings. */

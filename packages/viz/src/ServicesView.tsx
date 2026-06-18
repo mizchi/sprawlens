@@ -4,6 +4,8 @@ import type {
   ServiceGraph,
   ServiceNode,
   ServiceResource,
+  ServiceStore,
+  ServiceStoreEdge,
 } from "@sprawlens/schema";
 import {
   createForceLayout,
@@ -12,7 +14,7 @@ import {
   type Vec2,
 } from "@sprawlens/layout";
 import { useMapViewport } from "./useMapViewport.ts";
-import { SERVICE_EDGE_COLORS } from "./mapShared.tsx";
+import { SERVICE_EDGE_COLORS, SERVICE_STORE_COLOR } from "./mapShared.tsx";
 
 /**
  * The upper "service" layer: the terraform-derived service graph rendered as a
@@ -89,22 +91,46 @@ const baseName = (p: string): string => p.split("/").pop() ?? p;
 const shortAddress = (a: string): string => a.split(".").slice(-1)[0] ?? a;
 
 type Placed = { node: ServiceNode; pos: Vec2; r: number };
-type Layout = { placed: Placed[]; posOf: Map<string, Vec2>; edges: ServiceEdge[] };
+type PlacedStore = { store: ServiceStore; pos: Vec2; r: number };
+type Layout = {
+  placed: Placed[];
+  stores: PlacedStore[];
+  posOf: Map<string, Vec2>;
+  edges: ServiceEdge[];
+  storeEdges: ServiceStoreEdge[];
+};
+
+/** Fixed display radius for an external store node (secondary to services). */
+const STORE_R = 22;
 
 /**
  * Run the force layout to convergence, then fit it (aspect-preserving) into the
  * fixed CANVAS_W×CANVAS_H so the shared viewport's initial viewBox frames it.
+ * Services and external stores are laid out together (store references pull a
+ * store toward the services that use it).
  */
 function layoutServices(graph: ServiceGraph): Layout {
-  const nodes = graph.services.map((s) => ({
-    id: s.id,
-    weight: Math.max(s.metrics.resources, 1),
-  }));
-  const edges = graph.edges.map((e) => ({
-    source: e.source,
-    target: e.target,
-    weight: e.weight ?? 1,
-  }));
+  const storeList = graph.stores ?? [];
+  const storeEdges = graph.storeEdges ?? [];
+  const nodes = [
+    ...graph.services.map((s) => ({
+      id: s.id,
+      weight: Math.max(s.metrics.resources, 1),
+    })),
+    ...storeList.map((s) => ({ id: s.id, weight: 1 })),
+  ];
+  const edges = [
+    ...graph.edges.map((e) => ({
+      source: e.source,
+      target: e.target,
+      weight: e.weight ?? 1,
+    })),
+    ...storeEdges.map((e) => ({
+      source: e.service,
+      target: e.store,
+      weight: e.weight ?? 1,
+    })),
+  ];
   let state = createForceLayout(nodes, edges, CLIP, {
     seed: 7,
     gravity: 0.008,
@@ -113,20 +139,27 @@ function layoutServices(graph: ServiceGraph): Layout {
   });
   for (let i = 0; i < ITERATIONS; i++) state = forceStep(state);
 
-  const byId = new Map(graph.services.map((s) => [s.id, s]));
+  const svcById = new Map(graph.services.map((s) => [s.id, s]));
+  const storeById = new Map(storeList.map((s) => [s.id, s]));
   const solved: Placed[] = [];
+  const solvedStores: PlacedStore[] = [];
   for (const [id, pos] of state.positions) {
-    const node = byId.get(id);
-    if (node) solved.push({ node, pos, r: displayRadius(node.metrics.resources) });
+    const svc = svcById.get(id);
+    if (svc) {
+      solved.push({ node: svc, pos, r: displayRadius(svc.metrics.resources) });
+      continue;
+    }
+    const store = storeById.get(id);
+    if (store) solvedStores.push({ store, pos, r: STORE_R });
   }
 
-  // bbox of the solved graph, then a single scale/offset to center it in the
-  // canvas content box (CANVAS minus MARGIN), so labels never clip the edges.
+  // bbox over everything, then a single scale/offset to center it in the canvas
+  // content box (CANVAS minus MARGIN), so labels never clip the edges.
   let minX = Infinity;
   let minY = Infinity;
   let maxX = -Infinity;
   let maxY = -Infinity;
-  for (const p of solved) {
+  for (const p of [...solved, ...solvedStores]) {
     minX = Math.min(minX, p.pos.x - p.r);
     minY = Math.min(minY, p.pos.y - p.r);
     maxX = Math.max(maxX, p.pos.x + p.r);
@@ -146,8 +179,14 @@ function layoutServices(graph: ServiceGraph): Layout {
   const fit = (p: Vec2): Vec2 => ({ x: p.x * scale + offX, y: p.y * scale + offY });
 
   const placed = solved.map((p) => ({ ...p, pos: fit(p.pos), r: p.r * scale }));
-  const posOf = new Map(placed.map((p) => [p.node.id, p.pos]));
-  return { placed, posOf, edges: graph.edges };
+  const stores = solvedStores.map((p) => ({ ...p, pos: fit(p.pos), r: p.r * scale }));
+  const posOf = new Map(
+    [...placed, ...stores].map((p) => [
+      "node" in p ? p.node.id : p.store.id,
+      p.pos,
+    ]),
+  );
+  return { placed, stores, posOf, edges: graph.edges, storeEdges };
 }
 
 /**
@@ -371,6 +410,31 @@ export function ServicesView(props: {
           </line>
         );
       })}
+      {/* store-reference edges: a service uses an external store (dashed) */}
+      {layout.storeEdges.map((e, i) => {
+        const a = layout.posOf.get(e.service);
+        const b = layout.posOf.get(e.store);
+        if (!a || !b) return null;
+        const dim = hover !== null && hover !== e.service && hover !== e.store;
+        return (
+          <line
+            key={`s${i}`}
+            x1={a.x}
+            y1={a.y}
+            x2={b.x}
+            y2={b.y}
+            stroke={SERVICE_STORE_COLOR}
+            stroke-width={Math.max(view.w / 700, (e.weight ?? 1) * (view.w / 1000))}
+            stroke-opacity={dim ? 0.08 : 0.5}
+            stroke-dasharray={`${view.w / 120} ${view.w / 200}`}
+          >
+            <title>
+              {e.service} uses {e.store}
+              {e.via ? ` (via ${e.via})` : ""}
+            </title>
+          </line>
+        );
+      })}
       {/* service nodes: their resources + code fade in as you zoom (semantic
           zoom). on-screen size = world radius / view width. */}
       {layout.placed.map((p) => {
@@ -392,6 +456,47 @@ export function ServicesView(props: {
             codeOpacity={ramp(relSize, CODE_FADE[0], CODE_FADE[1])}
             onHover={setHover}
           />
+        );
+      })}
+      {/* external store nodes (S3, DynamoDB, …): rounded rects, set apart from
+          the service circles by shape + color */}
+      {layout.stores.map((s) => {
+        const dim = hover !== null && hover !== s.store.id;
+        const size = s.r * 1.6;
+        return (
+          <g
+            key={s.store.id}
+            transform={`translate(${s.pos.x} ${s.pos.y})`}
+            opacity={dim ? 0.35 : 1}
+            onPointerEnter={() => setHover(s.store.id)}
+            onPointerLeave={() => setHover(null)}
+            style={{ cursor: "pointer" }}
+          >
+            <rect
+              x={-size / 2}
+              y={-size / 2}
+              width={size}
+              height={size}
+              rx={size * 0.16}
+              fill={props.dark ? "#3f2d0b" : "#fef3c7"}
+              stroke={SERVICE_STORE_COLOR}
+              stroke-width={view.w / 700}
+            />
+            <text
+              y={s.r + serviceLabelSize * 0.85 + 1}
+              text-anchor="middle"
+              font-size={serviceLabelSize * 0.85}
+              fill={ink}
+              opacity={0.85}
+              style={{ pointerEvents: "none", userSelect: "none" }}
+            >
+              {s.store.label}
+            </text>
+            <title>
+              {s.store.address}
+              {`\n${s.store.type}`}
+            </title>
+          </g>
         );
       })}
       {/* count badge — pinned to the current viewport's top-right corner */}
@@ -436,6 +541,17 @@ export function ServicesView(props: {
             <span>{label}</span>
           </div>
         ))}
+        {graph.stores && graph.stores.length > 0 ? (
+          <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+            <span
+              style={{
+                width: "22px",
+                borderTop: `2px dashed ${SERVICE_STORE_COLOR}`,
+              }}
+            />
+            <span>uses store (S3, …)</span>
+          </div>
+        ) : null}
       </div>
     </div>
   );

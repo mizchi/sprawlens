@@ -7,6 +7,8 @@ import type { ServiceEdgeKind } from "@sprawlens/contracts";
  *
  * - `serviceTypes`: resource types that are a service of their own (a
  *   deployment/communication unit) when not grouped by config.
+ * - `storeTypes`: external data/storage resources (S3, DynamoDB, RDS, …) shown
+ *   as their own nodes; a service referencing one gets a "store" edge to it.
  * - `wiring`: resources that connect two services. A "direct" rule names both
  *   endpoints' attributes; a "channel" rule routes producers of a channel
  *   (queue/topic) to the consumer wired onto it.
@@ -33,6 +35,7 @@ export type WiringRule =
 
 export type ServiceRules = {
   serviceTypes: string[];
+  storeTypes: string[];
   wiring: WiringRule[];
 };
 
@@ -53,6 +56,27 @@ export const DEFAULT_SERVICE_RULES: ServiceRules = {
     "azurerm_function_app",
     "azurerm_linux_function_app",
     "azurerm_container_app",
+  ],
+  storeTypes: [
+    // AWS
+    "aws_s3_bucket",
+    "aws_dynamodb_table",
+    "aws_rds_cluster",
+    "aws_db_instance",
+    "aws_elasticache_cluster",
+    "aws_elasticache_replication_group",
+    "aws_efs_file_system",
+    "aws_secretsmanager_secret",
+    "aws_ssm_parameter",
+    // GCP
+    "google_storage_bucket",
+    "google_sql_database_instance",
+    "google_bigquery_dataset",
+    "google_firestore_database",
+    // Azure
+    "azurerm_storage_account",
+    "azurerm_cosmosdb_account",
+    "azurerm_mssql_database",
   ],
   wiring: [
     {

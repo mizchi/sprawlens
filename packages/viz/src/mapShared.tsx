@@ -86,6 +86,9 @@ export let SERVICE_EDGE_COLORS: Record<string, string> = {
   event: "#7c3aed",
   http: "#16a34a",
 };
+/** Accent for the service layer's external stores (S3, DynamoDB, …) — their
+ * node outline and the "uses" edges into them. Theme-switched below. */
+export let SERVICE_STORE_COLOR = "#d97706";
 /** Strong outline for class-boundary districts (request: easy to spot). */
 let CLASS_BOUNDARY = "#d97706";
 export let EXPORTED_DOT = "#059669";
@@ -163,6 +166,7 @@ export function setMapTheme(dark: boolean): void {
       event: "#a78bfa",
       http: "#4ade80",
     };
+    SERVICE_STORE_COLOR = "#fbbf24";
     CLASS_BOUNDARY = "#fbbf24";
     EXPORTED_DOT = "#34d399";
     EXPORTED_LABEL = "#34d399";
@@ -218,6 +222,7 @@ export function setMapTheme(dark: boolean): void {
       event: "#7c3aed",
       http: "#16a34a",
     };
+    SERVICE_STORE_COLOR = "#d97706";
     CLASS_BOUNDARY = "#d97706";
     MODULE_LABEL_INK = "#0f172a";
     FILE_LABEL_INK = "#334155";
