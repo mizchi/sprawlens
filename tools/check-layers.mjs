@@ -22,6 +22,9 @@ const ALLOWED = {
   "@sprawlens/analyzer-go": ["@sprawlens/contracts", "@sprawlens/schema"],
   "@sprawlens/analyzer-rust": ["@sprawlens/contracts", "@sprawlens/schema"],
   "@sprawlens/analyzer-moonbit": ["@sprawlens/contracts", "@sprawlens/schema"],
+  // terraform service-layer parser: emits RawResource (a contract type); the
+  // service grouping/semantics live in schema, applied by the cli.
+  "@sprawlens/analyzer-terraform": ["@sprawlens/contracts"],
   "@sprawlens/providers": [
     "@sprawlens/contracts",
     "@sprawlens/analyzer-ts",
@@ -39,6 +42,7 @@ const ALLOWED = {
     "@sprawlens/layout",
     "@sprawlens/providers",
     "@sprawlens/analyzer-ts",
+    "@sprawlens/analyzer-terraform",
     "@sprawlens/server",
   ],
 };
