@@ -32,7 +32,14 @@ const EDGE_LABEL: Record<ServiceEdge["kind"], string> = {
 };
 
 const CLIP: ClipRegion = { kind: "circle", cx: 0, cy: 0, r: 320 };
-const ITERATIONS = 480;
+const ITERATIONS = 600;
+
+/** Display radius for a service node. Independent of the force layout's
+ * area-filling radii (which balloon for a sparse graph and overlap); we just
+ * use the solved positions and draw compact, well-separated circles. */
+function displayRadius(resources: number): number {
+  return 16 + 11 * Math.sqrt(Math.max(resources, 1));
+}
 
 type Placed = { node: ServiceNode; pos: Vec2; r: number };
 type Layout = {
@@ -54,14 +61,19 @@ function layoutServices(graph: ServiceGraph): Layout {
     target: e.target,
     weight: e.weight ?? 1,
   }));
-  let state = createForceLayout(nodes, edges, CLIP, { seed: 7, gravity: 0.03 });
+  let state = createForceLayout(nodes, edges, CLIP, {
+    seed: 7,
+    gravity: 0.008,
+    repulsionStrength: 0.14,
+    springStrength: 0.05,
+  });
   for (let i = 0; i < ITERATIONS; i++) state = forceStep(state);
 
   const byId = new Map(graph.services.map((s) => [s.id, s]));
   const placed: Placed[] = [];
   for (const [id, pos] of state.positions) {
     const node = byId.get(id);
-    if (node) placed.push({ node, pos, r: state.radii.get(id) ?? 6 });
+    if (node) placed.push({ node, pos, r: displayRadius(node.metrics.resources) });
   }
   // frame the bbox with padding so labels are not clipped
   let minX = Infinity;

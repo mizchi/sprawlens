@@ -918,7 +918,7 @@ export function App() {
   // options on the existing layout
   const treemapSizeKey =
     params.layout === "treemap" ? `${mapSize.width}x${mapSize.height}` : "";
-  const structuralKey = `${params.source}|${params.layout}|${granularity}|${params.boundaries.join("+")}|${treemapSizeKey}`;
+  const structuralKey = `${params.source}|${params.layout}|${granularity}|${params.boundaries.join("+")}|${treemapSizeKey}|svc:${params.groupByService}`;
   // weight / filters re-flow warm (the diff animation); only granularity
   // and data swaps rebuild cold
   const shownPlanesKey = params.tilt.enabled
