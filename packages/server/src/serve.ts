@@ -1,7 +1,11 @@
 import { createServer, type Server, type ServerResponse } from "node:http";
 import { readFile } from "node:fs/promises";
 import { extname, join, normalize } from "node:path";
-import type { LanguageDetail, LayerManifestEntry } from "@sprawlens/schema";
+import type {
+  LanguageDetail,
+  LayerManifestEntry,
+  ServiceGraph,
+} from "@sprawlens/schema";
 import { definitionPreview } from "./definitionPreview.js";
 import {
   enrichWithLoc,
@@ -35,6 +39,9 @@ export type AtlasServerOptions = {
   /** Layer render manifest (from sprawlens.toml); served at GET /api/config so
    * the viz knows which satellite planes to build and how. */
   layers?: LayerManifestEntry[];
+  /** The terraform-derived service graph (the upper layer); served at GET
+   * /api/services. A producer is re-run per request for live .tf updates. */
+  services?: ServiceGraph | (() => ServiceGraph | Promise<ServiceGraph>);
 };
 
 const MIME: Record<string, string> = {
@@ -49,7 +56,8 @@ const MIME: Record<string, string> = {
 };
 
 export function createAtlasServer(opts: AtlasServerOptions): Server {
-  const { repos, snapshots, analyzers, vizDist, detail, layers } = opts;
+  const { repos, snapshots, analyzers, vizDist, detail, layers, services } =
+    opts;
 
   type DiffStream = {
     clients: Set<ServerResponse>;
@@ -249,6 +257,19 @@ export function createAtlasServer(opts: AtlasServerOptions): Server {
       res
         .writeHead(200, { "content-type": "application/json" })
         .end(JSON.stringify({ layers: layers ?? [] }));
+      return;
+    }
+
+    // GET /api/services -> the terraform-derived service graph (empty if unset)
+    if (req.method === "GET" && url.pathname === "/api/services") {
+      const graph: ServiceGraph = services
+        ? typeof services === "function"
+          ? await services()
+          : services
+        : { services: [], edges: [] };
+      res
+        .writeHead(200, { "content-type": "application/json" })
+        .end(JSON.stringify(graph));
       return;
     }
 

@@ -44,6 +44,7 @@
     }
   },
   "dependencies": {
+    "@cdktf/hcl2json": "^0.21.0",
     "commander": "^14.0.0",
     "fast-glob": "^3.3.3",
     "picomatch": "^4.0.4",
@@ -59,6 +60,7 @@
     "build": "node esbuild.config.mjs"
   },
   "devDependencies": {
+    "@sprawlens/analyzer-terraform": "workspace:*",
     "@sprawlens/analyzer-ts": "workspace:*",
     "@sprawlens/layout": "workspace:^",
     "@sprawlens/providers": "workspace:*",

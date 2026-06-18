@@ -11,8 +11,9 @@ import {
   collectRepository,
   createLspDetail,
 } from "@sprawlens/analyzer-ts";
-import type { LanguageProvider, Snapshot } from "@sprawlens/schema";
-import { applyLayers, layerManifest } from "@sprawlens/schema";
+import type { LanguageProvider, LayersConfig, Snapshot } from "@sprawlens/schema";
+import { applyLayers, layerManifest, resolveServices } from "@sprawlens/schema";
+import { analyzeTerraform, hasTerraform } from "@sprawlens/analyzer-terraform";
 import { PROVIDERS, detectProviders } from "@sprawlens/providers";
 import { createAtlasServer, watchDir, workingDiff } from "@sprawlens/server";
 import { readSprawlensConfig } from "./config.js";
@@ -93,6 +94,22 @@ program
         detail = createLspDetail(lsp);
         console.log(`  detail: ${lsp.command} (LSP: hover · call-hierarchy)`);
       }
+      // the upper "service" layer: parse terraform (independent of the code
+      // language) into a service graph, re-derived per request for live .tf
+      // edits. Empty graph when the repo has no terraform.
+      const tfRoot = config.terraform?.root;
+      const services = (await hasTerraform(root, tfRoot))
+        ? async () =>
+            resolveServices(await analyzeTerraform(root, tfRoot), {
+              services: config.services,
+            })
+        : undefined;
+      if (services) {
+        const graph = await services();
+        console.log(
+          `  terraform: ${graph.services.length} services, ${graph.edges.length} links`,
+        );
+      }
       const server = createAtlasServer({
         repos: new Map([[name, root]]),
         snapshots: new Map([[name, snapshot]]),
@@ -100,6 +117,7 @@ program
         vizDist,
         detail,
         layers: layerManifest(config),
+        services,
       });
       server.listen(options.port, "127.0.0.1", () => {
         const url = `http://127.0.0.1:${options.port}/`;
@@ -215,8 +233,10 @@ program
   .argument("[repo]", "repository path", ".")
   .action(async (repo: string): Promise<void> => {
     const root = resolve(repo);
+    const config = (await readSprawlensConfig(root)) ?? {};
     const { matched, strong } = await detectProviders(PROVIDERS, root);
     console.log(`sprawlens doctor — ${root}\n`);
+    await reportTerraform(root, config);
     if (matched.length === 0) {
       console.log("  no language provider matched this repo");
       return;
@@ -245,6 +265,31 @@ program
       console.log(`    deep detail     : ${detail}\n`);
     }
   });
+
+/** doctor: report the terraform service layer (the upper layer). */
+async function reportTerraform(
+  root: string,
+  config: LayersConfig,
+): Promise<void> {
+  const tfRoot = config.terraform?.root;
+  if (!(await hasTerraform(root, tfRoot))) {
+    console.log(`• terraform : none detected${tfRoot ? ` under ${tfRoot}` : ""}\n`);
+    return;
+  }
+  const graph = resolveServices(await analyzeTerraform(root, tfRoot), {
+    services: config.services,
+  });
+  const where = tfRoot ? ` (root: ${tfRoot})` : "";
+  console.log(`• terraform${where}`);
+  console.log(`    service layer   : ${graph.services.length} services, ${graph.edges.length} links`);
+  console.log(
+    `    mapping         : ${
+      config.services?.length
+        ? `${config.services.length} [[service]] rules`
+        : "auto (service-like resources)"
+    }\n`,
+  );
+}
 
 program.parseAsync().catch((error: unknown) => {
   console.error(error instanceof Error ? error.message : String(error));
