@@ -1,5 +1,10 @@
 import { useMemo, useState } from "preact/hooks";
-import type { ServiceEdge, ServiceGraph, ServiceNode } from "@sprawlens/schema";
+import type {
+  ServiceEdge,
+  ServiceGraph,
+  ServiceNode,
+  ServiceResource,
+} from "@sprawlens/schema";
 import {
   createForceLayout,
   forceStep,
@@ -45,6 +50,35 @@ const edgeColor = (kind: ServiceEdge["kind"]): string =>
 function displayRadius(resources: number): number {
   return 16 + 11 * Math.sqrt(Math.max(resources, 1));
 }
+
+/** World radius an expanded service grows to (to host its resources + code). */
+const EXPAND_R = 130;
+
+/** Place the i-th of `count` children on a ring; a single child sits centered. */
+function ringPlace(i: number, count: number, ringR: number): Vec2 {
+  if (count <= 1) return { x: 0, y: 0 };
+  const a = (i / count) * Math.PI * 2 - Math.PI / 2;
+  return { x: Math.cos(a) * ringR, y: Math.sin(a) * ringR };
+}
+
+/** Place the i-th of `count` cells in a centered square grid of side `span`. */
+function gridCell(
+  i: number,
+  count: number,
+  span: number,
+): { x: number; y: number; size: number } {
+  const cols = Math.max(1, Math.ceil(Math.sqrt(count)));
+  const rows = Math.ceil(count / cols);
+  const cell = span / Math.max(cols, rows);
+  return {
+    x: ((i % cols) - (cols - 1) / 2) * cell,
+    y: (Math.floor(i / cols) - (rows - 1) / 2) * cell,
+    size: cell * 0.66,
+  };
+}
+
+const baseName = (p: string): string => p.split("/").pop() ?? p;
+const shortAddress = (a: string): string => a.split(".").slice(-1)[0] ?? a;
 
 type Placed = { node: ServiceNode; pos: Vec2; r: number };
 type Layout = { placed: Placed[]; posOf: Map<string, Vec2>; edges: ServiceEdge[] };
@@ -108,6 +142,107 @@ function layoutServices(graph: ServiceGraph): Layout {
   return { placed, posOf, edges: graph.edges };
 }
 
+/**
+ * An expanded service: an enlarged disc holding its terraform resources, each
+ * resource holding the code (files) it implements as small cells. This is the
+ * "place code inside the resource" drill-down. Click to collapse.
+ */
+function ExpandedService(props: {
+  service: ServiceNode;
+  resources: ServiceResource[];
+  pos: Vec2;
+  dark: boolean;
+  ink: string;
+  labelSize: number;
+  onCollapse: () => void;
+}): preact.JSX.Element {
+  const { service, resources, pos, dark, ink, labelSize } = props;
+  const R = EXPAND_R;
+  const count = resources.length;
+  const ringR = count > 1 ? R * 0.5 : 0;
+  const resR = count > 1 ? R * 0.3 : R * 0.6;
+  return (
+    <g transform={`translate(${pos.x} ${pos.y})`} style={{ cursor: "zoom-out" }}>
+      <circle
+        r={R}
+        fill={dark ? "rgba(15,23,42,0.96)" : "rgba(248,250,252,0.96)"}
+        stroke="#0891b2"
+        strokeWidth={1.2}
+        onClick={props.onCollapse}
+      />
+      <text
+        y={-R - 5}
+        textAnchor="middle"
+        fontSize={labelSize}
+        fontWeight="600"
+        fill={ink}
+        style={{ pointerEvents: "none", userSelect: "none" }}
+      >
+        {service.label}
+      </text>
+      {resources.map((res, i) => {
+        const c = ringPlace(i, count, ringR);
+        const files = res.files ?? [];
+        return (
+          <g key={res.address} transform={`translate(${c.x} ${c.y})`}>
+            <circle
+              r={resR}
+              fill={dark ? "#1e293b" : "#e2e8f0"}
+              stroke="#64748b"
+              strokeWidth={0.6}
+            >
+              <title>
+                {res.address}
+                {res.source ? `\n→ ${res.source}` : "\n(no code source)"}
+                {`\n${files.length} file(s)${res.loc ? `, ${res.loc} loc` : ""}`}
+              </title>
+            </circle>
+            <text
+              y={resR + resR * 0.32}
+              textAnchor="middle"
+              fontSize={resR * 0.22}
+              fill={ink}
+              opacity={0.85}
+              style={{ pointerEvents: "none", userSelect: "none" }}
+            >
+              {shortAddress(res.address)}
+            </text>
+            {/* the resource's code: one cell per source file */}
+            {files.map((f, j) => {
+              const cell = gridCell(j, files.length, resR * 1.25);
+              return (
+                <rect
+                  key={f}
+                  x={cell.x - cell.size / 2}
+                  y={cell.y - cell.size / 2}
+                  width={cell.size}
+                  height={cell.size}
+                  rx={cell.size * 0.18}
+                  fill={dark ? "#475569" : "#94a3b8"}
+                >
+                  <title>{baseName(f)}</title>
+                </rect>
+              );
+            })}
+            {files.length === 0 ? (
+              <text
+                textAnchor="middle"
+                dominantBaseline="middle"
+                fontSize={resR * 0.22}
+                fill={ink}
+                opacity={0.4}
+                style={{ pointerEvents: "none" }}
+              >
+                infra
+              </text>
+            ) : null}
+          </g>
+        );
+      })}
+    </g>
+  );
+}
+
 export function ServicesView(props: {
   /** Fetched once by the host; null until it resolves. */
   graph: ServiceGraph | null;
@@ -116,8 +251,25 @@ export function ServicesView(props: {
 }): preact.JSX.Element {
   const { graph, ink } = props;
   const [hover, setHover] = useState<string | null>(null);
+  // services the user drilled into: each shows its resources + their code.
+  const [expanded, setExpanded] = useState<ReadonlySet<string>>(new Set());
+  const toggleExpand = (id: string): void =>
+    setExpanded((prev) => {
+      const next = new Set(prev);
+      next.has(id) ? next.delete(id) : next.add(id);
+      return next;
+    });
 
   const layout = useMemo(() => (graph ? layoutServices(graph) : null), [graph]);
+  const resourcesByService = useMemo(() => {
+    const map = new Map<string, ServiceResource[]>();
+    for (const r of graph?.resources ?? []) {
+      const bucket = map.get(r.service);
+      if (bucket) bucket.push(r);
+      else map.set(r.service, [r]);
+    }
+    return map;
+  }, [graph]);
 
   // shared map zoom/pan: wheel-to-cursor zoom, drag pan, LOD-committed view.
   const { svgProps, committedView } = useMapViewport({
@@ -192,42 +344,61 @@ export function ServicesView(props: {
           </line>
         );
       })}
-      {/* service nodes */}
-      {layout.placed.map((p) => {
-        const dim = hover !== null && hover !== p.node.id;
-        return (
-          <g
-            key={p.node.id}
-            transform={`translate(${p.pos.x} ${p.pos.y})`}
-            opacity={dim ? 0.35 : 1}
-            onPointerEnter={() => setHover(p.node.id)}
-            onPointerLeave={() => setHover(null)}
-            style={{ cursor: "pointer" }}
-          >
-            <circle
-              r={p.r}
-              fill={props.dark ? "#1e293b" : "#e2e8f0"}
-              stroke="#0891b2"
-              strokeWidth={view.w / 700}
-            />
-            <text
-              y={p.r + fontFor(p.r) + 1}
-              textAnchor="middle"
-              fontSize={fontFor(p.r)}
-              fill={ink}
-              style={{ pointerEvents: "none", userSelect: "none" }}
+      {/* collapsed service nodes (click to expand into resources + code) */}
+      {layout.placed
+        .filter((p) => !expanded.has(p.node.id))
+        .map((p) => {
+          const dim =
+            (hover !== null && hover !== p.node.id) || expanded.size > 0;
+          return (
+            <g
+              key={p.node.id}
+              transform={`translate(${p.pos.x} ${p.pos.y})`}
+              opacity={dim ? 0.35 : 1}
+              onPointerEnter={() => setHover(p.node.id)}
+              onPointerLeave={() => setHover(null)}
+              onClick={() => toggleExpand(p.node.id)}
+              style={{ cursor: "zoom-in" }}
             >
-              {p.node.label}
-            </text>
-            <title>
-              {p.node.id}
-              {p.node.resourceType ? `\n${p.node.resourceType}` : ""}
-              {`\n${p.node.metrics.resources} resource(s)`}
-              {p.node.source ? `\n→ ${p.node.source.join(", ")}` : ""}
-            </title>
-          </g>
-        );
-      })}
+              <circle
+                r={p.r}
+                fill={props.dark ? "#1e293b" : "#e2e8f0"}
+                stroke="#0891b2"
+                strokeWidth={view.w / 700}
+              />
+              <text
+                y={p.r + fontFor(p.r) + 1}
+                textAnchor="middle"
+                fontSize={fontFor(p.r)}
+                fill={ink}
+                style={{ pointerEvents: "none", userSelect: "none" }}
+              >
+                {p.node.label}
+              </text>
+              <title>
+                {p.node.id}
+                {p.node.resourceType ? `\n${p.node.resourceType}` : ""}
+                {`\n${p.node.metrics.resources} resource(s) — click to expand`}
+                {p.node.source ? `\n→ ${p.node.source.join(", ")}` : ""}
+              </title>
+            </g>
+          );
+        })}
+      {/* expanded services drawn on top: resources + their code */}
+      {layout.placed
+        .filter((p) => expanded.has(p.node.id))
+        .map((p) => (
+          <ExpandedService
+            key={p.node.id}
+            service={p.node}
+            resources={resourcesByService.get(p.node.id) ?? []}
+            pos={p.pos}
+            dark={props.dark}
+            ink={ink}
+            labelSize={fontFor(p.r)}
+            onCollapse={() => toggleExpand(p.node.id)}
+          />
+        ))}
       {/* legend — pinned to the current viewport's top-left corner */}
       <g transform={`translate(${view.x + view.w * 0.02} ${view.y + view.h * 0.04})`}>
         {Object.entries(EDGE_LABEL).map(([kind, label], i) => (
