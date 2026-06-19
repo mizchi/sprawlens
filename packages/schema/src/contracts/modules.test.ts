@@ -21,10 +21,25 @@ describe("deriveModuleIdOf (structural, language-neutral)", () => {
     expect(m("crates/core/src/lib.rs")).toBe("crates/core");
   });
 
-  it("treats a top-level dir that holds direct files as its own module", () => {
-    const m = deriveModuleIdOf(["src/index.ts", "src/core/a.ts"]);
+  it("treats a top-level dir with only direct files as its own module", () => {
+    const m = deriveModuleIdOf(["src/index.ts", "src/app.ts"]);
     expect(m("src/index.ts")).toBe("src");
-    expect(m("src/core/a.ts")).toBe("src"); // src is a real module, not a container
+    expect(m("src/app.ts")).toBe("src"); // no sub-dirs, so src is one module
+  });
+
+  it("keeps splitting sub-dir modules when a container also holds stray files", () => {
+    // a single src/lib.rs must not collapse the whole src/ subtree into one
+    // "src" region; the sub-directories stay their own modules
+    const m = deriveModuleIdOf([
+      "src/main.rs",
+      "src/lib.rs",
+      "src/parser/expr.rs",
+      "src/codegen/emit.rs",
+    ]);
+    expect(m("src/main.rs")).toBe("src"); // stray crate-root file
+    expect(m("src/lib.rs")).toBe("src");
+    expect(m("src/parser/expr.rs")).toBe("src/parser");
+    expect(m("src/codegen/emit.rs")).toBe("src/codegen");
   });
 
   it("groups monorepo packages without any hard-coded dir names", () => {
