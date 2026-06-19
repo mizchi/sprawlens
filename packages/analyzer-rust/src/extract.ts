@@ -5,9 +5,10 @@ import fg from "fast-glob";
 import Parser from "web-tree-sitter";
 import {
   computeGraphMetrics,
-  enclosingSymbol,
   matchWorkspacePackage,
+  mergeSymbolImports,
   resolveSymbolReferences,
+  symbolImportOf,
 } from "@sprawlens/schema";
 import type {
   CodeEdge,
@@ -257,34 +258,6 @@ function collectScopedRefs(root: SyntaxNode): ScopedRef[] {
     for (let i = 0; i < n.namedChildCount; i++) stack.push(n.namedChild(i)!);
   }
   return out;
-}
-
-/** Pick the exported symbol named `name`, preferring one whose `parentClass`
- * matches `preferClass` (a `Type::method` qualifier); else the first by name. */
-function pickExported(
-  symbols: readonly CodeSymbol[],
-  name: string,
-  preferClass: string | undefined,
-): CodeSymbol | null {
-  let fallback: CodeSymbol | null = null;
-  for (const s of symbols) {
-    if (s.name !== name) continue;
-    if (preferClass && s.parentClass === preferClass) return s;
-    fallback ??= s;
-  }
-  return fallback;
-}
-
-/** Append symbol refs not already present (deduped by from→to symbol pair). */
-function mergeSymbolImports(
-  into: CodeSymbolImport[],
-  add: readonly CodeSymbolImport[],
-): void {
-  for (const si of add) {
-    const key = `${si.fromSymbolId ?? ""}->${si.toSymbolId}`;
-    if (into.some((x) => `${x.fromSymbolId ?? ""}->${x.toSymbolId}` === key)) continue;
-    into.push(si);
-  }
 }
 
 /** `src` if the crate root lives there, else `` (repo root). */
@@ -582,24 +555,17 @@ export async function snapshotRustWorkingTree(
         sref.segs, f.rel, importerCrate, members, fileSet, nameToFile,
       );
       if (!target || target.file === f.rel) continue;
-      const sym = pickExported(
-        exportedSymbolsByFile.get(target.file) ?? [], target.name, target.preferClass,
+      const si = symbolImportOf(
+        { line: sref.line, name: target.name, preferClass: target.preferClass },
+        f.symbols,
+        exportedSymbolsByFile.get(target.file) ?? [],
       );
-      if (!sym) continue;
+      if (!si) continue;
       if (!localRefs.has(target.file)) {
         localRefs.set(target.file, []);
         localSpecifier.set(target.file, sref.segs.join("::"));
       }
-      const from = enclosingSymbol(sref.line, f.symbols);
-      mergeSymbolImports(localRefs.get(target.file)!, [{
-        imported: target.name,
-        local: target.name,
-        kind: "named",
-        fromSymbolId: from?.id,
-        fromSymbolName: from?.name,
-        toSymbolId: sym.id,
-        toSymbolName: sym.name,
-      }]);
+      mergeSymbolImports(localRefs.get(target.file)!, [si]);
     }
 
     for (const [file, symbolImports] of localRefs) {

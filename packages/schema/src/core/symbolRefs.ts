@@ -58,3 +58,61 @@ export function resolveSymbolReferences(
   }
   return out;
 }
+
+/**
+ * Pick the exported symbol named `name`, preferring one whose `parentClass`
+ * matches `preferClass` (a `Type::method` / receiver qualifier) — names alone
+ * collide across types, so a qualifier disambiguates. Falls back to the first
+ * symbol of that name; null when none has it.
+ */
+export function pickExported(
+  symbols: readonly CodeSymbol[],
+  name: string,
+  preferClass: string | undefined,
+): CodeSymbol | null {
+  let fallback: CodeSymbol | null = null;
+  for (const s of symbols) {
+    if (s.name !== name) continue;
+    if (preferClass && s.parentClass === preferClass) return s;
+    fallback ??= s;
+  }
+  return fallback;
+}
+
+/** Append symbol refs not already present (deduped by from→to symbol pair). */
+export function mergeSymbolImports(
+  into: CodeSymbolImport[],
+  add: readonly CodeSymbolImport[],
+): void {
+  for (const si of add) {
+    const key = `${si.fromSymbolId ?? ""}->${si.toSymbolId}`;
+    if (into.some((x) => `${x.fromSymbolId ?? ""}->${x.toSymbolId}` === key)) continue;
+    into.push(si);
+  }
+}
+
+/**
+ * Resolve one reference into a `symbolImport`: the target is the exported
+ * symbol named `ref.name` (preferring `ref.preferClass` for a typed member),
+ * the source end is the symbol enclosing `ref.line`. Null when the target file
+ * exports no such symbol. The qualified-path counterpart to
+ * `resolveSymbolReferences` — call per resolved reference.
+ */
+export function symbolImportOf(
+  ref: { line: number; name: string; preferClass?: string },
+  sourceSymbols: readonly CodeSymbol[],
+  targetSymbols: readonly CodeSymbol[],
+): CodeSymbolImport | null {
+  const target = pickExported(targetSymbols, ref.name, ref.preferClass);
+  if (!target) return null;
+  const from = enclosingSymbol(ref.line, sourceSymbols);
+  return {
+    imported: ref.name,
+    local: ref.name,
+    kind: "named",
+    fromSymbolId: from?.id,
+    fromSymbolName: from?.name,
+    toSymbolId: target.id,
+    toSymbolName: target.name,
+  };
+}
