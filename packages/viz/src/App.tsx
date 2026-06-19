@@ -2084,6 +2084,10 @@ export function App() {
     treemapExtent: mapSize,
   });
 
+  // the service layer (terraform) only exists when the repo has .tf that
+  // resolves to services; otherwise the toggle is hidden, not just inert
+  const hasServiceLayer = (serviceGraph?.services.length ?? 0) > 0;
+
   return (
     <div
       style={{
@@ -2108,33 +2112,36 @@ export function App() {
       >
         {scene ? <SvgRenderer scene={scene} {...handlers} /> : null}
         {/* upper service layer (terraform): a full-map overlay when toggled on */}
-        {servicesMode ? (
+        {servicesMode && hasServiceLayer ? (
           <div style={{ position: "absolute", inset: "0", background: MAP_BG }}>
             <ServicesView graph={serviceGraph} dark={params.dark} ink={INK} />
           </div>
         ) : null}
-        {/* toggle: code map ⇄ services (terraform upper layer) */}
-        <button
-          onClick={() => setServicesMode((v) => !v)}
-          title="toggle the terraform service layer"
-          style={{
-            position: "absolute",
-            top: "8px",
-            left: "50%",
-            transform: "translateX(-50%)",
-            zIndex: 70,
-            padding: "4px 12px",
-            fontSize: "11px",
-            fontFamily: "inherit",
-            cursor: "pointer",
-            borderRadius: "999px",
-            border: `1px solid ${PANEL_BORDER}`,
-            background: servicesMode ? "#0891b2" : PANEL_BG,
-            color: servicesMode ? "#fff" : INK,
-          }}
-        >
-          {servicesMode ? "● services" : "○ services"}
-        </button>
+        {/* toggle: code map ⇄ services (terraform upper layer). Only offered
+            when the repo actually has a recognized service layer (.tf). */}
+        {hasServiceLayer ? (
+          <button
+            onClick={() => setServicesMode((v) => !v)}
+            title="toggle the terraform service layer"
+            style={{
+              position: "absolute",
+              top: "8px",
+              left: "50%",
+              transform: "translateX(-50%)",
+              zIndex: 70,
+              padding: "4px 12px",
+              fontSize: "11px",
+              fontFamily: "inherit",
+              cursor: "pointer",
+              borderRadius: "999px",
+              border: `1px solid ${PANEL_BORDER}`,
+              background: servicesMode ? "#0891b2" : PANEL_BG,
+              color: servicesMode ? "#fff" : INK,
+            }}
+          >
+            {servicesMode ? "● services" : "○ services"}
+          </button>
+        ) : null}
         {/* LSP hover tooltip, pinned top-right below the header so it never
             sits under the cursor; code fences syntax-highlighted, prose kept */}
         {hoverTip ? (
