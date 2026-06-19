@@ -137,6 +137,26 @@ const FENCE_OPEN = /^```(\w*)\s*$/;
 const FENCE_CLOSE = /^```\s*$/;
 
 /**
+ * Strip the common leading whitespace from a block (and surrounding blank
+ * lines), keeping relative indentation. An LSP hover returns a symbol's
+ * signature with its source indentation, so a deeply-nested symbol's snippet
+ * is pushed right; a plain `.trim()` only flushes the first line and skews the
+ * rest. Dedent makes the snippet read the same regardless of nesting depth.
+ */
+function dedent(text: string): string {
+  const lines = text.split("\n");
+  while (lines.length > 0 && lines[0]!.trim() === "") lines.shift();
+  while (lines.length > 0 && lines[lines.length - 1]!.trim() === "") lines.pop();
+  let min = Infinity;
+  for (const line of lines) {
+    if (line.trim() === "") continue;
+    min = Math.min(min, line.length - line.trimStart().length);
+  }
+  if (!Number.isFinite(min) || min === 0) return lines.join("\n");
+  return lines.map((line) => line.slice(min)).join("\n");
+}
+
+/**
  * Split an LSP hover markdown string into fenced code blocks (carrying their
  * declared language) and the prose between them. Prose is trimmed and empty
  * runs are dropped, so a lone signature yields one code block.
@@ -162,7 +182,7 @@ export function parseHoverMarkdown(markdown: string): HoverBlock[] {
         i++;
       }
       i++; // skip the closing fence
-      blocks.push({ type: "code", lang: open[1] ?? "", text: body.join("\n").trim() });
+      blocks.push({ type: "code", lang: open[1] ?? "", text: dedent(body.join("\n")) });
     } else {
       prose.push(lines[i]!);
       i++;

@@ -62,4 +62,20 @@ describe("parseHoverMarkdown", () => {
       { type: "text", text: "just text" },
     ]);
   });
+
+  it("dedents a code block so source nesting depth doesn't skew it", () => {
+    // a signature pulled from a deeply-nested symbol keeps its source indent;
+    // strip the common leading whitespace but keep relative indentation
+    const md = "```rust\n    fn foo(\n        x: i32,\n    ) -> i32 {\n```";
+    expect(parseHoverMarkdown(md)).toEqual([
+      { type: "code", lang: "rust", text: "fn foo(\n    x: i32,\n) -> i32 {" },
+    ]);
+  });
+
+  it("dedents tab-indented code (gopls) too", () => {
+    const md = "```go\n\tfunc f() {\n\t\treturn\n\t}\n```";
+    expect(parseHoverMarkdown(md)).toEqual([
+      { type: "code", lang: "go", text: "func f() {\n\treturn\n}" },
+    ]);
+  });
 });
