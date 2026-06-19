@@ -15,6 +15,11 @@ import { Controls, type PlaygroundParams } from "./Controls.tsx";
 import { CameraPanel, LayersMenu } from "./OverlayPanels.tsx";
 import { SvgRenderer } from "./renderer/SvgRenderer.tsx";
 import { fetchHover } from "./cfgClient.ts";
+import {
+  HIGHLIGHT_THEME,
+  parseHoverMarkdown,
+  tokenizeCode,
+} from "./highlightCode.ts";
 import type { MapHandlers } from "./renderer/contract.ts";
 import { buildScene } from "./engine/buildScene.ts";
 import { useSelection } from "./engine/useSelection.ts";
@@ -2124,7 +2129,7 @@ export function App() {
           {servicesMode ? "● services" : "○ services"}
         </button>
         {/* LSP hover tooltip, pinned top-right below the header so it never
-            sits under the cursor; ```lang fences stripped */}
+            sits under the cursor; code fences syntax-highlighted, prose kept */}
         {hoverTip ? (
           <div
             style={{
@@ -2141,14 +2146,52 @@ export function App() {
               padding: "8px 10px",
               fontSize: "11px",
               lineHeight: "1.45",
-              whiteSpace: "pre-wrap",
               wordBreak: "break-word",
               pointerEvents: "none",
               zIndex: 60,
               boxShadow: "0 4px 16px rgba(0,0,0,0.35)",
             }}
           >
-            {hoverTip.replace(/```[a-z]*\n?/g, "").trim()}
+            {parseHoverMarkdown(hoverTip).map((block, bi) =>
+              block.type === "code" ? (
+                <pre
+                  key={bi}
+                  style={{
+                    margin: bi === 0 ? 0 : "6px 0 0",
+                    fontFamily:
+                      "ui-monospace, SFMono-Regular, Menlo, monospace",
+                    fontSize: "11px",
+                    whiteSpace: "pre-wrap",
+                    wordBreak: "break-word",
+                  }}
+                >
+                  {tokenizeCode(block.text).map((tok, ti) => (
+                    <span
+                      key={ti}
+                      style={{
+                        color:
+                          HIGHLIGHT_THEME[params.dark ? "dark" : "light"][
+                            tok.kind
+                          ],
+                      }}
+                    >
+                      {tok.text}
+                    </span>
+                  ))}
+                </pre>
+              ) : (
+                <div
+                  key={bi}
+                  style={{
+                    margin: bi === 0 ? 0 : "6px 0 0",
+                    whiteSpace: "pre-wrap",
+                    opacity: 0.85,
+                  }}
+                >
+                  {block.text}
+                </div>
+              ),
+            )}
           </div>
         ) : null}
         {/* hierarchy breadcrumb: selection path, or the crosshair target */}
