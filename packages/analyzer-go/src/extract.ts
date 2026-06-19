@@ -7,7 +7,7 @@ import Parser from "web-tree-sitter";
 import {
   computeGraphMetrics,
   matchWorkspacePackage,
-  resolveSymbolReferences,
+  resolvePackageImports,
 } from "@sprawlens/schema";
 import type {
   CodeEdge,
@@ -295,12 +295,10 @@ export async function snapshotGoWorkingTree(
     return m ? [m.pkg.sourceRoot, m.subpath].filter(Boolean).join("/") : null;
   };
 
-  // exported symbols per file, by name — the target side of symbol references
-  const exportsByFile = new Map<string, Map<string, CodeSymbol>>();
+  // exported symbols per file — the target side of symbol references
+  const exportedSymbolsByFile = new Map<string, CodeSymbol[]>();
   for (const f of fileEntries) {
-    const byName = new Map<string, CodeSymbol>();
-    for (const symbol of f.symbols) if (symbol.exported) byName.set(symbol.name, symbol);
-    exportsByFile.set(f.rel, byName);
+    exportedSymbolsByFile.set(f.rel, f.symbols.filter((s) => s.exported));
   }
 
   for (const dir of [...dirs].sort())
@@ -321,58 +319,25 @@ export async function snapshotGoWorkingTree(
     const dir = f.rel.includes("/") ? f.rel.slice(0, f.rel.lastIndexOf("/")) : "";
     const parent = dir ? `dir:${dir}` : "repo";
     edges.push({ id: `contains:${parent}->${id}`, type: "contains", from: parent, to: id });
-    const seenImport = new Set<string>();
-    const seenExternal = new Set<string>();
-    for (const imp of f.imports) {
-      if (seenImport.has(imp.path)) continue;
-      seenImport.add(imp.path);
-      const spec = imp.path;
-      const localDir = localDirOf(spec);
-      const localFiles = localDir !== null ? filesByDir.get(localDir) : undefined;
-      if (localFiles && localFiles.length > 0) {
-        // `pkg.Name` usages of this package become symbol references; each
-        // resolves against the package file that exports that name
-        const refs = f.selectors
-          .filter((s) => s.pkg === imp.alias)
-          .map((s) => ({ line: s.line, name: s.name }));
-        // a Go package is a directory: link the importer to every file in it
-        for (const target of localFiles) {
-          if (target === f.rel) continue;
-          const symbolImports = refs.length
-            ? resolveSymbolReferences(
-                refs,
-                f.symbols,
-                exportsByFile.get(target) ?? new Map(),
-              )
-            : [];
-          edges.push({
-            id: `imports:${id}->file:${target}:${spec}`,
-            type: "imports",
-            from: id,
-            to: `file:${target}`,
-            specifier: spec,
-            resolved: true,
-            ...(symbolImports.length > 0 ? { symbolImports } : {}),
-          });
-        }
-      } else {
-        // group sub-packages to their go.mod module and tag stdlib, then dedupe
-        // so each dependency/stdlib package is one edge per file
-        const { group, stdlib } = classifyGoExternal(spec, requires);
-        if (seenExternal.has(group)) continue;
-        seenExternal.add(group);
-        edges.push({
-          id: `imports:${id}->external:${group}:${group}`,
-          type: "imports",
-          from: id,
-          to: `external:${group}`,
-          specifier: group,
-          resolved: false,
-          external: true,
-          ...(stdlib ? { stdlib: true } : {}),
-        });
-      }
-    }
+    // a Go package is a directory: an import resolves to its files, else it is
+    // a stdlib / go.mod-module dependency. The shared helper does the wiring.
+    edges.push(
+      ...resolvePackageImports({
+        fileId: id,
+        rel: f.rel,
+        imports: f.imports.map((imp) => ({ spec: imp.path, alias: imp.alias })),
+        uses: f.selectors.map((s) => ({ line: s.line, alias: s.pkg, name: s.name })),
+        symbols: f.symbols,
+        exportedSymbolsOf: (rel) => exportedSymbolsByFile.get(rel) ?? [],
+        resolveImport: (spec) => {
+          const localDir = localDirOf(spec);
+          const localFiles = localDir !== null ? filesByDir.get(localDir) : undefined;
+          if (localFiles && localFiles.length > 0) return { local: localFiles };
+          const { group, stdlib } = classifyGoExternal(spec, requires);
+          return { external: group, stdlib };
+        },
+      }),
+    );
   }
   // contains edges for the dir tree (repo/parent-dir -> dir)
   for (const dir of dirs) {

@@ -4,14 +4,12 @@ import fg from "fast-glob";
 import {
   computeGraphMetrics,
   matchWorkspacePackage,
-  mergeSymbolImports,
-  symbolImportOf,
+  resolvePackageImports,
 } from "@sprawlens/schema";
 import type {
   CodeEdge,
   CodeNode,
   CodeSymbol,
-  CodeSymbolImport,
   CodeSymbolKind,
   Snapshot,
   SnapshotCommit,
@@ -316,51 +314,27 @@ export async function snapshotMoonbitWorkingTree(
     });
     const parent = f.dir ? `dir:${f.dir}` : "repo";
     edges.push({ id: `contains:${parent}->${id}`, type: "contains", from: parent, to: id });
-    // package imports (from moon.pkg.json) apply to every file in the package
-    const seenImport = new Set<string>();
-    for (const imp of importsByDir.get(f.dir) ?? []) {
-      if (seenImport.has(imp.path)) continue;
-      seenImport.add(imp.path);
-      const spec = imp.path;
-      const localDir = localDirOf(spec);
-      const localFiles = localDir !== null ? filesByDir.get(localDir) : undefined;
-      // a package's test files (`*_test.mbt` / `*_wbtest.mbt`) are not part of
-      // its importable surface — never an import target
-      const importable = localFiles?.filter((t) => !/_(test|wbtest)\.mbt$/.test(t));
-      if (importable && importable.length > 0) {
-        // `@alias.name` / `@alias.Type::method` usages become symbol references,
-        // each resolved against the package file that exports that symbol
-        const refs = f.selectors.filter((s) => s.pkg === imp.alias);
-        for (const target of importable) {
-          if (target === f.rel) continue;
-          const targetSymbols = exportedSymbolsByFile.get(target) ?? [];
-          const symbolImports: CodeSymbolImport[] = [];
-          for (const ref of refs) {
-            const si = symbolImportOf(ref, f.symbols, targetSymbols);
-            if (si) mergeSymbolImports(symbolImports, [si]);
-          }
-          edges.push({
-            id: `imports:${id}->file:${target}:${spec}`,
-            type: "imports",
-            from: id,
-            to: `file:${target}`,
-            specifier: spec,
-            resolved: true,
-            ...(symbolImports.length > 0 ? { symbolImports } : {}),
-          });
-        }
-      } else {
-        edges.push({
-          id: `imports:${id}->external:${spec}:${spec}`,
-          type: "imports",
-          from: id,
-          to: `external:${spec}`,
-          specifier: spec,
-          resolved: false,
-          external: true,
-        });
-      }
-    }
+    // a MoonBit package is a directory; its imports come from the package
+    // manifest and apply to every file in it. The shared helper does the wiring.
+    edges.push(
+      ...resolvePackageImports({
+        fileId: id,
+        rel: f.rel,
+        imports: (importsByDir.get(f.dir) ?? []).map((imp) => ({ spec: imp.path, alias: imp.alias })),
+        uses: f.selectors.map((s) => ({ line: s.line, alias: s.pkg, name: s.name, preferClass: s.preferClass })),
+        symbols: f.symbols,
+        exportedSymbolsOf: (rel) => exportedSymbolsByFile.get(rel) ?? [],
+        resolveImport: (spec) => {
+          const localDir = localDirOf(spec);
+          const localFiles = localDir !== null ? filesByDir.get(localDir) : undefined;
+          // test files (`*_test.mbt` / `*_wbtest.mbt`) are not importable surface
+          const importable = localFiles?.filter((t) => !/_(test|wbtest)\.mbt$/.test(t));
+          return importable && importable.length > 0
+            ? { local: importable }
+            : { external: spec };
+        },
+      }),
+    );
   }
   for (const dir of dirs) {
     const parent = dir.includes("/") ? `dir:${dir.slice(0, dir.lastIndexOf("/"))}` : "repo";
