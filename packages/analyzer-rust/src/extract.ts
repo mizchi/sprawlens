@@ -5,6 +5,7 @@ import fg from "fast-glob";
 import Parser from "web-tree-sitter";
 import {
   computeGraphMetrics,
+  enclosingSymbol,
   matchWorkspacePackage,
   resolveSymbolReferences,
 } from "@sprawlens/schema";
@@ -12,6 +13,7 @@ import type {
   CodeEdge,
   CodeNode,
   CodeSymbol,
+  CodeSymbolImport,
   CodeSymbolKind,
   Snapshot,
   SnapshotCommit,
@@ -230,6 +232,61 @@ function collectUsages(root: SyntaxNode): { line: number; name: string }[] {
   return out;
 }
 
+/** A `::`-qualified reference (`crate::a::foo`, `Foo::new`) and its line. The
+ * leading segments name a module path or a type; the last is the symbol used. */
+type ScopedRef = { line: number; segs: string[] };
+
+/** All `::`-qualified paths in the tree (outermost only, `use` decls excluded).
+ * These are the references a plain identifier scan misses: associated calls
+ * (`Foo::new()`) and fully-qualified calls with no `use` (`crate::a::foo()`). */
+function collectScopedRefs(root: SyntaxNode): ScopedRef[] {
+  const out: ScopedRef[] = [];
+  const stack: SyntaxNode[] = [root];
+  while (stack.length) {
+    const n = stack.pop()!;
+    if (n.type === "use_declaration") continue;
+    if (n.type === "scoped_identifier" || n.type === "scoped_type_identifier") {
+      const segs = n.text
+        .replace(/<[^>]*>/g, "") // drop generic args / turbofish
+        .split("::")
+        .map((s) => s.trim())
+        .filter(Boolean);
+      if (segs.length >= 2) out.push({ line: n.startPosition.row + 1, segs });
+      continue; // its segments are this ref, not separate ones
+    }
+    for (let i = 0; i < n.namedChildCount; i++) stack.push(n.namedChild(i)!);
+  }
+  return out;
+}
+
+/** Pick the exported symbol named `name`, preferring one whose `parentClass`
+ * matches `preferClass` (a `Type::method` qualifier); else the first by name. */
+function pickExported(
+  symbols: readonly CodeSymbol[],
+  name: string,
+  preferClass: string | undefined,
+): CodeSymbol | null {
+  let fallback: CodeSymbol | null = null;
+  for (const s of symbols) {
+    if (s.name !== name) continue;
+    if (preferClass && s.parentClass === preferClass) return s;
+    fallback ??= s;
+  }
+  return fallback;
+}
+
+/** Append symbol refs not already present (deduped by from→to symbol pair). */
+function mergeSymbolImports(
+  into: CodeSymbolImport[],
+  add: readonly CodeSymbolImport[],
+): void {
+  for (const si of add) {
+    const key = `${si.fromSymbolId ?? ""}->${si.toSymbolId}`;
+    if (into.some((x) => `${x.fromSymbolId ?? ""}->${x.toSymbolId}` === key)) continue;
+    into.push(si);
+  }
+}
+
 /** `src` if the crate root lives there, else `` (repo root). */
 function crateRoot(fileSet: ReadonlySet<string>): string {
   if (fileSet.has("src/lib.rs") || fileSet.has("src/main.rs")) return "src";
@@ -368,6 +425,36 @@ function resolveUse(
   return { external: head };
 }
 
+/** Where a `::`-qualified reference points: the target file, the referenced
+ * symbol name, and the qualifying type (if `Type::method`). Null when the path
+ * is external (`String::new`) or its module/type prefix doesn't resolve. */
+function resolveScopedTarget(
+  segs: string[],
+  importerRel: string,
+  importerCrate: Crate,
+  members: WorkspacePackage[],
+  fileSet: ReadonlySet<string>,
+  nameToFile: ReadonlyMap<string, string>,
+): { file: string; name: string; preferClass: string | undefined } | null {
+  if (segs.length < 2) return null;
+  const head = segs[0]!;
+  const name = segs[segs.length - 1]!;
+  const prev = segs[segs.length - 2]!;
+  // a PascalCase segment right before the symbol qualifies a type's member
+  const preferClass = /^[A-Z]/.test(prev) ? prev : undefined;
+  // module-rooted paths resolve through the same machinery as a `use`
+  if (head === "crate" || head === "self" || head === "super") {
+    const r = resolveUse(segs.join("::"), importerRel, importerCrate, members, fileSet);
+    return r && "file" in r ? { file: r.file, name, preferClass } : null;
+  }
+  // a type/module head brought into scope by a `use` (`Calc::new`, `math::f`)
+  const viaUse = nameToFile.get(head);
+  if (viaUse) return { file: viaUse, name, preferClass };
+  // a sibling-crate-qualified path (`mylib::Widget::new`)
+  const r = resolveUse(segs.join("::"), importerRel, importerCrate, members, fileSet);
+  return r && "file" in r ? { file: r.file, name, preferClass } : null;
+}
+
 /** Snapshot a Rust working tree via tree-sitter. */
 export async function snapshotRustWorkingTree(
   repoPath: string,
@@ -393,6 +480,7 @@ export async function snapshotRustWorkingTree(
     symbols: CodeSymbol[];
     uses: RustUse[];
     usages: { line: number; name: string }[];
+    scoped: ScopedRef[];
     loc: number;
     bytes: number;
   }[] = [];
@@ -403,9 +491,10 @@ export async function snapshotRustWorkingTree(
     const out: { symbols: CodeSymbol[]; uses: RustUse[] } = { symbols: [], uses: [] };
     walk(tree.rootNode, rel, out);
     const usages = collectUsages(tree.rootNode);
+    const scoped = collectScopedRefs(tree.rootNode);
     const loc = source.split("\n").length;
     totalLoc += loc;
-    fileEntries.push({ rel, ...out, usages, loc, bytes: Buffer.byteLength(source) });
+    fileEntries.push({ rel, ...out, usages, scoped, loc, bytes: Buffer.byteLength(source) });
     const parts = rel.split("/");
     parts.pop();
     let acc = "";
@@ -423,10 +512,19 @@ export async function snapshotRustWorkingTree(
 
   // exported symbols per file, by name — the target side of symbol references
   const exportsByFile = new Map<string, Map<string, CodeSymbol>>();
+  // and the full exported list, so a `Type::method` ref can prefer the symbol
+  // whose parentClass matches the qualifier (names alone collide across types)
+  const exportedSymbolsByFile = new Map<string, CodeSymbol[]>();
   for (const f of fileEntries) {
     const byName = new Map<string, CodeSymbol>();
-    for (const symbol of f.symbols) if (symbol.exported) byName.set(symbol.name, symbol);
+    const all: CodeSymbol[] = [];
+    for (const symbol of f.symbols) {
+      if (!symbol.exported) continue;
+      byName.set(symbol.name, symbol);
+      all.push(symbol);
+    }
     exportsByFile.set(f.rel, byName);
+    exportedSymbolsByFile.set(f.rel, all);
   }
 
   for (const f of fileEntries) {
@@ -443,46 +541,90 @@ export async function snapshotRustWorkingTree(
     const dir = f.rel.includes("/") ? f.rel.slice(0, f.rel.lastIndexOf("/")) : "";
     const parent = dir ? `dir:${dir}` : "repo";
     edges.push({ id: `contains:${parent}->${id}`, type: "contains", from: parent, to: id });
-    // dedupe by resolved target / external crate (a file `use`s many items)
-    const seen = new Set<string>();
     const importerCrate = crateOf(f.rel, crates);
+
+    // Aggregate per target file so a file is one import edge no matter how many
+    // `use`s and `::`-paths reach it, merging every symbol reference into it.
+    const localRefs = new Map<string, CodeSymbolImport[]>();
+    const localSpecifier = new Map<string, string>();
+    const externals = new Map<string, boolean>(); // crate -> stdlib?
+    const nameToFile = new Map<string, string>(); // use-imported name -> file
+
     for (const use of f.uses) {
       const r = resolveUse(use.path, f.rel, importerCrate, members, fileSet);
       if (!r) continue;
       if ("file" in r) {
-        if (seen.has(`f:${r.file}`)) continue;
-        seen.add(`f:${r.file}`);
+        if (!localRefs.has(r.file)) {
+          localRefs.set(r.file, []);
+          localSpecifier.set(r.file, use.path);
+        }
+        for (const name of use.names) nameToFile.set(name, r.file);
         // usages of the names this `use` brings in become symbol references,
         // resolved against the symbols the target file exports
-        const refs = use.names.length
-          ? f.usages.filter((u) => use.names.includes(u.name))
-          : [];
-        const symbolImports = refs.length
-          ? resolveSymbolReferences(refs, f.symbols, exportsByFile.get(r.file) ?? new Map())
-          : [];
-        edges.push({
-          id: `imports:${id}->file:${r.file}:${use.path}`,
-          type: "imports",
-          from: id,
-          to: `file:${r.file}`,
-          specifier: use.path,
-          resolved: true,
-          ...(symbolImports.length > 0 ? { symbolImports } : {}),
-        });
+        if (use.names.length) {
+          const refs = f.usages.filter((u) => use.names.includes(u.name));
+          if (refs.length) {
+            mergeSymbolImports(
+              localRefs.get(r.file)!,
+              resolveSymbolReferences(refs, f.symbols, exportsByFile.get(r.file) ?? new Map()),
+            );
+          }
+        }
       } else {
-        if (seen.has(`e:${r.external}`)) continue;
-        seen.add(`e:${r.external}`);
-        edges.push({
-          id: `imports:${id}->external:${r.external}:${r.external}`,
-          type: "imports",
-          from: id,
-          to: `external:${r.external}`,
-          specifier: r.external,
-          resolved: false,
-          external: true,
-          ...(RUST_STDLIB.has(r.external) ? { stdlib: true } : {}),
-        });
+        externals.set(r.external, RUST_STDLIB.has(r.external));
       }
+    }
+
+    // `::`-qualified references (`crate::a::foo`, `Calc::new`): resolve the
+    // module/type prefix to a file and the last segment to its exported symbol.
+    for (const sref of f.scoped) {
+      const target = resolveScopedTarget(
+        sref.segs, f.rel, importerCrate, members, fileSet, nameToFile,
+      );
+      if (!target || target.file === f.rel) continue;
+      const sym = pickExported(
+        exportedSymbolsByFile.get(target.file) ?? [], target.name, target.preferClass,
+      );
+      if (!sym) continue;
+      if (!localRefs.has(target.file)) {
+        localRefs.set(target.file, []);
+        localSpecifier.set(target.file, sref.segs.join("::"));
+      }
+      const from = enclosingSymbol(sref.line, f.symbols);
+      mergeSymbolImports(localRefs.get(target.file)!, [{
+        imported: target.name,
+        local: target.name,
+        kind: "named",
+        fromSymbolId: from?.id,
+        fromSymbolName: from?.name,
+        toSymbolId: sym.id,
+        toSymbolName: sym.name,
+      }]);
+    }
+
+    for (const [file, symbolImports] of localRefs) {
+      const specifier = localSpecifier.get(file)!;
+      edges.push({
+        id: `imports:${id}->file:${file}:${specifier}`,
+        type: "imports",
+        from: id,
+        to: `file:${file}`,
+        specifier,
+        resolved: true,
+        ...(symbolImports.length > 0 ? { symbolImports } : {}),
+      });
+    }
+    for (const [crate, stdlib] of externals) {
+      edges.push({
+        id: `imports:${id}->external:${crate}:${crate}`,
+        type: "imports",
+        from: id,
+        to: `external:${crate}`,
+        specifier: crate,
+        resolved: false,
+        external: true,
+        ...(stdlib ? { stdlib: true } : {}),
+      });
     }
   }
   for (const dir of dirs) {

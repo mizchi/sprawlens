@@ -44,6 +44,67 @@ describe("snapshotRustWorkingTree", () => {
   });
 });
 
+describe("qualified-path references (tree-sitter only)", () => {
+  let qp: string;
+  beforeAll(async () => {
+    qp = await mkdtemp(join(tmpdir(), "rust-qp-"));
+    await mkdir(join(qp, "src"), { recursive: true });
+    await writeFile(join(qp, "src/lib.rs"), `mod math;\nmod app;\n`);
+    await writeFile(
+      join(qp, "src/math.rs"),
+      `pub fn add(a: i32, b: i32) -> i32 { a + b }\npub struct Calc { pub n: i32 }\nimpl Calc { pub fn new() -> Self { Calc { n: 0 } } }\n`,
+    );
+    await writeFile(
+      join(qp, "src/app.rs"),
+      `use crate::math::Calc;\npub fn run() -> i32 { crate::math::add(1, 2) }\npub fn make() -> Calc { Calc::new() }\n`,
+    );
+  });
+  afterAll(async () => { await rm(qp, { recursive: true, force: true }); });
+
+  it("resolves a fully-qualified call with no `use` into an import edge + symbol ref", async () => {
+    const snap = await snapshotRustWorkingTree(qp, commit, "demo");
+    const imports = snap.edges.filter((e) => e.type === "imports");
+    // crate::math::add(...) has no `use`, yet the app→math dependency appears
+    const edge = imports.find(
+      (e) => e.from === "file:src/app.rs" && e.to === "file:src/math.rs",
+    );
+    expect(edge?.resolved).toBe(true);
+    expect(
+      edge?.type === "imports"
+        ? edge.symbolImports?.some(
+            (s) => s.fromSymbolName === "run" && s.toSymbolName === "add",
+          )
+        : false,
+    ).toBe(true);
+  });
+
+  it("links a Type::method() associated call to the method symbol", async () => {
+    const snap = await snapshotRustWorkingTree(qp, commit, "demo");
+    const imports = snap.edges.filter((e) => e.type === "imports");
+    const edge = imports.find(
+      (e) => e.from === "file:src/app.rs" && e.to === "file:src/math.rs",
+    );
+    // Calc::new() resolves to the `new` method of Calc, not just the Calc type
+    expect(
+      edge?.type === "imports"
+        ? edge.symbolImports?.some(
+            (s) =>
+              s.fromSymbolName === "make" && s.toSymbolName === "new",
+          )
+        : false,
+    ).toBe(true);
+  });
+
+  it("does not invent edges for std associated calls (String::new)", async () => {
+    const snap = await snapshotRustWorkingTree(qp, commit, "demo");
+    const imports = snap.edges.filter((e) => e.type === "imports");
+    // String::new() inside Calc::new must not fabricate a resolved edge
+    expect(
+      imports.some((e) => e.resolved && e.to === "file:src/String.rs"),
+    ).toBe(false);
+  });
+});
+
 describe("cargo workspace cross-crate resolution", () => {
   let ws: string;
   beforeAll(async () => {
