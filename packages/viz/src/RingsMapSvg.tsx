@@ -1000,22 +1000,12 @@ export function RingsMapSvg(props: Props) {
           })}
         </g>
       ) : null}
-      {sourceVisible ? (
-        <WatermarkLabelsLayer
-          cells={visibleFileCells}
-          zoom={zoom}
-          labelOf={(id) => labels.get(id) ?? fallbackLabel(id)}
-          dim={dim}
-          view={committedView}
-          tilt={tiltAffine}
-        />
-      ) : null}
       {showInner ? (
         <g
           stroke={SYMBOL_STROKE}
           stroke-width={0.4}
           stroke-opacity={0.8}
-         
+
         >
           {visibleInnerCells.map((cell) =>
             true ? (
@@ -1559,6 +1549,19 @@ export function RingsMapSvg(props: Props) {
             })
           : null}
       </g>
+      {/* file/module watermark names ride in FRONT of the symbols so they are
+          never buried; WatermarkLabelsLayer fades them with zoom so they don't
+          block the symbols at depth */}
+      {sourceVisible ? (
+        <WatermarkLabelsLayer
+          cells={visibleFileCells}
+          zoom={zoom}
+          labelOf={(id) => labels.get(id) ?? fallbackLabel(id)}
+          dim={dim}
+          view={committedView}
+          tilt={tiltAffine}
+        />
+      ) : null}
       </g>
       {tiltAffine
         ? layers.map((layer, i) => {

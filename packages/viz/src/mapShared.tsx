@@ -501,7 +501,13 @@ export function WatermarkLabelsLayer(props: {
     >
       {cells.map((cell) => {
         const natural = Math.sqrt(cell.actualArea) * 0.18;
-        if (natural * zoom < WATERMARK_PX) return null;
+        const onScreen = natural * zoom;
+        if (onScreen < WATERMARK_PX) return null;
+        // the watermark rides in front of the symbols (so the file/module name
+        // is never buried), so it must fade as you zoom in or it would block
+        // what you came to read: prominent the moment it appears, thinning to a
+        // faint wash the deeper the cell fills the screen
+        const fade = Math.max(0.08, Math.min(0.4, (WATERMARK_PX * 2) / onScreen));
         // deep inside a cell, a centroid-anchored giant name leaves the
         // screen entirely — cap the size to the viewport and clamp the
         // anchor into the visible part of the cell
@@ -537,7 +543,7 @@ export function WatermarkLabelsLayer(props: {
             font-size={fontSize}
             font-weight="600"
             fill={WATERMARK_INK}
-            opacity={0.3 * dim.leaf(cell.id)}
+            opacity={fade * dim.leaf(cell.id)}
           >
             {labelOf(cell.id)}
           </text>
