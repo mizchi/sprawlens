@@ -123,6 +123,22 @@ type GoImport = { path: string; alias: string };
 /** A `pkg.Name` usage: the line, the package alias, and the selected name. */
 type GoSelector = { line: number; pkg: string; name: string };
 
+/** The receiver type a `method_declaration` is defined on, e.g. `Greeter` for
+ * `func (g Greeter)`, `Stack` for `func (s *Stack[T])`. The first type name
+ * under the receiver's type unwraps the pointer and any generic args. */
+function receiverType(node: SyntaxNode): string | undefined {
+  const type = node.childForFieldName("receiver")?.namedChild(0)?.childForFieldName("type");
+  if (!type) return undefined;
+  if (type.type === "type_identifier") return type.text;
+  const queue: SyntaxNode[] = [type]; // *T, T[X], *T[X]: outermost type id wins
+  while (queue.length) {
+    const n = queue.shift()!;
+    if (n.type === "type_identifier") return n.text;
+    for (let i = 0; i < n.namedChildCount; i++) queue.push(n.namedChild(i)!);
+  }
+  return undefined;
+}
+
 function symbolsAndImports(
   root: SyntaxNode,
   file: string,
@@ -139,7 +155,7 @@ function symbolsAndImports(
       }
       case "method_declaration": {
         const name = node.childForFieldName("name")?.text;
-        if (name) symbols.push(symbolOf(file, "method", name, node));
+        if (name) symbols.push(symbolOf(file, "method", name, node, receiverType(node)));
         break;
       }
       case "type_declaration": {

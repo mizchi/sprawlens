@@ -42,6 +42,8 @@ describe("snapshotGoWorkingTree", () => {
     expect(syms.get("Greeter")?.kind).toBe("class");
     expect(syms.get("Greeter")?.exported).toBe(true);
     expect(syms.get("Hello")?.kind).toBe("method");
+    // a method is attributed to its receiver type, like Rust impl / MoonBit ::
+    expect(syms.get("Hello")?.parentClass).toBe("Greeter");
     expect(syms.get("main")?.exported).toBe(false);
     const sub = files.find((f) => f.path === "sub/sub.go")!;
     expect(
