@@ -124,9 +124,29 @@ const SYMBOL_KIND_SET: ReadonlySet<string> = new Set([
  * fold into per-module "(module scope)" fillers. A monorepo has thousands
  * of symbols — laying them all out is slow to converge and heavy to draw. */
 const SYMBOL_BUDGET = 600;
-/** Upper bound on the zoom-scaled symbol budget (perf cap on cell count). */
-const SYMBOL_BUDGET_MAX = 2500;
 const CONVERGENCE_TOLERANCE = 0.02;
+
+/**
+ * A content fingerprint of a served snapshot: it changes iff the analysis
+ * (files, their symbols, and import edges) changed. The live stream re-analyzes
+ * on any fs event — including ones that don't change the code (an LSP touching
+ * its caches, editor temp files) — and re-pushes an identical snapshot. Without
+ * this, a symbol-granularity view cold-rebuilds on every such push and the
+ * rings reshuffle "with no code change". Skipping equal signatures stops that.
+ */
+function snapshotSignature(snap: SnapshotLike): string {
+  const parts: string[] = [];
+  for (const node of snap.nodes) {
+    if (node.type !== "file") continue;
+    const syms = (node.symbols ?? []).map((s) => `${s.id}#${s.loc}`).join(",");
+    parts.push(`${node.id}:${node.loc ?? 0}:${node.layer ?? ""}:${syms}`);
+  }
+  parts.push("|");
+  for (const edge of snap.edges) {
+    parts.push(`${edge.type}:${edge.from}>${edge.to}:${edge.resolved ? 1 : 0}`);
+  }
+  return parts.join(";");
+}
 /** Solver parameters: long-stable knobs, hardcoded out of the UI. */
 const SEED = 1;
 const SYNTH_COUNT = 120;
@@ -249,7 +269,7 @@ export function App() {
     selectEdgeState,
   } = useSelection();
   // camera: pending fly-to + settled view; focusBounds frames a world bbox
-  const { focusRequest, viewInfo, viewInfoRef, focusBounds, onViewSettle } =
+  const { focusRequest, viewInfo, focusBounds, onViewSettle } =
     useCamera({ width: WIDTH, height: HEIGHT });
   const [, setFrame] = useState(0);
 
@@ -341,6 +361,9 @@ export function App() {
   const playwrightSnapRef = useRef<SnapshotLike | null>(null);
   /** Snapshot served by the CLI at /api/snapshot (fetched once). */
   const servedSnapRef = useRef<SnapshotLike | null>(null);
+  /** Fingerprint of the last applied served snapshot, so the live stream can
+   * drop re-emitted, unchanged snapshots instead of cold-rebuilding. */
+  const lastSnapSigRef = useRef<string | null>(null);
   /** Terraform service graph from /api/services (fetched once): drives the
    * "group by service" nesting (fileServices) and the service-level edges. The
    * ref is for the synchronous reads in boundariesOf/nativeEdges; the state
@@ -361,6 +384,9 @@ export function App() {
       .then((json: SnapshotLike | null) => {
         if (cancelled || !json) return;
         servedSnapRef.current = json;
+        // seed the fingerprint so the first stream emit (the same snapshot) is
+        // recognized as unchanged and doesn't reshuffle
+        lastSnapSigRef.current = snapshotSignature(json);
         setParams((p) => (p.source === "sprawlens" ? { ...p, source: "served" } : p));
       })
       .catch(() => {});
@@ -547,12 +573,13 @@ export function App() {
   };
 
   /**
-   * Budget priority for a symbol in the module⊃symbol view: its area
-   * weight scaled by how close its module sits to the focus center. The
-   * proximity radius shrinks with zoom, so zooming into a district pulls
-   * its symbols into the budget (semantic zoom) while distant ones fold
-   * into fillers. Module centers come from the current layout; with none
-   * yet (cold) it falls back to pure area.
+   * Budget priority for a symbol in the module⊃symbol view: its area weight
+   * scaled by how close its module sits to the map center. The framing is
+   * fixed (the initial view), NOT the live camera, so zooming and panning
+   * never re-budget — the symbol set stays put while the user navigates and
+   * only a rebuild (code change / structural toggle) re-selects it. Module
+   * centers come from the current layout; with none yet (cold) it falls back
+   * to pure area.
    */
   const symbolPriorityOf = (symbolId: string, weight: number): number => {
     // a changed symbol must survive the budget so the diff shows at symbol
@@ -570,13 +597,13 @@ export function App() {
     if (!rings) return weight + changedBoost;
     const circle = rings.circles.get(moduleOfId(symbolId));
     if (!circle) return weight + changedBoost;
-    const view = viewInfoRef.current;
-    const dx = circle.cx - view.x;
-    const dy = circle.cy - view.y;
-    const radius = (WIDTH / Math.max(view.zoom, 0.2)) * 0.6;
+    // fixed framing (map center, base zoom) — see the doc comment above
+    const dx = circle.cx - WIDTH / 2;
+    const dy = circle.cy - HEIGHT / 2;
+    const radius = WIDTH * 0.6;
     const proximity = 1 / (1 + (dx * dx + dy * dy) / (radius * radius));
     // sqrt flattens the area weight so small members aren't crushed by large
-    // siblings once a district is in focus — proximity then carries the LOD
+    // siblings — the mild center bias matches the initial view's framing
     return Math.sqrt(weight) * proximity + changedBoost;
   };
 
@@ -587,13 +614,10 @@ export function App() {
    * weights — so it runs on every focus change.
    */
   const budgetedApiGraph = (full: AtlasGraph): AtlasGraph => {
-    // semantic zoom: the budget grows as you zoom in. Off-screen districts
-    // fold via proximity, so the larger budget is spent on the focused
-    // district — deep enough and all of its members surface.
-    const budget = Math.min(
-      SYMBOL_BUDGET_MAX,
-      Math.round(SYMBOL_BUDGET * Math.max(1, viewInfoRef.current.zoom)),
-    );
+    // a fixed budget, not a zoom-driven one: the set is chosen once per build
+    // (and on a code change) and stays put as the camera moves, so zooming in
+    // to read never reshuffles the rings
+    const budget = SYMBOL_BUDGET;
     const api = applySymbolBudget(full, {
       budget,
       priorityOf: symbolPriorityOf,
@@ -979,29 +1003,6 @@ export function App() {
     }
   }, [structuralKey, flowKey]);
 
-  // Dynamic symbol LOD: when the camera settles in the module⊃symbol view,
-  // re-rank symbols against the new focus center and warm-start the layout
-  // so the focused district's symbols melt in and distant ones fold into
-  // their "(module scope)" fillers. The set, not just the labels, changes.
-  useEffect(() => {
-    if (
-      granularityOf(
-        paramsRef.current.boundaries,
-        paramsRef.current.displayLevels,
-      ) !== "symbol"
-    )
-      return;
-    if (!ringsRef.current || apiFullRef.current.nodes.length === 0) return;
-    // re-budget against the new focus from the cached full graph (cheap),
-    // then warm-start so the set melts to the refocused selection
-    ringsRef.current = applyRingsChanges(
-      ringsRef.current,
-      budgetedApiGraph(apiFullRef.current),
-      ringsOptions(paramsRef.current),
-    );
-    setFrame((f) => f + 1);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [viewInfo]);
 
   // the solver's animation loop (time-budgeted outer + inner stepping, paced
   // repaints); the central layout refs stay here as the whole render reads them
@@ -1119,6 +1120,12 @@ export function App() {
    * up — symbols and import edges, not just file sizes.
    */
   const applyServedSnapshot = (snap: SnapshotLike) => {
+    // the stream re-analyzes on any fs event; ignore a re-emitted snapshot whose
+    // content is unchanged so an LSP/editor touching files never reshuffles the
+    // map "with no code change"
+    const sig = snapshotSignature(snap);
+    if (sig === lastSnapSigRef.current) return;
+    lastSnapSigRef.current = sig;
     servedSnapRef.current = snap;
     symbolsRef.current = snapshotSymbols(snap);
     symbolEdgesRef.current = snapshotSymbolEdges(snap);
