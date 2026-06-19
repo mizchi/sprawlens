@@ -4,12 +4,14 @@ import fg from "fast-glob";
 import {
   computeGraphMetrics,
   matchWorkspacePackage,
-  resolveSymbolReferences,
+  mergeSymbolImports,
+  symbolImportOf,
 } from "@sprawlens/schema";
 import type {
   CodeEdge,
   CodeNode,
   CodeSymbol,
+  CodeSymbolImport,
   CodeSymbolKind,
   Snapshot,
   SnapshotCommit,
@@ -185,16 +187,25 @@ async function readModuleName(repoPath: string): Promise<string> {
   return "";
 }
 
-/** `@alias.name` qualified usages in a file (heuristic, line-based). */
-const SELECTOR = /@([A-Za-z_]\w*)\s*\.\s*([A-Za-z_]\w*)/g;
-function selectorsOf(source: string): { line: number; pkg: string; name: string }[] {
-  const out: { line: number; pkg: string; name: string }[] = [];
+/** A `@pkg.name` or `@pkg.Type::method` qualified usage. `preferClass` is the
+ * qualifying type of an associated-method reference, so it links to that type's
+ * method rather than a same-named symbol elsewhere. */
+type MbSelector = { line: number; pkg: string; name: string; preferClass?: string };
+/** `@alias.name` / `@alias.Type::method` usages in a file (heuristic, line-based). */
+const SELECTOR = /@([A-Za-z_]\w*)\s*\.\s*([A-Za-z_]\w*)(?:\s*::\s*([A-Za-z_]\w*))?/g;
+function selectorsOf(source: string): MbSelector[] {
+  const out: MbSelector[] = [];
   const lines = source.split("\n");
   for (let i = 0; i < lines.length; i++) {
     SELECTOR.lastIndex = 0;
     let m: RegExpExecArray | null;
     while ((m = SELECTOR.exec(lines[i]!))) {
-      out.push({ line: i + 1, pkg: m[1]!, name: m[2]! });
+      // `@pkg.Type::method` → name=method, preferClass=Type; else `@pkg.name`
+      out.push(
+        m[3]
+          ? { line: i + 1, pkg: m[1]!, name: m[3]!, preferClass: m[2]! }
+          : { line: i + 1, pkg: m[1]!, name: m[2]! },
+      );
     }
   }
   return out;
@@ -238,7 +249,7 @@ export async function snapshotMoonbitWorkingTree(
   const entries: {
     rel: string;
     symbols: CodeSymbol[];
-    selectors: { line: number; pkg: string; name: string }[];
+    selectors: MbSelector[];
     loc: number;
     bytes: number;
     dir: string;
@@ -284,12 +295,12 @@ export async function snapshotMoonbitWorkingTree(
   for (const dir of [...dirs].sort())
     nodes.push({ id: `dir:${dir}`, type: "dir", path: dir });
 
-  // exported symbols per file, by name — the target side of symbol references
-  const exportsByFile = new Map<string, Map<string, CodeSymbol>>();
+  // exported symbols per file — the target side of symbol references. The full
+  // list (not just name→symbol) lets a `Type::method` ref prefer the method
+  // whose parentClass matches the qualifier.
+  const exportedSymbolsByFile = new Map<string, CodeSymbol[]>();
   for (const f of entries) {
-    const byName = new Map<string, CodeSymbol>();
-    for (const symbol of f.symbols) if (symbol.exported) byName.set(symbol.name, symbol);
-    exportsByFile.set(f.rel, byName);
+    exportedSymbolsByFile.set(f.rel, f.symbols.filter((s) => s.exported));
   }
 
   for (const f of entries) {
@@ -317,19 +328,17 @@ export async function snapshotMoonbitWorkingTree(
       // its importable surface — never an import target
       const importable = localFiles?.filter((t) => !/_(test|wbtest)\.mbt$/.test(t));
       if (importable && importable.length > 0) {
-        // `@alias.name` usages of this package become symbol references
-        const refs = f.selectors
-          .filter((s) => s.pkg === imp.alias)
-          .map((s) => ({ line: s.line, name: s.name }));
+        // `@alias.name` / `@alias.Type::method` usages become symbol references,
+        // each resolved against the package file that exports that symbol
+        const refs = f.selectors.filter((s) => s.pkg === imp.alias);
         for (const target of importable) {
           if (target === f.rel) continue;
-          const symbolImports = refs.length
-            ? resolveSymbolReferences(
-                refs,
-                f.symbols,
-                exportsByFile.get(target) ?? new Map(),
-              )
-            : [];
+          const targetSymbols = exportedSymbolsByFile.get(target) ?? [];
+          const symbolImports: CodeSymbolImport[] = [];
+          for (const ref of refs) {
+            const si = symbolImportOf(ref, f.symbols, targetSymbols);
+            if (si) mergeSymbolImports(symbolImports, [si]);
+          }
           edges.push({
             id: `imports:${id}->file:${target}:${spec}`,
             type: "imports",

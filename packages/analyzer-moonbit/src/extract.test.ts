@@ -10,12 +10,15 @@ beforeAll(async () => {
   await mkdir(join(dir, "lib"), { recursive: true });
   await writeFile(join(dir, "moon.mod.json"), `{"name":"demo"}`);
   await mkdir(join(dir, "util"), { recursive: true });
-  await writeFile(join(dir, "util/u.mbt"), `pub fn id() -> Int { 1 }\n`);
+  await writeFile(
+    join(dir, "util/u.mbt"),
+    `pub fn id() -> Int { 1 }\npub struct Counter {\n  v : Int\n}\npub fn Counter::make() -> Counter {\n  { v: 0 }\n}\n`,
+  );
   await writeFile(join(dir, "util/moon.pkg.json"), `{}`);
   await writeFile(join(dir, "lib/moon.pkg.json"), `{"import":["moonbitlang/core/builtin","demo/util"]}`);
   await writeFile(
     join(dir, "lib/g.mbt"),
-    `pub struct Greeter {\n  name : String\n}\npub fn Greeter::hello(self : Greeter) -> String {\n  self.name\n}\nenum Mode { On; Off }\nfn helper() -> Int { @util.id() }\npub let answer : Int = 42\n`,
+    `pub struct Greeter {\n  name : String\n}\npub fn Greeter::hello(self : Greeter) -> String {\n  self.name\n}\nenum Mode { On; Off }\nfn helper() -> Int { let _ = @util.Counter::make(); @util.id() }\npub let answer : Int = 42\n`,
   );
 });
 afterAll(async () => { await rm(dir, { recursive: true, force: true }); });
@@ -43,6 +46,14 @@ describe("snapshotMoonbitWorkingTree", () => {
       utilEdge?.type === "imports"
         ? utilEdge.symbolImports?.some(
             (s) => s.fromSymbolName === "helper" && s.toSymbolName === "id",
+          )
+        : false,
+    ).toBe(true);
+    // `@util.Counter::make()` resolves to the make method of Counter
+    expect(
+      utilEdge?.type === "imports"
+        ? utilEdge.symbolImports?.some(
+            (s) => s.fromSymbolName === "helper" && s.toSymbolName === "make",
           )
         : false,
     ).toBe(true);
