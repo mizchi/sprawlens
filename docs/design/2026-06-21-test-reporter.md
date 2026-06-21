@@ -1,7 +1,7 @@
 # Test reporter view
 
-Status: Phase A implemented (2026-06-21). Builds on the `TestTree` contract and
-the runtime trace overlay.
+Status: Phases A + B implemented (2026-06-21). Builds on the `TestTree` contract
+and the runtime trace overlay.
 
 Implements #22 (test reporter: hierarchical runs with source edges and
 click-to-run). Relates to #16 (runtime trace) — the source edges reuse the same
@@ -84,9 +84,10 @@ resolved node symbol ids become that case's `covers`.
   node:test TAP/JSON later), parse to `TestRun`, resolve against the snapshot,
   pass to `createAtlasServer`. `GET /api/test-run` returns it (or null), exactly
   like `/api/trace`.
-- Per-test source edges (`covers`) come from per-test coverage artifacts in a
-  conventional dir (`--test-traces <dir>/<testId>.json`), each ingested via the
-  existing trace adapters; deferred to Phase B.
+- Per-test source edges (`covers`) come from `--test-traces <file>`, a
+  `{ testId: artifact }` map ingested via the existing trace adapters and
+  resolved to symbols (Phase B). A case with a trace but no report row is
+  recorded as `pass` (a trace means it ran).
 
 ## Click-to-run (the one place sprawlens drives a runner)
 
@@ -111,8 +112,13 @@ needs a configured command and a mutating endpoint:
   duration label. No runner driving. Verified e2e: a vitest `--reporter=json`
   report joins to the extracted tree (by file + full title when the runner omits
   task locations) and tints the cases.
-- **Phase B — source edges per test.** Ingest per-test traces, populate
-  `covers`, and drive the symbol overlay from the selected case.
+- **Phase B — source edges per test. (done)** `serve --test-traces <file>`
+  ingests a `{ testId: artifact }` map (each artifact any format `--trace`
+  accepts), resolves each to the symbols that case exercised, and fills the
+  case's `covers`. The viz sets those symbol ids as the test cell's `sourceIds`,
+  so the existing cross-layer ropes draw test → code on hover / selection (and
+  source → test in reverse). Verified e2e: per-test V8 coverage resolved each
+  case to its exact source symbol.
 - **Phase C — click-to-run.** `[test] command` config + `POST /api/test-run/case`
   that spawns one test and refreshes its result. Adds command execution to the
   server — confirm before building.

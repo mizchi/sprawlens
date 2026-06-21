@@ -1916,6 +1916,15 @@ export function App() {
     .map(([name]) => name)
     .sort()
     .join("+");
+  // per-test covered symbols (from --test-traces): links each case cell to the
+  // source it exercised, drawn by the existing cross-layer ropes.
+  const testCovers = useMemo(() => {
+    const map = new Map<string, string[]>();
+    if (!testRun) return map;
+    for (const [id, ids] of Object.entries(testRunOverlay(testRun).coversOf))
+      map.set(id, ids);
+    return map;
+  }, [testRun]);
   const satelliteLayers = useMemo(() => {
     if (!params.tilt.enabled || enabledPlanesKey === "") return [];
     const ext =
@@ -1926,6 +1935,7 @@ export function App() {
       graph: graphRef.current,
       externalDeps: externalDepsRef.current,
       testTree: testTreeRef.current,
+      coversOf: testCovers,
       ext,
       labelOf: (id) => labelsRef.current.get(id) ?? id.split("/").pop() ?? id,
     });
@@ -1937,6 +1947,7 @@ export function App() {
     layerManifest,
     params.layout,
     mapSize,
+    testCovers,
   ]);
   // the files every plane's edges point at; budget ensures they keep a cell.
   // when the set changes (planes toggled), rebuild so the budget re-applies.

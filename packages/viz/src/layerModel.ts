@@ -193,6 +193,7 @@ function layoutTestNodes(
   rect: Rect,
   placed: PlacedNode[],
   districts: Vec2[][],
+  coversOf?: ReadonlyMap<string, readonly string[]>,
 ): void {
   const tiles = squarify(
     nodes.map((node) => ({ id: node.id, weight: testWeight(node), node })),
@@ -207,7 +208,9 @@ function layoutTestNodes(
         label: node.name,
         site: { x: tile.x + tile.w / 2, y: tile.y + tile.h / 2 },
         polygon: rectPolygon(tileRect),
-        sourceIds: [],
+        // the source symbols this case exercised (per-test trace), so the
+        // existing cross-layer ropes draw test → code on hover / selection
+        sourceIds: [...(coversOf?.get(node.id) ?? [])],
       });
       continue;
     }
@@ -223,6 +226,7 @@ function layoutTestNodes(
       },
       placed,
       districts,
+      coversOf,
     );
   }
 }
@@ -237,6 +241,7 @@ function solveTestTree(
   tree: TestTree,
   ext: { width: number; height: number },
   planeIndex: number,
+  coversOf?: ReadonlyMap<string, readonly string[]>,
 ): SolvedLayer | null {
   const placed: PlacedNode[] = [];
   const districts: Vec2[][] = [];
@@ -245,6 +250,7 @@ function solveTestTree(
     { x: 0, y: 0, w: ext.width, h: ext.height },
     placed,
     districts,
+    coversOf,
   );
   if (placed.length === 0) return null;
   return { id: "test", planeIndex, placed, districts, extent: { w: ext.width, h: ext.height } };
@@ -264,6 +270,9 @@ export function buildSatelliteLayers(opts: {
   externalDeps: readonly ExternalDep[];
   /** Test-case tree from the analyzer; deepens the test plane when present. */
   testTree?: TestTree | null;
+  /** Per-test-case covered symbol ids (from a per-test trace); links each case
+   * cell to the source it exercised. */
+  coversOf?: ReadonlyMap<string, readonly string[]>;
   ext: { width: number; height: number };
   labelOf: (id: string) => string;
 }): SolvedLayer[] {
@@ -273,7 +282,7 @@ export function buildSatelliteLayers(opts: {
     if (!opts.enabled.has(entry.name)) continue;
     const layer =
       entry.name === "test" && opts.testTree
-        ? solveTestTree(opts.testTree, opts.ext, index)
+        ? solveTestTree(opts.testTree, opts.ext, index, opts.coversOf)
         : entry.includeExternal
           ? solveDepLayer(entry.name, opts.externalDeps, opts.graph, opts.ext, opts.labelOf, index)
           : solveNodeLayer(opts.graph, entry.name, opts.ext, opts.labelOf, index, entry.layout);

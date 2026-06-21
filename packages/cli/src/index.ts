@@ -75,6 +75,10 @@ program
     "--test-report <path>",
     "overlay a test run (vitest --reporter=json output)",
   )
+  .option(
+    "--test-traces <path>",
+    "per-test traces ({ testId: artifact }) linking each case to its source",
+  )
   .action(
     async (
       repo: string,
@@ -84,6 +88,7 @@ program
         lang?: string;
         trace?: string;
         testReport?: string;
+        testTraces?: string;
       },
     ): Promise<void> => {
       const root = resolve(repo);
@@ -207,6 +212,14 @@ program
           console.log(
             `  test report: ${testRun.results.length} cases (${c.pass ?? 0} pass, ${c.fail ?? 0} fail, ${c.skip ?? 0} skip)`,
           );
+        }
+      }
+      // per-test traces: link each case to the source symbols it exercised
+      if (options.testTraces) {
+        testRun = applyTestTraces(testRun, options.testTraces, root, snapshot);
+        if (testRun) {
+          const linked = testRun.results.filter((r) => r.covers?.length).length;
+          console.log(`  test traces: ${linked} cases linked to source`);
         }
       }
 
@@ -463,6 +476,42 @@ function lspAvailable(bin: string): boolean {
  * Returns undefined when the file can't be read/parsed (a bad --trace shouldn't
  * abort the server).
  */
+/**
+ * Detect a trace artifact's format and normalize it to a (still unresolved)
+ * Trace. `parsed` is the JSON value (undefined when the text isn't JSON, e.g.
+ * folded stacks); `text` is the raw file for the folded-stack fallback.
+ */
+function parseTraceArtifact(
+  parsed: unknown,
+  text: string,
+  realRoot: string,
+  label: string,
+): Trace {
+  const obj =
+    parsed !== undefined && typeof parsed === "object"
+      ? (parsed as Record<string, unknown>)
+      : undefined;
+  const firstOf = (key: string): Record<string, unknown> | undefined => {
+    const list = obj?.[key];
+    return Array.isArray(list) && typeof list[0] === "object"
+      ? (list[0] as Record<string, unknown>)
+      : undefined;
+  };
+  const isCpuProfile =
+    obj !== undefined && Array.isArray(obj.nodes) && Array.isArray(obj.samples);
+  // V8 precise coverage: { result: [{ url, functions }] } (NODE_V8_COVERAGE)
+  const isV8Coverage = firstOf("result")?.functions !== undefined;
+  // llvm-cov export: { data: [{ functions }] }
+  const isLlvmCoverage = firstOf("data")?.functions !== undefined;
+  return isCpuProfile
+    ? tsCpuProfileAdapter.parse(parsed, realRoot)
+    : isV8Coverage
+      ? tsV8CoverageAdapter.parse(parsed, realRoot)
+      : isLlvmCoverage
+        ? parseLlvmCoverage(parsed, realRoot)
+        : parseFoldedStacks(text, { label });
+}
+
 function loadTrace(
   tracePath: string,
   root: string,
@@ -480,34 +529,14 @@ function loadTrace(
   } catch {
     parsed = undefined;
   }
-  const obj =
-    parsed !== undefined && typeof parsed === "object"
-      ? (parsed as Record<string, unknown>)
-      : undefined;
-  const firstOf = (key: string): Record<string, unknown> | undefined => {
-    const list = obj?.[key];
-    return Array.isArray(list) && typeof list[0] === "object"
-      ? (list[0] as Record<string, unknown>)
-      : undefined;
-  };
-  const isCpuProfile =
-    obj !== undefined && Array.isArray(obj.nodes) && Array.isArray(obj.samples);
-  // V8 precise coverage: { result: [{ url, functions }] } (NODE_V8_COVERAGE)
-  const isV8Coverage = firstOf("result")?.functions !== undefined;
-  // llvm-cov export: { data: [{ functions }] }
-  const isLlvmCoverage = firstOf("data")?.functions !== undefined;
   // a profiler records realpath'd frame urls; match that so the prefix strips
   // (e.g. macOS /tmp -> /private/tmp) and frames become repo-relative.
   const realRoot = realpathSync(root);
   try {
-    const trace = isCpuProfile
-      ? tsCpuProfileAdapter.parse(parsed, realRoot)
-      : isV8Coverage
-        ? tsV8CoverageAdapter.parse(parsed, realRoot)
-        : isLlvmCoverage
-          ? parseLlvmCoverage(parsed, realRoot)
-          : parseFoldedStacks(text, { label: basename(path) });
-    return resolveTraceSymbols(trace, snapshot);
+    return resolveTraceSymbols(
+      parseTraceArtifact(parsed, text, realRoot, basename(path)),
+      snapshot,
+    );
   } catch (error) {
     console.error(`failed to parse trace ${path}:`, error);
     return undefined;
@@ -542,6 +571,69 @@ function loadTestRun(
     console.error(`failed to parse test report ${path}:`, error);
     return undefined;
   }
+}
+
+/**
+ * Read a per-test traces file — a `{ [testId]: <trace artifact> }` map (each
+ * artifact any format `--trace` accepts) — and resolve each artifact's frames
+ * to the symbols that test exercised. Merge the result into `run` as each
+ * case's `covers` (the source edges); cases with a trace but no report row are
+ * appended as `pass` (a trace means the case ran). Returns `run` unchanged when
+ * the file is missing/unparsable.
+ */
+function applyTestTraces(
+  run: TestRun | undefined,
+  tracesPath: string,
+  root: string,
+  snapshot: Snapshot,
+): TestRun | undefined {
+  const path = resolve(tracesPath);
+  if (!existsSync(path)) {
+    console.error(`test traces not found: ${path}`);
+    return run;
+  }
+  let map: Record<string, unknown>;
+  try {
+    map = JSON.parse(readFileSync(path, "utf8")) as Record<string, unknown>;
+  } catch (error) {
+    console.error(`failed to parse test traces ${path}:`, error);
+    return run;
+  }
+  const realRoot = realpathSync(root);
+  // symbol:<path>:<kind>:<name>:<line> → <name>, for the covers ref label
+  const nameOf = (id: string): string => id.split(":").slice(-2)[0] ?? id;
+  const coversOf = new Map<string, { name: string; symbolId: string }[]>();
+  for (const [testId, artifact] of Object.entries(map)) {
+    try {
+      const trace = resolveTraceSymbols(
+        parseTraceArtifact(artifact, "", realRoot, testId),
+        snapshot,
+      );
+      const ids = [
+        ...new Set(
+          trace.nodes
+            .map((n) => n.ref.symbolId)
+            .filter((id): id is string => id !== undefined),
+        ),
+      ];
+      if (ids.length > 0)
+        coversOf.set(
+          testId,
+          ids.map((id) => ({ name: nameOf(id), symbolId: id })),
+        );
+    } catch (error) {
+      console.error(`failed to parse trace for ${testId}:`, error);
+    }
+  }
+  if (coversOf.size === 0) return run;
+  const base: TestRun = run ?? { schemaVersion: 1, results: [] };
+  const byId = new Map(base.results.map((r) => [r.testId, r]));
+  for (const [testId, covers] of coversOf) {
+    const existing = byId.get(testId);
+    if (existing) existing.covers = covers;
+    else base.results.push({ testId, status: "pass", covers });
+  }
+  return base;
 }
 
 /**

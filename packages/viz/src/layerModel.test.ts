@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import type { AtlasGraph, LayerManifestEntry } from "@sprawlens/schema";
+import type { AtlasGraph, LayerManifestEntry, TestTree } from "@sprawlens/schema";
 import { buildSatelliteLayers } from "./layerModel.ts";
 
 const ext = { width: 800, height: 600 };
@@ -46,6 +46,40 @@ describe("buildSatelliteLayers", () => {
     expect(layers).toHaveLength(1);
     expect(layers[0]!.id).toBe("deps");
     expect(layers[0]!.placed.some((p) => p.id === "external:react")).toBe(true);
+  });
+
+  it("links test-case cells to the source they cover (coversOf → sourceIds)", () => {
+    const graph: AtlasGraph = { nodes: [fileNode("src/a.ts")], edges: [] };
+    const tree: TestTree = {
+      root: {
+        id: "testroot",
+        kind: "dir",
+        name: "",
+        children: [
+          {
+            id: "test:src/a.test.ts:5:adds",
+            kind: "case",
+            name: "adds",
+            file: "src/a.test.ts",
+            startLine: 5,
+            endLine: 7,
+            children: [],
+          },
+        ],
+      },
+    };
+    const layers = buildSatelliteLayers({
+      manifest: [{ name: "test", layout: "rings", includeExternal: false }],
+      enabled: new Set(["test"]),
+      graph,
+      externalDeps: [],
+      testTree: tree,
+      coversOf: new Map([["test:src/a.test.ts:5:adds", ["symbol:src/a.ts:function:add:1"]]]),
+      ext,
+      labelOf,
+    });
+    const cell = layers[0]!.placed.find((p) => p.id === "test:src/a.test.ts:5:adds");
+    expect(cell?.sourceIds).toEqual(["symbol:src/a.ts:function:add:1"]);
   });
 
   it("skips layers that are not enabled and ones with no nodes", () => {
