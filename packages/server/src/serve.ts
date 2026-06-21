@@ -91,11 +91,9 @@ export function createAtlasServer(opts: AtlasServerOptions): Server {
   let testRunState: TestRun | null | undefined;
   const currentTestRun = async (): Promise<TestRun | null> => {
     if (testRunState !== undefined) return testRunState;
-    testRunState = testRun
-      ? typeof testRun === "function"
-        ? await testRun()
-        : testRun
-      : null;
+    if (!testRun) testRunState = null;
+    else if (typeof testRun === "function") testRunState = await testRun();
+    else testRunState = testRun;
     return testRunState;
   };
 

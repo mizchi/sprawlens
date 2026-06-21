@@ -512,13 +512,10 @@ function parseTraceArtifact(
   const isV8Coverage = firstOf("result")?.functions !== undefined;
   // llvm-cov export: { data: [{ functions }] }
   const isLlvmCoverage = firstOf("data")?.functions !== undefined;
-  return isCpuProfile
-    ? tsCpuProfileAdapter.parse(parsed, realRoot)
-    : isV8Coverage
-      ? tsV8CoverageAdapter.parse(parsed, realRoot)
-      : isLlvmCoverage
-        ? parseLlvmCoverage(parsed, realRoot)
-        : parseFoldedStacks(text, { label });
+  if (isCpuProfile) return tsCpuProfileAdapter.parse(parsed, realRoot);
+  if (isV8Coverage) return tsV8CoverageAdapter.parse(parsed, realRoot);
+  if (isLlvmCoverage) return parseLlvmCoverage(parsed, realRoot);
+  return parseFoldedStacks(text, { label });
 }
 
 function loadTrace(
@@ -552,6 +549,12 @@ function loadTrace(
   }
 }
 
+/** Fallback when the analyzer extracted no test tree: ids pass through
+ * resolveTestRun unchanged and only `covers` resolves. Read-only, never mutated. */
+const EMPTY_TEST_TREE: TestTree = {
+  root: { id: "testroot", kind: "dir", name: "", children: [] },
+};
+
 /**
  * Read a vitest `--reporter=json` report, normalize it to a TestRun, and join
  * it to this snapshot: case ids resolve to the test tree, `covers` (if any) to
@@ -570,11 +573,7 @@ function loadTestRun(
   try {
     const parsed = JSON.parse(readFileSync(path, "utf8"));
     const run = vitestReportAdapter.parse(parsed, realpathSync(root));
-    // no extracted tree (analyzer found no test files) → resolve against an
-    // empty tree so ids pass through and only `covers` resolves.
-    const tree: TestTree = snapshot.tests ?? {
-      root: { id: "testroot", kind: "dir", name: "", children: [] },
-    };
+    const tree = snapshot.tests ?? EMPTY_TEST_TREE;
     return resolveTestRun(run, tree, snapshot);
   } catch (error) {
     console.error(`failed to parse test report ${path}:`, error);
@@ -660,15 +659,14 @@ function makeTestCaseRunner(
   snapshot: Snapshot,
 ): (testId: string) => Promise<TestCaseResult | null> {
   const argv = command.trim().split(/\s+/);
-  const tree: TestTree = snapshot.tests ?? {
-    root: { id: "testroot", kind: "dir", name: "", children: [] },
-  };
+  const tree = snapshot.tests ?? EMPTY_TEST_TREE;
+  let seq = 0; // unique per run so concurrent case-runs don't share a temp file
   return async (testId) => {
     const parsed = parseTestId(testId);
     if (!parsed) return null;
     const { file, title } = parsed;
     if (file.includes("..") || file.startsWith("/")) return null;
-    const out = join(tmpdir(), `sprawlens-case-${process.pid}-${argv.length}.json`);
+    const out = join(tmpdir(), `sprawlens-case-${process.pid}-${seq++}.json`);
     const args = [
       ...argv.slice(1),
       file,
