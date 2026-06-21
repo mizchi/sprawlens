@@ -13,6 +13,7 @@ import {
 } from "@sprawlens/layout";
 import { anyPlaneShown, type TiltParams } from "./Controls.tsx";
 import { CfgLayer, cfgAnchorsOf, type CfgEntry } from "./CfgLayer.tsx";
+import { makeEdgeEndpointResolver } from "./edgeEndpoints.ts";
 import {
   ACTIVE_EDGE,
   BUNDLE_STRENGTH,
@@ -507,19 +508,11 @@ export function TreemapSvg(props: Props) {
     }
   };
 
-  const edgeEndpoints = (edge: AtlasEdge): [Vec2, Vec2] | null => {
-    let a = positionOf.get(edge.source);
-    let b = positionOf.get(edge.target);
-    if (!a || !b) return null;
-    const sourceCfg = cfgAnchors.get(edge.source);
-    if (sourceCfg) {
-      const name = symbolNameOf(edge.target);
-      a = (name ? sourceCfg.calls.get(name) : undefined) ?? a;
-    }
-    const targetCfg = cfgAnchors.get(edge.target);
-    if (targetCfg) b = targetCfg.entry;
-    return [a, b];
-  };
+  const edgeEndpoints = makeEdgeEndpointResolver({
+    positionOf: (id) => positionOf.get(id),
+    cfgAnchors,
+    symbolNameOf,
+  });
 
   const innerCells = props.innerCells ?? [];
   const parentFileOf = props.parentFileOf ?? ((id: string) => id);

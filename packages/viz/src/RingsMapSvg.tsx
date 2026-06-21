@@ -15,6 +15,7 @@ import type { RingsState } from "./ringsController.ts";
 import { anyPlaneShown, type TiltParams } from "./Controls.tsx";
 
 import { CfgLayer, cfgAnchorsOf, type CfgEntry } from "./CfgLayer.tsx";
+import { makeEdgeEndpointResolver } from "./edgeEndpoints.ts";
 import {
   ACTIVE_EDGE,
   CIRCLE_CYCLE_FILL,
@@ -485,19 +486,11 @@ export function RingsMapSvg(props: Props) {
       }),
     [bundleParentOf, positionOf, cfgAnchors, width, height],
   );
-  const edgeEndpoints = (edge: AtlasEdge): [Vec2, Vec2] | null => {
-    let a = resolveSite(edge.source);
-    let b = resolveSite(edge.target);
-    if (!a || !b) return null;
-    const sourceCfg = cfgAnchors.get(edge.source);
-    if (sourceCfg) {
-      const name = symbolNameOf(edge.target);
-      a = (name ? sourceCfg.calls.get(name) : undefined) ?? a;
-    }
-    const targetCfg = cfgAnchors.get(edge.target);
-    if (targetCfg) b = targetCfg.entry;
-    return [a, b];
-  };
+  const edgeEndpoints = makeEdgeEndpointResolver({
+    positionOf: resolveSite,
+    cfgAnchors,
+    symbolNameOf,
+  });
   const moduleList = useMemo(() => [...rings.circles.entries()], [rings]);
   const topAncestorOf = makeTopAncestorOf(rings.parentOf, (id) =>
     rings.circles.has(id),
