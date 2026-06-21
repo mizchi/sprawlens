@@ -1,5 +1,5 @@
 import { useMemo, useRef, useState } from "preact/hooks";
-import type { AtlasEdge, SymbolKind } from "@sprawlens/schema";
+import type { AtlasEdge, SymbolKind, TestStatus } from "@sprawlens/schema";
 import { isStaticKind, SymbolTag, symbolGlyphOf } from "./symbolIcons.tsx";
 import type { CellResult } from "@sprawlens/layout";
 import type { Vec2 } from "@sprawlens/layout";
@@ -44,6 +44,7 @@ import {
   SELECT_STROKE,
   LINKED_STROKE,
   TEST_LABEL_INK,
+  TEST_STATUS_FILL,
   UPSTREAM_COLOR,
   WatermarkLabelsLayer,
 } from "./mapShared.tsx";
@@ -85,6 +86,9 @@ type Props = {
   traceEdges?: AtlasEdge[];
   /** Per-symbol execution heat in [0,1] for tinting hot cells. */
   traceHeat?: Map<string, number>;
+  /** Test reporter: test-case id → status (tints the test plane) and → ms. */
+  testStatus?: Map<string, TestStatus>;
+  testDuration?: Map<string, number>;
   /** Nested symbol layouts inside the file cells (file granularity). */
   innerCells?: CellResult[];
   exportedIds?: Set<string>;
@@ -990,6 +994,22 @@ export function TreemapSvg(props: Props) {
                 placed={layer.placed}
                 districts={layer.districts}
                 color={layer.id === "deps" ? DEPS_INK : TEST_LABEL_INK}
+                statusFillOf={
+                  layer.id === "test" && props.testStatus
+                    ? (id) => {
+                        const s = props.testStatus!.get(id);
+                        return s ? TEST_STATUS_FILL[s] : undefined;
+                      }
+                    : undefined
+                }
+                labelSuffixOf={
+                  layer.id === "test" && props.testDuration
+                    ? (id) => {
+                        const d = props.testDuration!.get(id);
+                        return d !== undefined ? `${Math.round(d)}ms` : undefined;
+                      }
+                    : undefined
+                }
                 withSourceFrame={i === 0}
                 zoom={zoom}
                 onSelect={onSelect}

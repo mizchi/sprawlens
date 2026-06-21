@@ -12,6 +12,8 @@ const base: SceneInput = {
   detailEdges: [],
   traceEdges: [],
   traceHeat: new Map(),
+  testStatus: new Map(),
+  testDuration: new Map(),
   visibleLevels: new Set(["file"]),
   cfgEntries: [],
   cyclicIds: new Set(),

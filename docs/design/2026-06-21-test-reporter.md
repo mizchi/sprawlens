@@ -1,7 +1,7 @@
 # Test reporter view
 
-Status: Design (2026-06-21). Builds on the `TestTree` contract and the runtime
-trace overlay.
+Status: Phase A implemented (2026-06-21). Builds on the `TestTree` contract and
+the runtime trace overlay.
 
 Implements #22 (test reporter: hierarchical runs with source edges and
 click-to-run). Relates to #16 (runtime trace) — the source edges reuse the same
@@ -105,10 +105,12 @@ needs a configured command and a mutating endpoint:
 
 ## Phasing
 
-- **Phase A — report ingest + status on nodes.** `TestRun` contract,
+- **Phase A — report ingest + status on nodes. (done)** `TestRun` contract,
   `resolveTestRun` / `testRunOverlay`, the vitest-json adapter, `--test-report`
   + `GET /api/test-run`, and test-case cells tinted pass/fail/skip with a
-  duration label. No runner driving. (TDD; this PR.)
+  duration label. No runner driving. Verified e2e: a vitest `--reporter=json`
+  report joins to the extracted tree (by file + full title when the runner omits
+  task locations) and tints the cases.
 - **Phase B — source edges per test.** Ingest per-test traces, populate
   `covers`, and drive the symbol overlay from the selected case.
 - **Phase C — click-to-run.** `[test] command` config + `POST /api/test-run/case`

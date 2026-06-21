@@ -22,6 +22,8 @@ export function SvgRenderer({
         detailEdges={scene.detailEdges}
         traceEdges={scene.traceEdges}
         traceHeat={scene.traceHeat}
+        testStatus={scene.testStatus}
+        testDuration={scene.testDuration}
         showEdges={scene.showEdges}
         showFiles={scene.showFiles}
         visibleLevels={scene.visibleLevels}

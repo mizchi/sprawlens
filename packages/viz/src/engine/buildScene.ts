@@ -1,5 +1,5 @@
 import type { CellResult } from "@sprawlens/layout";
-import type { AtlasEdge, SymbolKind } from "@sprawlens/schema";
+import type { AtlasEdge, SymbolKind, TestStatus } from "@sprawlens/schema";
 import type { CfgEntry } from "../CfgLayer.tsx";
 import type { TiltParams } from "../Controls.tsx";
 import type { SolvedLayer } from "../layerModel.ts";
@@ -28,6 +28,9 @@ export type SceneInput = {
   /** Runtime-trace overlay (symbol→symbol call path) + per-symbol heat [0,1]. */
   traceEdges: AtlasEdge[];
   traceHeat: Map<string, number>;
+  /** Test reporter overlay: test-case id → status, and → duration (ms). */
+  testStatus: Map<string, TestStatus>;
+  testDuration: Map<string, number>;
   visibleLevels: ReadonlySet<string>;
   cfgEntries: CfgEntry[];
   cyclicIds: Set<string>;
@@ -77,6 +80,8 @@ export function buildScene(i: SceneInput): MapScene | null {
     // module granularity (no cells to anchor to)
     traceEdges: i.traceEdges,
     traceHeat: i.traceHeat,
+    testStatus: i.testStatus,
+    testDuration: i.testDuration,
     tilt: i.tilt,
     labelMinPx: i.labelMinPx,
     labelScale: i.labelScale,

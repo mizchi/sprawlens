@@ -9,3 +9,4 @@ export * from "./detail.js";
 export * from "./provider.js";
 export * from "./workspace.js";
 export * from "./trace.js";
+export * from "./testRun.js";

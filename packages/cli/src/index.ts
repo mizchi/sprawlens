@@ -12,12 +12,15 @@ import {
   createLspDetail,
   tsCpuProfileAdapter,
   tsV8CoverageAdapter,
+  vitestReportAdapter,
 } from "@sprawlens/analyzer-ts";
 import type {
   LanguageProvider,
   LayersConfig,
   ServiceGraph,
   Snapshot,
+  TestRun,
+  TestTree,
   Trace,
 } from "@sprawlens/schema";
 import {
@@ -28,6 +31,7 @@ import {
   parseFoldedStacks,
   parseLlvmCoverage,
   resolveServices,
+  resolveTestRun,
   resolveTraceSymbols,
   serviceFileMap,
 } from "@sprawlens/schema";
@@ -67,10 +71,20 @@ program
     "--trace <path>",
     "overlay a runtime trace (.cpuprofile or folded/collapsed stacks)",
   )
+  .option(
+    "--test-report <path>",
+    "overlay a test run (vitest --reporter=json output)",
+  )
   .action(
     async (
       repo: string,
-      options: { port: number; open: boolean; lang?: string; trace?: string },
+      options: {
+        port: number;
+        open: boolean;
+        lang?: string;
+        trace?: string;
+        testReport?: string;
+      },
     ): Promise<void> => {
       const root = resolve(repo);
       const name = basename(root);
@@ -180,6 +194,22 @@ program
         }
       }
 
+      // ingest a test run (vitest json report); join case ids to the test tree
+      // and resolve each case's covered symbols, so the viz tints the cases.
+      let testRun: TestRun | undefined;
+      if (options.testReport) {
+        testRun = loadTestRun(options.testReport, root, snapshot);
+        if (testRun) {
+          const c = testRun.results.reduce(
+            (acc, r) => ((acc[r.status] = (acc[r.status] ?? 0) + 1), acc),
+            {} as Record<string, number>,
+          );
+          console.log(
+            `  test report: ${testRun.results.length} cases (${c.pass ?? 0} pass, ${c.fail ?? 0} fail, ${c.skip ?? 0} skip)`,
+          );
+        }
+      }
+
       const server = createAtlasServer({
         repos: new Map([[name, root]]),
         snapshots: new Map([[name, snapshot]]),
@@ -189,6 +219,7 @@ program
         layers: layerManifest(config),
         services,
         trace,
+        testRun,
       });
       server.listen(options.port, "127.0.0.1", () => {
         const url = `http://127.0.0.1:${options.port}/`;
@@ -479,6 +510,36 @@ function loadTrace(
     return resolveTraceSymbols(trace, snapshot);
   } catch (error) {
     console.error(`failed to parse trace ${path}:`, error);
+    return undefined;
+  }
+}
+
+/**
+ * Read a vitest `--reporter=json` report, normalize it to a TestRun, and join
+ * it to this snapshot: case ids resolve to the test tree, `covers` (if any) to
+ * snapshot symbols. Returns undefined on a missing or unparsable file.
+ */
+function loadTestRun(
+  reportPath: string,
+  root: string,
+  snapshot: Snapshot,
+): TestRun | undefined {
+  const path = resolve(reportPath);
+  if (!existsSync(path)) {
+    console.error(`test report not found: ${path}`);
+    return undefined;
+  }
+  try {
+    const parsed = JSON.parse(readFileSync(path, "utf8"));
+    const run = vitestReportAdapter.parse(parsed, realpathSync(root));
+    // no extracted tree (analyzer found no test files) → resolve against an
+    // empty tree so ids pass through and only `covers` resolves.
+    const tree: TestTree = snapshot.tests ?? {
+      root: { id: "testroot", kind: "dir", name: "", children: [] },
+    };
+    return resolveTestRun(run, tree, snapshot);
+  } catch (error) {
+    console.error(`failed to parse test report ${path}:`, error);
     return undefined;
   }
 }

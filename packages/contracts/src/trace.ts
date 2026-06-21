@@ -14,8 +14,9 @@ type TraceSource =
   | "llvm-coverage"
   | (string & {});
 
-/** How a trace node links back to a source function — the join key to the graph. */
-type TraceSymbolRef = {
+/** How a trace node links back to a source function — the join key to the graph.
+ * Reused by a test case's `covers` (the source it exercised). */
+export type TraceSymbolRef = {
   /** Resolved snapshot symbol id (`symbol:<path>:<kind>:<name>:<line>`) when
    * the server could map this frame to a symbol. */
   symbolId?: string;

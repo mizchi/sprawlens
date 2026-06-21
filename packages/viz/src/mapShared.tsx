@@ -60,6 +60,13 @@ export let FILE_LABEL_INK = "#334155";
 export let TEST_LABEL_INK = "#10b981";
 /** Deps plane tint (external packages); distinct from the test grey. */
 export let DEPS_INK = "#22d3ee";
+/** Test reporter cell fill by status (pass green / fail red / skip grey). */
+export const TEST_STATUS_FILL: Record<string, string> = {
+  pass: "#16a34a",
+  fail: "#dc2626",
+  skip: "#94a3b8",
+  todo: "#d97706",
+};
 let WATERMARK_INK = "#334155";
 export let PORT_FILL = "#ffffff";
 /** Per-kind ink for the symbol classification icons, so each kind reads at a
@@ -860,6 +867,12 @@ export function PlaneLayerView(props: {
   /** Node id → tint for nodes a currently-shown edge points at; fills the cell
    * region in the connecting edge's colour. */
   tintOf?: (id: string) => string | undefined;
+  /** Node id → a status fill colour (test reporter: pass/fail/skip), applied to
+   * the cell when no live edge tint is overriding it. */
+  statusFillOf?: (id: string) => string | undefined;
+  /** Node id → a short label suffix (test reporter: duration), appended after
+   * the cell's name. */
+  labelSuffixOf?: (id: string) => string | undefined;
   /** A link highlight is active somewhere: dim this plane's untouched nodes so
    * the tinted ones lead, and let the "referenced" cue yield to the tint. */
   linksActive?: boolean;
@@ -1002,6 +1015,8 @@ export function PlaneLayerView(props: {
           // a currently-shown edge points here: tint the cell in that edge's
           // colour so the live targets read as a coloured region
           const tint = props.tintOf?.(d.id);
+          // test reporter status (pass/fail/skip), shown when no edge tint wins
+          const statusFill = tint ? undefined : props.statusFillOf?.(d.id);
           // referenced by another plane's edges: brighten the fill so the nodes
           // actually in play surface — yields to the live tint while exploring
           const linked =
@@ -1010,7 +1025,7 @@ export function PlaneLayerView(props: {
             (referencedIds?.has(d.id) ?? false);
           // dim untouched nodes once a highlight is active, so targets lead
           const dim = props.linksActive && !tint && !active ? 0.4 : 1;
-          const fill = tint ?? color;
+          const fill = tint ?? statusFill ?? color;
           const onEnter = () => {
             setHovered(d.id);
             props.onHover?.(d.id);
@@ -1028,9 +1043,9 @@ export function PlaneLayerView(props: {
               key={d.id}
               points={d.polygon.map((p) => `${p.x},${p.y}`).join(" ")}
               fill={fill}
-              fill-opacity={tint ? 0.34 : active ? 0.22 : linked ? 0.18 : 0.08}
-              stroke={tint ?? (active ? SELECT_STROKE : color)}
-              stroke-opacity={tint ? 0.85 : active ? 0.9 : linked ? 0.75 : 0.5}
+              fill-opacity={tint ? 0.34 : statusFill ? 0.4 : active ? 0.22 : linked ? 0.18 : 0.08}
+              stroke={tint ?? (active ? SELECT_STROKE : statusFill ?? color)}
+              stroke-opacity={tint ? 0.85 : statusFill ? 0.85 : active ? 0.9 : linked ? 0.75 : 0.5}
               stroke-width={active || tint ? 1.6 : 1}
               opacity={dim}
               style={{ cursor: "pointer" }}
@@ -1045,9 +1060,9 @@ export function PlaneLayerView(props: {
               cy={d.site.y}
               r={d.r}
               fill={fill}
-              fill-opacity={tint ? 0.34 : active ? 0.28 : linked ? 0.24 : 0.12}
-              stroke={tint ?? (active ? SELECT_STROKE : color)}
-              stroke-opacity={tint ? 0.85 : active ? 0.9 : linked ? 0.8 : 0.6}
+              fill-opacity={tint ? 0.34 : statusFill ? 0.4 : active ? 0.28 : linked ? 0.24 : 0.12}
+              stroke={tint ?? (active ? SELECT_STROKE : statusFill ?? color)}
+              stroke-opacity={tint ? 0.85 : statusFill ? 0.85 : active ? 0.9 : linked ? 0.8 : 0.6}
               stroke-width={active || tint ? 1.6 : 1}
               opacity={dim}
               style={{ cursor: "pointer" }}
@@ -1065,6 +1080,7 @@ export function PlaneLayerView(props: {
       {labelledNodes.map((d) => {
         const p = apply(tilt1, d.site);
         const fontSize = 12 / zoom;
+        const suffix = props.labelSuffixOf?.(d.id);
         return (
           <g
             key={d.id}
@@ -1078,7 +1094,7 @@ export function PlaneLayerView(props: {
               text-anchor="middle"
               fill={color}
             >
-              {d.label}
+              {suffix ? `${d.label} ${suffix}` : d.label}
             </text>
           </g>
         );

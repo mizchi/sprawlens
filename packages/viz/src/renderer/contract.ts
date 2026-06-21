@@ -1,5 +1,5 @@
 import type { CellResult, Vec2 } from "@sprawlens/layout";
-import type { AtlasEdge, SymbolKind } from "@sprawlens/schema";
+import type { AtlasEdge, SymbolKind, TestStatus } from "@sprawlens/schema";
 import type { CfgEntry } from "../CfgLayer.tsx";
 import type { TiltParams } from "../Controls.tsx";
 import type { SolvedLayer } from "../layerModel.ts";
@@ -62,6 +62,11 @@ type SceneCommon = {
   /** Per-symbol execution heat in [0,1] (self time / samples), for tinting hot
    * cells. Empty when no trace was ingested. */
   traceHeat: Map<string, number>;
+  /** Test reporter overlay: test-case id → status, tinting the test-plane cells
+   * pass/fail/skip. Empty when no test run was ingested. Shared across layouts. */
+  testStatus: Map<string, TestStatus>;
+  /** Test-case id → duration in ms, appended to the case label. */
+  testDuration: Map<string, number>;
   /** World-space canvas extent (rings is fixed; treemap follows the viewport). */
   width: number;
   height: number;

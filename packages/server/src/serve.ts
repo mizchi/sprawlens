@@ -5,6 +5,7 @@ import type {
   LanguageDetail,
   LayerManifestEntry,
   ServiceGraph,
+  TestRun,
   Trace,
 } from "@sprawlens/schema";
 import { definitionPreview } from "./definitionPreview.js";
@@ -47,6 +48,10 @@ export type AtlasServerOptions = {
    * at GET /api/trace for the execution-path overlay. A producer is re-run per
    * request for live re-ingest. */
   trace?: Trace | (() => Trace | Promise<Trace>);
+  /** A test run (case ids joined to the tree, `covers` resolved to symbols),
+   * served at GET /api/test-run for the reporter overlay. A producer is re-run
+   * per request for live re-ingest. */
+  testRun?: TestRun | (() => TestRun | Promise<TestRun>);
 };
 
 const MIME: Record<string, string> = {
@@ -61,8 +66,17 @@ const MIME: Record<string, string> = {
 };
 
 export function createAtlasServer(opts: AtlasServerOptions): Server {
-  const { repos, snapshots, analyzers, vizDist, detail, layers, services, trace } =
-    opts;
+  const {
+    repos,
+    snapshots,
+    analyzers,
+    vizDist,
+    detail,
+    layers,
+    services,
+    trace,
+    testRun,
+  } = opts;
 
   type DiffStream = {
     clients: Set<ServerResponse>;
@@ -284,6 +298,19 @@ export function createAtlasServer(opts: AtlasServerOptions): Server {
         ? typeof trace === "function"
           ? await trace()
           : trace
+        : null;
+      res
+        .writeHead(200, { "content-type": "application/json" })
+        .end(JSON.stringify(value));
+      return;
+    }
+
+    // GET /api/test-run -> the test reporter overlay (null when none was ingested)
+    if (req.method === "GET" && url.pathname === "/api/test-run") {
+      const value = testRun
+        ? typeof testRun === "function"
+          ? await testRun()
+          : testRun
         : null;
       res
         .writeHead(200, { "content-type": "application/json" })

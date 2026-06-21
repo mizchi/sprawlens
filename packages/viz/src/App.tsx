@@ -52,11 +52,14 @@ import {
   snapshotSymbols,
   snapshotTestTree,
   snapshotToAtlasGraph,
+  testRunOverlay,
   traceOverlay,
   type ExternalDep,
   type LayerManifestEntry,
   type ServiceGraph,
   type SnapshotLike,
+  type TestRun,
+  type TestStatus,
   type TestTree,
   type Trace,
 } from "@sprawlens/schema";
@@ -379,6 +382,9 @@ export function App() {
   // a runtime trace ingested by the CLI (--trace); drives the execution-path
   // overlay. Null in dev/demo and when no trace was passed.
   const [trace, setTrace] = useState<Trace | null>(null);
+  // a test run ingested by the CLI (--test-report); tints the test plane cells
+  // pass/fail/skip. Null in dev/demo and when no report was passed.
+  const [testRun, setTestRun] = useState<TestRun | null>(null);
   /** Layer render manifest from the server (sprawlens.toml); defaults to the
    * built-in test/deps presets for demo / fixtures with no server config. */
   const [layerManifest, setLayerManifest] = useState<LayerManifestEntry[]>(
@@ -426,6 +432,14 @@ export function App() {
       .then((json: Trace | null) => {
         if (cancelled || !json) return;
         setTrace(json);
+      })
+      .catch(() => {});
+    // a test run (--test-report) for the reporter overlay; null when none
+    fetch("/api/test-run")
+      .then((r) => (r.ok ? r.json() : null))
+      .then((json: TestRun | null) => {
+        if (cancelled || !json) return;
+        setTestRun(json);
       })
       .catch(() => {});
     return () => {
@@ -2053,6 +2067,21 @@ export function App() {
       heat.set(id, overlay.maxNodeWeight > 0 ? weight / overlay.maxNodeWeight : 0);
     return { traceEdges: edges, traceHeat: heat };
   }, [trace]);
+  // project the ingested test run onto test-case-id-keyed status + duration maps
+  const { testStatus, testDuration } = useMemo(() => {
+    if (!testRun)
+      return {
+        testStatus: new Map<string, TestStatus>(),
+        testDuration: new Map<string, number>(),
+      };
+    const overlay = testRunOverlay(testRun);
+    return {
+      testStatus: new Map<string, TestStatus>(
+        Object.entries(overlay.statusOf),
+      ),
+      testDuration: new Map<string, number>(Object.entries(overlay.durationOf)),
+    };
+  }, [testRun]);
   /** Alt+drag on the map: horizontal rotates the plane, vertical pitches it.
    * Auto-enables tilt so the gesture is self-explanatory. */
   const onTiltDrag = (dxPx: number, dyPx: number) => {
@@ -2103,6 +2132,8 @@ export function App() {
     detailEdges: detailOverlayEdges,
     traceEdges,
     traceHeat,
+    testStatus,
+    testDuration,
     visibleLevels,
     cfgEntries,
     cyclicIds,
