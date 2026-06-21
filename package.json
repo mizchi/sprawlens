@@ -9,7 +9,8 @@
     "typecheck": "pnpm -r exec tsc --noEmit -p tsconfig.json",
     "lint:layers": "node tools/check-layers.mjs",
     "lint:exports": "knip --include exports,types,nsExports,nsTypes",
-    "dev": "pnpm --filter @sprawlens/viz dev",
+    "dev": "concurrently -k -n viz,api -c green,cyan \"pnpm --filter @sprawlens/viz dev\" \"pnpm --filter @sprawlens/cli dev:server\"",
+    "dev:viz": "pnpm --filter @sprawlens/viz dev",
     "build": "pnpm --filter @sprawlens/viz build && pnpm --filter @sprawlens/cli build",
     "dev:server": "pnpm --filter @sprawlens/cli dev:server",
     "cli": "pnpm --filter @sprawlens/cli dev"
@@ -22,6 +23,7 @@
     "@playwright/test": "^1.60.0",
     "@preact/preset-vite": "^2.10.5",
     "@types/node": "^22.10.2",
+    "concurrently": "^10.0.3",
     "knip": "^6.17.1",
     "tsx": "^4.19.2",
     "typescript-language-server": "^5.3.0",
