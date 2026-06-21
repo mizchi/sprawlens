@@ -50,6 +50,7 @@ import {
   RaisedEdgePath,
   selectionDirections,
   DEPS_INK,
+  BundledEdges,
   PlaneLayerView,
   propagateLinkTints,
   SELECT_STROKE,
@@ -1120,24 +1121,19 @@ export function RingsMapSvg(props: Props) {
               [focus.upstreamEdges, UPSTREAM_COLOR],
             ] as const
           ).map(([edges, color]) => (
-            <g key={color} stroke={color} stroke-opacity={0.85} fill="none">
-              {edges.map((edge) => {
-                const bundle = bundleOf(edge);
-                if (!bundle) return null;
-                return (
-                  <path
-                    key={`focus-${edge.source}-${edge.target}`}
-                    d={bundle.d}
-                    stroke-width={
-                      focus.level === "module"
-                        ? 1.5 + Math.log2(1 + (edge.weight ?? 1))
-                        : 1.2
-                    }
-                    style={{ pointerEvents: "none" }}
-                  />
-                );
-              })}
-            </g>
+            <BundledEdges
+              key={color}
+              edges={edges}
+              bundleOf={bundleOf}
+              stroke={color}
+              strokeOpacity={0.85}
+              strokeWidth={(edge) =>
+                focus.level === "module"
+                  ? 1.5 + Math.log2(1 + (edge.weight ?? 1))
+                  : 1.2
+              }
+              keyPrefix="focus"
+            />
           ))
         : null}
       {(
@@ -1145,77 +1141,45 @@ export function RingsMapSvg(props: Props) {
           [selectedOutgoing, DOWNSTREAM_COLOR],
           [selectedIncoming, UPSTREAM_COLOR],
         ] as const
-      ).map(([edges, color]) =>
-        edges.length > 0 ? (
-          <g
-            key={`sel-${color}`}
-            stroke={color}
-            stroke-opacity={0.9}
-            stroke-dasharray={`${5 / zoom} ${4 / zoom}`}
-            fill="none"
-          >
-            {edges.map((edge) => {
-              const bundle = bundleOf(edge);
-              if (!bundle) return null;
-              return (
-                <path
-                  key={`sel-${edge.source}-${edge.target}`}
-                  d={bundle.d}
-                  stroke-width={1.6}
-                  style={{ pointerEvents: "none" }}
-                />
-              );
-            })}
-          </g>
-        ) : null,
-      )}
+      ).map(([edges, color]) => (
+        <BundledEdges
+          key={`sel-${color}`}
+          edges={edges}
+          bundleOf={bundleOf}
+          stroke={color}
+          strokeOpacity={0.9}
+          strokeWidth={1.6}
+          dash={`${5 / zoom} ${4 / zoom}`}
+          keyPrefix="sel"
+        />
+      ))}
       {(
         [
           [lspOutgoing, DOWNSTREAM_COLOR],
           [lspIncoming, UPSTREAM_COLOR],
         ] as const
-      ).map(([edges, color]) =>
-        edges.length > 0 ? (
-          <g
-            key={`lsp-${color}`}
-            stroke={color}
-            stroke-opacity={0.85}
-            stroke-dasharray={`${8 / zoom} ${5 / zoom}`}
-            fill="none"
-          >
-            {edges.map((edge) => {
-              const bundle = bundleOf(edge);
-              if (!bundle) return null;
-              return (
-                <path
-                  key={`lsp-${edge.source}-${edge.target}`}
-                  d={bundle.d}
-                  stroke-width={1.4}
-                  style={{ pointerEvents: "none" }}
-                />
-              );
-            })}
-          </g>
-        ) : null,
-      )}
+      ).map(([edges, color]) => (
+        <BundledEdges
+          key={`lsp-${color}`}
+          edges={edges}
+          bundleOf={bundleOf}
+          stroke={color}
+          strokeOpacity={0.85}
+          strokeWidth={1.4}
+          dash={`${8 / zoom} ${5 / zoom}`}
+          keyPrefix="lsp"
+        />
+      ))}
       {/* runtime-trace overlay: the executed call path, always on (when a trace
           was ingested), drawn solid + warm so it reads as a lit path */}
-      {traceEdges.length > 0 ? (
-        <g stroke="#ff7a1a" stroke-opacity={0.75} fill="none">
-          {traceEdges.map((edge) => {
-            const bundle = bundleOf(edge);
-            if (!bundle) return null;
-            return (
-              <path
-                key={`trace-${edge.source}-${edge.target}`}
-                d={bundle.d}
-                stroke-width={1.6}
-                style={{ pointerEvents: "none" }}
-              />
-            );
-          })}
-        </g>
-      ) : null}
+      <BundledEdges
+        edges={traceEdges}
+        bundleOf={bundleOf}
+        stroke="#ff7a1a"
+        strokeOpacity={0.75}
+        strokeWidth={1.6}
+        keyPrefix="trace"
+      />
       {/* hover preview: a faint accent over the edge a click would pick */}
       {hoveredEdge && !isSelectedEdge(hoveredEdge.source, hoveredEdge.target)
         ? (() => {

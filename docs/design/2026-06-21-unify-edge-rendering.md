@@ -36,9 +36,13 @@ phase keeps all gates green and changes no visible output.
   `resolveSite`, treemap's `positionOf` map) and gets the identical re-anchor +
   `[a,b]` assembly. Unit-tested. Replaces both `edgeEndpoints` copies. (TDD;
   this PR.)
-- **Phase 2 — shared edge-group component.** A `<BundledEdges bundles style />`
-  that renders one kind's `<g><path>` list, replacing the ~7 duplicated loops.
-  Mechanical; same SVG output.
+- **Phase 2 — shared edge-group component. (done)** `<BundledEdges>` renders one
+  kind's `<g><path>` list (shared stroke / opacity / dash, per-edge width). It
+  replaces the rings focus / selection / lsp / trace loops and the treemap trace
+  loop — the byte-identical ones — with one component; same SVG output. The
+  treemap selection (`directions`) and per-edge-colored focus loops, and the
+  per-edge-styled file/symbol loops, stay until Phase 4 carries kind + style
+  uniformly.
 - **Phase 3 — shared pick-candidate assembly.** One helper builds the lit /
   module candidate lists both `resolveEdgeAt` implementations feed to
   `pickNearestEdge`.

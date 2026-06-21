@@ -39,6 +39,7 @@ import {
   leafFillOf,
   makeTopAncestorOf,
   DEPS_INK,
+  BundledEdges,
   PlaneLayerView,
   propagateLinkTints,
   RaisedEdgePath,
@@ -803,22 +804,14 @@ export function TreemapSvg(props: Props) {
         </g>
       ) : null}
       {/* runtime-trace overlay: the executed call path, always on when ingested */}
-      {traceEdges.length > 0 ? (
-        <g stroke="#ff7a1a" stroke-opacity={0.75} fill="none">
-          {traceEdges.map((edge) => {
-            const bundle = bundleOf(edge);
-            if (!bundle) return null;
-            return (
-              <path
-                key={`trace-${edge.source}-${edge.target}`}
-                d={bundle.d}
-                stroke-width={1.6}
-                style={{ pointerEvents: "none" }}
-              />
-            );
-          })}
-        </g>
-      ) : null}
+      <BundledEdges
+        edges={traceEdges}
+        bundleOf={bundleOf}
+        stroke="#ff7a1a"
+        strokeOpacity={0.75}
+        strokeWidth={1.6}
+        keyPrefix="trace"
+      />
       {/* extracted dependency paths, colored by direction */}
       {focus ? (
         <g fill="none">

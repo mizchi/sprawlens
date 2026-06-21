@@ -1248,3 +1248,49 @@ export function makeEdgeBundler(options: {
     };
   };
 }
+
+/**
+ * One uniform group of bundled edges — a `<g>` with shared stroke / opacity /
+ * dash, each edge a `<path>` of its bundled curve. Both renderers used to
+ * inline this loop per edge kind (selection, focus, lsp, trace); they now share
+ * it. `strokeWidth` may vary per edge (e.g. by weight). Returns null when empty
+ * so the group disappears exactly as the inline guards did.
+ */
+export function BundledEdges(props: {
+  edges: readonly AtlasEdge[];
+  bundleOf: (edge: AtlasEdge) => EdgeBundle | null;
+  stroke: string;
+  strokeOpacity: number;
+  strokeWidth: number | ((edge: AtlasEdge) => number);
+  /** SVG `stroke-dasharray`; omit for a solid line. */
+  dash?: string;
+  /** Disambiguates path keys when several groups share endpoints. */
+  keyPrefix: string;
+}): VNode | null {
+  if (props.edges.length === 0) return null;
+  return (
+    <g
+      stroke={props.stroke}
+      stroke-opacity={props.strokeOpacity}
+      stroke-dasharray={props.dash}
+      fill="none"
+    >
+      {props.edges.map((edge) => {
+        const bundle = props.bundleOf(edge);
+        if (!bundle) return null;
+        const width =
+          typeof props.strokeWidth === "function"
+            ? props.strokeWidth(edge)
+            : props.strokeWidth;
+        return (
+          <path
+            key={`${props.keyPrefix}-${edge.source}-${edge.target}`}
+            d={bundle.d}
+            stroke-width={width}
+            style={{ pointerEvents: "none" }}
+          />
+        );
+      })}
+    </g>
+  );
+}
