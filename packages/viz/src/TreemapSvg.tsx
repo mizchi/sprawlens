@@ -52,13 +52,8 @@ import {
 } from "./mapShared.tsx";
 import type { SolvedLayer } from "./layerModel.ts";
 import { symbolNameOf } from "./cfgClient.ts";
-import {
-  EDGE_PICK_DOMINANCE,
-  EDGE_PICK_NODE_PX,
-  EDGE_PICK_PX,
-  pickEdgeAtPoint,
-  type EdgePickCandidate,
-} from "./edgePick.ts";
+import type { EdgePickCandidate } from "./edgePick.ts";
+import { resolveEdgeAtClient } from "./edgePickDom.ts";
 import { cellInView, segmentInView } from "./viewCulling.ts";
 import type { TreemapState } from "./treemapController.js";
 import {
@@ -444,24 +439,14 @@ export function TreemapSvg(props: Props) {
   const resolveEdgeAt = (
     clientX: number,
     clientY: number,
-  ): { source: string; target: string } | null => {
-    // tighter radius when the cursor is over a node shape (districts tile the
-    // plane), wider over empty canvas — keeps cells selectable while edges
-    // crossing them stay catchable right on the line
-    const el = document.elementFromPoint(clientX, clientY);
-    const tag = el?.tagName?.toLowerCase();
-    const px =
-      tag === "circle" || tag === "polygon" ? EDGE_PICK_NODE_PX : EDGE_PICK_PX;
-    const hit = pickEdgeAtPoint(
-      clientToWorld,
+  ): { source: string; target: string } | null =>
+    resolveEdgeAtClient(
       clientX,
       clientY,
+      clientToWorld,
       candidates,
-      px * toViewScale(),
-      EDGE_PICK_DOMINANCE,
+      toViewScale,
     );
-    return hit ? { source: hit.source, target: hit.target } : null;
-  };
   pickEdgeRef.current = (clientX, clientY, shift) => {
     if (!onSelectEdge) return false;
     const hit = resolveEdgeAt(clientX, clientY);

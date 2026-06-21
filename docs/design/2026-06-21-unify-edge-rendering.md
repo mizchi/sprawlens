@@ -43,9 +43,12 @@ phase keeps all gates green and changes no visible output.
   treemap selection (`directions`) and per-edge-colored focus loops, and the
   per-edge-styled file/symbol loops, stay until Phase 4 carries kind + style
   uniformly.
-- **Phase 3 — shared pick-candidate assembly.** One helper builds the lit /
-  module candidate lists both `resolveEdgeAt` implementations feed to
-  `pickNearestEdge`.
+- **Phase 3 — shared edge-pick resolution. (done)** `resolveEdgeAtClient`
+  (edgePickDom.ts) holds the DOM-aware half both `resolveEdgeAt` copies shared:
+  the over-node grab-radius tightening (`elementFromPoint` → node vs canvas) and
+  the `pickEdgeAtPoint` call. edgePick.ts stays pure (the geometry); each
+  renderer still assembles its own candidate list (rings ranks lit edges first,
+  treemap memoizes selection/focus) and hands it to the shared resolver.
 - **Phase 4 (optional) — edge model on the scene.** Carry edge *kinds* uniformly
   through the scene contract so `buildScene` decides visibility/style once and
   both renderers consume the same list.

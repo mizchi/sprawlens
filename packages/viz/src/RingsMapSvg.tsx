@@ -61,13 +61,8 @@ import {
 } from "./mapShared.tsx";
 import type { SolvedLayer } from "./layerModel.ts";
 import { symbolNameOf } from "./cfgClient.ts";
-import {
-  EDGE_PICK_DOMINANCE,
-  EDGE_PICK_NODE_PX,
-  EDGE_PICK_PX,
-  pickNearestEdge,
-  type EdgePickCandidate,
-} from "./edgePick.ts";
+import type { EdgePickCandidate } from "./edgePick.ts";
+import { resolveEdgeAtClient } from "./edgePickDom.ts";
 import { segmentInView } from "./viewCulling.ts";
 import {
   useMapViewport,
@@ -665,15 +660,8 @@ export function RingsMapSvg(props: Props) {
     clientX: number,
     clientY: number,
   ): { source: string; target: string } | null => {
-    const world = clientToWorld(clientX, clientY);
-    if (!world) return null;
-    // edges are paint-through, so elementFromPoint reports the node/background
-    // beneath the cursor: over a node shape the radius tightens so the node
-    // stays selectable; over empty canvas it stays wide.
-    const el = document.elementFromPoint(clientX, clientY);
-    const tag = el?.tagName?.toLowerCase();
-    const px =
-      tag === "circle" || tag === "polygon" ? EDGE_PICK_NODE_PX : EDGE_PICK_PX;
+    // lit selection/focus/lsp edges rank first (built fresh, few in number) so
+    // they win ties over the ambient module mesh; the rest is shared.
     const lit: EdgePickCandidate[] = [];
     for (const edge of litEdges) {
       const bundle = bundleOf(edge);
@@ -685,13 +673,13 @@ export function RingsMapSvg(props: Props) {
         });
       }
     }
-    const hit = pickNearestEdge(
-      world,
+    return resolveEdgeAtClient(
+      clientX,
+      clientY,
+      clientToWorld,
       [...lit, ...pickCandidates],
-      px * toViewScale(),
-      EDGE_PICK_DOMINANCE,
+      toViewScale,
     );
-    return hit ? { source: hit.source, target: hit.target } : null;
   };
   pickEdgeRef.current = (clientX, clientY, shift) => {
     if (!onSelectEdge) return false;
