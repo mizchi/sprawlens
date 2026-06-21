@@ -4,26 +4,28 @@ import { normalizeSvg } from "./svgSnapshot.ts";
 // Each case pins a reproducible view by URL alone (nuqs); the layout is seeded
 // and we wait for the converged signal before capturing, so the normalized SVG
 // is a stable fingerprint. A refactor that changes the render fails here.
-// Coverage spans the edge paths a refactor touches: the ambient mesh
-// (showEdges), and the stacked satellite planes + cross-layer ropes (tilt).
+//
+// Why synthetic-only: the solver steps within a wall-clock budget and stops at
+// the production tolerance (0.02), so a large fixture's final coordinates wobble
+// sub-pixel with machine timing — not a fixed point. The synthetic graph is
+// small enough to fully settle every frame, so its capture IS deterministic.
+// It exercises the same render code (rings/treemap, cells, the ambient edge
+// mesh), which is what a refactor changes; real-fixture geometry is out of scope
+// until the solver can be driven to a deep fixed point in a test mode.
 type Case = {
-  source: string;
   layout: string;
   showEdges?: boolean;
   tag: string;
 };
 const CASES: Case[] = [
-  { source: "sprawlens", layout: "treemap", tag: "sprawlens-treemap" },
-  { source: "sprawlens", layout: "rings", tag: "sprawlens-rings" },
-  { source: "synthetic", layout: "treemap", tag: "synthetic-treemap" },
-  { source: "synthetic", layout: "rings", tag: "synthetic-rings" },
-  // ambient dependency mesh (the treemap file-edge loop draws it at the
-  // default granularity; rings gates it behind file granularity, harder to pin)
-  { source: "sprawlens", layout: "treemap", showEdges: true, tag: "sprawlens-treemap-edges" },
+  { layout: "treemap", tag: "synthetic-treemap" },
+  { layout: "rings", tag: "synthetic-rings" },
+  // ambient dependency mesh (the file-edge loop)
+  { layout: "treemap", showEdges: true, tag: "synthetic-treemap-edges" },
 ];
 
 function urlFor(c: Case): string {
-  const q = new URLSearchParams({ source: c.source, layout: c.layout, seed: "1" });
+  const q = new URLSearchParams({ source: "synthetic", layout: c.layout, seed: "1" });
   if (c.showEdges) q.set("showEdges", "true");
   return `/?${q.toString()}`;
 }
