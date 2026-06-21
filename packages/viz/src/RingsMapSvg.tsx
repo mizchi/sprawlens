@@ -153,6 +153,8 @@ type Props = {
   onViewSettle?: (center: Vec2, zoom: number) => void;
   /** Pointer entered/left a symbol cell; client coords drive the host tooltip. */
   onSymbolHover?: (symbolId: string | null, screen: Vec2 | null) => void;
+  /** Double-click a test-case cell → run just that case. */
+  onRunTest?: (testId: string) => void;
 };
 
 /** Short fallback label: symbol ids reduce to the bare symbol name —
@@ -1637,6 +1639,7 @@ export function RingsMapSvg(props: Props) {
                       }
                     : undefined
                 }
+                onRunCell={layer.id === "test" ? props.onRunTest : undefined}
                 withSourceFrame={i === 0}
                 zoom={zoom}
                 onSelect={onSelect}

@@ -322,6 +322,30 @@ export function App() {
     }, 220);
   };
 
+  // double-click a test-case cell → run just that case (POST /api/test-run/case);
+  // merge the fresh result into the run so its tint / duration / covers refresh.
+  const onRunTest = (testId: string) => {
+    const src = paramsRef.current.source;
+    if (src === "synthetic" || src === "sprawlens-history") return;
+    void fetch("/api/test-run/case", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ testId }),
+    })
+      .then((r) => (r.ok ? r.json() : null))
+      .then((result: TestRun["results"][number] | null) => {
+        if (!result) return;
+        setTestRun((prev) => {
+          const results = prev ? [...prev.results] : [];
+          const idx = results.findIndex((r) => r.testId === result.testId);
+          if (idx >= 0) results[idx] = result;
+          else results.push(result);
+          return { schemaVersion: 1, ...(prev ?? {}), results };
+        });
+      })
+      .catch(() => {});
+  };
+
   const graphRef = useRef<AtlasGraph>(null as unknown as AtlasGraph);
   const ringsRef = useRef<RingsState | null>(null);
   const treemapRef = useRef<TreemapState | null>(null);
@@ -2131,6 +2155,7 @@ export function App() {
     onTiltDrag,
     onViewSettle,
     onSymbolHover,
+    onRunTest,
   };
   const scene = buildScene({
     rings: ringsRef.current,

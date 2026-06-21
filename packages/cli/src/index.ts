@@ -1,8 +1,9 @@
 #!/usr/bin/env node
 import { Command } from "commander";
 import { spawn } from "node:child_process";
-import { existsSync, readFileSync, realpathSync } from "node:fs";
+import { existsSync, readFileSync, realpathSync, rmSync } from "node:fs";
 import { createRequire } from "node:module";
+import { tmpdir } from "node:os";
 import { basename, dirname, join, resolve } from "node:path";
 import * as readline from "node:readline/promises";
 import { fileURLToPath } from "node:url";
@@ -19,6 +20,7 @@ import type {
   LayersConfig,
   ServiceGraph,
   Snapshot,
+  TestCaseResult,
   TestRun,
   TestTree,
   Trace,
@@ -30,6 +32,7 @@ import {
   matchResourceFiles,
   parseFoldedStacks,
   parseLlvmCoverage,
+  parseTestId,
   resolveServices,
   resolveTestRun,
   resolveTraceSymbols,
@@ -222,6 +225,11 @@ program
           console.log(`  test traces: ${linked} cases linked to source`);
         }
       }
+      // click-to-run: enabled only when [test] command is set in sprawlens.toml
+      const runTestCase = config.test?.command
+        ? makeTestCaseRunner(root, config.test.command, snapshot)
+        : undefined;
+      if (runTestCase) console.log(`  test command: ${config.test!.command}`);
 
       const server = createAtlasServer({
         repos: new Map([[name, root]]),
@@ -233,6 +241,7 @@ program
         services,
         trace,
         testRun,
+        runTestCase,
       });
       server.listen(options.port, "127.0.0.1", () => {
         const url = `http://127.0.0.1:${options.port}/`;
@@ -634,6 +643,66 @@ function applyTestTraces(
     else base.results.push({ testId, status: "pass", covers });
   }
   return base;
+}
+
+/**
+ * Build the click-to-run handler from the `[test] command` config. Returns a
+ * function that runs exactly one case (`<command> <file> -t <title>
+ * --reporter=json`) and returns its fresh result, joined to the test tree. The
+ * command is fixed by config and spawned without a shell; the only request
+ * input is the case id, decomposed into a file (validated repo-relative) and a
+ * `-t` title pattern. Returns null when the id is malformed or the run yields
+ * no matching case.
+ */
+function makeTestCaseRunner(
+  root: string,
+  command: string,
+  snapshot: Snapshot,
+): (testId: string) => Promise<TestCaseResult | null> {
+  const argv = command.trim().split(/\s+/);
+  const tree: TestTree = snapshot.tests ?? {
+    root: { id: "testroot", kind: "dir", name: "", children: [] },
+  };
+  return async (testId) => {
+    const parsed = parseTestId(testId);
+    if (!parsed) return null;
+    const { file, title } = parsed;
+    if (file.includes("..") || file.startsWith("/")) return null;
+    const out = join(tmpdir(), `sprawlens-case-${process.pid}-${argv.length}.json`);
+    const args = [
+      ...argv.slice(1),
+      file,
+      "-t",
+      title,
+      "--reporter=json",
+      "--outputFile",
+      out,
+    ];
+    const code = await new Promise<number>((res) => {
+      const child = spawn(argv[0]!, args, { cwd: root, stdio: "ignore" });
+      child.on("error", () => res(-1));
+      child.on("close", (c) => res(c ?? -1));
+    });
+    // a failing test still writes the report (exit 1); only a spawn error (-1)
+    // or a missing file means we got nothing back.
+    if (code === -1 || !existsSync(out)) return null;
+    try {
+      const report = JSON.parse(readFileSync(out, "utf8"));
+      const run = resolveTestRun(
+        vitestReportAdapter.parse(report, realpathSync(root)),
+        tree,
+        snapshot,
+      );
+      return (
+        run.results.find((r) => r.testId === testId) ?? run.results[0] ?? null
+      );
+    } catch (error) {
+      console.error(`failed to read test run for ${testId}:`, error);
+      return null;
+    } finally {
+      rmSync(out, { force: true });
+    }
+  };
 }
 
 /**

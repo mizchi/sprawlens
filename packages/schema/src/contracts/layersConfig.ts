@@ -30,6 +30,13 @@ export type TerraformConfig = {
   root?: string;
 };
 
+/** Test runner settings (the `[test]` table), for click-to-run. */
+export type TestConfig = {
+  /** Base run command, e.g. `pnpm vitest run`. A clicked case is appended as
+   * `<file> -t <title> --reporter=json`. Unset disables click-to-run. */
+  command?: string;
+};
+
 /** One `[[service]]` mapping: which terraform resources form a service, and
  * which code dirs it maps to (the latter captured for Phase B nesting). */
 export type ServiceMapping = {
@@ -51,6 +58,8 @@ export type LayersConfig = {
   terraform?: TerraformConfig;
   /** Explicit terraform-resource → service mappings. */
   services?: ServiceMapping[];
+  /** Test runner settings (click-to-run). */
+  test?: TestConfig;
 };
 
 /** What the viz needs to render each non-source plane. */

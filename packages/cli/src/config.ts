@@ -8,6 +8,7 @@ import type {
   LayersConfig,
   ServiceMapping,
   TerraformConfig,
+  TestConfig,
 } from "@sprawlens/schema";
 
 /**
@@ -86,6 +87,12 @@ function normalizeTerraform(raw: unknown): TerraformConfig | undefined {
   return typeof e.root === "string" ? { root: e.root } : {};
 }
 
+function normalizeTest(raw: unknown): TestConfig | undefined {
+  if (!raw || typeof raw !== "object") return undefined;
+  const e = raw as Record<string, unknown>;
+  return typeof e.command === "string" ? { command: e.command } : undefined;
+}
+
 function normalizeConfig(raw: Record<string, unknown>): LayersConfig {
   const layers = (Array.isArray(raw.layer) ? raw.layer : [])
     .map(normalizeLayer)
@@ -95,11 +102,13 @@ function normalizeConfig(raw: Record<string, unknown>): LayersConfig {
     .map(normalizeService)
     .filter((s): s is ServiceMapping => s !== null);
   const terraform = normalizeTerraform(raw.terraform);
+  const test = normalizeTest(raw.test);
   return {
     ...(layers.length > 0 ? { layers } : {}),
     ...(ignore ? { ignore } : {}),
     ...(typeof raw.lang === "string" ? { lang: raw.lang } : {}),
     ...(terraform ? { terraform } : {}),
     ...(services.length > 0 ? { services } : {}),
+    ...(test ? { test } : {}),
   };
 }

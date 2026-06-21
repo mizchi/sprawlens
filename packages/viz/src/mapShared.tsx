@@ -873,6 +873,8 @@ export function PlaneLayerView(props: {
   /** Node id → a short label suffix (test reporter: duration), appended after
    * the cell's name. */
   labelSuffixOf?: (id: string) => string | undefined;
+  /** Double-click a cell → run it (test reporter: run just that case). */
+  onRunCell?: (id: string) => void;
   /** A link highlight is active somewhere: dim this plane's untouched nodes so
    * the tinted ones lead, and let the "referenced" cue yield to the tint. */
   linksActive?: boolean;
@@ -1038,6 +1040,12 @@ export function PlaneLayerView(props: {
             event.stopPropagation();
             props.onSelect(d.id, event.shiftKey);
           };
+          const onDblClick = props.onRunCell
+            ? (event: MouseEvent) => {
+                event.stopPropagation();
+                props.onRunCell!(d.id);
+              }
+            : undefined;
           return d.polygon ? (
             <polygon
               key={d.id}
@@ -1052,6 +1060,7 @@ export function PlaneLayerView(props: {
               onMouseEnter={onEnter}
               onMouseLeave={onLeave}
               onClick={onClick}
+              onDblClick={onDblClick}
             />
           ) : d.r !== undefined ? (
             <circle
@@ -1069,6 +1078,7 @@ export function PlaneLayerView(props: {
               onMouseEnter={onEnter}
               onMouseLeave={onLeave}
               onClick={onClick}
+              onDblClick={onDblClick}
             />
           ) : null;
         })}

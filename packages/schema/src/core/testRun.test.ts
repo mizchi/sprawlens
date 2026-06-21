@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { Snapshot, TestRun, TestTree } from "@sprawlens/contracts";
-import { resolveTestRun, testRunOverlay } from "./testRun.js";
+import { parseTestId, resolveTestRun, testRunOverlay } from "./testRun.js";
 
 const snapshot = {
   schemaVersion: 1,
@@ -93,6 +93,29 @@ describe("resolveTestRun", () => {
     };
     const out = resolveTestRun(run, tree, snapshot);
     expect(out.results[0]!.testId).toBe("test:src/math.test.ts:5:adds two numbers");
+  });
+});
+
+describe("parseTestId", () => {
+  it("splits test:<file>:<line>:<title>, keeping colons in the title", () => {
+    expect(parseTestId("test:src/a.test.ts:5:adds two numbers")).toEqual({
+      file: "src/a.test.ts",
+      line: 5,
+      title: "adds two numbers",
+    });
+    expect(parseTestId("test:src/a.test.ts:9:a:b ratio")).toEqual({
+      file: "src/a.test.ts",
+      line: 9,
+      title: "a:b ratio",
+    });
+  });
+
+  it("accepts a line-less id and rejects non-test ids", () => {
+    expect(parseTestId("test:src/a.test.ts:?:later")).toEqual({
+      file: "src/a.test.ts",
+      title: "later",
+    });
+    expect(parseTestId("symbol:src/a.ts:function:add:1")).toBeNull();
   });
 });
 

@@ -57,6 +57,7 @@ export function SvgRenderer({
         focusRequest={handlers.focusRequest}
         onViewSettle={handlers.onViewSettle}
         onSymbolHover={handlers.onSymbolHover}
+        onRunTest={handlers.onRunTest}
       />
     );
   }
@@ -96,6 +97,7 @@ export function SvgRenderer({
       focusRequest={handlers.focusRequest}
       onViewSettle={handlers.onViewSettle}
       onSymbolHover={handlers.onSymbolHover}
+      onRunTest={handlers.onRunTest}
     />
   );
 }

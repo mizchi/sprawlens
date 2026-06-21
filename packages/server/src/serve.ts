@@ -5,6 +5,7 @@ import type {
   LanguageDetail,
   LayerManifestEntry,
   ServiceGraph,
+  TestCaseResult,
   TestRun,
   Trace,
 } from "@sprawlens/schema";
@@ -52,6 +53,11 @@ export type AtlasServerOptions = {
    * served at GET /api/test-run for the reporter overlay. A producer is re-run
    * per request for live re-ingest. */
   testRun?: TestRun | (() => TestRun | Promise<TestRun>);
+  /** Click-to-run: run one test case by id and return its fresh result. The CLI
+   * injects this (it owns the configured command); omit to disable the
+   * POST /api/test-run/case endpoint. The composition root, not the server,
+   * decides what command runs — the server never builds it from the request. */
+  runTestCase?: (testId: string) => Promise<TestCaseResult | null>;
 };
 
 const MIME: Record<string, string> = {
@@ -76,7 +82,22 @@ export function createAtlasServer(opts: AtlasServerOptions): Server {
     services,
     trace,
     testRun,
+    runTestCase,
   } = opts;
+
+  // the test run shown at GET /api/test-run; materialized from the option on
+  // first read, then mutated in place by click-to-run so the overlay reflects
+  // a freshly re-run case.
+  let testRunState: TestRun | null | undefined;
+  const currentTestRun = async (): Promise<TestRun | null> => {
+    if (testRunState !== undefined) return testRunState;
+    testRunState = testRun
+      ? typeof testRun === "function"
+        ? await testRun()
+        : testRun
+      : null;
+    return testRunState;
+  };
 
   type DiffStream = {
     clients: Set<ServerResponse>;
@@ -307,14 +328,48 @@ export function createAtlasServer(opts: AtlasServerOptions): Server {
 
     // GET /api/test-run -> the test reporter overlay (null when none was ingested)
     if (req.method === "GET" && url.pathname === "/api/test-run") {
-      const value = testRun
-        ? typeof testRun === "function"
-          ? await testRun()
-          : testRun
-        : null;
       res
         .writeHead(200, { "content-type": "application/json" })
-        .end(JSON.stringify(value));
+        .end(JSON.stringify(await currentTestRun()));
+      return;
+    }
+
+    // POST /api/test-run/case { testId } -> run just that case and return its
+    // fresh result, merged into the served test run. 404 when no runner is
+    // configured ([test] command unset). The testId selects the case; the
+    // command itself comes from config, never from the request body.
+    if (req.method === "POST" && url.pathname === "/api/test-run/case") {
+      if (!runTestCase) {
+        res.writeHead(404).end(JSON.stringify({ error: "no test runner" }));
+        return;
+      }
+      try {
+        const chunks: Buffer[] = [];
+        for await (const chunk of req) chunks.push(chunk as Buffer);
+        const body = JSON.parse(Buffer.concat(chunks).toString("utf8")) as {
+          testId?: string;
+        };
+        if (!body.testId || typeof body.testId !== "string") {
+          res.writeHead(400).end(JSON.stringify({ error: "missing testId" }));
+          return;
+        }
+        // run BEFORE writing headers so a failure returns a clean 500 instead of
+        // crashing the process on a committed response (see the cfg handler)
+        const result = await runTestCase(body.testId);
+        if (result) {
+          const run = (await currentTestRun()) ?? { schemaVersion: 1 as const, results: [] };
+          const idx = run.results.findIndex((r) => r.testId === result.testId);
+          if (idx >= 0) run.results[idx] = result;
+          else run.results.push(result);
+          testRunState = run;
+        }
+        res
+          .writeHead(200, { "content-type": "application/json" })
+          .end(JSON.stringify(result));
+      } catch (error) {
+        console.error(error);
+        res.writeHead(500).end(JSON.stringify({ error: "test run failed" }));
+      }
       return;
     }
 

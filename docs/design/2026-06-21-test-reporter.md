@@ -1,6 +1,6 @@
 # Test reporter view
 
-Status: Phases A + B implemented (2026-06-21). Builds on the `TestTree` contract
+Status: Implemented (2026-06-21), Phases A–C. Builds on the `TestTree` contract
 and the runtime trace overlay.
 
 Implements #22 (test reporter: hierarchical runs with source edges and
@@ -119,9 +119,15 @@ needs a configured command and a mutating endpoint:
   so the existing cross-layer ropes draw test → code on hover / selection (and
   source → test in reverse). Verified e2e: per-test V8 coverage resolved each
   case to its exact source symbol.
-- **Phase C — click-to-run.** `[test] command` config + `POST /api/test-run/case`
-  that spawns one test and refreshes its result. Adds command execution to the
-  server — confirm before building.
+- **Phase C — click-to-run. (done)** `[test] command` in `sprawlens.toml` +
+  `POST /api/test-run/case { testId }`: the CLI injects a `runTestCase` that
+  spawns `<command> <file> -t <title> --reporter=json` (no shell; the file is
+  validated repo-relative; the command comes from config, the request supplies
+  only the case id), parses the fresh report, and the server merges the result
+  into the served run. The endpoint 404s when no command is configured.
+  Double-clicking a test cell triggers it. Verified e2e: a POST ran one case and
+  its `pass` result appeared in `/api/test-run`; the endpoint 404s with no
+  `[test] command`.
 
 ## Open questions
 
