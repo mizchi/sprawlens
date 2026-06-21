@@ -1,7 +1,6 @@
 # Unify the scattered edge-rendering paths
 
-Status: Phases 1–4 done (2026-06-21); Phase 5 (scene-contract edge model)
-deferred. Refactor — behavior-preserving.
+Status: Phases 1–5 done (2026-06-21). Refactor — behavior-preserving.
 
 Implements #1. Edge rendering is split across `RingsMapSvg`, `TreemapSvg`, and
 `mapShared`, with parallel endpoint-resolution, bundling, picking, and per-kind
@@ -56,12 +55,15 @@ phase keeps all gates green and changes no visible output.
   `selectionDash` / `lspDash` zoom-scaled dashes. Unit-tested; theme colors are
   passed in so it stays pure. Removes the last copied magic numbers from the two
   ambient/selection loops.
-- **Phase 5 (deferred) — edge model on the scene.** Carry edge *kinds* uniformly
-  through the scene contract so `buildScene` decides visibility/style once and
-  both renderers consume one list. This is the high-risk step: the file/symbol
-  loops carry per-edge active state, viewport culling, and bundling that live in
-  the renderer, and there are no rendering tests to catch a regression. Gate it
-  behind a snapshot/rendering-test harness first.
+- **Phase 5 — edge model on the scene. (done)** Group the scene's scattered
+  edge fields (fileEdges/traceEdges/traceHeat on common, symbolEdges/detailEdges
+  on rings) into one `SceneEdges` on the common scene; `buildScene` fills it
+  once, `SvgRenderer` maps it to the unchanged renderer props. Verified
+  behavior-preserving by the synthetic render snapshots. The ambient file/symbol
+  *render loops* stay per-renderer — rings culls-then-bundles per edge, treemap
+  memoizes pre-bundled, a legitimate perf difference, not worth forcing into one
+  loop. Gated by the rendering-test harness added first
+  (docs/design/2026-06-21-rendering-test-harness.md).
 
 ## Out of scope
 
