@@ -46,15 +46,15 @@ describe("buildScene", () => {
     const scene = buildScene({ ...base, rings: {} as never });
     expect(scene?.kind).toBe("rings");
     expect(scene?.width).toBe(960);
-    expect(scene?.fileEdges).toBe(base.graphEdges);
-    expect(scene?.kind === "rings" ? scene.symbolEdges : null).toBe(base.symbolEdges);
+    expect(scene?.edges.file).toBe(base.graphEdges);
+    expect(scene?.edges.symbol).toBe(base.symbolEdges);
     expect(scene?.showEdges).toBe(false); // file granularity, showEdges off
   });
 
   it("forces edges on and uses display edges at symbol granularity (rings)", () => {
     const scene = buildScene({ ...base, rings: {} as never, granularity: "symbol" });
     expect(scene?.showEdges).toBe(true);
-    expect(scene?.fileEdges).toBe(base.displayEdges);
+    expect(scene?.edges.file).toBe(base.displayEdges);
     expect(scene?.innerCells).toEqual([]); // symbols aren't file-nested leaves
     expect(scene?.kind === "rings" ? scene.compactModuleLabels : false).toBe(true);
   });

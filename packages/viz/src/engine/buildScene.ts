@@ -63,7 +63,14 @@ export type SceneInput = {
 export function buildScene(i: SceneInput): MapScene | null {
   const common = {
     innerCells: i.granularity === "file" ? i.innerCells : [],
-    fileEdges: i.granularity === "symbol" ? i.displayEdges : i.graphEdges,
+    // every edge kind in one model; the granularity picks the file/symbol set
+    edges: {
+      file: i.granularity === "symbol" ? i.displayEdges : i.graphEdges,
+      symbol: i.granularity === "symbol" ? i.displayEdges : i.symbolEdges,
+      detail: i.detailEdges,
+      trace: i.traceEdges,
+      traceHeat: i.traceHeat,
+    },
     visibleLevels: i.visibleLevels,
     cfgEntries: i.cfgEntries,
     cyclicIds: i.cyclicIds,
@@ -76,10 +83,6 @@ export function buildScene(i: SceneInput): MapScene | null {
     altEdges: i.altEdges,
     parentFileOf: i.parentFileOf,
     changedOf: i.changedOf,
-    // symbol-keyed overlay; renders wherever symbol cells exist, no-ops at
-    // module granularity (no cells to anchor to)
-    traceEdges: i.traceEdges,
-    traceHeat: i.traceHeat,
     testStatus: i.testStatus,
     testDuration: i.testDuration,
     tilt: i.tilt,
@@ -94,8 +97,6 @@ export function buildScene(i: SceneInput): MapScene | null {
       showEdges: i.showEdges || i.granularity === "symbol",
       width: i.ringsExtent.width,
       height: i.ringsExtent.height,
-      symbolEdges: i.granularity === "symbol" ? i.displayEdges : i.symbolEdges,
-      detailEdges: i.detailEdges,
       showFiles: i.granularity !== "module" && i.visibleLevels.has(i.granularity),
       compactModuleLabels: i.granularity === "symbol",
       cyclicModuleIds: i.cyclicModuleIds,

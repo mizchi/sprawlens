@@ -17,11 +17,11 @@ export function SvgRenderer({
       <RingsMapSvg
         rings={scene.rings}
         innerCells={scene.innerCells}
-        fileEdges={scene.fileEdges}
-        symbolEdges={scene.symbolEdges}
-        detailEdges={scene.detailEdges}
-        traceEdges={scene.traceEdges}
-        traceHeat={scene.traceHeat}
+        fileEdges={scene.edges.file}
+        symbolEdges={scene.edges.symbol}
+        detailEdges={scene.edges.detail}
+        traceEdges={scene.edges.trace}
+        traceHeat={scene.edges.traceHeat}
         testStatus={scene.testStatus}
         testDuration={scene.testDuration}
         showEdges={scene.showEdges}
@@ -68,9 +68,9 @@ export function SvgRenderer({
       exportedIds={scene.exportedIds}
       symbolKindOf={scene.symbolKindOf}
       parentFileOf={scene.parentFileOf}
-      fileEdges={scene.fileEdges}
-      traceEdges={scene.traceEdges}
-      traceHeat={scene.traceHeat}
+      fileEdges={scene.edges.file}
+      traceEdges={scene.edges.trace}
+      traceHeat={scene.edges.traceHeat}
       showEdges={scene.showEdges}
       visibleLevels={scene.visibleLevels}
       cfgEntries={scene.cfgEntries}

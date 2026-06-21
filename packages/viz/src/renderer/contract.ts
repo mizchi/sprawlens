@@ -42,10 +42,29 @@ export type MapHandlers = {
   onRunTest?: (testId: string) => void;
 };
 
+/** The map's edges, in one model rather than scattered across the scene. Both
+ * renderers read from here; the treemap ignores `symbol`/`detail` (it draws
+ * neither), but the contract stays uniform. */
+type SceneEdges = {
+  /** File-granularity dependency mesh (the ambient overlay). */
+  file: AtlasEdge[];
+  /** Symbol-granularity references (rings draws these as the symbol net). */
+  symbol: AtlasEdge[];
+  /** LSP call-hierarchy overlay for the selection; drawn dashed (rings). */
+  detail: AtlasEdge[];
+  /** Runtime-trace overlay: the executed call path (symbol→symbol), drawn as a
+   * solid warm path; empty when no trace was ingested. */
+  trace: AtlasEdge[];
+  /** Per-symbol execution heat in [0,1] (self time / samples), for tinting hot
+   * cells. Empty when no trace was ingested. */
+  traceHeat: Map<string, number>;
+};
+
 /** Visual state every renderer draws, independent of the layout that placed it. */
 type SceneCommon = {
   innerCells: CellResult[];
-  fileEdges: AtlasEdge[];
+  /** Every edge kind the map can draw, in one place (see {@link SceneEdges}). */
+  edges: SceneEdges;
   showEdges: boolean;
   visibleLevels: ReadonlySet<string>;
   cfgEntries: CfgEntry[];
@@ -59,12 +78,6 @@ type SceneCommon = {
   altEdges: boolean;
   parentFileOf: (id: string) => string;
   changedOf: (id: string) => "added" | "modified" | undefined;
-  /** Runtime-trace overlay: the executed call path (symbol→symbol), drawn as a
-   * solid warm path; empty when no trace was ingested. Shared across layouts. */
-  traceEdges: AtlasEdge[];
-  /** Per-symbol execution heat in [0,1] (self time / samples), for tinting hot
-   * cells. Empty when no trace was ingested. */
-  traceHeat: Map<string, number>;
   /** Test reporter overlay: test-case id → status, tinting the test-plane cells
    * pass/fail/skip. Empty when no test run was ingested. Shared across layouts. */
   testStatus: Map<string, TestStatus>;
@@ -84,10 +97,6 @@ type SceneCommon = {
 type RingsScene = {
   kind: "rings";
   rings: RingsState;
-  symbolEdges: AtlasEdge[];
-  /** Call-hierarchy overlay for the selection (from the provider's detail
-   * backend — LSP / tree-sitter / moon ide); drawn dashed. */
-  detailEdges: AtlasEdge[];
   showFiles: boolean;
   compactModuleLabels: boolean;
   cyclicModuleIds: Set<string>;
