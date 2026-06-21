@@ -182,4 +182,54 @@ describe("snapshotSymbols", () => {
     expect(b).toHaveLength(1);
     expect(b[0]!.metrics.loc).toBe(50);
   });
+
+  it("nests a test file's cases as cells, keeping the suite path in the label", () => {
+    const withTests = {
+      ...snapshot,
+      nodes: [
+        ...snapshot.nodes,
+        { id: "file:src/a.test.ts", type: "file", path: "src/a.test.ts", loc: 5 },
+      ],
+      tests: {
+        root: {
+          id: "testroot",
+          kind: "dir" as const,
+          name: "",
+          children: [
+            {
+              id: "testfile:src/a.test.ts",
+              kind: "file" as const,
+              name: "a.test.ts",
+              file: "src/a.test.ts",
+              children: [
+                {
+                  id: "suite:1",
+                  kind: "suite" as const,
+                  name: "math",
+                  file: "src/a.test.ts",
+                  startLine: 1,
+                  children: [
+                    {
+                      id: "case:2",
+                      kind: "case" as const,
+                      name: "adds",
+                      file: "src/a.test.ts",
+                      startLine: 2,
+                      endLine: 4,
+                      children: [],
+                    },
+                  ],
+                },
+              ],
+            },
+          ],
+        },
+      },
+    };
+    const cells = snapshotSymbols(withTests).get("src/a.test.ts")!;
+    const cell = cells.find((c) => c.id === "case:2")!;
+    expect(cell.label).toBe("math › adds");
+    expect(cell.kind).toBe("symbol");
+    expect(cell.metrics.loc).toBe(3);
+  });
 });

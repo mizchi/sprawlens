@@ -2,7 +2,12 @@ import { readFile, stat } from "node:fs/promises";
 import path from "node:path";
 import fg from "fast-glob";
 import ts from "typescript";
-import { computeGraphMetrics, matchWorkspacePackage } from "@sprawlens/schema";
+import {
+  buildTestTree,
+  computeGraphMetrics,
+  defaultLayerOf,
+  matchWorkspacePackage,
+} from "@sprawlens/schema";
 import type {
   CodeEdge,
   CodeImportBinding,
@@ -14,8 +19,10 @@ import type {
   FileNode,
   Snapshot,
   SnapshotCommit,
+  TestNode,
   WorkspacePackage,
 } from "@sprawlens/schema";
+import { tsTestAdapter } from "./testExtract.js";
 
 /** A detected npm/pnpm workspace: member packages + each one's entry source. */
 type WorkspaceInfo = {
@@ -53,6 +60,8 @@ type ParsedFile = {
   node: FileNode;
   imports: ExtractedImport[];
   usageByLocal: Map<string, CodeSymbol[]>;
+  /** Suite/case forest when this is a test file; empty otherwise. */
+  tests: TestNode[];
 };
 
 /** Per-file parse cache for incremental re-analysis (path → mtime/size/parse). */
@@ -86,6 +95,12 @@ function parseFile(relativePath: string, content: string, size: number): ParsedF
     },
     imports,
     usageByLocal: collectTopLevelSymbolUsages(content, relativePath, localNames),
+    // only test files carry a case forest; keeps the case plane aligned with
+    // the test layer and avoids false positives in source that defines `describe`
+    tests:
+      defaultLayerOf(relativePath) === "test"
+        ? (tsTestAdapter.extractFile(relativePath, content) ?? [])
+        : [],
   };
 }
 
@@ -140,6 +155,9 @@ export async function createSnapshotFromWorkingTree(
     ...createImportEdges(root, parsedByPath, fileSet, fileNodes, workspace),
   ];
   const { metrics } = computeGraphMetrics(nodes, edges);
+  const tests = buildTestTree(
+    [...parsedByPath].map(([file, parsed]) => ({ file, nodes: parsed.tests })),
+  );
 
   return {
     schemaVersion: 1,
@@ -148,6 +166,7 @@ export async function createSnapshotFromWorkingTree(
     nodes,
     edges,
     metrics,
+    ...(tests ? { tests } : {}),
   };
 }
 

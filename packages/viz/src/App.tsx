@@ -50,11 +50,13 @@ import {
   snapshotExternalDeps,
   snapshotSymbolEdges,
   snapshotSymbols,
+  snapshotTestTree,
   snapshotToAtlasGraph,
   type ExternalDep,
   type LayerManifestEntry,
   type ServiceGraph,
   type SnapshotLike,
+  type TestTree,
 } from "@sprawlens/schema";
 import { apply, layerTransform } from "@sprawlens/layout";
 import { sprawlensSnapshot } from "./fixtures/sprawlens.ts";
@@ -350,6 +352,8 @@ export function App() {
   const symbolEdgesRef = useRef<AtlasEdge[]>([]);
   /** External-package imports for the Deps plane (empty for synthetic data). */
   const externalDepsRef = useRef<ExternalDep[]>([]);
+  /** Test-case tree for the nested test plane (null when none was extracted). */
+  const testTreeRef = useRef<TestTree | null>(null);
   /** Per-symbol metadata accumulated as nested layouts materialize. */
   const symbolMetaRef = useRef(
     new Map<
@@ -838,12 +842,14 @@ export function App() {
       symbolsRef.current = snapshotSymbols(sprawlensSnapshot);
       symbolEdgesRef.current = snapshotSymbolEdges(sprawlensSnapshot);
       externalDepsRef.current = snapshotExternalDeps(sprawlensSnapshot);
+      testTreeRef.current = snapshotTestTree(sprawlensSnapshot);
     } else if (p.source === "sprawlens-history") {
       const history = commitsRef.current;
       if (!history) {
         graph = { nodes: [], edges: [] };
         symbolsRef.current = null;
         symbolEdgesRef.current = [];
+        testTreeRef.current = null;
         fetch("fixtures/sprawlens-history.json")
           .then((r) => r.json())
           .then((json: HistoryEntry[]) => {
@@ -867,6 +873,7 @@ export function App() {
         symbolsRef.current = snapshotSymbols(snapshot);
         symbolEdgesRef.current = snapshotSymbolEdges(snapshot);
         externalDepsRef.current = snapshotExternalDeps(snapshot);
+        testTreeRef.current = snapshotTestTree(snapshot);
         applyCommitDiff(index);
       }
     } else if (p.source === "playwright") {
@@ -876,6 +883,7 @@ export function App() {
         graph = { nodes: [], edges: [] };
         symbolsRef.current = null;
         symbolEdgesRef.current = [];
+        testTreeRef.current = null;
         fetch("fixtures/playwright.json")
           .then((r) => r.json())
           .then((json: SnapshotLike) => {
@@ -891,6 +899,7 @@ export function App() {
         symbolsRef.current = snapshotSymbols(snapshot);
         symbolEdgesRef.current = snapshotSymbolEdges(snapshot);
         externalDepsRef.current = snapshotExternalDeps(snapshot);
+        testTreeRef.current = snapshotTestTree(snapshot);
       }
     } else if (p.source === "served") {
       const snapshot = servedSnapRef.current;
@@ -898,6 +907,7 @@ export function App() {
         graph = { nodes: [], edges: [] };
         symbolsRef.current = null;
         symbolEdgesRef.current = [];
+        testTreeRef.current = null;
         fetch("/api/snapshot")
           .then((r) => r.json())
           .then((json: SnapshotLike) => {
@@ -913,12 +923,14 @@ export function App() {
         symbolsRef.current = snapshotSymbols(snapshot);
         symbolEdgesRef.current = snapshotSymbolEdges(snapshot);
         externalDepsRef.current = snapshotExternalDeps(snapshot);
+        testTreeRef.current = snapshotTestTree(snapshot);
       }
     } else {
       graph = createSyntheticGraph({ count: SYNTH_COUNT, seed: SEED });
       symbolsRef.current = null;
       symbolEdgesRef.current = synthesizeSymbolEdges(graph, SEED);
       externalDepsRef.current = [];
+      testTreeRef.current = null;
     }
     graphRef.current = graph;
     nextNodeId.current = SYNTH_COUNT;
@@ -1130,6 +1142,7 @@ export function App() {
     symbolsRef.current = snapshotSymbols(snap);
     symbolEdgesRef.current = snapshotSymbolEdges(snap);
     externalDepsRef.current = snapshotExternalDeps(snap);
+    testTreeRef.current = snapshotTestTree(snap);
     const symbolGranularity =
       granularityOf(
         paramsRef.current.boundaries,
@@ -1885,6 +1898,7 @@ export function App() {
       enabled: new Set(enabledPlanesKey.split("+")),
       graph: graphRef.current,
       externalDeps: externalDepsRef.current,
+      testTree: testTreeRef.current,
       ext,
       labelOf: (id) => labelsRef.current.get(id) ?? id.split("/").pop() ?? id,
     });

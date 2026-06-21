@@ -1,6 +1,12 @@
-import type { AtlasGraph, LayerLayout, LayerManifestEntry } from "@sprawlens/schema";
+import type {
+  AtlasGraph,
+  LayerLayout,
+  LayerManifestEntry,
+  TestNode,
+  TestTree,
+} from "@sprawlens/schema";
 import { layerOfNode } from "@sprawlens/schema";
-import { circleToPolygon } from "@sprawlens/layout";
+import { circleToPolygon, squarify, type Rect } from "@sprawlens/layout";
 import type { Vec2 } from "@sprawlens/layout";
 import { capacityPlane, ringPlane, type PlacedNode } from "./planeLayers.ts";
 import { createRingsState, stepRingsState } from "./ringsController.ts";
@@ -157,17 +163,107 @@ function solveDepLayer(
   return { id: layerName, planeIndex, placed, districts: [], extent: { w: ext.width, h: ext.height } };
 }
 
+/** Weight a test node by lines of code (cases) or by its subtree (suites). */
+function testWeight(node: TestNode): number {
+  if (node.children.length === 0) {
+    const loc =
+      node.startLine !== undefined && node.endLine !== undefined
+        ? node.endLine - node.startLine + 1
+        : 1;
+    return Math.max(loc, 1);
+  }
+  return Math.max(
+    node.children.reduce((sum, child) => sum + testWeight(child), 0),
+    1,
+  );
+}
+
+const rectPolygon = (r: Rect): Vec2[] => [
+  { x: r.x, y: r.y },
+  { x: r.x + r.w, y: r.y },
+  { x: r.x + r.w, y: r.y + r.h },
+  { x: r.x, y: r.y + r.h },
+];
+
+/** Recursively treemap a test forest into `rect`: leaf cases become placed
+ * cells, the dir/file/suite nodes that hold them become inset district
+ * outlines, so the nesting reads as boxes-within-boxes. */
+function layoutTestNodes(
+  nodes: readonly TestNode[],
+  rect: Rect,
+  placed: PlacedNode[],
+  districts: Vec2[][],
+): void {
+  const tiles = squarify(
+    nodes.map((node) => ({ id: node.id, weight: testWeight(node), node })),
+    rect,
+  );
+  for (const tile of tiles) {
+    const { node } = tile.item;
+    const tileRect: Rect = { x: tile.x, y: tile.y, w: tile.w, h: tile.h };
+    if (node.children.length === 0) {
+      placed.push({
+        id: node.id,
+        label: node.name,
+        site: { x: tile.x + tile.w / 2, y: tile.y + tile.h / 2 },
+        polygon: rectPolygon(tileRect),
+        sourceIds: [],
+      });
+      continue;
+    }
+    districts.push(rectPolygon(tileRect));
+    const pad = Math.min(tile.w, tile.h) * 0.06;
+    layoutTestNodes(
+      node.children,
+      {
+        x: tile.x + pad,
+        y: tile.y + pad,
+        w: Math.max(tile.w - pad * 2, 1),
+        h: Math.max(tile.h - pad * 2, 1),
+      },
+      placed,
+      districts,
+    );
+  }
+}
+
+/**
+ * Lay out the test-case tree as a nested treemap on its plane: directories,
+ * files and suites are nested district boxes; the individual test cases are the
+ * leaf cells (their names are what the plane shows). Replaces the file-granular
+ * test plane when the analyzer extracted a case tree.
+ */
+function solveTestTree(
+  tree: TestTree,
+  ext: { width: number; height: number },
+  planeIndex: number,
+): SolvedLayer | null {
+  const placed: PlacedNode[] = [];
+  const districts: Vec2[][] = [];
+  layoutTestNodes(
+    tree.root.children,
+    { x: 0, y: 0, w: ext.width, h: ext.height },
+    placed,
+    districts,
+  );
+  if (placed.length === 0) return null;
+  return { id: "test", planeIndex, placed, districts, extent: { w: ext.width, h: ext.height } };
+}
+
 /**
  * Build the enabled satellite layers in manifest order. Each entry the user
  * enables adds the next plane index; `includeExternal` entries (deps) draw the
- * external-package ring, the rest lay out their stamped files. Driven entirely
- * by the manifest — adding a layer in sprawlens.toml needs no code here.
+ * external-package ring, the rest lay out their stamped files. The `test` layer
+ * deepens to a nested case treemap when a test tree is supplied. Driven by the
+ * manifest — adding a layer in sprawlens.toml needs no code here.
  */
 export function buildSatelliteLayers(opts: {
   manifest: readonly LayerManifestEntry[];
   enabled: ReadonlySet<string>;
   graph: AtlasGraph;
   externalDeps: readonly ExternalDep[];
+  /** Test-case tree from the analyzer; deepens the test plane when present. */
+  testTree?: TestTree | null;
   ext: { width: number; height: number };
   labelOf: (id: string) => string;
 }): SolvedLayer[] {
@@ -175,9 +271,12 @@ export function buildSatelliteLayers(opts: {
   let index = 1;
   for (const entry of opts.manifest) {
     if (!opts.enabled.has(entry.name)) continue;
-    const layer = entry.includeExternal
-      ? solveDepLayer(entry.name, opts.externalDeps, opts.graph, opts.ext, opts.labelOf, index)
-      : solveNodeLayer(opts.graph, entry.name, opts.ext, opts.labelOf, index, entry.layout);
+    const layer =
+      entry.name === "test" && opts.testTree
+        ? solveTestTree(opts.testTree, opts.ext, index)
+        : entry.includeExternal
+          ? solveDepLayer(entry.name, opts.externalDeps, opts.graph, opts.ext, opts.labelOf, index)
+          : solveNodeLayer(opts.graph, entry.name, opts.ext, opts.labelOf, index, entry.layout);
     if (layer) {
       layers.push(layer);
       index++;

@@ -90,6 +90,35 @@ export type CodeSymbol = {
   parentClass?: string;
 };
 
+/**
+ * A node in the test-case tree. The hierarchy is `dir` → `file` → `suite` →
+ * `case`: directories and files scaffold the location, suites are grouping
+ * blocks (vitest/jest `describe`, Rust test `mod`, Go package), and cases are
+ * the leaf tests (`it`/`test`, `#[test] fn`, `func TestXxx`, MoonBit `test`).
+ * Language analyzers emit the suite/case forest per file; `buildTestTree` adds
+ * the dir/file scaffolding. Surfaced as its own plane in the visualizer.
+ */
+type TestNodeKind = "dir" | "file" | "suite" | "case";
+
+export type TestNode = {
+  /** Stable id: dir/file keyed by path, suite/case by file + name + line. */
+  id: string;
+  kind: TestNodeKind;
+  /** Display name: a basename for dir/file, the literal title for suite/case. */
+  name: string;
+  /** Owning test file path (file/suite/case nodes); absent on dir nodes. */
+  file?: string;
+  /** 1-based declaration line of the suite/case (suite/case only). */
+  startLine?: number;
+  endLine?: number;
+  children: TestNode[];
+};
+
+export type TestTree = {
+  /** Synthetic dir root holding the directory/file forest. */
+  root: TestNode;
+};
+
 export type CodeImportBindingKind = "named" | "default" | "namespace" | "side-effect" | "reexport-named" | "reexport-all" | "require" | "dynamic";
 
 export type CodeImportBinding = {
@@ -153,6 +182,9 @@ export type Snapshot = {
   nodes: CodeNode[];
   edges: CodeEdge[];
   metrics: SnapshotMetrics;
+  /** Test-case forest (dir → file → suite → case), when the analyzer extracts
+   * it. Absent for analyzers/repos without test extraction. */
+  tests?: TestTree;
 };
 
 export type FileGraphMetric = {
