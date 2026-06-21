@@ -4,8 +4,9 @@
   "private": true,
   "type": "module",
   "dependencies": {
+    "@sprawlens/layout": "workspace:*",
     "@sprawlens/schema": "workspace:*",
-    "@sprawlens/layout": "workspace:*"
+    "nuqs": "^2.8.9"
   },
   "scripts": {
     "dev": "vite --host 127.0.0.1",

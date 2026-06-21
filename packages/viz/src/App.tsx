@@ -1,4 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "preact/hooks";
+import { useQueryStates } from "nuqs";
+import { makeUrlParamParsers } from "./urlParams.ts";
 import type { AtlasGraph, AtlasNode, SymbolKind } from "@sprawlens/schema";
 import {
   applyGraphChanges,
@@ -155,7 +157,6 @@ function snapshotSignature(snap: SnapshotLike): string {
   return parts.join(";");
 }
 /** Solver parameters: long-stable knobs, hardcoded out of the UI. */
-const SEED = 1;
 const SYNTH_COUNT = 120;
 /** Bucket for files that match no service's source globs, when nesting by service. */
 const UNASSIGNED_SERVICE = "(no service)";
@@ -224,31 +225,39 @@ function changedSymbolsBetween(
 }
 
 export function App() {
-  const [params, setParams] = useState<PlaygroundParams>({
-    source: "sprawlens",
-    layout: "treemap",
-    boundaries: ["module", "class"],
-    dark:
-      typeof matchMedia !== "undefined" &&
-      matchMedia("(prefers-color-scheme: dark)").matches,
-    displayLevels: ["module", "class", "symbol"],
+  const systemPrefersDark =
+    typeof matchMedia !== "undefined" &&
+    matchMedia("(prefers-color-scheme: dark)").matches;
+  // render-affecting settings mirrored to the URL (reproducible / shareable).
+  // `params` stays the single interface the app + Controls use; this seeds its
+  // synced fields from the URL on mount and an effect below writes them back.
+  const [urlParams, setUrlParams] = useQueryStates(
+    useMemo(() => makeUrlParamParsers(systemPrefersDark), [systemPrefersDark]),
+  );
+  const seed = urlParams.seed;
+  const [params, setParams] = useState<PlaygroundParams>(() => ({
+    source: urlParams.source,
+    layout: urlParams.layout,
+    boundaries: urlParams.boundaries,
+    dark: urlParams.dark,
+    displayLevels: urlParams.displayLevels,
     omit: ["local"],
     omitModules: [],
-    weight: "loc",
+    weight: urlParams.weight,
     followChanges: true,
     diffBase: "",
     // ambient edges add noise; macro module deps are opt-in via this toggle
-    showEdges: false,
+    showEdges: urlParams.showEdges,
     // nest the module map inside terraform service nodes; opt-in, needs a
     // sprawlens.toml [[service]] source mapping to have anything to nest
-    groupByService: false,
+    groupByService: urlParams.groupByService,
     // label visibility floor (on-screen px) + font multiplier, slider-tunable
     labelMinPx: 9,
     labelScale: 1,
     // flat top-down by default; the stacked-plane tilt is opt-in. when on, the
     // planes lie back (pitch) as axis-aligned rectangles — alt+drag tilts them.
     tilt: {
-      enabled: false,
+      enabled: urlParams.tilt,
       theta: 0,
       pitch: 0.9,
       // per-layer plane visibility (layer name -> shown); names come from the
@@ -258,7 +267,33 @@ export function App() {
       // the viewport instead of a fixed world distance
       gap: 0.7,
     },
-  });
+  }));
+  // mirror the synced settings back to the URL whenever they change. nuqs omits
+  // default-valued keys, so a no-change view keeps a clean URL.
+  useEffect(() => {
+    void setUrlParams({
+      source: params.source,
+      layout: params.layout,
+      boundaries: params.boundaries,
+      displayLevels: params.displayLevels,
+      weight: params.weight,
+      showEdges: params.showEdges,
+      groupByService: params.groupByService,
+      dark: params.dark,
+      tilt: params.tilt.enabled,
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [
+    params.source,
+    params.layout,
+    params.boundaries,
+    params.displayLevels,
+    params.weight,
+    params.showEdges,
+    params.groupByService,
+    params.dark,
+    params.tilt.enabled,
+  ]);
   // selection state machine (nodes + edges + dependency-path focus root); the
   // host composes camera framing (selectEdge / jumpTo) around its primitives
   const {
@@ -602,7 +637,7 @@ export function App() {
   const ringsOptions = (p: PlaygroundParams) => ({
     width: WIDTH,
     height: HEIGHT,
-    seed: SEED,
+    seed,
     adaptationRate: ADAPTATION_RATE,
     lloydRate: LLOYD_RATE,
     boundaries: boundariesOf(p),
@@ -612,7 +647,7 @@ export function App() {
   const treemapOptions = (p: PlaygroundParams) => ({
     width: mapSizeRef.current.width,
     height: mapSizeRef.current.height,
-    seed: SEED,
+    seed,
     adaptationRate: ADAPTATION_RATE,
     lloydRate: LLOYD_RATE,
     boundaries: boundariesOf(p),
@@ -977,9 +1012,9 @@ export function App() {
         testTreeRef.current = snapshotTestTree(snapshot);
       }
     } else {
-      graph = createSyntheticGraph({ count: SYNTH_COUNT, seed: SEED });
+      graph = createSyntheticGraph({ count: SYNTH_COUNT, seed });
       symbolsRef.current = null;
-      symbolEdgesRef.current = synthesizeSymbolEdges(graph, SEED);
+      symbolEdgesRef.current = synthesizeSymbolEdges(graph, seed);
       externalDepsRef.current = [];
       testTreeRef.current = null;
     }
@@ -1100,7 +1135,7 @@ export function App() {
     }
     if (changedFileId) innerLayoutsRef.current.delete(changedFileId);
     if (paramsRef.current.source === "synthetic") {
-      symbolEdgesRef.current = synthesizeSymbolEdges(graphRef.current, SEED);
+      symbolEdgesRef.current = synthesizeSymbolEdges(graphRef.current, seed);
     }
     setFrame((f) => f + 1);
   };

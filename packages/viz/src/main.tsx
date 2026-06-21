@@ -1,11 +1,17 @@
 /// <reference types="vite/client" />
 import { render } from "preact";
+import { NuqsAdapter } from "nuqs/adapters/react";
 import { App } from "./App.tsx";
 
 const root = document.getElementById("root");
 if (!root) throw new Error("#root not found");
 document.body.style.margin = "0";
-render(<App />, root);
+render(
+  <NuqsAdapter>
+    <App />
+  </NuqsAdapter>,
+  root,
+);
 
 // HMR safety: component edits refresh in place via prefresh and never re-run
 // this module. But an update to a non-component dependency (shared colours,
