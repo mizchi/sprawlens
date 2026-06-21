@@ -63,6 +63,7 @@ import type { SolvedLayer } from "./layerModel.ts";
 import { symbolNameOf } from "./cfgClient.ts";
 import type { EdgePickCandidate } from "./edgePick.ts";
 import { resolveEdgeAtClient } from "./edgePickDom.ts";
+import { ambientEdgeVisual, lspDash, selectionDash } from "./edgeStyle.ts";
 import { segmentInView } from "./viewCulling.ts";
 import {
   useMapViewport,
@@ -1067,13 +1068,17 @@ export function RingsMapSvg(props: Props) {
             const bundle = bundleOf(edge);
             if (!bundle) return null;
             if (!active && bundle.chord * zoom < MIN_EDGE_PX) return null;
+            const v = ambientEdgeVisual(active, !!selectedId, {
+              active: ACTIVE_EDGE,
+              ambient: UPSTREAM_COLOR,
+            });
             return (
               <path
                 key={`${edge.source}-${edge.target}`}
                 d={bundle.d}
-                stroke={active ? ACTIVE_EDGE : UPSTREAM_COLOR}
-                stroke-opacity={active ? 0.9 : selectedId ? 0.08 : 0.22}
-                stroke-width={active ? 1.8 : 1}
+                stroke={v.stroke}
+                stroke-opacity={v.opacity}
+                stroke-width={v.width}
                 style={{ pointerEvents: "none" }}
               />
             );
@@ -1137,7 +1142,7 @@ export function RingsMapSvg(props: Props) {
           stroke={color}
           strokeOpacity={0.9}
           strokeWidth={1.6}
-          dash={`${5 / zoom} ${4 / zoom}`}
+          dash={selectionDash(zoom)}
           keyPrefix="sel"
         />
       ))}
@@ -1154,7 +1159,7 @@ export function RingsMapSvg(props: Props) {
           stroke={color}
           strokeOpacity={0.85}
           strokeWidth={1.4}
-          dash={`${8 / zoom} ${5 / zoom}`}
+          dash={lspDash(zoom)}
           keyPrefix="lsp"
         />
       ))}

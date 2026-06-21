@@ -54,6 +54,7 @@ import type { SolvedLayer } from "./layerModel.ts";
 import { symbolNameOf } from "./cfgClient.ts";
 import type { EdgePickCandidate } from "./edgePick.ts";
 import { resolveEdgeAtClient } from "./edgePickDom.ts";
+import { ambientEdgeVisual, selectionDash } from "./edgeStyle.ts";
 import { cellInView, segmentInView } from "./viewCulling.ts";
 import type { TreemapState } from "./treemapController.js";
 import {
@@ -747,13 +748,17 @@ export function TreemapSvg(props: Props) {
               isSelected(parentModuleOf(edge.target) ?? "");
             // sub-pixel intra-module edges are pure overdraw at overview
             if (!active && edge.chord * zoom < MIN_EDGE_PX) return null;
+            const v = ambientEdgeVisual(active, !!selectedId, {
+              active: ACTIVE_EDGE,
+              ambient: UPSTREAM_COLOR,
+            });
             return (
               <path
                 key={`${edge.source} ${edge.target}`}
                 d={edge.d}
-                stroke={active ? ACTIVE_EDGE : UPSTREAM_COLOR}
-                stroke-opacity={active ? 0.9 : selectedId ? 0.08 : 0.22}
-                stroke-width={active ? 1.8 : 1}
+                stroke={v.stroke}
+                stroke-opacity={v.opacity}
+                stroke-width={v.width}
                 style={{ pointerEvents: "none" }}
               />
             );
@@ -780,7 +785,7 @@ export function TreemapSvg(props: Props) {
                   stroke={color}
                   stroke-opacity={0.9}
                   stroke-width={1.6}
-                  stroke-dasharray={`${5 / zoom} ${4 / zoom}`}
+                  stroke-dasharray={selectionDash(zoom)}
                   style={{ pointerEvents: "none" }}
                 />
               );

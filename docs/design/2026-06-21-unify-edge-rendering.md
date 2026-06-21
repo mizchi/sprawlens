@@ -1,6 +1,7 @@
 # Unify the scattered edge-rendering paths
 
-Status: Design (2026-06-21). Refactor — behavior-preserving.
+Status: Phases 1–4 done (2026-06-21); Phase 5 (scene-contract edge model)
+deferred. Refactor — behavior-preserving.
 
 Implements #1. Edge rendering is split across `RingsMapSvg`, `TreemapSvg`, and
 `mapShared`, with parallel endpoint-resolution, bundling, picking, and per-kind
@@ -49,9 +50,18 @@ phase keeps all gates green and changes no visible output.
   the `pickEdgeAtPoint` call. edgePick.ts stays pure (the geometry); each
   renderer still assembles its own candidate list (rings ranks lit edges first,
   treemap memoizes selection/focus) and hands it to the shared resolver.
-- **Phase 4 (optional) — edge model on the scene.** Carry edge *kinds* uniformly
+- **Phase 4 — shared edge styling. (done)** `edgeStyle.ts` holds the styling
+  both renderers duplicated verbatim: `ambientEdgeVisual` (the file-edge mesh —
+  active edge leads, the rest recede further under a selection) and the
+  `selectionDash` / `lspDash` zoom-scaled dashes. Unit-tested; theme colors are
+  passed in so it stays pure. Removes the last copied magic numbers from the two
+  ambient/selection loops.
+- **Phase 5 (deferred) — edge model on the scene.** Carry edge *kinds* uniformly
   through the scene contract so `buildScene` decides visibility/style once and
-  both renderers consume the same list.
+  both renderers consume one list. This is the high-risk step: the file/symbol
+  loops carry per-edge active state, viewport culling, and bundling that live in
+  the renderer, and there are no rendering tests to catch a regression. Gate it
+  behind a snapshot/rendering-test harness first.
 
 ## Out of scope
 
