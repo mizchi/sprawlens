@@ -52,11 +52,13 @@ import {
   snapshotSymbols,
   snapshotTestTree,
   snapshotToAtlasGraph,
+  traceOverlay,
   type ExternalDep,
   type LayerManifestEntry,
   type ServiceGraph,
   type SnapshotLike,
   type TestTree,
+  type Trace,
 } from "@sprawlens/schema";
 import { apply, layerTransform } from "@sprawlens/layout";
 import { sprawlensSnapshot } from "./fixtures/sprawlens.ts";
@@ -374,6 +376,9 @@ export function App() {
    * feeds the standalone ServicesView so it doesn't re-fetch the same endpoint. */
   const serviceGraphRef = useRef<ServiceGraph | null>(null);
   const [serviceGraph, setServiceGraph] = useState<ServiceGraph | null>(null);
+  // a runtime trace ingested by the CLI (--trace); drives the execution-path
+  // overlay. Null in dev/demo and when no trace was passed.
+  const [trace, setTrace] = useState<Trace | null>(null);
   /** Layer render manifest from the server (sprawlens.toml); defaults to the
    * built-in test/deps presets for demo / fixtures with no server config. */
   const [layerManifest, setLayerManifest] = useState<LayerManifestEntry[]>(
@@ -413,6 +418,14 @@ export function App() {
         setServiceGraph(json);
         // if the user already enabled nesting before this resolved, rebuild
         if (paramsRef.current.groupByService) rebuild(paramsRef.current);
+      })
+      .catch(() => {});
+    // a runtime trace (--trace) for the execution-path overlay; null when none
+    fetch("/api/trace")
+      .then((r) => (r.ok ? r.json() : null))
+      .then((json: Trace | null) => {
+        if (cancelled || !json) return;
+        setTrace(json);
       })
       .catch(() => {});
     return () => {
@@ -2027,6 +2040,19 @@ export function App() {
   const innerCells = showsSymbolLevels(params.displayLevels)
     ? allInnerCells
     : [];
+  // project the ingested trace onto symbol-keyed edges + heat for the overlay
+  const { traceEdges, traceHeat } = useMemo(() => {
+    if (!trace) return { traceEdges: [] as AtlasEdge[], traceHeat: new Map<string, number>() };
+    const overlay = traceOverlay(trace);
+    const edges: AtlasEdge[] = overlay.edges.map((e) => ({
+      source: e.from,
+      target: e.to,
+    }));
+    const heat = new Map<string, number>();
+    for (const [id, weight] of Object.entries(overlay.nodeWeight))
+      heat.set(id, overlay.maxNodeWeight > 0 ? weight / overlay.maxNodeWeight : 0);
+    return { traceEdges: edges, traceHeat: heat };
+  }, [trace]);
   /** Alt+drag on the map: horizontal rotates the plane, vertical pitches it.
    * Auto-enables tilt so the gesture is self-explanatory. */
   const onTiltDrag = (dxPx: number, dyPx: number) => {
@@ -2075,6 +2101,8 @@ export function App() {
     graphEdges: graphRef.current.edges,
     symbolEdges: symbolEdgesRef.current,
     detailEdges: detailOverlayEdges,
+    traceEdges,
+    traceHeat,
     visibleLevels,
     cfgEntries,
     cyclicIds,

@@ -81,6 +81,10 @@ type Props = {
   layers?: SolvedLayer[];
   /** Alt held → show every cross-layer edge; otherwise hover-gated. */
   altEdges?: boolean;
+  /** Runtime-trace overlay: executed call path (symbol→symbol), drawn solid. */
+  traceEdges?: AtlasEdge[];
+  /** Per-symbol execution heat in [0,1] for tinting hot cells. */
+  traceHeat?: Map<string, number>;
   /** Nested symbol layouts inside the file cells (file granularity). */
   innerCells?: CellResult[];
   exportedIds?: Set<string>;
@@ -149,6 +153,15 @@ export function TreemapSvg(props: Props) {
   const cyclicIds = props.cyclicIds ?? new Set<string>();
   const focus = props.focus ?? null;
   const bundleStrength = props.bundleStrength ?? BUNDLE_STRENGTH;
+  const traceEdges = props.traceEdges ?? [];
+  const traceHeat = props.traceHeat;
+  // warm tint for an executed symbol, hotter (redder, more opaque) with self time
+  const traceFillOf = (id: string): string | undefined => {
+    const heat = traceHeat?.get(id);
+    if (heat === undefined) return undefined;
+    const alpha = 0.18 + 0.55 * heat;
+    return `rgba(255, ${Math.round(150 - 110 * heat)}, 40, ${alpha.toFixed(3)})`;
+  };
 
   const levelVisible = (kind: string): boolean =>
     props.visibleLevels?.has(kind) ?? true;
@@ -291,8 +304,30 @@ export function TreemapSvg(props: Props) {
       for (const [id, cell] of level.cells) map.set(id, cell.site);
     }
     for (const cell of fileCells) map.set(cell.id, cell.site);
+    for (const cell of props.innerCells ?? []) map.set(cell.id, cell.site);
+    // anchor any trace endpoint with no cell of its own to its enclosing cell,
+    // so the executed-path edge still lands where the symbol lives
+    const anchor = (id: string): void => {
+      if (map.has(id)) return;
+      let cur: string | null = state.parentOf.get(id) ?? null;
+      const seen = new Set<string>();
+      while (cur && !seen.has(cur)) {
+        seen.add(cur);
+        const at = map.get(cur);
+        if (at) {
+          map.set(id, at);
+          return;
+        }
+        cur = state.parentOf.get(cur) ?? null;
+      }
+    };
+    for (const edge of traceEdges) {
+      anchor(edge.source);
+      anchor(edge.target);
+    }
     return map;
-  }, [state, fileCells]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [state, fileCells, props.innerCells, traceEdges]);
   const parentModuleOf = (id: string): string | null =>
     state.parentOf.get(id) ?? null;
   const topAncestorOf = makeTopAncestorOf(state.parentOf, (id) =>
@@ -494,6 +529,7 @@ export function TreemapSvg(props: Props) {
     : [];
 
   const fillOf = (cell: CellResult): string =>
+    traceFillOf(cell.id) ??
     leafFillOf(cell.id, {
       changedOf: props.changedOf,
       cyclicIds,
@@ -765,6 +801,23 @@ export function TreemapSvg(props: Props) {
               );
             }),
           )}
+        </g>
+      ) : null}
+      {/* runtime-trace overlay: the executed call path, always on when ingested */}
+      {traceEdges.length > 0 ? (
+        <g stroke="#ff7a1a" stroke-opacity={0.75} fill="none">
+          {traceEdges.map((edge) => {
+            const bundle = bundleOf(edge);
+            if (!bundle) return null;
+            return (
+              <path
+                key={`trace-${edge.source}-${edge.target}`}
+                d={bundle.d}
+                stroke-width={1.6}
+                style={{ pointerEvents: "none" }}
+              />
+            );
+          })}
         </g>
       ) : null}
       {/* extracted dependency paths, colored by direction */}

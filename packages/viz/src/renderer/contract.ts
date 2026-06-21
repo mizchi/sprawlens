@@ -56,6 +56,12 @@ type SceneCommon = {
   altEdges: boolean;
   parentFileOf: (id: string) => string;
   changedOf: (id: string) => "added" | "modified" | undefined;
+  /** Runtime-trace overlay: the executed call path (symbol→symbol), drawn as a
+   * solid warm path; empty when no trace was ingested. Shared across layouts. */
+  traceEdges: AtlasEdge[];
+  /** Per-symbol execution heat in [0,1] (self time / samples), for tinting hot
+   * cells. Empty when no trace was ingested. */
+  traceHeat: Map<string, number>;
   /** World-space canvas extent (rings is fixed; treemap follows the viewport). */
   width: number;
   height: number;

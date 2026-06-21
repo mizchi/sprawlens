@@ -20,6 +20,8 @@ export function SvgRenderer({
         fileEdges={scene.fileEdges}
         symbolEdges={scene.symbolEdges}
         detailEdges={scene.detailEdges}
+        traceEdges={scene.traceEdges}
+        traceHeat={scene.traceHeat}
         showEdges={scene.showEdges}
         showFiles={scene.showFiles}
         visibleLevels={scene.visibleLevels}
@@ -64,6 +66,8 @@ export function SvgRenderer({
       symbolKindOf={scene.symbolKindOf}
       parentFileOf={scene.parentFileOf}
       fileEdges={scene.fileEdges}
+      traceEdges={scene.traceEdges}
+      traceHeat={scene.traceHeat}
       showEdges={scene.showEdges}
       visibleLevels={scene.visibleLevels}
       cfgEntries={scene.cfgEntries}

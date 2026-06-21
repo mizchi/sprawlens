@@ -8,3 +8,4 @@ export * from "./service.js";
 export * from "./detail.js";
 export * from "./provider.js";
 export * from "./workspace.js";
+export * from "./trace.js";

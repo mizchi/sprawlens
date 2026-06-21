@@ -17,6 +17,7 @@ export * from "./core/diff.js";
 export * from "./core/metrics.js";
 export * from "./core/symbolRefs.js";
 export * from "./core/testTree.js";
+export * from "./core/trace.js";
 export * from "./core/packageImports.js";
 export * from "./core/callHierarchy.js";
 export * from "./adapter.js";

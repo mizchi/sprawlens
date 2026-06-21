@@ -5,6 +5,7 @@ import type {
   LanguageDetail,
   LayerManifestEntry,
   ServiceGraph,
+  Trace,
 } from "@sprawlens/schema";
 import { definitionPreview } from "./definitionPreview.js";
 import {
@@ -42,6 +43,10 @@ export type AtlasServerOptions = {
   /** The terraform-derived service graph (the upper layer); served at GET
    * /api/services. A producer is re-run per request for live .tf updates. */
   services?: ServiceGraph | (() => ServiceGraph | Promise<ServiceGraph>);
+  /** A runtime trace (symbol refs already resolved against the snapshot), served
+   * at GET /api/trace for the execution-path overlay. A producer is re-run per
+   * request for live re-ingest. */
+  trace?: Trace | (() => Trace | Promise<Trace>);
 };
 
 const MIME: Record<string, string> = {
@@ -56,7 +61,7 @@ const MIME: Record<string, string> = {
 };
 
 export function createAtlasServer(opts: AtlasServerOptions): Server {
-  const { repos, snapshots, analyzers, vizDist, detail, layers, services } =
+  const { repos, snapshots, analyzers, vizDist, detail, layers, services, trace } =
     opts;
 
   type DiffStream = {
@@ -270,6 +275,19 @@ export function createAtlasServer(opts: AtlasServerOptions): Server {
       res
         .writeHead(200, { "content-type": "application/json" })
         .end(JSON.stringify(graph));
+      return;
+    }
+
+    // GET /api/trace -> the runtime trace overlay (null when none was ingested)
+    if (req.method === "GET" && url.pathname === "/api/trace") {
+      const value = trace
+        ? typeof trace === "function"
+          ? await trace()
+          : trace
+        : null;
+      res
+        .writeHead(200, { "content-type": "application/json" })
+        .end(JSON.stringify(value));
       return;
     }
 

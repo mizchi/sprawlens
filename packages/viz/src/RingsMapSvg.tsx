@@ -83,6 +83,10 @@ type Props = {
   symbolEdges: AtlasEdge[];
   /** LSP call-hierarchy overlay for the selection — drawn dashed. */
   detailEdges?: AtlasEdge[];
+  /** Runtime-trace overlay: executed call path (symbol→symbol), drawn solid. */
+  traceEdges?: AtlasEdge[];
+  /** Per-symbol execution heat in [0,1] for tinting hot cells. */
+  traceHeat?: Map<string, number>;
   showEdges: boolean;
   labels: Map<string, string>;
   exportedIds: Set<string>;
@@ -211,6 +215,15 @@ export function RingsMapSvg(props: Props) {
   const compactModuleLabels = props.compactModuleLabels ?? false;
   const multiSelected = props.selectedIds ?? new Set<string>();
   const detailEdges = props.detailEdges ?? [];
+  const traceEdges = props.traceEdges ?? [];
+  const traceHeat = props.traceHeat;
+  // warm tint for an executed symbol, hotter (redder, more opaque) with self time
+  const traceFillOf = (id: string): string | undefined => {
+    const heat = traceHeat?.get(id);
+    if (heat === undefined) return undefined;
+    const alpha = 0.18 + 0.55 * heat;
+    return `rgba(255, ${Math.round(150 - 110 * heat)}, 40, ${alpha.toFixed(3)})`;
+  };
   const isSelected = (id: string | null): boolean =>
     id !== null && (id === selectedId || multiSelected.has(id));
   const cyclicIds = props.cyclicIds ?? new Set<string>();
@@ -446,11 +459,16 @@ export function RingsMapSvg(props: Props) {
       anchor(edge.source);
       anchor(edge.target);
     }
+    // the trace overlay points at symbols too; anchor its endpoints the same way
+    for (const edge of traceEdges) {
+      anchor(edge.source);
+      anchor(edge.target);
+    }
     return map;
     // parentFileOf is a fresh closure each render but structurally stable, so
     // it's left out of the deps to keep this off the per-render path
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [rings, fileCells, innerCells, portNodes, symbolEdges]);
+  }, [rings, fileCells, innerCells, portNodes, symbolEdges, traceEdges]);
   const bundleOf = useMemo(
     () =>
       makeEdgeBundler({
@@ -947,14 +965,17 @@ export function RingsMapSvg(props: Props) {
             <polygon
               key={cell.id}
               points={pointsOf(cell)}
-              fill={leafFillOf(cell.id, {
-                changedOf,
-                cyclicIds,
-                testFileIds,
-                dependencyIds,
-                dependentIds,
-                topAncestorOf,
-              })}
+              fill={
+                traceFillOf(cell.id) ??
+                leafFillOf(cell.id, {
+                  changedOf,
+                  cyclicIds,
+                  testFileIds,
+                  dependencyIds,
+                  dependentIds,
+                  topAncestorOf,
+                })
+              }
               stroke={
                 isSelected(cell.id)
                   ? SELECT_STROKE
@@ -1017,7 +1038,7 @@ export function RingsMapSvg(props: Props) {
                     ? DOWNSTREAM_FILL
                     : dependentIds.has(cell.id)
                       ? UPSTREAM_FILL
-                      : "transparent"
+                      : (traceFillOf(cell.id) ?? "transparent")
                 }
                 stroke={isSelected(cell.id) ? SELECT_STROKE : undefined}
                 stroke-width={isSelected(cell.id) ? 1.6 : undefined}
@@ -1178,6 +1199,24 @@ export function RingsMapSvg(props: Props) {
           </g>
         ) : null,
       )}
+      {/* runtime-trace overlay: the executed call path, always on (when a trace
+          was ingested), drawn solid + warm so it reads as a lit path */}
+      {traceEdges.length > 0 ? (
+        <g stroke="#ff7a1a" stroke-opacity={0.75} fill="none">
+          {traceEdges.map((edge) => {
+            const bundle = bundleOf(edge);
+            if (!bundle) return null;
+            return (
+              <path
+                key={`trace-${edge.source}-${edge.target}`}
+                d={bundle.d}
+                stroke-width={1.6}
+                style={{ pointerEvents: "none" }}
+              />
+            );
+          })}
+        </g>
+      ) : null}
       {/* hover preview: a faint accent over the edge a click would pick */}
       {hoveredEdge && !isSelectedEdge(hoveredEdge.source, hoveredEdge.target)
         ? (() => {

@@ -10,6 +10,8 @@ const base: SceneInput = {
   graphEdges: [{ source: "x", target: "y" }],
   symbolEdges: [{ source: "s", target: "t" }],
   detailEdges: [],
+  traceEdges: [],
+  traceHeat: new Map(),
   visibleLevels: new Set(["file"]),
   cfgEntries: [],
   cyclicIds: new Set(),

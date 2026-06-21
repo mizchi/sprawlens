@@ -25,6 +25,9 @@ export type SceneInput = {
   graphEdges: AtlasEdge[];
   symbolEdges: AtlasEdge[];
   detailEdges: AtlasEdge[];
+  /** Runtime-trace overlay (symbol→symbol call path) + per-symbol heat [0,1]. */
+  traceEdges: AtlasEdge[];
+  traceHeat: Map<string, number>;
   visibleLevels: ReadonlySet<string>;
   cfgEntries: CfgEntry[];
   cyclicIds: Set<string>;
@@ -70,6 +73,10 @@ export function buildScene(i: SceneInput): MapScene | null {
     altEdges: i.altEdges,
     parentFileOf: i.parentFileOf,
     changedOf: i.changedOf,
+    // symbol-keyed overlay; renders wherever symbol cells exist, no-ops at
+    // module granularity (no cells to anchor to)
+    traceEdges: i.traceEdges,
+    traceHeat: i.traceHeat,
     tilt: i.tilt,
     labelMinPx: i.labelMinPx,
     labelScale: i.labelScale,

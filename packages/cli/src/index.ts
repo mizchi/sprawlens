@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 import { Command } from "commander";
 import { spawn } from "node:child_process";
-import { existsSync, readFileSync } from "node:fs";
+import { existsSync, readFileSync, realpathSync } from "node:fs";
 import { createRequire } from "node:module";
 import { basename, dirname, join, resolve } from "node:path";
 import * as readline from "node:readline/promises";
@@ -10,19 +10,25 @@ import {
   analyzeRepository,
   collectRepository,
   createLspDetail,
+  tsCpuProfileAdapter,
+  tsV8CoverageAdapter,
 } from "@sprawlens/analyzer-ts";
 import type {
   LanguageProvider,
   LayersConfig,
   ServiceGraph,
   Snapshot,
+  Trace,
 } from "@sprawlens/schema";
 import {
   applyLayers,
   computeGraphMetrics,
   layerManifest,
   matchResourceFiles,
+  parseFoldedStacks,
+  parseLlvmCoverage,
   resolveServices,
+  resolveTraceSymbols,
   serviceFileMap,
 } from "@sprawlens/schema";
 import { analyzeTerraform, hasTerraform } from "@sprawlens/analyzer-terraform";
@@ -57,10 +63,14 @@ program
   .option("--port <n>", "port", (v) => Number.parseInt(v, 10), 4173)
   .option("--lang <id>", "force a language provider (typescript|go|rust|moonbit)")
   .option("--no-open", "do not open the browser")
+  .option(
+    "--trace <path>",
+    "overlay a runtime trace (.cpuprofile or folded/collapsed stacks)",
+  )
   .action(
     async (
       repo: string,
-      options: { port: number; open: boolean; lang?: string },
+      options: { port: number; open: boolean; lang?: string; trace?: string },
     ): Promise<void> => {
       const root = resolve(repo);
       const name = basename(root);
@@ -157,6 +167,19 @@ program
           `  terraform: ${graph.services.length} services, ${graph.edges.length} links`,
         );
       }
+      // ingest an out-of-band runtime trace and resolve its frames against this
+      // snapshot's symbols, so the viz can light up the executed path.
+      let trace: Trace | undefined;
+      if (options.trace) {
+        trace = loadTrace(options.trace, root, snapshot);
+        if (trace) {
+          const resolved = trace.nodes.filter((n) => n.ref.symbolId).length;
+          console.log(
+            `  trace: ${trace.source}, ${resolved}/${trace.nodes.length} frames resolved, ${trace.edges.length} edges`,
+          );
+        }
+      }
+
       const server = createAtlasServer({
         repos: new Map([[name, root]]),
         snapshots: new Map([[name, snapshot]]),
@@ -165,6 +188,7 @@ program
         detail,
         layers: layerManifest(config),
         services,
+        trace,
       });
       server.listen(options.port, "127.0.0.1", () => {
         const url = `http://127.0.0.1:${options.port}/`;
@@ -399,6 +423,64 @@ function lspAvailable(bin: string): boolean {
         d.length > 0 &&
         (existsSync(join(d, bin)) || existsSync(join(d, `${bin}.exe`))),
     );
+}
+
+/**
+ * Read a runtime-trace artifact and resolve its frames against the snapshot.
+ * A `.cpuprofile` (or JSON with the V8 sampled-tree shape) goes through the TS
+ * cpuprofile adapter; anything else is treated as folded/collapsed stacks.
+ * Returns undefined when the file can't be read/parsed (a bad --trace shouldn't
+ * abort the server).
+ */
+function loadTrace(
+  tracePath: string,
+  root: string,
+  snapshot: Snapshot,
+): Trace | undefined {
+  const path = resolve(tracePath);
+  if (!existsSync(path)) {
+    console.error(`trace file not found: ${path}`);
+    return undefined;
+  }
+  const text = readFileSync(path, "utf8");
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(text);
+  } catch {
+    parsed = undefined;
+  }
+  const obj =
+    parsed !== undefined && typeof parsed === "object"
+      ? (parsed as Record<string, unknown>)
+      : undefined;
+  const firstOf = (key: string): Record<string, unknown> | undefined => {
+    const list = obj?.[key];
+    return Array.isArray(list) && typeof list[0] === "object"
+      ? (list[0] as Record<string, unknown>)
+      : undefined;
+  };
+  const isCpuProfile =
+    obj !== undefined && Array.isArray(obj.nodes) && Array.isArray(obj.samples);
+  // V8 precise coverage: { result: [{ url, functions }] } (NODE_V8_COVERAGE)
+  const isV8Coverage = firstOf("result")?.functions !== undefined;
+  // llvm-cov export: { data: [{ functions }] }
+  const isLlvmCoverage = firstOf("data")?.functions !== undefined;
+  // a profiler records realpath'd frame urls; match that so the prefix strips
+  // (e.g. macOS /tmp -> /private/tmp) and frames become repo-relative.
+  const realRoot = realpathSync(root);
+  try {
+    const trace = isCpuProfile
+      ? tsCpuProfileAdapter.parse(parsed, realRoot)
+      : isV8Coverage
+        ? tsV8CoverageAdapter.parse(parsed, realRoot)
+        : isLlvmCoverage
+          ? parseLlvmCoverage(parsed, realRoot)
+          : parseFoldedStacks(text, { label: basename(path) });
+    return resolveTraceSymbols(trace, snapshot);
+  } catch (error) {
+    console.error(`failed to parse trace ${path}:`, error);
+    return undefined;
+  }
 }
 
 /**
