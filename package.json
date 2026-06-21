@@ -13,7 +13,9 @@
     "dev:viz": "pnpm --filter @sprawlens/viz dev",
     "build": "pnpm --filter @sprawlens/viz build && pnpm --filter @sprawlens/cli build",
     "dev:server": "pnpm --filter @sprawlens/cli dev:server",
-    "cli": "pnpm --filter @sprawlens/cli dev"
+    "cli": "pnpm --filter @sprawlens/cli dev",
+    "test:render": "playwright test -c playwright.render.config.ts",
+    "test:render:update": "playwright test -c playwright.render.config.ts --update-snapshots"
   },
   "dependencies": {
     "preact": "^10.29.2",

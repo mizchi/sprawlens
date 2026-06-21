@@ -1115,6 +1115,13 @@ export function App() {
     syncInnerLayouts,
     convergenceTolerance: CONVERGENCE_TOLERANCE,
     onFrame: () => setFrame((f) => f + 1),
+    // expose a settled signal for the rendering harness: a global flag + a
+    // data-converged attribute on the map root, flipped as the layout settles.
+    onSettleChange: (settled) => {
+      (window as unknown as { __sprawlensConverged?: boolean }).__sprawlensConverged =
+        settled;
+      mapContainerRef.current?.setAttribute("data-converged", settled ? "1" : "0");
+    },
   });
 
   const afterGraphMutation = (changedFileId?: string) => {

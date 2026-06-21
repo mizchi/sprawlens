@@ -27,6 +27,10 @@ export type SolverLoopContext = {
   convergenceTolerance: number;
   /** Commit a repaint (bump the frame counter). */
   onFrame: () => void;
+  /** Fired when the settled state flips — true once a built layout stops
+   * advancing (outer + inner), false when it resumes. Drives the test harness's
+   * "render is final" signal; no-op in normal use. */
+  onSettleChange?: (settled: boolean) => void;
 };
 
 /**
@@ -49,11 +53,13 @@ export function useSolverLoop(ctx: SolverLoopContext) {
     syncInnerLayouts,
     convergenceTolerance,
     onFrame,
+    onSettleChange,
   } = ctx;
   useEffect(() => {
     let raf = 0;
     let timer = 0;
     let disposed = false;
+    let prevSettled: boolean | null = null;
     // rAF stops entirely in hidden tabs; fall back to a timer so layouts keep
     // converging while the user works elsewhere
     const schedule = () => {
@@ -155,6 +161,13 @@ export function useSolverLoop(ctx: SolverLoopContext) {
         // flush the final state once everything settles
         repaintSkipRef.current = 0;
         onFrame();
+      }
+      // settled = a built layout that has stopped advancing; report on change
+      const hasLayout = !!(ringsRef.current || treemapRef.current);
+      const settled = hasLayout && !outerActive && !innerActive;
+      if (settled !== prevSettled) {
+        prevSettled = settled;
+        onSettleChange?.(settled);
       }
       schedule();
     };
