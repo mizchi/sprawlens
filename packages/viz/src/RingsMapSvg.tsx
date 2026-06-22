@@ -1508,11 +1508,6 @@ export function RingsMapSvg(props: Props) {
                 symbolMode &&
                 onScreen >=
                   (isMember ? MEMBER_TAG_MIN_PX : SYMBOL_ICON_MIN_PX) * labelFactor;
-              // members never ride the dominant/linked shortcut — only room
-              const passes = isMember
-                ? roomy || cell.id === selectedId
-                : linked || fileSelected || dominant || roomy || cell.id === selectedId;
-              if (!passes) return null;
               const fontSize = screenFont(
                 Math.sqrt(cell.actualArea) * 0.3,
                 exported ? 7 : 13,
@@ -1521,6 +1516,14 @@ export function RingsMapSvg(props: Props) {
                 200,
               );
               if (fontSize === null) return null;
+              // only auto-show a label that fits its cell on screen, so dense
+              // rings don't fill with overlapping names (selections always show)
+              const fits = onScreen * 1.25 >= name.length * fontSize * zoom * 0.5;
+              // members never ride the dominant/linked shortcut — only room
+              const passes = isMember
+                ? roomy || cell.id === selectedId
+                : cell.id === selectedId || fileSelected || ((linked || dominant || roomy) && fits);
+              if (!passes) return null;
               return (
                 <SymbolTag
                   key={cell.id}
