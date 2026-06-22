@@ -203,8 +203,8 @@ export function setMapTheme(dark: boolean): void {
     UPSTREAM_FILL = "hsl(193 70% 86%)";
     SELECT_STROKE = "#1d4ed8";
     LINKED_STROKE = "#d97706";
-    LEAF_STROKE = "#94a3b8";
-    SYMBOL_STROKE = "#64748b";
+    LEAF_STROKE = "#64748b";
+    SYMBOL_STROKE = "#475569";
     SYMBOL_EDGE = "#7c3aed";
     MACRO_EDGE = "#475569";
     ACTIVE_EDGE = "#c2410c";
@@ -266,7 +266,7 @@ const WATERMARK_PX = 140;
  * fill texture still reads at macro zoom, but drawing every leaf/district
  * border there is noise (and overdraw). The border fades in as the cell
  * grows past this on screen. Districts use a larger gate than leaves. */
-export const LEAF_BORDER_MIN_PX = 14;
+export const LEAF_BORDER_MIN_PX = 8;
 const DISTRICT_BORDER_MIN_PX = 44;
 /** Class boundaries are deferred far past other districts: only a deep zoom
  * into the class shows the outline, so the overview isn't carved into class

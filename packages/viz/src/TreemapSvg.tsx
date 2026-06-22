@@ -621,7 +621,7 @@ export function TreemapSvg(props: Props) {
               stroke-opacity={
                 (linked ? 0.95 : fileOpacity(cell.id)) * (dimmed ? 0.35 : 1)
               }
-              stroke-width={isSelected(cell.id) ? 2.5 : linked ? 1.4 : 0.6}
+              stroke-width={isSelected(cell.id) ? 2.5 : linked ? 1.4 : 0.9}
               onMouseEnter={
                 satellitesOn ? () => setLinkHover(fileIdOf(cell.id)) : undefined
               }
