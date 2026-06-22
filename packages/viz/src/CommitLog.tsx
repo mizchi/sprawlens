@@ -82,17 +82,22 @@ export function CommitLog({ commits, index, range, onSelect, onRangeSelect }: Pr
                 alignItems: "stretch",
                 width: "100%",
                 padding: 0,
-                border: "none",
+                // a left accent marks the focused commit; a hairline separates rows
+                borderLeft: `3px solid ${current ? CURRENT : ranged ? IN_RANGE : "transparent"}`,
+                borderRight: "none",
+                borderTop: "none",
+                borderBottom: "1px solid rgba(148,163,184,0.1)",
                 textAlign: "left",
                 cursor: "pointer",
                 background: current
-                  ? "rgba(37,99,235,0.22)"
+                  ? "rgba(37,99,235,0.28)"
                   : ranged
                     ? "rgba(234,88,12,0.14)"
                     : hovered === i
-                      ? "rgba(148,163,184,0.12)"
+                      ? "rgba(148,163,184,0.16)"
                       : "transparent",
-                color: "inherit",
+                color: current ? "#fff" : "inherit",
+                fontWeight: current ? 600 : 400,
               }}
             >
               {/* graph lane */}
@@ -134,7 +139,7 @@ export function CommitLog({ commits, index, range, onSelect, onRangeSelect }: Pr
                 }}
                 title={`${c.shortHash} ${c.message.split("\n")[0]}`}
               >
-                <span style={{ color: "#64748b" }}>{c.shortHash}</span>{" "}
+                <span style={{ color: current ? "#bfdbfe" : "#94a3b8" }}>{c.shortHash}</span>{" "}
                 {c.message.split("\n")[0]}
               </span>
             </button>
