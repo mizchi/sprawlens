@@ -6,7 +6,7 @@ import type { VizCommand } from "./vizCommands.ts";
  *   - WebMCP tools via `navigator.modelContext.registerTool`, so an LLM agent
  *     in the page can drive the map (feature-detected; a no-op where absent).
  *   - keybindings, so a human gets the same operations.
- * `buildCommands` is called every render so the tools/keys invoke fresh state;
+ * `commands` is rebuilt every render so the tools/keys invoke fresh state;
  * registration itself happens once.
  */
 type ModelContext = {
@@ -27,9 +27,9 @@ function keyFromEvent(e: KeyboardEvent): string | null {
   return e.key;
 }
 
-export function useCommandBridge(buildCommands: () => VizCommand[]): void {
+export function useCommandBridge(commands: VizCommand[]): void {
   const commandsRef = useRef<VizCommand[]>([]);
-  commandsRef.current = buildCommands();
+  commandsRef.current = commands;
 
   // keybindings
   useEffect(() => {

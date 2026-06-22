@@ -34,6 +34,7 @@ export type VizCommandCtx = {
   history: HistoryControl | null;
   experimental: boolean;
   toggleExperimental: () => void;
+  toggleHelp: () => void;
 };
 
 const SOURCES = ["synthetic", "sprawlens", "sprawlens-history", "playwright", "served"];
@@ -128,6 +129,15 @@ export function buildVizCommands(ctx: VizCommandCtx): VizCommand[] {
       run: () => {
         ctx.toggleExperimental();
         return `experimental = ${!ctx.experimental}`;
+      },
+    },
+    {
+      id: "toggle_help",
+      title: "Show / hide the keyboard shortcuts",
+      keys: ["?"],
+      run: () => {
+        ctx.toggleHelp();
+        return "toggled help";
       },
     },
   ];
