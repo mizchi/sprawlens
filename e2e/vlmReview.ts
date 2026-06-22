@@ -12,6 +12,8 @@
 const ENDPOINT = "https://openrouter.ai/api/v1/chat/completions";
 const DEFAULT_MODEL = "bytedance/ui-tars-1.5-7b";
 
+const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
+
 export function hasVlmKey(): boolean {
   return !!process.env.OPENROUTER_API_KEY;
 }
@@ -90,23 +92,30 @@ export function openRouterReviewer(): Reviewer {
         },
       ],
     };
-    const res = await fetch(ENDPOINT, {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${key}`,
-        "Content-Type": "application/json",
-        "HTTP-Referer": "https://github.com/mizchi/sprawlens",
-        "X-Title": "sprawlens render eval",
-      },
-      body: JSON.stringify(body),
-    });
-    if (!res.ok) {
-      const text = await res.text().catch(() => "");
-      throw new Error(`OpenRouter ${res.status}: ${text.slice(0, 300)}`);
+    // Free-tier upstream providers rate-limit (429) and hiccup (502/503)
+    // transiently; back off and retry so a flake doesn't fail the render gate.
+    let lastErr = "";
+    for (let attempt = 0; attempt < 4; attempt++) {
+      if (attempt > 0) await sleep(1000 * 2 ** (attempt - 1));
+      const res = await fetch(ENDPOINT, {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${key}`,
+          "Content-Type": "application/json",
+          "HTTP-Referer": "https://github.com/mizchi/sprawlens",
+          "X-Title": "sprawlens render eval",
+        },
+        body: JSON.stringify(body),
+      });
+      if (res.ok) {
+        const json = (await res.json()) as { choices?: Array<{ message?: { content?: string } }> };
+        const content = json.choices?.[0]?.message?.content ?? "";
+        if (!content) throw new Error("OpenRouter returned an empty completion");
+        return extractVerdict(content);
+      }
+      lastErr = `OpenRouter ${res.status}: ${(await res.text().catch(() => "")).slice(0, 300)}`;
+      if (res.status !== 429 && res.status < 500) break; // client error — don't retry
     }
-    const json = (await res.json()) as { choices?: Array<{ message?: { content?: string } }> };
-    const content = json.choices?.[0]?.message?.content ?? "";
-    if (!content) throw new Error("OpenRouter returned an empty completion");
-    return extractVerdict(content);
+    throw new Error(lastErr);
   };
 }

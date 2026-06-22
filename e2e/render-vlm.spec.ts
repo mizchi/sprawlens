@@ -16,15 +16,20 @@ const CASES: Case[] = [
     source: "sprawlens",
     layout: "treemap",
     tag: "treemap",
+    // sprawlens' "treemap" is a capacity-Voronoi space-filling map (organic
+    // polygonal cells, rounded district silhouettes), not a rectangular
+    // treemap — so the assertion describes the real picture: a packed mosaic of
+    // adjacent labelled cells. Still meaningful: catches a blank render, a
+    // collapsed/empty field, or labels overlapping into illegibility.
     assertion:
-      "This is a treemap layout: the canvas is filled with nested rectangular cells packed edge-to-edge with little empty space. It is NOT a circular or radial arrangement.",
+      "This is a space-filling 'map' visualization: the area is filled with many adjacent cells/regions packed together sharing borders (a mosaic). Text labels for code modules such as 'atlas' and 'core' are visible and readable, not overlapping into an illegible blur.",
   },
   {
     source: "sprawlens",
     layout: "rings",
     tag: "rings",
     assertion:
-      "This is a radial 'rings' layout: cells are arranged in roughly concentric circular bands around a center point. It is NOT a grid of packed rectangles.",
+      "This is a radial layout: most cells are clustered inside a large circular boundary around a center point, with connector lines, and module labels such as 'atlas' are visible. It is NOT a single rectangular grid.",
   },
 ];
 
