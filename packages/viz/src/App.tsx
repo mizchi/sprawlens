@@ -89,6 +89,7 @@ import {
 import type { AtlasEdge } from "@sprawlens/schema";
 import { TracePlayer } from "./TracePlayer.tsx";
 import { TestLogPanel } from "./TestLogPanel.tsx";
+import { TestReporterPanel } from "./TestReporterPanel.tsx";
 import {
   projectTimelineCursor,
   stepClockUs,
@@ -2122,10 +2123,12 @@ export function App() {
     activeId !== null && testFileIds.has(activeId)
       ? (graphRef.current.nodes.find((n) => n.id === activeId) ?? null)
       : null;
-  // the full ingested/run result for the selected test — drives the log panel
+  // the full ingested/run result for the selected test — drives the log panel.
+  // Keyed off activeId directly (not selectedTest) so it works whether the test
+  // was picked from the dot panel or a test-plane cell.
   const selectedTestResult =
-    selectedTest && testRun
-      ? (testRun.results.find((r) => r.testId === selectedTest.id) ?? null)
+    activeId && testRun
+      ? (testRun.results.find((r) => r.testId === activeId) ?? null)
       : null;
   const selectedPort =
     activeId !== null && granularity === "symbol"
@@ -2561,6 +2564,13 @@ export function App() {
           />
         </LayersMenu>
         <CameraPanel params={params} onChange={onControlsChange} />
+        {testRun ? (
+          <TestReporterPanel
+            results={testRun.results}
+            activeId={activeId}
+            onSelect={(testId) => jumpTo(testId, 6)}
+          />
+        ) : null}
         {timeline ? (
           <TracePlayer
             timeline={timeline}
