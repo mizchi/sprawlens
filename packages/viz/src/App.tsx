@@ -92,6 +92,8 @@ import { TestLogPanel } from "./TestLogPanel.tsx";
 import { TestReporterPanel } from "./TestReporterPanel.tsx";
 import { HistoryTimeline } from "./HistoryTimeline.tsx";
 import { CommitLog } from "./CommitLog.tsx";
+import { useCommandBridge } from "./useCommandBridge.ts";
+import { buildVizCommands } from "./vizCommands.ts";
 import {
   projectTimelineCursor,
   stepClockUs,
@@ -1487,6 +1489,35 @@ export function App() {
     setSelectedId(id);
     focusOnIds([id], padding);
   };
+
+  // single registry of view operations → WebMCP tools (LLM-drivable) + keybinds.
+  // Rebuilt each render so the tools/keys act on current state.
+  useCommandBridge(() =>
+    buildVizCommands({
+      params,
+      setParam: (partial) => onControlsChange({ ...paramsRef.current, ...partial }),
+      searchNodes: (query) => {
+        const q = query.toLowerCase();
+        if (!q) return [];
+        return graphRef.current.nodes
+          .filter((n) => n.id.toLowerCase().includes(q) || n.label.toLowerCase().includes(q))
+          .map((n) => ({ id: n.id, label: n.label }));
+      },
+      focusNode: (id) => jumpTo(id, 6),
+      history:
+        params.source === "sprawlens-history" && commitsRef.current
+          ? {
+              active: true,
+              index: commitIndexRef.current,
+              count: commitsRef.current.length,
+              go: selectCommit,
+            }
+          : null,
+      experimental: experimentalOn,
+      toggleExperimental: () =>
+        setUrlParams({ experimental: urlParams.experimental ? null : true }),
+    }),
+  );
 
   const mutateWeight = () => {
     const graph = graphRef.current;
