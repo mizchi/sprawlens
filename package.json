@@ -15,7 +15,7 @@
     "dev:server": "pnpm --filter @sprawlens/cli dev:server",
     "cli": "pnpm --filter @sprawlens/cli dev",
     "test:render": "playwright test -c playwright.render.config.ts",
-    "test:render:update": "playwright test -c playwright.render.config.ts --update-snapshots"
+    "test:render:update": "UPDATE_SVG=1 playwright test -c playwright.render.config.ts"
   },
   "dependencies": {
     "preact": "^10.29.2",
