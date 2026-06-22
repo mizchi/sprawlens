@@ -58,6 +58,9 @@ export type AtlasServerOptions = {
    * POST /api/test-run/case endpoint. The composition root, not the server,
    * decides what command runs — the server never builds it from the request. */
   runTestCase?: (testId: string) => Promise<TestCaseResult | null>;
+  /** Enable experimental viz features (trace player, commit-log, test reporter);
+   * served at GET /api/config. Set by the CLI `--experimental` flag. */
+  experimental?: boolean;
 };
 
 const MIME: Record<string, string> = {
@@ -83,6 +86,7 @@ export function createAtlasServer(opts: AtlasServerOptions): Server {
     trace,
     testRun,
     runTestCase,
+    experimental,
   } = opts;
 
   // the test run shown at GET /api/test-run; materialized from the option on
@@ -294,7 +298,7 @@ export function createAtlasServer(opts: AtlasServerOptions): Server {
     if (req.method === "GET" && url.pathname === "/api/config") {
       res
         .writeHead(200, { "content-type": "application/json" })
-        .end(JSON.stringify({ layers: layers ?? [] }));
+        .end(JSON.stringify({ layers: layers ?? [], experimental: experimental ?? false }));
       return;
     }
 

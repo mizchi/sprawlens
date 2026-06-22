@@ -463,6 +463,10 @@ export function App() {
   const [historyOrientation, setHistoryOrientation] = useState<"vertical" | "horizontal">(
     "vertical",
   );
+  // experimental features (trace player, commit-log, test reporter) are off
+  // unless the server was started with --experimental or the URL opts in.
+  const [configExperimental, setConfigExperimental] = useState(false);
+  const experimentalOn = urlParams.experimental || configExperimental;
   // a test run ingested by the CLI (--test-report); tints the test plane cells
   // pass/fail/skip. Null in dev/demo and when no report was passed.
   const [testRun, setTestRun] = useState<TestRun | null>(null);
@@ -490,9 +494,10 @@ export function App() {
     // each out; absent (dev/demo) keeps the built-in presets
     fetch("/api/config")
       .then((r) => (r.ok ? r.json() : null))
-      .then((json: { layers?: LayerManifestEntry[] } | null) => {
-        if (cancelled || !json?.layers || json.layers.length === 0) return;
-        setLayerManifest(json.layers);
+      .then((json: { layers?: LayerManifestEntry[]; experimental?: boolean } | null) => {
+        if (cancelled || !json) return;
+        if (json.experimental) setConfigExperimental(true);
+        if (json.layers && json.layers.length > 0) setLayerManifest(json.layers);
       })
       .catch(() => {});
     // the terraform service graph (upper layer): cached so "group by service"
@@ -2555,6 +2560,7 @@ export function App() {
           </svg>
         ) : null}
         {params.source === "sprawlens-history" && commitsRef.current ? (
+          experimentalOn ? (
           <>
             {/* toggle the commit-log layout (vertical list ⇄ horizontal bar) */}
             <button
@@ -2629,6 +2635,61 @@ export function App() {
               </div>
             )}
           </>
+          ) : (
+            // stable (non-experimental) history navigation: a plain slider
+            <div
+              style={{
+                position: "absolute",
+                left: "8px",
+                bottom: "8px",
+                right: "270px",
+                display: "flex",
+                alignItems: "center",
+                gap: "8px",
+                padding: "6px 10px",
+                background: PANEL_BG,
+                border: `1px solid ${PANEL_BORDER}`,
+                borderRadius: "6px",
+                fontSize: "12px",
+              }}
+            >
+              <button
+                onClick={() => goToCommit(commitIndexRef.current - 1)}
+                style={{ cursor: "pointer", padding: "2px 8px" }}
+              >
+                ◀
+              </button>
+              <input
+                type="range"
+                min={0}
+                max={commitsRef.current.length - 1}
+                value={commitIndexRef.current}
+                onInput={(e) => goToCommit(Number((e.target as HTMLInputElement).value))}
+                style={{ flex: "1", minWidth: "80px" }}
+              />
+              <button
+                onClick={() => goToCommit(commitIndexRef.current + 1)}
+                style={{ cursor: "pointer", padding: "2px 8px" }}
+              >
+                ▶
+              </button>
+              <span
+                style={{
+                  whiteSpace: "nowrap",
+                  overflow: "hidden",
+                  textOverflow: "ellipsis",
+                  maxWidth: "300px",
+                }}
+              >
+                <b>{commitsRef.current[commitIndexRef.current]?.shortHash}</b>{" "}
+                {commitsRef.current[commitIndexRef.current]?.message.split("\n")[0] ?? ""}
+              </span>
+              <span style={{ color: MUTED_INK, whiteSpace: "nowrap" }}>
+                +{lastDiffRef.current.added} ~{lastDiffRef.current.modified} −
+                {lastDiffRef.current.removed}
+              </span>
+            </div>
+          )
         ) : null}
         {/* floating overlays: structural axes + view options (left drawer),
             camera / dark / GitHub (top-right) */}
@@ -2650,14 +2711,36 @@ export function App() {
           />
         </LayersMenu>
         <CameraPanel params={params} onChange={onControlsChange} />
-        {testRun ? (
+        {/* dev toggle for experimental features (the --experimental flag forces
+            them on regardless; this only flips the URL opt-in) */}
+        <button
+          onClick={() => setUrlParams({ experimental: urlParams.experimental ? null : true })}
+          title="toggle experimental features"
+          style={{
+            position: "absolute",
+            left: 12,
+            top: 12,
+            zIndex: 32,
+            cursor: "pointer",
+            padding: "2px 8px",
+            borderRadius: 6,
+            border: "none",
+            background: experimentalOn ? "#7c3aed" : "rgba(15,23,42,0.6)",
+            color: "#e2e8f0",
+            fontSize: 10,
+            opacity: 0.85,
+          }}
+        >
+          exp {experimentalOn ? "on" : "off"}
+        </button>
+        {experimentalOn && testRun ? (
           <TestReporterPanel
             results={testRun.results}
             activeId={activeId}
             onSelect={(testId) => jumpTo(testId, 6)}
           />
         ) : null}
-        {timeline ? (
+        {experimentalOn && timeline ? (
           <TracePlayer
             timeline={timeline}
             cursor={timelineCursor}
@@ -2813,7 +2896,9 @@ export function App() {
                 covers: {labelOf(testTargets.get(selectedTest.id)!)}
               </button>
             ) : null}
-            {selectedTestResult ? <TestLogPanel result={selectedTestResult} /> : null}
+            {experimentalOn && selectedTestResult ? (
+              <TestLogPanel result={selectedTestResult} />
+            ) : null}
             {params.source === "sprawlens-history" &&
             activeId &&
             historyIndexRef.current?.nodeHistory.has(activeId) ? (

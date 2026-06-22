@@ -82,6 +82,7 @@ program
     "--test-traces <path>",
     "per-test traces ({ testId: artifact }) linking each case to its source",
   )
+  .option("--experimental", "enable experimental viz features (trace player, commit-log, test reporter)")
   .action(
     async (
       repo: string,
@@ -92,6 +93,7 @@ program
         trace?: string;
         testReport?: string;
         testTraces?: string;
+        experimental?: boolean;
       },
     ): Promise<void> => {
       const root = resolve(repo);
@@ -242,6 +244,7 @@ program
         trace,
         testRun,
         runTestCase,
+        experimental: options.experimental ?? false,
       });
       server.listen(options.port, "127.0.0.1", () => {
         const url = `http://127.0.0.1:${options.port}/`;

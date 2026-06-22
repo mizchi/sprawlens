@@ -50,5 +50,8 @@ export function makeUrlParamParsers(darkDefault: boolean) {
     dark: parseAsBoolean.withDefault(darkDefault),
     tilt: parseAsBoolean.withDefault(false),
     seed: parseAsInteger.withDefault(1),
+    // dev override for experimental features; the server's --experimental flag
+    // also turns them on (App ORs the two)
+    experimental: parseAsBoolean.withDefault(false),
   };
 }
