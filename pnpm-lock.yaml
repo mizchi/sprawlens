@@ -206,6 +206,12 @@ importers:
         specifier: workspace:*
         version: link:../schema
 
+  packages/sprawlens:
+    dependencies:
+      '@sprawlens/cli':
+        specifier: workspace:*
+        version: link:../cli
+
   packages/viz:
     dependencies:
       '@sprawlens/layout':

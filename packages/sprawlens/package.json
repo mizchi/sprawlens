@@ -1,0 +1,39 @@
+{
+  "name": "sprawlens",
+  "version": "0.2.0",
+  "description": "Visualize the structure of any TypeScript, Go, Rust or MoonBit repository (thin wrapper around @sprawlens/cli)",
+  "license": "MIT",
+  "author": "mizchi",
+  "homepage": "https://github.com/mizchi/sprawlens#readme",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/mizchi/sprawlens.git",
+    "directory": "packages/sprawlens"
+  },
+  "bugs": {
+    "url": "https://github.com/mizchi/sprawlens/issues"
+  },
+  "keywords": [
+    "code-visualization",
+    "treemap",
+    "voronoi",
+    "lsp",
+    "typescript",
+    "rust",
+    "go",
+    "moonbit"
+  ],
+  "type": "module",
+  "bin": {
+    "sprawlens": "./bin.js"
+  },
+  "files": [
+    "bin.js"
+  ],
+  "publishConfig": {
+    "access": "public"
+  },
+  "dependencies": {
+    "@sprawlens/cli": "workspace:*"
+  }
+}
