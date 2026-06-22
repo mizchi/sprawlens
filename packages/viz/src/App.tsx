@@ -90,7 +90,6 @@ import type { AtlasEdge } from "@sprawlens/schema";
 import { TracePlayer } from "./TracePlayer.tsx";
 import { TestLogPanel } from "./TestLogPanel.tsx";
 import { TestReporterPanel } from "./TestReporterPanel.tsx";
-import { HistoryTimeline } from "./HistoryTimeline.tsx";
 import { CommitLog } from "./CommitLog.tsx";
 import { useCommandBridge } from "./useCommandBridge.ts";
 import { buildVizCommands } from "./vizCommands.ts";
@@ -461,11 +460,6 @@ export function App() {
   const [timeline, setTimeline] = useState<TraceTimeline | null>(null);
   const [timelineCursor, setTimelineCursor] = useState(0);
   const [timelinePlaying, setTimelinePlaying] = useState(false);
-  // commit-log layout: a vertical Git-client list (right) or the horizontal
-  // timeline (bottom). Toggleable so both can be compared.
-  const [historyOrientation, setHistoryOrientation] = useState<"vertical" | "horizontal">(
-    "vertical",
-  );
   // experimental features (trace player, commit-log, test reporter) are off
   // unless the server was started with --experimental or the URL opts in.
   const [configExperimental, setConfigExperimental] = useState(false);
@@ -2594,80 +2588,13 @@ export function App() {
         ) : null}
         {params.source === "sprawlens-history" && commitsRef.current ? (
           experimentalOn ? (
-          <>
-            {/* toggle the commit-log layout (vertical list ⇄ horizontal bar) */}
-            <button
-              onClick={() =>
-                setHistoryOrientation((o) => (o === "vertical" ? "horizontal" : "vertical"))
-              }
-              title="toggle commit-log layout"
-              style={{
-                position: "absolute",
-                top: 12,
-                right: historyOrientation === "vertical" ? 340 : 12,
-                zIndex: 31,
-                cursor: "pointer",
-                padding: "3px 8px",
-                borderRadius: 6,
-                border: "none",
-                background: "rgba(15,23,42,0.86)",
-                color: "#e2e8f0",
-                fontSize: 11,
-              }}
-            >
-              {historyOrientation === "vertical" ? "⇄ horizontal" : "⇄ vertical"}
-            </button>
-            {historyOrientation === "vertical" ? (
-              <CommitLog
-                commits={commitsRef.current}
-                index={commitIndexRef.current}
-                range={commitRangeRef.current}
-                onSelect={selectCommit}
-                onRangeSelect={selectCommitRange}
-              />
-            ) : (
-              <div
-                style={{
-                  position: "absolute",
-                  left: "8px",
-                  bottom: "8px",
-                  right: "270px",
-                  display: "flex",
-                  alignItems: "center",
-                  gap: "8px",
-                  padding: "6px 10px",
-                  background: PANEL_BG,
-                  border: `1px solid ${PANEL_BORDER}`,
-                  borderRadius: "6px",
-                  fontSize: "12px",
-                }}
-              >
-                <button
-                  onClick={() => selectCommit(commitIndexRef.current - 1)}
-                  style={{ cursor: "pointer", padding: "2px 8px" }}
-                >
-                  ◀
-                </button>
-                <HistoryTimeline
-                  commits={commitsRef.current}
-                  index={commitIndexRef.current}
-                  range={commitRangeRef.current}
-                  onSelect={selectCommit}
-                  onRangeSelect={selectCommitRange}
-                />
-                <button
-                  onClick={() => selectCommit(commitIndexRef.current + 1)}
-                  style={{ cursor: "pointer", padding: "2px 8px" }}
-                >
-                  ▶
-                </button>
-                <span style={{ color: MUTED_INK, whiteSpace: "nowrap" }}>
-                  +{lastDiffRef.current.added} ~{lastDiffRef.current.modified} −
-                  {lastDiffRef.current.removed}
-                </span>
-              </div>
-            )}
-          </>
+            <CommitLog
+              commits={commitsRef.current}
+              index={commitIndexRef.current}
+              range={commitRangeRef.current}
+              onSelect={selectCommit}
+              onRangeSelect={selectCommitRange}
+            />
           ) : (
             // stable (non-experimental) history navigation: a plain slider
             <div
