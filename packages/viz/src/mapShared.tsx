@@ -915,6 +915,9 @@ export function PlaneLayerView(props: {
   })();
   return (
     <>
+      <style>
+        {"@keyframes sprawlens-fail-pulse{0%,100%{stroke-opacity:1;fill-opacity:.6}50%{stroke-opacity:.35;fill-opacity:.32}}.sprawlens-fail{animation:sprawlens-fail-pulse 1.5s ease-in-out infinite}"}
+      </style>
       {/* plane frames */}
       <g fill="none" stroke={PLANE_OUTLINE} style={{ pointerEvents: "none" }}>
         {props.withSourceFrame ? (
@@ -1019,6 +1022,9 @@ export function PlaneLayerView(props: {
           const tint = props.tintOf?.(d.id);
           // test reporter status (pass/fail/skip), shown when no edge tint wins
           const statusFill = tint ? undefined : props.statusFillOf?.(d.id);
+          // a failing test reads louder than the rest: stronger fill/stroke + a
+          // gentle pulse, so the red cells jump out of a green plane
+          const failed = statusFill === TEST_STATUS_FILL.fail;
           // referenced by another plane's edges: brighten the fill so the nodes
           // actually in play surface — yields to the live tint while exploring
           const linked =
@@ -1049,12 +1055,13 @@ export function PlaneLayerView(props: {
           return d.polygon ? (
             <polygon
               key={d.id}
+              class={failed ? "sprawlens-fail" : undefined}
               points={d.polygon.map((p) => `${p.x},${p.y}`).join(" ")}
               fill={fill}
-              fill-opacity={tint ? 0.34 : statusFill ? 0.4 : active ? 0.22 : linked ? 0.18 : 0.08}
+              fill-opacity={tint ? 0.34 : failed ? 0.6 : statusFill ? 0.4 : active ? 0.22 : linked ? 0.18 : 0.08}
               stroke={tint ?? (active ? SELECT_STROKE : statusFill ?? color)}
-              stroke-opacity={tint ? 0.85 : statusFill ? 0.85 : active ? 0.9 : linked ? 0.75 : 0.5}
-              stroke-width={active || tint ? 1.6 : 1}
+              stroke-opacity={failed ? 0.95 : tint ? 0.85 : statusFill ? 0.85 : active ? 0.9 : linked ? 0.75 : 0.5}
+              stroke-width={failed ? 2.6 : active || tint ? 1.6 : 1}
               opacity={dim}
               style={{ cursor: "pointer" }}
               onMouseEnter={onEnter}
@@ -1065,14 +1072,15 @@ export function PlaneLayerView(props: {
           ) : d.r !== undefined ? (
             <circle
               key={d.id}
+              class={failed ? "sprawlens-fail" : undefined}
               cx={d.site.x}
               cy={d.site.y}
               r={d.r}
               fill={fill}
-              fill-opacity={tint ? 0.34 : statusFill ? 0.4 : active ? 0.28 : linked ? 0.24 : 0.12}
+              fill-opacity={tint ? 0.34 : failed ? 0.6 : statusFill ? 0.4 : active ? 0.28 : linked ? 0.24 : 0.12}
               stroke={tint ?? (active ? SELECT_STROKE : statusFill ?? color)}
-              stroke-opacity={tint ? 0.85 : statusFill ? 0.85 : active ? 0.9 : linked ? 0.8 : 0.6}
-              stroke-width={active || tint ? 1.6 : 1}
+              stroke-opacity={failed ? 0.95 : tint ? 0.85 : statusFill ? 0.85 : active ? 0.9 : linked ? 0.8 : 0.6}
+              stroke-width={failed ? 2.6 : active || tint ? 1.6 : 1}
               opacity={dim}
               style={{ cursor: "pointer" }}
               onMouseEnter={onEnter}
