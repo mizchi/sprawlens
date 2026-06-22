@@ -15,8 +15,9 @@ dotenvxConfig({ quiet: true, ignore: ["MISSING_ENV_FILE"] });
 //   pnpm test:render:vlm              # judge the renders
 //   pnpm test:render:vlm -g treemap   # one case (no `--`: pnpm forwards a bare
 //                                      # `--` literally and playwright rejects it)
-// Override the judge with VLM_MODEL (the default ui-tars only smoke-tests the
-// round-trip; a real judge such as qwen/qwen2.5-vl-72b-instruct discriminates).
+// The default judge is google/gemini-2.5-flash (robust on shape, colour and
+// counts); override with VLM_MODEL for a cheaper shape-only run (ui-tars) or a
+// non-Google option (qwen/qwen3-vl-30b-a3b-instruct).
 const baseURL = process.env.RENDER_BASE_URL ?? "http://127.0.0.1:5179";
 
 export default defineConfig({

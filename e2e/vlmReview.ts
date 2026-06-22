@@ -10,7 +10,12 @@
  */
 
 const ENDPOINT = "https://openrouter.ai/api/v1/chat/completions";
-const DEFAULT_MODEL = "bytedance/ui-tars-1.5-7b";
+// Default judge: gemini-2.5-flash discriminates shape, colour AND exact counts
+// (15/15 on probes, both real renders pass), is first-party Google (no 429
+// like qwen2.5-vl-72b's single Parasail route), fast and cheap. Override with
+// VLM_MODEL — e.g. bytedance/ui-tars-1.5-7b is fine for pure layout-shape
+// checks (it nails rectangles-vs-rings) but cannot judge colour or exact count.
+const DEFAULT_MODEL = "google/gemini-2.5-flash";
 
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
