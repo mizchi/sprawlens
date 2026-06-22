@@ -248,6 +248,16 @@ program
         console.log(`sprawlens: ${url}`);
         if (options.open) openBrowser(url);
       });
+      // Graceful shutdown: drop the open SSE streams so close() can complete,
+      // then exit cleanly (which also flushes a `node --cpu-prof` profile — the
+      // trace-capture harness relies on this).
+      const shutdown = () => {
+        server.closeAllConnections();
+        server.close(() => process.exit(0));
+        setTimeout(() => process.exit(0), 500).unref();
+      };
+      process.once("SIGTERM", shutdown);
+      process.once("SIGINT", shutdown);
     },
   );
 

@@ -12,3 +12,7 @@ perf-results/
 # the encrypted .env). dotenvx run -- decrypts via .env.keys at runtime.
 .env
 .env.keys
+
+# captured self-trace artifacts (machine-specific timings/paths; regenerate
+# with the capture script)
+e2e/__trace__/
