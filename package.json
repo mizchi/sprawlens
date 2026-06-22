@@ -16,7 +16,8 @@
     "cli": "pnpm --filter @sprawlens/cli dev",
     "test:render": "playwright test -c playwright.render.config.ts",
     "test:render:update": "UPDATE_SVG=1 playwright test -c playwright.render.config.ts",
-    "test:render:vlm": "playwright test -c playwright.vlm.config.ts"
+    "test:render:vlm": "playwright test -c playwright.vlm.config.ts",
+    "trace:self": "tsx e2e/captureSelfTrace.mts"
   },
   "dependencies": {
     "preact": "^10.29.2",
