@@ -90,6 +90,7 @@ import type { AtlasEdge } from "@sprawlens/schema";
 import { TracePlayer } from "./TracePlayer.tsx";
 import { TestLogPanel } from "./TestLogPanel.tsx";
 import { TestReporterPanel } from "./TestReporterPanel.tsx";
+import { HistoryTimeline } from "./HistoryTimeline.tsx";
 import {
   projectTimelineCursor,
   stepClockUs,
@@ -536,6 +537,10 @@ export function App() {
   const commitsRef = useRef<HistoryEntry[] | null>(null);
   const historyIndexRef = useRef<HistoryIndex | null>(null);
   const commitIndexRef = useRef(-1);
+  /** Inclusive commit-range selection [a,b] (shift-click on the timeline); the
+   * end b is displayed and every node changed across the range is highlighted.
+   * Null for a single-commit view. */
+  const commitRangeRef = useRef<[number, number] | null>(null);
   const changedFilesRef = useRef(new Map<string, "added" | "modified">());
   /** Per-symbol diff for the displayed history commit (empty otherwise). */
   const changedSymbolsRef = useRef(new Map<string, "added" | "modified">());
@@ -945,6 +950,33 @@ export function App() {
     };
   };
 
+  /** Union every commit's diff across an inclusive range [a,b] so the map
+   * highlights everything that changed anywhere in the selected span (not just
+   * the last commit). The end commit b's snapshot is what's displayed. */
+  const applyRangeDiff = (a: number, b: number) => {
+    const lo = Math.max(0, Math.min(a, b));
+    const hi = Math.max(a, b);
+    const files = new Map<string, "added" | "modified">();
+    const symbols = new Map<string, "added" | "modified">();
+    let added = 0;
+    let modified = 0;
+    let removed = 0;
+    for (let i = lo; i <= hi; i++) {
+      const diff = historyIndexRef.current?.diffs[i];
+      if (!diff) continue;
+      for (const [id, kind] of diff.changed) files.set(id, kind);
+      const before = commitsRef.current?.[i - 1]?.snapshot;
+      const after = commitsRef.current?.[i]?.snapshot;
+      if (before && after)
+        for (const [id, kind] of changedSymbolsBetween(before, after)) symbols.set(id, kind);
+      removed += diff.removed.length;
+    }
+    for (const kind of files.values()) kind === "added" ? added++ : modified++;
+    changedFilesRef.current = files;
+    changedSymbolsRef.current = symbols;
+    lastDiffRef.current = { added, modified, removed };
+  };
+
   const rebuild = (p: PlaygroundParams) => {
     let graph: AtlasGraph;
     // only the history source carries a per-symbol diff; clear it for the rest
@@ -980,14 +1012,19 @@ export function App() {
           commitIndexRef.current < history.length
             ? commitIndexRef.current
             : history.length - 1;
-        commitIndexRef.current = index;
-        const snapshot = history[index]!.snapshot;
+        const range = commitRangeRef.current;
+        // a range selection displays its end commit and highlights the union of
+        // changes across the span; a single selection shows just that commit
+        const shown = range ? Math.max(range[0], range[1]) : index;
+        commitIndexRef.current = shown;
+        const snapshot = history[shown]!.snapshot;
         graph = snapshotToAtlasGraph(snapshot);
         symbolsRef.current = snapshotSymbols(snapshot);
         symbolEdgesRef.current = snapshotSymbolEdges(snapshot);
         externalDepsRef.current = snapshotExternalDeps(snapshot);
         testTreeRef.current = snapshotTestTree(snapshot);
-        applyCommitDiff(index);
+        if (range) applyRangeDiff(range[0], range[1]);
+        else applyCommitDiff(shown);
       }
     } else if (p.source === "playwright") {
       const snapshot = playwrightSnapRef.current;
@@ -1307,6 +1344,33 @@ export function App() {
     // changed symbols actually surface (a warm reflow leaves new leaves
     // folded, hiding the diff at symbol granularity)
     commitIndexRef.current = index;
+    rebuild(paramsRef.current);
+    setFrame((f) => f + 1);
+  };
+
+  /** Timeline click: show a single commit, dropping any range selection. */
+  const selectCommit = (index: number) => {
+    const hadRange = commitRangeRef.current !== null;
+    commitRangeRef.current = null;
+    if (index === commitIndexRef.current) {
+      if (hadRange) {
+        rebuild(paramsRef.current);
+        setFrame((f) => f + 1);
+      }
+      return;
+    }
+    goToCommit(index);
+  };
+
+  /** Timeline shift-click: select the inclusive range from `anchor` to `index`,
+   * display its end commit, and highlight every node changed across the span. */
+  const selectCommitRange = (anchor: number, index: number) => {
+    const history = commitsRef.current;
+    if (!history) return;
+    const lo = Math.max(0, Math.min(anchor, index));
+    const hi = Math.min(history.length - 1, Math.max(anchor, index));
+    commitRangeRef.current = [lo, hi];
+    commitIndexRef.current = hi;
     rebuild(paramsRef.current);
     setFrame((f) => f + 1);
   };
@@ -2502,42 +2566,24 @@ export function App() {
             }}
           >
             <button
-              onClick={() => goToCommit(commitIndexRef.current - 1)}
+              onClick={() => selectCommit(commitIndexRef.current - 1)}
               style={{ cursor: "pointer", padding: "2px 8px" }}
             >
               ◀
             </button>
-            <input
-              type="range"
-              min={0}
-              max={commitsRef.current.length - 1}
-              value={commitIndexRef.current}
-              onInput={(e) =>
-                goToCommit(Number((e.target as HTMLInputElement).value))
-              }
-              style={{ flex: "1", minWidth: "80px" }}
+            <HistoryTimeline
+              commits={commitsRef.current}
+              index={commitIndexRef.current}
+              range={commitRangeRef.current}
+              onSelect={selectCommit}
+              onRangeSelect={selectCommitRange}
             />
             <button
-              onClick={() => goToCommit(commitIndexRef.current + 1)}
+              onClick={() => selectCommit(commitIndexRef.current + 1)}
               style={{ cursor: "pointer", padding: "2px 8px" }}
             >
               ▶
             </button>
-            <span
-              style={{
-                whiteSpace: "nowrap",
-                overflow: "hidden",
-                textOverflow: "ellipsis",
-                maxWidth: "300px",
-              }}
-            >
-              <b>
-                {commitsRef.current[commitIndexRef.current]?.shortHash}
-              </b>{" "}
-              {commitsRef.current[commitIndexRef.current]?.message.split(
-                "\n",
-              )[0] ?? ""}
-            </span>
             <span style={{ color: MUTED_INK, whiteSpace: "nowrap" }}>
               +{lastDiffRef.current.added} ~{lastDiffRef.current.modified} −
               {lastDiffRef.current.removed}
