@@ -17,3 +17,6 @@ perf-results/
 # with the capture script)
 e2e/__trace__/
 packages/viz/public-atlas/self-timeline.json
+
+# generated atlas preview images (CI artifact)
+preview/
