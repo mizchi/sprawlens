@@ -88,6 +88,7 @@ import {
 } from "./synthetic.ts";
 import type { AtlasEdge } from "@sprawlens/schema";
 import { TracePlayer } from "./TracePlayer.tsx";
+import { TestLogPanel } from "./TestLogPanel.tsx";
 import {
   projectTimelineCursor,
   stepClockUs,
@@ -2121,6 +2122,11 @@ export function App() {
     activeId !== null && testFileIds.has(activeId)
       ? (graphRef.current.nodes.find((n) => n.id === activeId) ?? null)
       : null;
+  // the full ingested/run result for the selected test — drives the log panel
+  const selectedTestResult =
+    selectedTest && testRun
+      ? (testRun.results.find((r) => r.testId === selectedTest.id) ?? null)
+      : null;
   const selectedPort =
     activeId !== null && granularity === "symbol"
       ? (portNodesRef.current.find((p) => p.id === activeId) ?? null)
@@ -2711,6 +2717,7 @@ export function App() {
                 covers: {labelOf(testTargets.get(selectedTest.id)!)}
               </button>
             ) : null}
+            {selectedTestResult ? <TestLogPanel result={selectedTestResult} /> : null}
             {params.source === "sprawlens-history" &&
             activeId &&
             historyIndexRef.current?.nodeHistory.has(activeId) ? (

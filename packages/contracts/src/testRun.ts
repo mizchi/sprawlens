@@ -20,6 +20,10 @@ export type TestCaseResult = {
   durationMs?: number;
   /** Failure message / assertion diff (fail only). */
   message?: string;
+  /** Captured stdout/stderr of the run (click-to-run pipes the process output),
+   * shown in the selection log panel. Absent for batch-ingested reports whose
+   * runner didn't capture console output. */
+  output?: string;
   /** Source symbols this case exercised — the edges to code. Resolved
    * server-side from a per-test trace; absent when none was captured. */
   covers?: TraceSymbolRef[];

@@ -686,8 +686,20 @@ function makeTestCaseRunner(
       "--outputFile",
       out,
     ];
+    // capture the runner's console output so the viz can show it in the test
+    // log panel; the JSON report still lands in `out`.
+    let captured = "";
     const code = await new Promise<number>((res) => {
-      const child = spawn(argv[0]!, args, { cwd: root, stdio: "ignore" });
+      const child = spawn(argv[0]!, args, {
+        cwd: root,
+        stdio: ["ignore", "pipe", "pipe"],
+      });
+      const collect = (chunk: Buffer) => {
+        captured += chunk.toString();
+        if (captured.length > 64_000) captured = captured.slice(-64_000); // cap
+      };
+      child.stdout?.on("data", collect);
+      child.stderr?.on("data", collect);
       child.on("error", () => res(-1));
       child.on("close", (c) => res(c ?? -1));
     });
@@ -701,9 +713,9 @@ function makeTestCaseRunner(
         tree,
         snapshot,
       );
-      return (
-        run.results.find((r) => r.testId === testId) ?? run.results[0] ?? null
-      );
+      const result =
+        run.results.find((r) => r.testId === testId) ?? run.results[0] ?? null;
+      return result ? { ...result, output: captured.trim() || undefined } : null;
     } catch (error) {
       console.error(`failed to read test run for ${testId}:`, error);
       return null;
