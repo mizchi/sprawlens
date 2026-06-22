@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 import { Command } from "commander";
 import { spawn } from "node:child_process";
-import { existsSync, readFileSync, realpathSync, rmSync } from "node:fs";
+import { existsSync, mkdtempSync, readFileSync, realpathSync, rmSync } from "node:fs";
 import { createRequire } from "node:module";
 import { tmpdir } from "node:os";
 import { basename, dirname, join, resolve } from "node:path";
@@ -11,6 +11,7 @@ import {
   analyzeRepository,
   collectRepository,
   createLspDetail,
+  parseVitestCoverage,
   tsCpuProfileAdapter,
   tsV8CoverageAdapter,
   vitestReportAdapter,
@@ -27,6 +28,7 @@ import type {
 } from "@sprawlens/schema";
 import {
   applyLayers,
+  buildSymbolResolver,
   computeGraphMetrics,
   layerManifest,
   matchResourceFiles,
@@ -673,6 +675,8 @@ function makeTestCaseRunner(
 ): (testId: string) => Promise<TestCaseResult | null> {
   const argv = command.trim().split(/\s+/);
   const tree = snapshot.tests ?? EMPTY_TEST_TREE;
+  const realRoot = realpathSync(root);
+  const resolveRef = buildSymbolResolver(snapshot);
   let seq = 0; // unique per run so concurrent case-runs don't share a temp file
   return async (testId) => {
     const parsed = parseTestId(testId);
@@ -680,6 +684,9 @@ function makeTestCaseRunner(
     const { file, title } = parsed;
     if (file.includes("..") || file.startsWith("/")) return null;
     const out = join(tmpdir(), `sprawlens-case-${process.pid}-${seq++}.json`);
+    // v8 coverage (sourcemapped to real paths) tells us which functions the case
+    // exercised → its `covers`, which the map highlights.
+    const covDir = mkdtempSync(join(tmpdir(), "sprawlens-cov-"));
     const args = [
       ...argv.slice(1),
       file,
@@ -688,6 +695,11 @@ function makeTestCaseRunner(
       "--reporter=json",
       "--outputFile",
       out,
+      "--coverage",
+      "--coverage.provider=v8",
+      "--coverage.reporter=json",
+      `--coverage.reportsDirectory=${covDir}`,
+      "--coverage.all=false",
     ];
     // capture the runner's console output so the viz can show it in the test
     // log panel; the JSON report still lands in `out`.
@@ -708,22 +720,36 @@ function makeTestCaseRunner(
     });
     // a failing test still writes the report (exit 1); only a spawn error (-1)
     // or a missing file means we got nothing back.
-    if (code === -1 || !existsSync(out)) return null;
+    if (code === -1 || !existsSync(out)) {
+      rmSync(covDir, { recursive: true, force: true });
+      return null;
+    }
     try {
       const report = JSON.parse(readFileSync(out, "utf8"));
       const run = resolveTestRun(
-        vitestReportAdapter.parse(report, realpathSync(root)),
+        vitestReportAdapter.parse(report, realRoot),
         tree,
         snapshot,
       );
       const result =
         run.results.find((r) => r.testId === testId) ?? run.results[0] ?? null;
-      return result ? { ...result, output: captured.trim() || undefined } : null;
+      if (!result) return null;
+      // resolve the executed functions to symbol ids → the case's `covers`
+      let covers = result.covers;
+      const covFile = join(covDir, "coverage-final.json");
+      if (existsSync(covFile)) {
+        const refs = parseVitestCoverage(JSON.parse(readFileSync(covFile, "utf8")), realRoot)
+          .map((ref) => ({ ...ref, symbolId: resolveRef(ref.file, ref.name, ref.line) }))
+          .filter((ref) => ref.symbolId);
+        if (refs.length) covers = refs;
+      }
+      return { ...result, output: captured.trim() || undefined, covers };
     } catch (error) {
       console.error(`failed to read test run for ${testId}:`, error);
       return null;
     } finally {
       rmSync(out, { force: true });
+      rmSync(covDir, { recursive: true, force: true });
     }
   };
 }
