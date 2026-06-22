@@ -704,11 +704,15 @@ export function TreemapSvg(props: Props) {
             const roomy =
               zoom >= SYMBOL_ZOOM &&
               onScreen >= (isMember ? MEMBER_TAG_MIN_PX : SYMBOL_ICON_MIN_PX) * labelFactor;
+            const fontSize = labelFont(Math.sqrt(cell.actualArea) * 0.3, 13, zoom);
+            // only auto-show a label that fits its cell on screen, so dense areas
+            // don't fill with overlapping names (explicit selections always show)
+            const labelPx = name.length * fontSize * zoom * 0.5;
+            const fits = onScreen * 1.25 >= labelPx;
             const passes = isMember
               ? roomy || isSelected(cell.id)
-              : fileSelected || dominant || roomy || isSelected(cell.id);
+              : isSelected(cell.id) || fileSelected || ((dominant || roomy) && fits);
             if (!passes) return null;
-            const fontSize = labelFont(Math.sqrt(cell.actualArea) * 0.3, 13, zoom);
             return (
               <SymbolTag
                 key={cell.id}
