@@ -164,3 +164,55 @@ already the debugger's call stack.
    cursor-driven player (scrub + play, two planes, comet trail). Dogfoods on
    sprawlens itself.
 2. **Phase 2**: live CDP `Debugger` driving the same player; step/continue.
+
+---
+
+## Revision (v2): dynamic capture tied to test runs
+
+Feedback after Phase 1: replaying one baked recording is not useful. The value
+is in **fresh** traces tied to activity, with the **recent ones reviewable**.
+Decisions: trigger from **both** an in-app test run and an external watcher;
+**play after the run completes** (not live-streamed); pick from the **recent N**
+captures. The Phase 1 player (projection + playback + scrubber) is reused
+unchanged — only the *source* of timelines changes from a baked fixture to a
+live store.
+
+### Server: a recent-traces store
+
+`@sprawlens/server` keeps an in-memory ring buffer of the last N (≈10)
+`TraceTimeline`s, each with `{ id, label, capturedAt, stepCount, planes }`.
+
+- `GET /api/traces` → the list (metadata only).
+- `GET /api/traces/:id` → one full timeline.
+- `GET /api/traces/stream` (SSE) → ping on each new capture, so the viz refreshes
+  the list and can auto-select the newest.
+
+### Capture sources (both feed the store)
+
+1. **External watch** — watch a drop dir (default `.sprawlens/traces/`, configurable
+   via `--trace-watch <dir>`). A test command configured to emit a `.cpuprofile`
+   there (e.g. `vitest` under `node --cpu-prof`, or a per-test profile) lands a
+   file; the server builds a timeline against the current snapshot and pushes it
+   to the store, labelled by filename. Decoupled and editor-agnostic.
+2. **In-app click-to-run** — extend the existing `runTestCase` (#22): run the
+   chosen case under `--cpu-prof`, build a timeline for that run, push to the
+   store, and return its id alongside the test result so the viz auto-selects it.
+
+Both reuse `buildTraceTimeline` + the snapshot resolver; server-only (a future
+browser plane can be merged when a captured run drives a page).
+
+### Viz: recent picker + auto-follow
+
+- Fetch `/api/traces` for the recent list; subscribe to `/api/traces/stream`.
+- A small picker (recent N, newest first, labelled) selects one → fetch its
+  timeline → load into the existing player.
+- On a new capture, refresh the list; auto-select+play the newest unless the user
+  pinned an older one.
+- The baked `/self-timeline.json` fixture stays as a zero-setup demo fallback.
+
+### Phasing (revised)
+
+- **v2a**: server trace store + endpoints + external-watch source; viz recent
+  picker + SSE follow. (Delivers "dynamic + recent" with any test runner.)
+- **v2b**: click-to-run capture integration (#22) for in-app triggering.
+- **Phase 2** (unchanged): live CDP debugger driving the player.
