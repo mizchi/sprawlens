@@ -79,8 +79,13 @@ console.log(
 );
 
 const timeline = server; // browser plane merged in by the Playwright harness
-writeFileSync(join(outDir, "self-timeline.json"), JSON.stringify(timeline));
-console.log(`[capture] wrote ${join(outDir, "self-timeline.json")}`);
+const json = JSON.stringify(timeline);
+writeFileSync(join(outDir, "self-timeline.json"), json);
+// also drop it where the viz dev server (vite publicDir) serves it at
+// /self-timeline.json, so `pnpm dev:viz` shows the player immediately
+const vizPublic = join(repoRoot, "packages/viz/public-atlas/self-timeline.json");
+writeFileSync(vizPublic, json);
+console.log(`[capture] wrote ${join(outDir, "self-timeline.json")} and ${vizPublic}`);
 
 // surface a few resolved symbols so we can eyeball that the entry path is real
 const sample = server.steps.filter((s) => s.symbolId).slice(0, 8).map((s) => s.symbolId);

@@ -16,3 +16,4 @@ perf-results/
 # captured self-trace artifacts (machine-specific timings/paths; regenerate
 # with the capture script)
 e2e/__trace__/
+packages/viz/public-atlas/self-timeline.json

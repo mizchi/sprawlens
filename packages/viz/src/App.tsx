@@ -64,6 +64,7 @@ import {
   type TestStatus,
   type TestTree,
   type Trace,
+  type TraceTimeline,
 } from "@sprawlens/schema";
 import { apply, layerTransform } from "@sprawlens/layout";
 import { sprawlensSnapshot } from "./fixtures/sprawlens.ts";
@@ -86,6 +87,12 @@ import {
   synthesizeSymbols,
 } from "./synthetic.ts";
 import type { AtlasEdge } from "@sprawlens/schema";
+import { TracePlayer } from "./TracePlayer.tsx";
+import {
+  projectTimelineCursor,
+  stepClockUs,
+  timelineDurationUs,
+} from "./tracePlayer.ts";
 import {
   classGrouping,
   deriveModuleIdOf,
@@ -441,6 +448,12 @@ export function App() {
   // a runtime trace ingested by the CLI (--trace); drives the execution-path
   // overlay. Null in dev/demo and when no trace was passed.
   const [trace, setTrace] = useState<Trace | null>(null);
+  // an ordered execution timeline (captureSelfTrace.mts); drives the trace
+  // player. Null until a timeline is loaded. The cursor is the current step;
+  // playing advances it by wall-clock. Ephemeral (not URL-synced).
+  const [timeline, setTimeline] = useState<TraceTimeline | null>(null);
+  const [timelineCursor, setTimelineCursor] = useState(0);
+  const [timelinePlaying, setTimelinePlaying] = useState(false);
   // a test run ingested by the CLI (--test-report); tints the test plane cells
   // pass/fail/skip. Null in dev/demo and when no report was passed.
   const [testRun, setTestRun] = useState<TestRun | null>(null);
@@ -491,6 +504,18 @@ export function App() {
       .then((json: Trace | null) => {
         if (cancelled || !json) return;
         setTrace(json);
+      })
+      .catch(() => {});
+    // an ordered execution timeline for the trace player. In dev it is the
+    // captured fixture served from public-atlas; under `sprawlens serve` it can
+    // come from /api/trace-timeline. Null when neither is present.
+    Promise.any([
+      fetch("/self-timeline.json").then((r) => (r.ok ? r.json() : Promise.reject())),
+      fetch("/api/trace-timeline").then((r) => (r.ok ? r.json() : Promise.reject())),
+    ])
+      .then((json: TraceTimeline) => {
+        if (cancelled || !json?.steps?.length) return;
+        setTimeline(json);
       })
       .catch(() => {});
     // a test run (--test-report) for the reporter overlay; null when none
@@ -2131,8 +2156,11 @@ export function App() {
   const innerCells = showsSymbolLevels(params.displayLevels)
     ? allInnerCells
     : [];
-  // project the ingested trace onto symbol-keyed edges + heat for the overlay
+  // project the trace onto symbol-keyed edges + heat for the overlay. A loaded
+  // timeline drives a moving comet at the playback cursor; otherwise an ingested
+  // static trace lights its whole call path at once.
   const { traceEdges, traceHeat } = useMemo(() => {
+    if (timeline) return projectTimelineCursor(timeline, timelineCursor);
     if (!trace) return { traceEdges: [] as AtlasEdge[], traceHeat: new Map<string, number>() };
     const overlay = traceOverlay(trace);
     const edges: AtlasEdge[] = overlay.edges.map((e) => ({
@@ -2143,7 +2171,32 @@ export function App() {
     for (const [id, weight] of Object.entries(overlay.nodeWeight))
       heat.set(id, overlay.maxNodeWeight > 0 ? weight / overlay.maxNodeWeight : 0);
     return { traceEdges: edges, traceHeat: heat };
-  }, [trace]);
+  }, [trace, timeline, timelineCursor]);
+  // playback: advance the cursor by captured wall-clock so the whole trace plays
+  // in ~12s regardless of how long the real run took. Restarts from 0 if resumed
+  // at the end. Driven by rAF; re-armed only when the timeline or play state flips.
+  useEffect(() => {
+    if (!timeline || !timelinePlaying) return;
+    const dur = timelineDurationUs(timeline);
+    const rate = dur / 12; // captured µs per real second
+    let cursor = timelineCursor >= timeline.steps.length - 1 ? 0 : timelineCursor;
+    let posUs = stepClockUs(timeline, cursor);
+    let last = performance.now();
+    let raf = requestAnimationFrame(function tick(now) {
+      posUs += ((now - last) / 1000) * rate;
+      last = now;
+      while (cursor + 1 < timeline.steps.length && stepClockUs(timeline, cursor + 1) <= posUs)
+        cursor++;
+      setTimelineCursor(cursor);
+      if (cursor >= timeline.steps.length - 1) {
+        setTimelinePlaying(false);
+        return;
+      }
+      raf = requestAnimationFrame(tick);
+    });
+    return () => cancelAnimationFrame(raf);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [timeline, timelinePlaying]);
   // project the ingested test run onto test-case-id-keyed status + duration maps
   const { testStatus, testDuration } = useMemo(() => {
     if (!testRun)
@@ -2502,6 +2555,18 @@ export function App() {
           />
         </LayersMenu>
         <CameraPanel params={params} onChange={onControlsChange} />
+        {timeline ? (
+          <TracePlayer
+            timeline={timeline}
+            cursor={timelineCursor}
+            playing={timelinePlaying}
+            onCursor={(c) => {
+              setTimelinePlaying(false);
+              setTimelineCursor(c);
+            }}
+            onTogglePlay={() => setTimelinePlaying((p) => !p)}
+          />
+        ) : null}
       </div>
       {/* detail / history overlay: floats over the right of the full-screen
           map, only when there is a selection or recent change to show */}
