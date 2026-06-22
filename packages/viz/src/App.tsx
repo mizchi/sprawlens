@@ -2718,9 +2718,9 @@ export function App() {
           title="toggle experimental features"
           style={{
             position: "absolute",
-            left: 12,
-            top: 12,
-            zIndex: 32,
+            left: 8,
+            top: 44,
+            zIndex: 3,
             cursor: "pointer",
             padding: "2px 8px",
             borderRadius: 6,

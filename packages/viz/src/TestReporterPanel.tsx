@@ -38,7 +38,7 @@ export function TestReporterPanel({ results, activeId, onSelect }: Props) {
     <div
       style={{
         position: "absolute",
-        top: 44,
+        top: 76,
         left: 12,
         width: 240,
         maxHeight: "60vh",
