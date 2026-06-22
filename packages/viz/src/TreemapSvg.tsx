@@ -722,6 +722,7 @@ export function TreemapSvg(props: Props) {
                 glyph={glyph}
                 static={isStaticKind(kind)}
                 fontSize={fontSize}
+                showIcon={fontSize * zoom * 1.1 >= 9}
                 color={
                   glyph
                     ? SYMBOL_KIND_COLORS[glyph]!

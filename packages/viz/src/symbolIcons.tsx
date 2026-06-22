@@ -87,14 +87,18 @@ export function SymbolTag(props: {
   color: string;
   opacity?: number;
   static?: boolean;
+  /** Draw the kind icon. Callers drop it when it would be too small on screen
+   * to read (tiny icons are just noise); the label still shows. Default true. */
+  showIcon?: boolean;
   /** Active plane tilt; the tag is pinned to the plane but kept upright. */
   tilt?: Affine;
 }) {
   const { cx, cy, name, glyph, fontSize, color, opacity } = props;
+  const drawIcon = !!glyph && (props.showIcon ?? true);
   const iconSize = fontSize * 1.1;
   const gap = fontSize * 0.28;
   const textW = name.length * fontSize * 0.55; // rough proportional-font width
-  const total = (glyph ? iconSize + gap : 0) + textW;
+  const total = (drawIcon ? iconSize + gap : 0) + textW;
   // laid out around a local origin so the wrapper's uprightAt transform both
   // places it on the (cx,cy) plane point and cancels the tilt's rotate/squash
   const left = -total / 2;
@@ -104,9 +108,9 @@ export function SymbolTag(props: {
       transform={uprightAt(props.tilt, { x: cx, y: cy })}
       style={{ pointerEvents: "none" }}
     >
-      {glyph ? (
+      {drawIcon ? (
         <SymbolIcon
-          glyph={glyph}
+          glyph={glyph!}
           cx={left + iconSize / 2}
           cy={0}
           size={iconSize}
@@ -115,7 +119,7 @@ export function SymbolTag(props: {
         />
       ) : null}
       <text
-        x={glyph ? left + iconSize + gap : left}
+        x={drawIcon ? left + iconSize + gap : left}
         y={fontSize * 0.34}
         font-size={fontSize}
         text-anchor="start"
