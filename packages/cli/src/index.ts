@@ -55,6 +55,7 @@ import { createAtlasServer, watchDir, workingDiff } from "@sprawlens/server";
 import { readSprawlensConfig } from "./config.js";
 import { renderTui, type ChangeKind } from "./tui.js";
 import { runTuiApp } from "./tuiApp.js";
+import { type DiffOverlay, toDiffOverlay } from "./diffRender.js";
 
 // read our own version so `--version` always matches the published package
 // (../package.json relative to both src/index.ts in dev and dist/index.js when built)
@@ -368,6 +369,10 @@ program
   .option("--seed <n>", "layout seed", parsePositiveInteger, 1)
   .option("--edges", "draw the dependency mesh")
   .option("--dark", "use the dark palette")
+  .option(
+    "--diff [base]",
+    "highlight files changed vs <base> ref, or uncommitted changes if no base",
+  )
   .option("--width <n>", "canvas width override", parsePositiveInteger)
   .option("--height <n>", "canvas height override", parsePositiveInteger)
   .option(
@@ -384,6 +389,7 @@ program
         seed: number;
         edges?: boolean;
         dark?: boolean;
+        diff?: string | boolean;
         width?: number;
         height?: number;
         output?: string;
@@ -415,6 +421,12 @@ program
         process.exitCode = 1;
         return;
       }
+      let overlay: DiffOverlay | undefined;
+      if (options.diff !== undefined) {
+        // commander yields `true` for a bare --diff (no base), a string for --diff <base>
+        const base = typeof options.diff === "string" ? options.diff : undefined;
+        overlay = toDiffOverlay(await workingDiff(root, base));
+      }
       const svg = renderAtlasSvg(graph, {
         layout: options.layout,
         level: options.level,
@@ -423,6 +435,9 @@ program
         dark: options.dark ?? false,
         ...(options.width ? { width: options.width } : {}),
         ...(options.height ? { height: options.height } : {}),
+        ...(overlay
+          ? { changed: overlay.changed, diffSummary: overlay.diffSummary }
+          : {}),
       });
       if (options.output === "-") {
         process.stdout.write(`${svg}\n`);
@@ -430,8 +445,11 @@ program
       }
       const out = options.output ?? `${basename(root)}-${options.layout}.svg`;
       writeFileSync(out, svg);
+      const diffNote = overlay
+        ? `, diff +${overlay.diffSummary.added} ~${overlay.diffSummary.modified} -${overlay.diffSummary.removed}`
+        : "";
       console.log(
-        `wrote ${out} (${options.layout}, ${options.level}, ${graph.nodes.length} files, seed ${options.seed})`,
+        `wrote ${out} (${options.layout}, ${options.level}, ${graph.nodes.length} files, seed ${options.seed}${diffNote})`,
       );
     },
   );

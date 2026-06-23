@@ -15,7 +15,15 @@ import {
   stepTreemapState,
   type TreemapState,
 } from "../treemapController.ts";
-import { MAP_BG, setMapTheme } from "../mapShared.tsx";
+import {
+  ADDED_FILL,
+  INK,
+  MAP_BG,
+  MODIFIED_FILL,
+  PANEL_BG,
+  PANEL_BORDER,
+  setMapTheme,
+} from "../mapShared.tsx";
 import type { TiltParams } from "../Controls.tsx";
 import type { Granularity } from "../viewConfig.ts";
 
@@ -44,6 +52,10 @@ export type AtlasSvgOptions = {
   height?: number;
   /** Solver iteration cap (safety bound around the convergence loop). */
   maxSteps?: number;
+  /** Map of node id → change kind; tints added/modified leaf cells. */
+  changed?: Map<string, "added" | "modified">;
+  /** Counts for the diff legend; when present and non-zero, a legend is drawn. */
+  diffSummary?: { added: number; modified: number; removed: number };
 };
 
 // the app's fixed rings canvas and its default treemap extent
@@ -193,7 +205,7 @@ export function renderAtlasSvg(
     layers: [],
     altEdges: false,
     parentFileOf,
-    changedOf: () => undefined,
+    changedOf: (id) => options.changed?.get(id),
     portNodes: [],
     hiddenLayers: new Set(),
     showEdges: options.showEdges ?? false,
@@ -219,7 +231,50 @@ export function renderAtlasSvg(
       onViewSettle: NOOP,
     }),
   );
-  return finalize(body, width, height);
+  const legend = options.diffSummary
+    ? buildDiffLegend(options.diffSummary, height)
+    : "";
+  return finalize(body, width, height, legend);
+}
+
+function buildDiffLegend(
+  summary: { added: number; modified: number; removed: number },
+  height: number,
+): string {
+  const rows: Array<{ label: string; count: number; fill: string; open: boolean }> = [];
+  if (summary.added > 0)
+    rows.push({ label: "added", count: summary.added, fill: ADDED_FILL, open: false });
+  if (summary.modified > 0)
+    rows.push({ label: "modified", count: summary.modified, fill: MODIFIED_FILL, open: false });
+  if (summary.removed > 0)
+    rows.push({ label: "removed", count: summary.removed, fill: "none", open: true });
+  if (rows.length === 0) return "";
+
+  const rowH = 20;
+  const padX = 10;
+  const padY = 8;
+  const boxW = 132;
+  const boxH = padY * 2 + rows.length * rowH;
+  const x = 16;
+  const y = height - boxH - 16;
+
+  const items = rows
+    .map((r, i) => {
+      const top = padY + i * rowH;
+      const swatch = r.open
+        ? `<rect x="${padX}" y="${top + 2}" width="12" height="12" rx="2" fill="none" stroke="${INK}" stroke-width="1.5"/>`
+        : `<rect x="${padX}" y="${top + 2}" width="12" height="12" rx="2" fill="${r.fill}" stroke="${INK}" stroke-opacity="0.25"/>`;
+      const text = `<text x="${padX + 18}" y="${top + 12}" font-family="ui-sans-serif, system-ui, sans-serif" font-size="11" fill="${INK}">${r.label} ${r.count}</text>`;
+      return swatch + text;
+    })
+    .join("");
+
+  return (
+    `<g transform="translate(${x} ${y})">` +
+    `<rect x="0" y="0" width="${boxW}" height="${boxH}" rx="6" fill="${PANEL_BG}" stroke="${PANEL_BORDER}"/>` +
+    items +
+    `</g>`
+  );
 }
 
 /**
@@ -227,7 +282,12 @@ export function renderAtlasSvg(
  * namespace (preact omits it), pin explicit pixel dimensions for rasterizers,
  * and paint the map background the app draws behind the <svg>.
  */
-function finalize(body: string, width: number, height: number): string {
+function finalize(
+  body: string,
+  width: number,
+  height: number,
+  legend = "",
+): string {
   const open = body.indexOf(">");
   if (!body.startsWith("<svg") || open === -1) return body;
   const head = body.slice(0, open);
@@ -236,7 +296,8 @@ function finalize(body: string, width: number, height: number): string {
     ? head
     : `${head} xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}"`;
   const bg = `<rect x="0" y="0" width="${width}" height="${height}" fill="${MAP_BG}"/>`;
-  return `${ns}>${bg}${rest}`;
+  const withLegend = legend ? rest.replace(/<\/svg>\s*$/, `${legend}</svg>`) : rest;
+  return `${ns}>${bg}${withLegend}`;
 }
 
 function emptySvg(width: number, height: number): string {

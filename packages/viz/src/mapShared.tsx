@@ -30,8 +30,8 @@ import type { FocusView } from "./useMapViewport.ts";
 
 export const DIM = 0.1;
 /** Diff layer: changed files read from fill, not outline. */
-let MODIFIED_FILL = "hsl(8 85% 78%)";
-let ADDED_FILL = "hsl(150 55% 80%)";
+export let MODIFIED_FILL = "hsl(8 85% 78%)";
+export let ADDED_FILL = "hsl(150 55% 80%)";
 /** Cells of nodes caught in a dependency cycle: the tangles to break. */
 let CYCLE_FILL = "hsl(0 70% 86%)";
 /** Muted fill for test-layer cells: visible for ratio reading, not loud. */
