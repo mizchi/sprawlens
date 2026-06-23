@@ -1,6 +1,6 @@
 {
   "name": "sprawlens",
-  "version": "0.2.0",
+  "version": "0.2.2",
   "description": "Visualize the structure of any TypeScript, Go, Rust or MoonBit repository (thin wrapper around @sprawlens/cli)",
   "license": "MIT",
   "author": "mizchi",
