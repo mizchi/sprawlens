@@ -1,0 +1,41 @@
+name: release-please
+
+# Two triggers:
+# 1. workflow_dispatch: maintainer runs this to cut a Release PR (CHANGELOG is
+#    generated from accumulated Conventional Commits). main pushes do NOT start
+#    it, so releases happen when the maintainer decides.
+# 2. pull_request closed on main whose head.ref starts with "release-please--":
+#    fires after merging the Release PR so release-please creates the tags and
+#    GitHub Releases itself.
+on:
+  workflow_dispatch:
+  pull_request:
+    types: [closed]
+    branches: [main]
+
+# The default GITHUB_TOKEN can't open Release PRs without loosening repo-wide
+# workflow permissions; use a dedicated GitHub App token instead.
+permissions:
+  contents: read
+
+jobs:
+  release-please:
+    if: >-
+      ${{
+        github.event_name == 'workflow_dispatch' ||
+        (github.event.pull_request.merged == true &&
+         startsWith(github.event.pull_request.head.ref, 'release-please--'))
+      }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/create-github-app-token@v2
+        id: app-token
+        with:
+          app-id: 3420845
+          private-key: ${{ secrets.RELEASE_PLEASE_APP_PRIVATE_KEY }}
+
+      - uses: googleapis/release-please-action@v4
+        with:
+          token: ${{ steps.app-token.outputs.token }}
+          config-file: release-please-config.json
+          manifest-file: .release-please-manifest.json

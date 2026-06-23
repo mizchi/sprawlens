@@ -68,5 +68,8 @@
     "@sprawlens/server": "workspace:*",
     "@sprawlens/viz": "workspace:*",
     "tsdown": "^0.22.3"
+  },
+  "engines": {
+    "node": ">=20"
   }
 }
