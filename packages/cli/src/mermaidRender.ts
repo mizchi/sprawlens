@@ -1,9 +1,10 @@
 import type { AtlasGraph } from "@sprawlens/schema";
 import { deriveModuleIdOf, deriveModules } from "@sprawlens/schema";
+import type { DiffSummary } from "./diffRender.js";
 
 export type MermaidDiffOptions = {
   /** Counts shown in the diagram title; omitted when absent. */
-  summary?: { added: number; modified: number; removed: number };
+  summary?: DiffSummary;
   /** Cap on rendered nodes (changed nodes are kept first). Default 50. */
   maxNodes?: number;
   /** Flowchart direction. Default "LR". */
