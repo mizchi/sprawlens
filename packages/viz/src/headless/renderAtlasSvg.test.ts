@@ -65,4 +65,33 @@ describe("renderAtlasSvg", () => {
     expect(svg).toContain("hsl(150 55% 80%)");
     expect(svg).toContain("hsl(8 85% 78%)");
   });
+
+  it("embeds a diff legend with per-kind counts", () => {
+    const svg = renderAtlasSvg(GRAPH, {
+      layout: "treemap",
+      seed: 1,
+      diffSummary: { added: 2, modified: 7, removed: 3 },
+    });
+    expect(svg).toContain("added 2");
+    expect(svg).toContain("modified 7");
+    expect(svg).toContain("removed 3");
+  });
+
+  it("omits zero-count rows from the legend and draws none when all zero", () => {
+    const someZero = renderAtlasSvg(GRAPH, {
+      layout: "treemap",
+      seed: 1,
+      diffSummary: { added: 1, modified: 0, removed: 0 },
+    });
+    expect(someZero).toContain("added 1");
+    expect(someZero).not.toContain("modified 0");
+    expect(someZero).not.toContain("removed 0");
+
+    const allZero = renderAtlasSvg(GRAPH, {
+      layout: "treemap",
+      seed: 1,
+      diffSummary: { added: 0, modified: 0, removed: 0 },
+    });
+    expect(allZero).not.toContain("added 0");
+  });
 });
