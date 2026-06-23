@@ -447,6 +447,7 @@ program
       if (options.format === "mermaid") {
         // overlay is guaranteed by the --diff guard above
         const md = renderDiffMermaid(graph, overlay!.changed, {
+          level: options.level as "file" | "module",
           summary: overlay!.diffSummary,
         });
         if (md === "") {

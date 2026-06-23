@@ -58,6 +58,42 @@ describe("renderDiffMermaid", () => {
     expect(renderDiffMermaid(GRAPH, changed)).toBe("");
   });
 
+  it("aggregates files into modules at level 'module'", () => {
+    const changed = new Map<string, "added" | "modified">([
+      ["src/a/foo.ts", "modified"],
+      ["src/b/qux.ts", "added"],
+    ]);
+    const out = renderDiffMermaid(GRAPH, changed, { level: "module" });
+    // modules, not files, are the nodes
+    expect(out).toContain('"src/a"');
+    expect(out).toContain('"src/b"');
+    expect(out).not.toContain('"foo.ts"');
+    expect(out).not.toContain('"qux.ts"');
+    // src/b has qux (added) but baz (unchanged) → partial change → modified
+    expect(out).toMatch(/class n\d+ modified/);
+    expect(out).not.toMatch(/class n\d+ added/);
+  });
+
+  it("marks a module 'added' only when all its files are new", () => {
+    const graph: AtlasGraph = {
+      nodes: [
+        { id: "src/a/foo.ts", kind: "file", label: "foo.ts", metrics: { loc: 10 } },
+        { id: "src/new/x.ts", kind: "file", label: "x.ts", metrics: { loc: 5 } },
+        { id: "src/new/y.ts", kind: "file", label: "y.ts", metrics: { loc: 5 } },
+      ],
+      edges: [{ source: "src/new/x.ts", target: "src/a/foo.ts" }],
+    };
+    const changed = new Map<string, "added" | "modified">([
+      ["src/new/x.ts", "added"],
+      ["src/new/y.ts", "added"],
+    ]);
+    const out = renderDiffMermaid(graph, changed, { level: "module" });
+    expect(out).toContain('"src/new"');
+    // every file in src/new is added → the module is added
+    expect(out).toMatch(/class n\d+ added/);
+    expect(out).not.toMatch(/class n\d+ modified/);
+  });
+
   it("caps nodes and notes how many were dropped", () => {
     const changed = new Map<string, "added" | "modified">([
       ["src/a/foo.ts", "modified"],
