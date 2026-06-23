@@ -217,10 +217,6 @@ importers:
       '@sprawlens/schema':
         specifier: workspace:*
         version: link:../schema
-    devDependencies:
-      '@types/node':
-        specifier: ^22.10.2
-        version: 22.19.20
 
   packages/sprawlens:
     dependencies:
