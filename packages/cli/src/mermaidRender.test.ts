@@ -94,6 +94,21 @@ describe("renderDiffMermaid", () => {
     expect(out).not.toMatch(/class n\d+ modified/);
   });
 
+  it("entity-encodes label characters that would break mermaid syntax", () => {
+    const graph: AtlasGraph = {
+      nodes: [
+        { id: "app/[id].tsx", kind: "file", label: "[id].tsx", metrics: { loc: 10 } },
+        { id: "app/page.tsx", kind: "file", label: "page.tsx", metrics: { loc: 10 } },
+      ],
+      edges: [{ source: "app/[id].tsx", target: "app/page.tsx" }],
+    };
+    const changed = new Map<string, "added" | "modified">([["app/[id].tsx", "modified"]]);
+    const out = renderDiffMermaid(graph, changed);
+    // the raw bracket must not appear inside a node label
+    expect(out).toContain("app/&#91;id&#93;.tsx");
+    expect(out).not.toContain('["app/[id].tsx"]');
+  });
+
   it("caps nodes and notes how many were dropped", () => {
     const changed = new Map<string, "added" | "modified">([
       ["src/a/foo.ts", "modified"],
