@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-import { Command } from "commander";
+import { Command, Option } from "commander";
 import { spawn } from "node:child_process";
 import {
   existsSync,
@@ -24,6 +24,7 @@ import {
   vitestReportAdapter,
 } from "@sprawlens/analyzer-ts";
 import type {
+  AtlasGraph,
   LanguageProvider,
   LayersConfig,
   ServiceGraph,
@@ -55,7 +56,7 @@ import { createAtlasServer, watchDir, workingDiff } from "@sprawlens/server";
 import { readSprawlensConfig } from "./config.js";
 import { renderTui, type ChangeKind } from "./tui.js";
 import { runTuiApp } from "./tuiApp.js";
-import { type DiffOverlay, toDiffOverlay } from "./diffRender.js";
+import { type DiffOverlay, formatDiffNote, toDiffOverlay } from "./diffRender.js";
 import { renderDiffMermaid } from "./mermaidRender.js";
 
 // read our own version so `--version` always matches the published package
@@ -365,8 +366,16 @@ program
   )
   .argument("[repo]", "repository path", ".")
   .option("--lang <id>", "force a language provider (typescript|go|rust|moonbit)")
-  .option("--layout <kind>", "rings | treemap", "treemap")
-  .option("--level <kind>", "module | file", "file")
+  .addOption(
+    new Option("--layout <kind>", "structure layout")
+      .choices(["rings", "treemap"])
+      .default("treemap"),
+  )
+  .addOption(
+    new Option("--level <kind>", "leaf granularity")
+      .choices(["module", "file"])
+      .default("file"),
+  )
   .option("--seed <n>", "layout seed", parsePositiveInteger, 1)
   .option("--edges", "draw the dependency mesh")
   .option("--dark", "use the dark palette")
@@ -374,10 +383,13 @@ program
     "--diff [base]",
     "highlight files changed vs <base> ref, or uncommitted changes if no base",
   )
-  .option(
-    "--format <kind>",
-    "svg | mermaid (mermaid emits a PR-comment-ready diff graph; requires --diff)",
-    "svg",
+  .addOption(
+    new Option(
+      "--format <kind>",
+      "svg, or mermaid (a PR-comment-ready diff graph; requires --diff)",
+    )
+      .choices(["svg", "mermaid"])
+      .default("svg"),
   )
   .option("--width <n>", "canvas width override", parsePositiveInteger)
   .option("--height <n>", "canvas height override", parsePositiveInteger)
@@ -390,51 +402,26 @@ program
       repo: string,
       options: {
         lang?: string;
-        layout: string;
-        level: string;
+        layout: "rings" | "treemap";
+        level: "module" | "file";
         seed: number;
         edges?: boolean;
         dark?: boolean;
         diff?: string | boolean;
-        format: string;
+        format: "svg" | "mermaid";
         width?: number;
         height?: number;
         output?: string;
       },
     ): Promise<void> => {
-      if (options.layout !== "rings" && options.layout !== "treemap") {
-        console.error(`--layout must be rings or treemap, got "${options.layout}"`);
-        process.exitCode = 1;
-        return;
-      }
-      if (options.level !== "module" && options.level !== "file") {
-        console.error(`--level must be module or file, got "${options.level}"`);
-        process.exitCode = 1;
-        return;
-      }
-      if (options.format !== "svg" && options.format !== "mermaid") {
-        console.error(`--format must be svg or mermaid, got "${options.format}"`);
-        process.exitCode = 1;
-        return;
-      }
       if (options.format === "mermaid" && options.diff === undefined) {
         console.error("--format mermaid requires --diff (it renders the changed subgraph)");
         process.exitCode = 1;
         return;
       }
       const root = resolve(repo);
-      const config = (await readSprawlensConfig(root)) ?? {};
-      const provider = await chooseProvider(root, options.lang ?? config.lang);
-      if (!provider) {
-        process.exitCode = 1;
-        return;
-      }
-      const snapshot = applyLayers(await provider.analyze(root), config);
-      const graph = snapshotToAtlasGraph(
-        snapshot as Parameters<typeof snapshotToAtlasGraph>[0],
-      );
-      if (graph.nodes.length === 0) {
-        console.error("no files to render (empty analysis)");
+      const graph = await buildRepoGraph(root, options.lang);
+      if (!graph) {
         process.exitCode = 1;
         return;
       }
@@ -444,10 +431,11 @@ program
         const base = typeof options.diff === "string" ? options.diff : undefined;
         overlay = toDiffOverlay(await workingDiff(root, base));
       }
+
       if (options.format === "mermaid") {
         // overlay is guaranteed by the --diff guard above
         const md = renderDiffMermaid(graph, overlay!.changed, {
-          level: options.level as "file" | "module",
+          level: options.level,
           summary: overlay!.diffSummary,
         });
         if (md === "") {
@@ -457,16 +445,12 @@ program
           process.exitCode = 1;
           return;
         }
-        if (options.output === "-" || options.output === undefined) {
-          process.stdout.write(`${md}\n`);
-          return;
-        }
-        writeFileSync(options.output, `${md}\n`);
-        console.log(
-          `wrote ${options.output} (mermaid, diff +${overlay!.diffSummary.added} ~${overlay!.diffSummary.modified} -${overlay!.diffSummary.removed})`,
+        emit(`${md}\n`, resolveOutputTarget(options.output), () =>
+          `mermaid, diff ${formatDiffNote(overlay!.diffSummary)}`,
         );
         return;
       }
+
       const svg = renderAtlasSvg(graph, {
         layout: options.layout,
         level: options.level,
@@ -479,18 +463,11 @@ program
           ? { changed: overlay.changed, diffSummary: overlay.diffSummary }
           : {}),
       });
-      if (options.output === "-") {
-        process.stdout.write(`${svg}\n`);
-        return;
-      }
-      const out = options.output ?? `${basename(root)}-${options.layout}.svg`;
-      writeFileSync(out, svg);
-      const diffNote = overlay
-        ? `, diff +${overlay.diffSummary.added} ~${overlay.diffSummary.modified} -${overlay.diffSummary.removed}`
-        : "";
-      console.log(
-        `wrote ${out} (${options.layout}, ${options.level}, ${graph.nodes.length} files, seed ${options.seed}${diffNote})`,
-      );
+      const defaultPath = `${basename(root)}-${options.layout}.svg`;
+      emit(svg, resolveOutputTarget(options.output, defaultPath), () => {
+        const note = overlay ? `, diff ${formatDiffNote(overlay.diffSummary)}` : "";
+        return `${options.layout}, ${options.level}, ${graph.nodes.length} files, seed ${options.seed}${note}`;
+      });
     },
   );
 
@@ -908,6 +885,60 @@ function makeTestCaseRunner(
  * source files of more than one language — falls through to the user: an
  * interactive prompt on a TTY, or an error telling them to pass --lang.
  */
+/**
+ * Analyze a repo into an AtlasGraph for the `render` command: pick a provider,
+ * apply the layer config, and convert. Returns null (and lets the caller set
+ * the exit code) when no provider matches or the analysis is empty; the
+ * specific reason is already reported by chooseProvider or here.
+ */
+async function buildRepoGraph(
+  root: string,
+  lang: string | undefined,
+): Promise<AtlasGraph | null> {
+  const config = (await readSprawlensConfig(root)) ?? {};
+  const provider = await chooseProvider(root, lang ?? config.lang);
+  if (!provider) return null;
+  const snapshot = applyLayers(await provider.analyze(root), config);
+  const graph = snapshotToAtlasGraph(
+    snapshot as Parameters<typeof snapshotToAtlasGraph>[0],
+  );
+  if (graph.nodes.length === 0) {
+    console.error("no files to render (empty analysis)");
+    return null;
+  }
+  return graph;
+}
+
+type OutputTarget = { kind: "stdout" } | { kind: "file"; path: string };
+
+/**
+ * Resolve where `render` output goes: "-" → stdout; an explicit path → that
+ * file; omitted → defaultPath when given (the SVG case), else stdout (mermaid,
+ * which is meant to be piped into a comment).
+ */
+function resolveOutputTarget(
+  output: string | undefined,
+  defaultPath?: string,
+): OutputTarget {
+  if (output === "-") return { kind: "stdout" };
+  if (output === undefined)
+    return defaultPath ? { kind: "file", path: defaultPath } : { kind: "stdout" };
+  return { kind: "file", path: output };
+}
+
+/**
+ * Write rendered content to its target. stdout gets a trailing newline; a file
+ * write is announced with a one-line summary (built lazily, only when needed).
+ */
+function emit(content: string, target: OutputTarget, summary: () => string): void {
+  if (target.kind === "stdout") {
+    process.stdout.write(content.endsWith("\n") ? content : `${content}\n`);
+    return;
+  }
+  writeFileSync(target.path, content);
+  console.log(`wrote ${target.path} (${summary()})`);
+}
+
 async function chooseProvider(
   root: string,
   lang: string | undefined,

@@ -1,8 +1,10 @@
 import type { WorkingDiff } from "@sprawlens/server";
 
+export type DiffSummary = { added: number; modified: number; removed: number };
+
 export type DiffOverlay = {
   changed: Map<string, "added" | "modified">;
-  diffSummary: { added: number; modified: number; removed: number };
+  diffSummary: DiffSummary;
 };
 
 /** Convert a git WorkingDiff into the inputs renderAtlasSvg expects. */
@@ -20,4 +22,9 @@ export function toDiffOverlay(diff: WorkingDiff): DiffOverlay {
     changed,
     diffSummary: { added, modified, removed: diff.removed.length },
   };
+}
+
+/** Compact one-line diff counts, e.g. "+2 ~5 -0" (added/modified/removed). */
+export function formatDiffNote(summary: DiffSummary): string {
+  return `+${summary.added} ~${summary.modified} -${summary.removed}`;
 }

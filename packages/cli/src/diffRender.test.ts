@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { WorkingDiff } from "@sprawlens/server";
-import { toDiffOverlay } from "./diffRender.ts";
+import { formatDiffNote, toDiffOverlay } from "./diffRender.ts";
 import { execFile } from "node:child_process";
 import { mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
@@ -13,6 +13,13 @@ import { renderAtlasSvg } from "@sprawlens/viz/headless";
 
 const exec = promisify(execFile);
 const git = (cwd: string, args: string[]) => exec("git", args, { cwd });
+
+describe("formatDiffNote", () => {
+  it("formats counts as +added ~modified -removed", () => {
+    expect(formatDiffNote({ added: 2, modified: 5, removed: 0 })).toBe("+2 ~5 -0");
+    expect(formatDiffNote({ added: 0, modified: 0, removed: 0 })).toBe("+0 ~0 -0");
+  });
+});
 
 describe("toDiffOverlay", () => {
   it("splits changed entries into added/modified and counts removed", () => {
