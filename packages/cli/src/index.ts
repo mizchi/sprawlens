@@ -55,7 +55,7 @@ import { createAtlasServer, watchDir, workingDiff } from "@sprawlens/server";
 import { readSprawlensConfig } from "./config.js";
 import { renderTui, type ChangeKind } from "./tui.js";
 import { runTuiApp } from "./tuiApp.js";
-import { toDiffOverlay } from "./diffRender.ts";
+import { toDiffOverlay } from "./diffRender.js";
 
 // read our own version so `--version` always matches the published package
 // (../package.json relative to both src/index.ts in dev and dist/index.js when built)
