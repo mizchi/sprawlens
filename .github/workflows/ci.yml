@@ -20,6 +20,6 @@ jobs:
       - run: pnpm lint
       - run: pnpm lint:layers
       - run: pnpm lint:exports
-      - run: pnpm test
+      - run: pnpm test:coverage
       - run: pnpm typecheck
       - run: pnpm build
