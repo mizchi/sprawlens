@@ -55,7 +55,7 @@ import { createAtlasServer, watchDir, workingDiff } from "@sprawlens/server";
 import { readSprawlensConfig } from "./config.js";
 import { renderTui, type ChangeKind } from "./tui.js";
 import { runTuiApp } from "./tuiApp.js";
-import { toDiffOverlay } from "./diffRender.js";
+import { type DiffOverlay, toDiffOverlay } from "./diffRender.js";
 
 // read our own version so `--version` always matches the published package
 // (../package.json relative to both src/index.ts in dev and dist/index.js when built)
@@ -421,7 +421,7 @@ program
         process.exitCode = 1;
         return;
       }
-      let overlay: ReturnType<typeof toDiffOverlay> | undefined;
+      let overlay: DiffOverlay | undefined;
       if (options.diff !== undefined) {
         // commander yields `true` for a bare --diff (no base), a string for --diff <base>
         const base = typeof options.diff === "string" ? options.diff : undefined;
