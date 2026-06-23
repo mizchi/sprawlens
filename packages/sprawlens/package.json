@@ -35,5 +35,8 @@
   },
   "dependencies": {
     "@sprawlens/cli": "workspace:*"
+  },
+  "engines": {
+    "node": ">=20"
   }
 }
