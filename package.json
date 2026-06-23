@@ -5,6 +5,7 @@
   "type": "module",
   "scripts": {
     "test": "vitest run",
+    "test:coverage": "vitest run --coverage",
     "bench": "vitest bench --run",
     "typecheck": "pnpm -r --filter=!sprawlens exec tsgo --noEmit -p tsconfig.json",
     "typecheck:tsc": "pnpm -r --filter=!sprawlens exec tsc --noEmit -p tsconfig.json",

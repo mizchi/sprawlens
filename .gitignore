@@ -7,6 +7,7 @@ dist/
 codesprawl-*.png
 test-results/
 perf-results/
+coverage/
 
 # dotenvx: keep secrets local-only on this public repo (don't commit even
 # the encrypted .env). dotenvx run -- decrypts via .env.keys at runtime.
