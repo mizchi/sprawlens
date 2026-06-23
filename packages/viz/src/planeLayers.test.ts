@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { capacityPlane, ringPlane, type LayerNode } from "./planeLayers.js";
+import { capacityPlane, ringPlane, type LayerNode } from "./planeLayers.ts";
 
 const node = (id: string, weight: number, rank?: number): LayerNode => ({
   id,

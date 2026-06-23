@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { embedGraph, procrustesAlign, type EmbedEdge } from "./embed.js";
-import type { Vec2 } from "./vec.js";
+import { embedGraph, procrustesAlign, type EmbedEdge } from "./embed.ts";
+import type { Vec2 } from "./vec.ts";
 
 function clique(
   prefix: string,

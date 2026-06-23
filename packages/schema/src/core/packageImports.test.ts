@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { CodeSymbol } from "@sprawlens/contracts";
-import { resolvePackageImports } from "./packageImports.js";
+import { resolvePackageImports } from "./packageImports.ts";
 
 function sym(id: string, name: string, parentClass?: string): CodeSymbol {
   return {

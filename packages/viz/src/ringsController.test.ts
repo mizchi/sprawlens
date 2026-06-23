@@ -1,8 +1,8 @@
 import { describe, expect, it } from "vitest";
 import { directoryGrouping, moduleGrouping } from "@sprawlens/schema";
 import { containsPoint } from "@sprawlens/layout";
-import { applyRingsChanges, createRingsState, stepRingsState } from "./ringsController.js";
-import { createSyntheticGraph } from "./synthetic.js";
+import { applyRingsChanges, createRingsState, stepRingsState } from "./ringsController.ts";
+import { createSyntheticGraph } from "./synthetic.ts";
 
 const opts = { width: 960, height: 640, seed: 1 };
 

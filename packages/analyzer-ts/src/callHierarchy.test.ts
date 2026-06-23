@@ -2,8 +2,8 @@ import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { createRequire } from "node:module";
 import { fileURLToPath } from "node:url";
 import { dirname, resolve } from "node:path";
-import { callHierarchy } from "./callHierarchyProvider.js";
-import { LspClient } from "./lspClient.js";
+import { callHierarchy } from "./callHierarchyProvider.ts";
+import { LspClient } from "./lspClient.ts";
 
 // integration test against the real typescript-language-server on this repo
 const repoRoot = resolve(dirname(fileURLToPath(import.meta.url)), "../../..");

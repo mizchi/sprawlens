@@ -5,7 +5,7 @@
 // links each case to the source symbols it exercised. See
 // docs/design/2026-06-21-test-reporter.md.
 
-import type { TraceSymbolRef } from "./trace.js";
+import type { TraceSymbolRef } from "./trace.ts";
 
 export type TestStatus = "pass" | "fail" | "skip" | "todo";
 

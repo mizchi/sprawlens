@@ -1,8 +1,8 @@
 import { resolve } from "node:path";
 import { pathToFileURL } from "node:url";
 import type { HoverInfo } from "@sprawlens/schema";
-import type { LspClient } from "./lspClient.js";
-import { type DocumentSymbol, findSymbol, namePosition } from "./symbolPosition.js";
+import type { LspClient } from "./lspClient.ts";
+import { type DocumentSymbol, findSymbol, namePosition } from "./symbolPosition.ts";
 
 /** LSP hover contents: MarkupContent, a MarkedString, or an array of them. */
 type MarkedString = string | { language: string; value: string };

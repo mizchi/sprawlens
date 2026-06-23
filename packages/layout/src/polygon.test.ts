@@ -6,7 +6,7 @@ import {
   convexHull,
   nearestPointInRing,
   signedArea,
-} from "./polygon.js";
+} from "./polygon.ts";
 
 const unitSquare = [
   { x: 0, y: 0 },

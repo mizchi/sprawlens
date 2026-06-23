@@ -5,7 +5,7 @@ import path from "node:path";
 import { promisify } from "node:util";
 import { detectAIIndicators } from "@sprawlens/schema";
 import { diffSnapshots } from "@sprawlens/schema";
-import { createSnapshotFromWorkingTree } from "./snapshot.js";
+import { createSnapshotFromWorkingTree } from "./snapshot.ts";
 import type {
   CodesprawlConfig,
   CommitRecord,

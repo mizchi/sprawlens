@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import type { CodeSymbol, Snapshot } from "@sprawlens/schema";
-import { buildForest } from "./tui.js";
-import { composeFrame } from "./tuiApp.js";
+import { buildForest } from "./tui.ts";
+import { composeFrame } from "./tuiApp.ts";
 
 const commit = {
   hash: "W",

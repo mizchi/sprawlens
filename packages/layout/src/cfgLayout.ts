@@ -1,5 +1,5 @@
 import type { AtlasEdge, AtlasNode } from "@sprawlens/contracts";
-import type { Vec2 } from "./vec.js";
+import type { Vec2 } from "./vec.ts";
 
 /**
  * Top-down layered layout for a small control-flow graph: the entry sits

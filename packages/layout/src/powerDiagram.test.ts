@@ -1,8 +1,8 @@
 import { describe, expect, it } from "vitest";
-import { circleToPolygon, signedArea, type Ring } from "./polygon.js";
-import { computePowerDiagram, type PowerSite } from "./powerDiagram.js";
-import { createRng } from "./rng.js";
-import type { Vec2 } from "./vec.js";
+import { circleToPolygon, signedArea, type Ring } from "./polygon.ts";
+import { computePowerDiagram, type PowerSite } from "./powerDiagram.ts";
+import { createRng } from "./rng.ts";
+import type { Vec2 } from "./vec.ts";
 
 const unitSquare: Ring = [
   { x: 0, y: 0 },

@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { RawResource } from "@sprawlens/contracts";
-import { matchResourceFiles, resolveServices, serviceFileMap } from "./services.js";
+import { matchResourceFiles, resolveServices, serviceFileMap } from "./services.ts";
 
 /** Terse RawResource builder. */
 function res(

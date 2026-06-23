@@ -4,7 +4,7 @@ import { tsDetail, tsProvider } from "@sprawlens/analyzer-ts";
 import { applyLayers, layerManifest } from "@sprawlens/schema";
 import type { LayerManifestEntry, Snapshot } from "@sprawlens/schema";
 import { createAtlasServer } from "@sprawlens/server";
-import { readSprawlensConfig } from "./config.js";
+import { readSprawlensConfig } from "./config.ts";
 
 // Dev composition for the viz dev server: analyze each named repo with the
 // TypeScript provider and serve it the same way the CLI does — an initial

@@ -1,7 +1,7 @@
 // @sprawlens/analyzer-ts — TypeScript/JS language provider
-export * from "./snapshot.js";
-export * from "./collect.js";
-export * from "./provider.js";
-export * from "./detail.js";
-export * from "./trace.js";
-export * from "./testReport.js";
+export * from "./snapshot.ts";
+export * from "./collect.ts";
+export * from "./provider.ts";
+export * from "./detail.ts";
+export * from "./trace.ts";
+export * from "./testReport.ts";

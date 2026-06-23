@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { TestNode } from "@sprawlens/contracts";
-import { buildTestTree } from "./testTree.js";
+import { buildTestTree } from "./testTree.ts";
 
 /** Find a node by name in a forest (depth-first), for terse assertions. */
 function find(nodes: readonly TestNode[], name: string): TestNode | undefined {

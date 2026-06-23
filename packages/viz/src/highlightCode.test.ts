@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { parseHoverMarkdown, tokenizeCode } from "./highlightCode.js";
+import { parseHoverMarkdown, tokenizeCode } from "./highlightCode.ts";
 
 /** Compact "kind:text" view of a token stream, for terse assertions. */
 function shape(code: string): string[] {

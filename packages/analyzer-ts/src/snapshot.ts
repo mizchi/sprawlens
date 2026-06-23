@@ -22,7 +22,7 @@ import type {
   TestNode,
   WorkspacePackage,
 } from "@sprawlens/schema";
-import { tsTestAdapter } from "./testExtract.js";
+import { tsTestAdapter } from "./testExtract.ts";
 
 /** A detected npm/pnpm workspace: member packages + each one's entry source. */
 type WorkspaceInfo = {

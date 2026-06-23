@@ -4,7 +4,7 @@ import { tmpdir } from "node:os";
 import path from "node:path";
 import { promisify } from "node:util";
 import { describe, expect, it } from "vitest";
-import { analyzeRealtimeRepository, analyzeRepository, collectRepository } from "./collect.js";
+import { analyzeRealtimeRepository, analyzeRepository, collectRepository } from "./collect.ts";
 
 const exec = promisify(execFile);
 

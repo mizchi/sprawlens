@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { cellAdjacency, greedySwapAssignment, realizedEdgeRate } from "./neighborhood.js";
-import { computePowerDiagram } from "./powerDiagram.js";
+import { cellAdjacency, greedySwapAssignment, realizedEdgeRate } from "./neighborhood.ts";
+import { computePowerDiagram } from "./powerDiagram.ts";
 
 const unitSquare = [
   { x: 0, y: 0 },

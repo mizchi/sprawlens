@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { nearestNeighborSquared } from "./spatialGrid.js";
+import { nearestNeighborSquared } from "./spatialGrid.ts";
 
 /** Reference O(n²) nearest-neighbor squared distances. */
 function brute(xs: Float64Array, ys: Float64Array): Float64Array {

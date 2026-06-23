@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { parseVitestReport } from "./testReport.js";
+import { parseVitestReport } from "./testReport.ts";
 
 // vitest --reporter=json shape (one file, three cases)
 const report = {

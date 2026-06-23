@@ -1,5 +1,5 @@
 import type { Snapshot, TracePlane, TraceStep, TraceTimeline } from "@sprawlens/contracts";
-import { buildSymbolResolver } from "./trace.js";
+import { buildSymbolResolver } from "./trace.ts";
 
 // A V8 cpuprofile (node:inspector Profiler / CDP Profiler / `node --cpu-prof`).
 // Both the server and browser planes emit exactly this shape.

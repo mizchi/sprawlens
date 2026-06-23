@@ -1,4 +1,4 @@
-import type { Vec2 } from "./vec.js";
+import type { Vec2 } from "./vec.ts";
 
 /** Open ring (last vertex implicitly connects to the first), CCW for positive area. */
 export type Ring = Vec2[];

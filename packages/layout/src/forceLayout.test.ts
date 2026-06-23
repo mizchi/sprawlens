@@ -1,12 +1,12 @@
 import { describe, expect, it } from "vitest";
-import type { ClipRegion } from "./capacityLayout.js";
+import type { ClipRegion } from "./capacityLayout.ts";
 import {
   createForceLayout,
   forceStep,
   type ForceInputEdge,
   type ForceInputNode,
-} from "./forceLayout.js";
-import { createRng } from "./rng.js";
+} from "./forceLayout.ts";
+import { createRng } from "./rng.ts";
 
 const rectClip: ClipRegion = { kind: "rect", x: 0, y: 0, width: 1, height: 1 };
 

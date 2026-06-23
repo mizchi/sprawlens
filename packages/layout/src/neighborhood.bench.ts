@@ -1,6 +1,6 @@
 import { bench, describe } from "vitest";
-import { greedySwapAssignment } from "./neighborhood.js";
-import { createRng } from "./rng.js";
+import { greedySwapAssignment } from "./neighborhood.ts";
+import { createRng } from "./rng.ts";
 import type { AtlasEdge } from "@sprawlens/contracts";
 
 /**

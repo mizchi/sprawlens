@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { encodeMessage, JsonRpcReader } from "./jsonRpc.js";
+import { encodeMessage, JsonRpcReader } from "./jsonRpc.ts";
 
 describe("encodeMessage", () => {
   it("frames a message with a Content-Length header", () => {

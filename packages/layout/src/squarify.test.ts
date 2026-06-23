@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { squarify } from "./squarify.js";
+import { squarify } from "./squarify.ts";
 
 const RECT = { x: 0, y: 0, w: 100, h: 100 };
 

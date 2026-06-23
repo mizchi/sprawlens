@@ -1,8 +1,8 @@
 import { resolve } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
-import type { LspClient } from "./lspClient.js";
+import type { LspClient } from "./lspClient.ts";
 import type { CallHierarchyResult, SymbolRef } from "@sprawlens/schema";
-import { type DocumentSymbol, findSymbol, namePosition } from "./symbolPosition.js";
+import { type DocumentSymbol, findSymbol, namePosition } from "./symbolPosition.ts";
 
 type LspRange = { start: { line: number; character: number } };
 type CallHierarchyItem = {

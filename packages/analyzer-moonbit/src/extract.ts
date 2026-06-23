@@ -15,7 +15,7 @@ import type {
   SnapshotCommit,
   WorkspacePackage,
 } from "@sprawlens/schema";
-import { extractMoonbitSymbols } from "./astExtract.js";
+import { extractMoonbitSymbols } from "./astExtract.ts";
 
 /**
  * MoonBit has no published tree-sitter grammar yet, so this is a heuristic,

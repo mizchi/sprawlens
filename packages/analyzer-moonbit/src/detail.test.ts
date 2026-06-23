@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { parseReferences } from "./detail.js";
+import { parseReferences } from "./detail.ts";
 
 // `moon ide find-references` output: the resolved definition followed by the
 // reference locations, each as a `path:line:col-line:col:` header with code

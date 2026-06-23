@@ -1,6 +1,6 @@
-import { centroid, circleToPolygon, nearestPointInRing, type Ring } from "./polygon.js";
-import type { Rng } from "./rng.js";
-import type { Vec2 } from "./vec.js";
+import { centroid, circleToPolygon, nearestPointInRing, type Ring } from "./polygon.ts";
+import type { Rng } from "./rng.ts";
+import type { Vec2 } from "./vec.ts";
 
 export type ClipRegion =
   | { kind: "rect"; x: number; y: number; width: number; height: number }

@@ -6,7 +6,7 @@ import {
   reweightByTransitiveComplexity,
   VIEW_PRESETS,
   type ViewConfig,
-} from "./viewConfig.js";
+} from "./viewConfig.ts";
 
 describe("presets", () => {
   it("recognizes each preset's own config", () => {

@@ -1,7 +1,7 @@
 import { spawn, type ChildProcess } from "node:child_process";
 import { readFileSync } from "node:fs";
 import { pathToFileURL } from "node:url";
-import { encodeMessage, JsonRpcReader } from "./jsonRpc.js";
+import { encodeMessage, JsonRpcReader } from "./jsonRpc.ts";
 
 /**
  * Minimal LSP client over stdio: documentSymbol, call hierarchy and hover —

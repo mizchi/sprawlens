@@ -2,7 +2,7 @@ import { mkdtemp, rm, writeFile, mkdir } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { describe, expect, it } from "vitest";
-import { createSnapshotFromWorkingTree } from "./snapshot.js";
+import { createSnapshotFromWorkingTree } from "./snapshot.ts";
 
 async function withFixture(files: Record<string, string>, fn: (root: string) => Promise<void>) {
   const root = await mkdtemp(path.join(tmpdir(), "codesprawl-fixture-"));

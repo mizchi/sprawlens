@@ -5,7 +5,7 @@ import {
   snapshotSymbols,
   snapshotToAtlasGraph,
   type SnapshotLike,
-} from "./adapter.js";
+} from "./adapter.ts";
 
 const snapshot: SnapshotLike = {
   nodes: [

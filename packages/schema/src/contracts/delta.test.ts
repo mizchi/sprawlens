@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { affectedGroups, diffGraphs, isEmptyDelta, type GraphDelta } from "./delta.js";
+import { affectedGroups, diffGraphs, isEmptyDelta, type GraphDelta } from "./delta.ts";
 import type { AtlasGraph } from "@sprawlens/contracts";
 
 const file = (

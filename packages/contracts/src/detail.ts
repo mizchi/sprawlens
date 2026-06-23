@@ -1,4 +1,4 @@
-import type { AtlasGraph } from "./graph.js";
+import type { AtlasGraph } from "./graph.ts";
 
 /**
  * Dynamic detail levels (AST, CFG). These are never part of the static

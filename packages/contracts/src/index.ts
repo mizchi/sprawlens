@@ -2,12 +2,12 @@
 // canonical default weight scorer; zero runtime dependencies. The Snapshot model
 // (analyzer output), the AtlasGraph model (view input), the detail graph, and the
 // LanguageProvider/LanguageDetail interfaces every other package agrees on.
-export * from "./types.js";
-export * from "./graph.js";
-export * from "./service.js";
-export * from "./detail.js";
-export * from "./provider.js";
-export * from "./workspace.js";
-export * from "./trace.js";
-export * from "./traceTimeline.js";
-export * from "./testRun.js";
+export * from "./types.ts";
+export * from "./graph.ts";
+export * from "./service.ts";
+export * from "./detail.ts";
+export * from "./provider.ts";
+export * from "./workspace.ts";
+export * from "./trace.ts";
+export * from "./traceTimeline.ts";
+export * from "./testRun.ts";

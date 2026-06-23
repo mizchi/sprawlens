@@ -1,5 +1,5 @@
 import type { CodeEdge, CodeSymbol, CodeSymbolImport } from "@sprawlens/contracts";
-import { mergeSymbolImports, symbolImportOf } from "./symbolRefs.js";
+import { mergeSymbolImports, symbolImportOf } from "./symbolRefs.ts";
 
 /**
  * Import-edge construction for the "a package is a directory" analyzers (Go,

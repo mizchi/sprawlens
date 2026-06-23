@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { Snapshot } from "@sprawlens/contracts";
-import { callHierarchyFromSnapshot } from "./callHierarchy.js";
+import { callHierarchyFromSnapshot } from "./callHierarchy.ts";
 
 const commit = {
   hash: "W",

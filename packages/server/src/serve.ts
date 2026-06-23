@@ -9,14 +9,14 @@ import type {
   TestRun,
   Trace,
 } from "@sprawlens/schema";
-import { definitionPreview } from "./definitionPreview.js";
+import { definitionPreview } from "./definitionPreview.ts";
 import {
   enrichWithLoc,
   isSafeRef,
   watchDir,
   watchWorkingDiff,
   workingDiff,
-} from "./workingDiff.js";
+} from "./workingDiff.ts";
 
 /**
  * Atlas server: the language-neutral HTTP shell. Serves the built viz (static),

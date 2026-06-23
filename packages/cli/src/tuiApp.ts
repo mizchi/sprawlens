@@ -14,7 +14,7 @@ import {
   type Direction,
   type PlacedTile,
   type TreeNode,
-} from "./tui.js";
+} from "./tui.ts";
 
 type Forest = ReturnType<typeof buildForest>;
 export type CodePreview = { title: string; lines: string[] };

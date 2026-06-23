@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { add, distance, dot, lengthOf, scale, sub } from "./vec.js";
+import { add, distance, dot, lengthOf, scale, sub } from "./vec.ts";
 
 describe("vec", () => {
   it("adds and subtracts component-wise", () => {

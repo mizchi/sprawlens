@@ -1,4 +1,4 @@
-import { stronglyConnectedComponents } from "./scc.js";
+import { stronglyConnectedComponents } from "./scc.ts";
 
 export type RankEdge = { source: string; target: string };
 

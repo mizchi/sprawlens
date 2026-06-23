@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { liftOverlay, type FlowOverlay } from "./overlay.js";
+import { liftOverlay, type FlowOverlay } from "./overlay.ts";
 
 const moduleOf = (id: string): string | null =>
   id.startsWith("src/alpha/") ? "src/alpha" : id.startsWith("src/beta/") ? "src/beta" : null;

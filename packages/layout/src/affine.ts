@@ -1,4 +1,4 @@
-import type { Vec2 } from "./vec.js";
+import type { Vec2 } from "./vec.ts";
 
 /**
  * A 2x3 affine transform stored row-major as the six numbers that SVG's

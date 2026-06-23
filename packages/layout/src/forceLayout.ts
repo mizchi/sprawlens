@@ -1,7 +1,7 @@
-import { clampInto, clipCenter, clipScale, randomPointIn, type ClipRegion } from "./clip.js";
-import { centroid, nearestPointInRing, signedArea, type Ring } from "./polygon.js";
-import { createRng } from "./rng.js";
-import type { Vec2 } from "./vec.js";
+import { clampInto, clipCenter, clipScale, randomPointIn, type ClipRegion } from "./clip.ts";
+import { centroid, nearestPointInRing, signedArea, type Ring } from "./polygon.ts";
+import { createRng } from "./rng.ts";
+import type { Vec2 } from "./vec.ts";
 
 export type ForceInputNode = { id: string; weight: number; hint?: Vec2 };
 export type ForceInputEdge = { source: string; target: string; weight?: number };

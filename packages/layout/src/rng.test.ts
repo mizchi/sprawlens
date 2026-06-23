@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { createRng } from "./rng.js";
+import { createRng } from "./rng.ts";
 
 describe("createRng", () => {
   it("produces the same sequence for the same seed", () => {

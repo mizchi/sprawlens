@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { reachSubgraph } from "./reach.js";
+import { reachSubgraph } from "./reach.ts";
 
 // a → b → c → d,  x → b,  c → y,  isolated: z
 const edges = [

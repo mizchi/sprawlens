@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { extractMoonbitSymbols } from "./astExtract.js";
+import { extractMoonbitSymbols } from "./astExtract.ts";
 
 // integration test: loads the vendored MoonBit parser bundle and checks the
 // AST → symbol mapping. Skips gracefully if the parser cannot be loaded.

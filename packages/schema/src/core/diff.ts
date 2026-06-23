@@ -1,4 +1,4 @@
-import { computeGraphMetrics } from "./metrics.js";
+import { computeGraphMetrics } from "./metrics.ts";
 import type {
   ChangedFile,
   CodeEdge,

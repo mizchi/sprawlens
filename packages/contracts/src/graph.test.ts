@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { locScorer, type AtlasGraph } from "./graph.js";
+import { locScorer, type AtlasGraph } from "./graph.ts";
 
 describe("locScorer", () => {
   it("maps node ids to their LOC metric", () => {

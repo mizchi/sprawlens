@@ -1,5 +1,5 @@
 import type { AtlasEdge, AtlasGraph, AtlasNode, AtlasNodeKind } from "@sprawlens/contracts";
-import { defaultModuleIdOf, type ModuleIdOf } from "./modules.js";
+import { defaultModuleIdOf, type ModuleIdOf } from "./modules.ts";
 
 /**
  * Multi-level hierarchy contract. The analysis hierarchy (service → module

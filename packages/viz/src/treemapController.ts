@@ -21,7 +21,7 @@ import {
   solveLevel,
   subdivideUnder,
   type SubdivisionLevel,
-} from "./subdivision.js";
+} from "./subdivision.ts";
 
 /**
  * Full-canvas Voronoi treemap over an arbitrary boundary chain: the top

@@ -6,7 +6,7 @@ import {
   buildApiGraph,
   moduleScopeId,
   splitApiBoundary,
-} from "./apiView.js";
+} from "./apiView.ts";
 
 const fileGraph: AtlasGraph = {
   nodes: [

@@ -2,7 +2,7 @@ import { readFile } from "node:fs/promises";
 import { dirname, join, relative, resolve } from "node:path";
 import fg from "fast-glob";
 import type { RawResource } from "@sprawlens/contracts";
-import { parseTerraform } from "./extract.js";
+import { parseTerraform } from "./extract.ts";
 
 const IGNORE = ["**/.terraform/**", "**/node_modules/**"];
 

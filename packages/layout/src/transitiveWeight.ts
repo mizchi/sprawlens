@@ -1,5 +1,5 @@
 import type { AtlasEdge } from "@sprawlens/contracts";
-import { cyclicComponents } from "./scc.js";
+import { cyclicComponents } from "./scc.ts";
 
 /**
  * Transitive closure weights: a node's weight is the sum of a base metric

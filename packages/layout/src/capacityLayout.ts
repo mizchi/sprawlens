@@ -1,11 +1,11 @@
-import { clampInto, clipScale, clipToRing, randomPointIn, type ClipRegion } from "./clip.js";
-import { centroid, signedArea, type Ring } from "./polygon.js";
-import { computePowerDiagram, type CellEdge, type PowerSite } from "./powerDiagram.js";
-import { createRng, type Rng } from "./rng.js";
-import { nearestNeighborSquared } from "./spatialGrid.js";
-import type { Vec2 } from "./vec.js";
+import { clampInto, clipScale, clipToRing, randomPointIn, type ClipRegion } from "./clip.ts";
+import { centroid, signedArea, type Ring } from "./polygon.ts";
+import { computePowerDiagram, type CellEdge, type PowerSite } from "./powerDiagram.ts";
+import { createRng, type Rng } from "./rng.ts";
+import { nearestNeighborSquared } from "./spatialGrid.ts";
+import type { Vec2 } from "./vec.ts";
 
-export type { ClipRegion } from "./clip.js";
+export type { ClipRegion } from "./clip.ts";
 
 export type CellInputNode = {
   id: string;

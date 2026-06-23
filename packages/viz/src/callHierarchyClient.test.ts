@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { AtlasNode } from "@sprawlens/schema";
-import { refsToEdges, resolveRef } from "./callHierarchyClient.js";
+import { refsToEdges, resolveRef } from "./callHierarchyClient.ts";
 
 const symbolsByFile = new Map<string, AtlasNode[]>([
   [

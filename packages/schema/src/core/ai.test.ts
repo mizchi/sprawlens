@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { detectAIIndicators } from "./ai.js";
+import { detectAIIndicators } from "./ai.ts";
 
 describe("detectAIIndicators", () => {
   it("marks AI-assisted commits heuristically without asserting certainty", () => {

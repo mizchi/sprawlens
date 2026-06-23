@@ -2,8 +2,8 @@ import { existsSync } from "node:fs";
 import { basename, join } from "node:path";
 import fg from "fast-glob";
 import type { LanguageProvider, SnapshotCommit } from "@sprawlens/schema";
-import { SOURCE_EXTENSIONS, createSnapshotFromWorkingTree, type ParseCache } from "./snapshot.js";
-import { tsDetail } from "./detail.js";
+import { SOURCE_EXTENSIONS, createSnapshotFromWorkingTree, type ParseCache } from "./snapshot.ts";
+import { tsDetail } from "./detail.ts";
 
 /** Synthetic commit for an uncommitted working-tree snapshot. */
 function worktreeCommit(): SnapshotCommit {

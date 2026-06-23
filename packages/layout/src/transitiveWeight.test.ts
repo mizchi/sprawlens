@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { transitiveWeights } from "./transitiveWeight.js";
+import { transitiveWeights } from "./transitiveWeight.ts";
 
 const ids = (...xs: string[]) => xs;
 const one = () => 1;

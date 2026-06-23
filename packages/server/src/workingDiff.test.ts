@@ -5,7 +5,7 @@ import {
   isSafeRef,
   parseGitStatus,
   parseNameStatus,
-} from "./workingDiff.js";
+} from "./workingDiff.ts";
 
 describe("countLines", () => {
   it("counts a trailing-newline file by its lines, not its breaks", () => {

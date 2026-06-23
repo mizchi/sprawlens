@@ -6,7 +6,7 @@ import {
   pickExported,
   resolveSymbolReferences,
   symbolImportOf,
-} from "./symbolRefs.js";
+} from "./symbolRefs.ts";
 
 function sym(id: string, name: string, startLine: number, endLine: number): CodeSymbol {
   return {
