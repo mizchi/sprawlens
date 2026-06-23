@@ -6,7 +6,7 @@
   "scripts": {
     "test": "vitest run",
     "bench": "vitest bench --run",
-    "typecheck": "pnpm -r exec tsc --noEmit -p tsconfig.json",
+    "typecheck": "pnpm -r --filter=!sprawlens exec tsc --noEmit -p tsconfig.json",
     "lint:layers": "node tools/check-layers.mjs",
     "lint:exports": "knip --include exports,types,nsExports,nsTypes",
     "dev": "concurrently -k -n viz,api -c green,cyan \"pnpm --filter @sprawlens/viz dev\" \"pnpm --filter @sprawlens/cli dev:server\"",

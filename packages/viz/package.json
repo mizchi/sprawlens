@@ -3,10 +3,15 @@
   "version": "0.0.0",
   "private": true,
   "type": "module",
+  "exports": {
+    "./headless": "./src/headless/renderAtlasSvg.ts"
+  },
   "dependencies": {
     "@sprawlens/layout": "workspace:*",
     "@sprawlens/schema": "workspace:*",
-    "nuqs": "^2.8.9"
+    "nuqs": "^2.8.9",
+    "preact": "^10.29.2",
+    "preact-render-to-string": "^6.5.13"
   },
   "scripts": {
     "dev": "vite --host 127.0.0.1",

@@ -44,7 +44,11 @@ const ALLOWED = {
     "@sprawlens/analyzer-ts",
     "@sprawlens/analyzer-terraform",
     "@sprawlens/server",
+    // the headless SVG renderer (sprawlens render) lives in viz
+    "@sprawlens/viz",
   ],
+  // the bare `sprawlens` package is a thin wrapper that re-exposes the cli bin
+  sprawlens: ["@sprawlens/cli"],
 };
 
 let failed = false;

@@ -15,11 +15,30 @@ npx @sprawlens/cli serve <path-to-repo>
 # print the treemap in the terminal (diff-tinted)
 npx @sprawlens/cli tui <path-to-repo>
 
+# render the structure map straight to an SVG file (no browser)
+npx @sprawlens/cli render <path-to-repo> --layout treemap -o map.svg
+
 # report language detection, LSP availability, and detail features
 npx @sprawlens/cli doctor <path-to-repo>
 ```
 
 `repo` defaults to the current directory.
+
+## Rendering an SVG
+
+`render` runs the same layout and drawing the browser does, headless in Node,
+and writes a standalone SVG — useful for a CI artifact that shows a change's
+macro shape at a glance.
+
+```bash
+npx @sprawlens/cli render . --layout treemap          # writes <repo>-treemap.svg
+npx @sprawlens/cli render . --layout rings --edges     # concentric modules + dep mesh
+npx @sprawlens/cli render . --level module -o map.svg  # modules only (no file cells)
+npx @sprawlens/cli render . -o - > map.svg             # stream to stdout
+```
+
+`--layout` is `rings` or `treemap` (default), `--level` is `module` or `file`
+(default). The map is deterministic for a given `--seed` (default 1).
 
 ## Deep detail via LSP
 

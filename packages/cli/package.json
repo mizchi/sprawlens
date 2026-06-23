@@ -66,6 +66,7 @@
     "@sprawlens/providers": "workspace:*",
     "@sprawlens/schema": "workspace:*",
     "@sprawlens/server": "workspace:*",
+    "@sprawlens/viz": "workspace:*",
     "esbuild": "^0.25.0"
   }
 }

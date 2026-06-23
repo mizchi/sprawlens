@@ -1,7 +1,14 @@
 #!/usr/bin/env node
 import { Command } from "commander";
 import { spawn } from "node:child_process";
-import { existsSync, mkdtempSync, readFileSync, realpathSync, rmSync } from "node:fs";
+import {
+  existsSync,
+  mkdtempSync,
+  readFileSync,
+  realpathSync,
+  rmSync,
+  writeFileSync,
+} from "node:fs";
 import { createRequire } from "node:module";
 import { tmpdir } from "node:os";
 import { basename, dirname, join, resolve } from "node:path";
@@ -39,7 +46,9 @@ import {
   resolveTestRun,
   resolveTraceSymbols,
   serviceFileMap,
+  snapshotToAtlasGraph,
 } from "@sprawlens/schema";
+import { renderAtlasSvg } from "@sprawlens/viz/headless";
 import { analyzeTerraform, hasTerraform } from "@sprawlens/analyzer-terraform";
 import { PROVIDERS, detectProviders } from "@sprawlens/providers";
 import { createAtlasServer, watchDir, workingDiff } from "@sprawlens/server";
@@ -344,6 +353,86 @@ program
         });
         await new Promise(() => {}); // keep the watcher alive until Ctrl-C
       }
+    },
+  );
+
+program
+  .command("render")
+  .description(
+    "render the repo's structure map straight to an SVG file (no browser)",
+  )
+  .argument("[repo]", "repository path", ".")
+  .option("--lang <id>", "force a language provider (typescript|go|rust|moonbit)")
+  .option("--layout <kind>", "rings | treemap", "treemap")
+  .option("--level <kind>", "module | file", "file")
+  .option("--seed <n>", "layout seed", parsePositiveInteger, 1)
+  .option("--edges", "draw the dependency mesh")
+  .option("--dark", "use the dark palette")
+  .option("--width <n>", "canvas width override", parsePositiveInteger)
+  .option("--height <n>", "canvas height override", parsePositiveInteger)
+  .option(
+    "-o, --output <path>",
+    "output file, or '-' for stdout (default: <repo>-<layout>.svg)",
+  )
+  .action(
+    async (
+      repo: string,
+      options: {
+        lang?: string;
+        layout: string;
+        level: string;
+        seed: number;
+        edges?: boolean;
+        dark?: boolean;
+        width?: number;
+        height?: number;
+        output?: string;
+      },
+    ): Promise<void> => {
+      if (options.layout !== "rings" && options.layout !== "treemap") {
+        console.error(`--layout must be rings or treemap, got "${options.layout}"`);
+        process.exitCode = 1;
+        return;
+      }
+      if (options.level !== "module" && options.level !== "file") {
+        console.error(`--level must be module or file, got "${options.level}"`);
+        process.exitCode = 1;
+        return;
+      }
+      const root = resolve(repo);
+      const config = (await readSprawlensConfig(root)) ?? {};
+      const provider = await chooseProvider(root, options.lang ?? config.lang);
+      if (!provider) {
+        process.exitCode = 1;
+        return;
+      }
+      const snapshot = applyLayers(await provider.analyze(root), config);
+      const graph = snapshotToAtlasGraph(
+        snapshot as Parameters<typeof snapshotToAtlasGraph>[0],
+      );
+      if (graph.nodes.length === 0) {
+        console.error("no files to render (empty analysis)");
+        process.exitCode = 1;
+        return;
+      }
+      const svg = renderAtlasSvg(graph, {
+        layout: options.layout,
+        level: options.level,
+        seed: options.seed,
+        showEdges: options.edges ?? false,
+        dark: options.dark ?? false,
+        ...(options.width ? { width: options.width } : {}),
+        ...(options.height ? { height: options.height } : {}),
+      });
+      if (options.output === "-") {
+        process.stdout.write(`${svg}\n`);
+        return;
+      }
+      const out = options.output ?? `${basename(root)}-${options.layout}.svg`;
+      writeFileSync(out, svg);
+      console.log(
+        `wrote ${out} (${options.layout}, ${options.level}, ${graph.nodes.length} files, seed ${options.seed})`,
+      );
     },
   );
 

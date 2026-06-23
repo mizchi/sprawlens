@@ -5,6 +5,12 @@ import { fileURLToPath } from "node:url";
 
 // bundle our workspace TS (@sprawlens/*) into one file; leave node_modules
 // deps (typescript, web-tree-sitter, commander, ...) and node builtins external.
+// preact + preact-render-to-string are bundled too (not externalized): the
+// headless SVG renderer pulls the viz components, so the CLI must carry preact
+// to stay self-contained without adding it as a runtime dependency.
+const BUNDLED = ["preact", "preact-render-to-string"];
+const isBundled = (path) =>
+  BUNDLED.some((p) => path === p || path.startsWith(`${p}/`));
 await build({
   entryPoints: ["src/index.ts"],
   bundle: true,
@@ -12,6 +18,10 @@ await build({
   target: "node22",
   format: "esm",
   outfile: "dist/index.js",
+  // the viz components are preact JSX (jsxImportSource: preact)
+  jsx: "automatic",
+  jsxImportSource: "preact",
+  jsxDev: false,
   plugins: [
     {
       name: "externalize",
@@ -20,6 +30,7 @@ await build({
           if (args.kind === "entry-point") return null;
           if (args.path.startsWith(".") || args.path.startsWith("@sprawlens/"))
             return null;
+          if (isBundled(args.path)) return null;
           if (isAbsolute(args.path)) return null;
           return { path: args.path, external: true };
         });
