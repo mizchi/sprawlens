@@ -1,0 +1,20 @@
+name: PR Title
+
+# Squash-merge uses the PR title as the commit message, which release-please
+# parses for Conventional Commits. Lint the title so a feature can't land with a
+# non-conventional title and get dropped from the changelog / version bump
+# (as render --diff / --format mermaid did).
+on:
+  pull_request:
+    types: [opened, edited, reopened, synchronize]
+
+permissions:
+  pull-requests: read
+
+jobs:
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: amannn/action-semantic-pull-request@48f256284bd46cdaab1048c3721360e808335d50 # v6.1.1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
