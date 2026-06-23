@@ -50,12 +50,12 @@
   },
   "dependencies": {
     "@cdktf/hcl2json": "^0.21.0",
-    "commander": "^14.0.0",
+    "commander": "^15.0.0",
     "fast-glob": "^3.3.3",
     "picomatch": "^4.0.4",
-    "smol-toml": "^1.6.1",
+    "smol-toml": "^1.7.0",
     "tree-sitter-wasms": "^0.1.13",
-    "typescript": "^5.7.2",
+    "typescript": "^6.0.0",
     "typescript-language-server": "^5.3.0",
     "web-tree-sitter": "^0.22.6"
   },
@@ -67,6 +67,6 @@
     "@sprawlens/schema": "workspace:*",
     "@sprawlens/server": "workspace:*",
     "@sprawlens/viz": "workspace:*",
-    "esbuild": "^0.25.0"
+    "esbuild": "^0.28.0"
   }
 }

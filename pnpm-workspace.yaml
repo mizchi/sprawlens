@@ -1,2 +1,12 @@
 packages:
   - "packages/*"
+
+# pnpm 11 reads the build-script allowlist here (moved out of package.json#pnpm).
+# esbuild needs its postinstall to fetch its platform binary.
+allowBuilds:
+  esbuild: true
+
+# This repo intentionally tracks bleeding-edge tooling: @typescript/native-preview
+# ships a fresh dev build daily and we follow the latest vite/vitest. pnpm 11's
+# default minimum-release-age policy would perpetually reject those, so it's off.
+minimumReleaseAge: 0
