@@ -44,6 +44,10 @@ export type AtlasSvgOptions = {
   height?: number;
   /** Solver iteration cap (safety bound around the convergence loop). */
   maxSteps?: number;
+  /** Map of node id → change kind; tints added/modified leaf cells. */
+  changed?: Map<string, "added" | "modified">;
+  /** Counts for the diff legend; when present and non-zero, a legend is drawn. */
+  diffSummary?: { added: number; modified: number; removed: number };
 };
 
 // the app's fixed rings canvas and its default treemap extent
@@ -193,7 +197,7 @@ export function renderAtlasSvg(
     layers: [],
     altEdges: false,
     parentFileOf,
-    changedOf: () => undefined,
+    changedOf: (id) => options.changed?.get(id),
     portNodes: [],
     hiddenLayers: new Set(),
     showEdges: options.showEdges ?? false,
