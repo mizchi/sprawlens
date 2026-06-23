@@ -1,9 +1,5 @@
 import { describe, expect, it } from "vitest";
-import {
-  cellAdjacency,
-  greedySwapAssignment,
-  realizedEdgeRate,
-} from "./neighborhood.js";
+import { cellAdjacency, greedySwapAssignment, realizedEdgeRate } from "./neighborhood.js";
 import { computePowerDiagram } from "./powerDiagram.js";
 
 const unitSquare = [
@@ -71,12 +67,7 @@ describe("realizedEdgeRate", () => {
 
 describe("greedySwapAssignment", () => {
   // slots form a path: 0-1-2-3
-  const pathAdjacency = [
-    new Set([1]),
-    new Set([0, 2]),
-    new Set([1, 3]),
-    new Set([2]),
-  ];
+  const pathAdjacency = [new Set([1]), new Set([0, 2]), new Set([1, 3]), new Set([2])];
 
   it("untangles a scrambled chain to realize every edge", () => {
     const nodes = ["a", "b", "c", "d"];
@@ -89,9 +80,7 @@ describe("greedySwapAssignment", () => {
     const improved = greedySwapAssignment([0, 2, 1, 3], nodes, pathAdjacency, edges);
     const slotOf = new Map(nodes.map((id, i) => [id, improved[i]!]));
     for (const edge of edges) {
-      expect(
-        pathAdjacency[slotOf.get(edge.source)!]!.has(slotOf.get(edge.target)!),
-      ).toBe(true);
+      expect(pathAdjacency[slotOf.get(edge.source)!]!.has(slotOf.get(edge.target)!)).toBe(true);
     }
   });
 
@@ -101,9 +90,7 @@ describe("greedySwapAssignment", () => {
       { source: "a", target: "b" },
       { source: "b", target: "c" },
     ];
-    expect(
-      greedySwapAssignment([0, 1, 2, 3], nodes, pathAdjacency, edges),
-    ).toEqual([0, 1, 2, 3]);
+    expect(greedySwapAssignment([0, 1, 2, 3], nodes, pathAdjacency, edges)).toEqual([0, 1, 2, 3]);
   });
 
   it("never decreases the realized rate", () => {
@@ -121,9 +108,7 @@ describe("greedySwapAssignment", () => {
       const adjacency = new Map(
         nodes.map((id, i) => [
           id,
-          new Set(
-            nodes.filter((_, j) => ring[assign[i]!]!.has(assign[j]!)),
-          ),
+          new Set(nodes.filter((_, j) => ring[assign[i]!]!.has(assign[j]!))),
         ]),
       );
       return realizedEdgeRate(adjacency, edges);

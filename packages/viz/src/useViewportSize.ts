@@ -9,10 +9,7 @@ export type Size = { width: number; height: number };
  * `ref` to attach to the container. This is host/DOM glue — kept out of the
  * engine so a non-DOM renderer supplies its own extent.
  */
-export function useViewportSize(
-  initial: Size,
-  min: Size = { width: 320, height: 240 },
-) {
+export function useViewportSize(initial: Size, min: Size = { width: 320, height: 240 }) {
   const [size, setSize] = useState(initial);
   const sizeRef = useRef(size);
   sizeRef.current = size;

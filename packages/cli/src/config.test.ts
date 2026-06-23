@@ -92,9 +92,7 @@ describe("readSprawlensConfig", () => {
   });
 
   it("drops service entries without a name", async () => {
-    const root = await withToml(
-      [`[[service]]`, `terraform = ["x.y"]`].join("\n"),
-    );
+    const root = await withToml([`[[service]]`, `terraform = ["x.y"]`].join("\n"));
     const config = await readSprawlensConfig(root);
     expect(config?.services).toBeUndefined();
   });

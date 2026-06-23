@@ -8,10 +8,7 @@ export type DocumentSymbol = {
 };
 
 /** Depth-first search for a symbol by exact name. */
-export function findSymbol(
-  symbols: DocumentSymbol[],
-  name: string,
-): DocumentSymbol | null {
+export function findSymbol(symbols: DocumentSymbol[], name: string): DocumentSymbol | null {
   for (const symbol of symbols) {
     if (symbol.name === name) return symbol;
     const child = symbol.children && findSymbol(symbol.children, name);
@@ -28,10 +25,7 @@ export function findSymbol(
  * we locate the name within its start line and use that column, falling back to
  * the reported position when the name can't be found.
  */
-export function namePosition(
-  absolutePath: string,
-  symbol: DocumentSymbol,
-): LspPosition {
+export function namePosition(absolutePath: string, symbol: DocumentSymbol): LspPosition {
   const start = symbol.selectionRange.start;
   try {
     const line = readFileSync(absolutePath, "utf8").split("\n")[start.line];

@@ -52,9 +52,10 @@ test.describe("atlas zoom scenario (playwright fixture)", () => {
     await perf.measure("wait-converge", async () => {
       // open the floating stats section and wait for the solver to settle
       await page.locator("summary", { hasText: "ステータス" }).click();
-      await expect(
-        page.locator("details", { hasText: "max relative error" }),
-      ).toContainText("(converged)", { timeout: 120_000 });
+      await expect(page.locator("details", { hasText: "max relative error" })).toContainText(
+        "(converged)",
+        { timeout: 120_000 },
+      );
     });
 
     await perf.measure("zoom-in-deep", async () => {

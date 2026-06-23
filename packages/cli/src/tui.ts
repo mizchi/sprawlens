@@ -51,9 +51,7 @@ function baseName(path: string): string {
 }
 
 /** modified outranks added; undefined if nothing changed. */
-function mostSevereChange(
-  changes: (ChangeKind | undefined)[],
-): ChangeKind | undefined {
+function mostSevereChange(changes: (ChangeKind | undefined)[]): ChangeKind | undefined {
   if (changes.includes("modified")) return "modified";
   if (changes.includes("added")) return "added";
   return undefined;

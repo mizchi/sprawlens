@@ -1,9 +1,4 @@
-import type {
-  Snapshot,
-  TracePlane,
-  TraceStep,
-  TraceTimeline,
-} from "@sprawlens/contracts";
+import type { Snapshot, TracePlane, TraceStep, TraceTimeline } from "@sprawlens/contracts";
 import { buildSymbolResolver } from "./trace.js";
 
 // A V8 cpuprofile (node:inspector Profiler / CDP Profiler / `node --cpu-prof`).
@@ -25,9 +20,7 @@ export type CpuProfileLike = {
  * adapter so timeline and overlay resolve frames identically. */
 function repoRelative(url: string, repoRoot: string): string | undefined {
   if (!url) return undefined;
-  const path = url.startsWith("file://")
-    ? decodeURIComponent(url.slice("file://".length))
-    : url;
+  const path = url.startsWith("file://") ? decodeURIComponent(url.slice("file://".length)) : url;
   if (!path.startsWith("/")) return undefined;
   if (path.includes("/node_modules/")) return undefined;
   const root = repoRoot.endsWith("/") ? repoRoot : `${repoRoot}/`;

@@ -12,10 +12,7 @@
  * a brute-force all-pairs scan). Points with no neighbor (n < 2) get Infinity.
  * Inputs are structure-of-arrays for cache-friendly scanning.
  */
-export function nearestNeighborSquared(
-  xs: Float64Array,
-  ys: Float64Array,
-): Float64Array {
+export function nearestNeighborSquared(xs: Float64Array, ys: Float64Array): Float64Array {
   const n = xs.length;
   const out = new Float64Array(n).fill(Infinity);
   if (n < 2) return out;
@@ -38,10 +35,8 @@ export function nearestNeighborSquared(
   const cell = Math.max(Math.max(width, height) / Math.ceil(Math.sqrt(n)), 1e-12);
   const cols = Math.max(1, Math.floor(width / cell) + 1);
   const rows = Math.max(1, Math.floor(height / cell) + 1);
-  const colOf = (x: number) =>
-    Math.min(cols - 1, Math.max(0, Math.floor((x - minX) / cell)));
-  const rowOf = (y: number) =>
-    Math.min(rows - 1, Math.max(0, Math.floor((y - minY) / cell)));
+  const colOf = (x: number) => Math.min(cols - 1, Math.max(0, Math.floor((x - minX) / cell)));
+  const rowOf = (y: number) => Math.min(rows - 1, Math.max(0, Math.floor((y - minY) / cell)));
 
   const buckets: number[][] = Array.from({ length: cols * rows }, () => []);
   for (let i = 0; i < n; i++) buckets[rowOf(ys[i]!) * cols + colOf(xs[i]!)]!.push(i);

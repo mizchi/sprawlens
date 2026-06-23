@@ -30,10 +30,7 @@ export function countLines(content: string): number {
  * unreadable) is simply omitted from `loc`, and the cell keeps its prior
  * area. Removed files are not read.
  */
-export async function enrichWithLoc(
-  root: string,
-  diff: WorkingDiff,
-): Promise<WorkingDiff> {
+export async function enrichWithLoc(root: string, diff: WorkingDiff): Promise<WorkingDiff> {
   const loc: Record<string, number> = {};
   await Promise.all(
     Object.keys(diff.changed).map(async (path) => {
@@ -110,10 +107,7 @@ const GIT_OPTS = { maxBuffer: 10 * 1024 * 1024 };
  * HEAD (`git status`). With `base`: everything that differs from that
  * ref — committed and dirty — plus untracked files.
  */
-export async function workingDiff(
-  root: string,
-  base?: string,
-): Promise<WorkingDiff> {
+export async function workingDiff(root: string, base?: string): Promise<WorkingDiff> {
   const { stdout: status } = await exec("git", ["status", "--porcelain"], {
     cwd: root,
     ...GIT_OPTS,
@@ -137,9 +131,7 @@ export async function workingDiff(
  * feed back into the watch loop via .git/index writes). */
 export function isIgnoredPath(path: string): boolean {
   const normalized = path.replaceAll("\\", "/");
-  return /(^|\/)(\.git|node_modules|dist|\.codesprawl|coverage|\.turbo)(\/|$)/.test(
-    normalized,
-  );
+  return /(^|\/)(\.git|node_modules|dist|\.codesprawl|coverage|\.turbo)(\/|$)/.test(normalized);
 }
 
 /**
@@ -147,11 +139,7 @@ export function isIgnoredPath(path: string): boolean {
  * `onChange` once per settled burst of edits. Returns a stop function. The
  * generic building block under both the working-diff and snapshot streams.
  */
-export function watchDir(
-  root: string,
-  onChange: () => void,
-  debounceMs = 300,
-): () => void {
+export function watchDir(root: string, onChange: () => void, debounceMs = 300): () => void {
   let timer: ReturnType<typeof setTimeout> | null = null;
   const fire = () => {
     if (timer) clearTimeout(timer);

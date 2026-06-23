@@ -5,16 +5,8 @@ import { fileGrouping, moduleGrouping } from "@sprawlens/schema";
 import { cyclicComponents } from "@sprawlens/layout";
 import { buildScene } from "../engine/buildScene.ts";
 import { SvgRenderer } from "../renderer/SvgRenderer.tsx";
-import {
-  createRingsState,
-  stepRingsState,
-  type RingsState,
-} from "../ringsController.ts";
-import {
-  createTreemapState,
-  stepTreemapState,
-  type TreemapState,
-} from "../treemapController.ts";
+import { createRingsState, stepRingsState, type RingsState } from "../ringsController.ts";
+import { createTreemapState, stepTreemapState, type TreemapState } from "../treemapController.ts";
 import {
   ADDED_FILL,
   INK,
@@ -128,10 +120,7 @@ type TreemapSolveOpts = {
   maxSteps: number;
 };
 
-export function renderAtlasSvg(
-  graph: AtlasGraph,
-  options: AtlasSvgOptions = {},
-): string {
+export function renderAtlasSvg(graph: AtlasGraph, options: AtlasSvgOptions = {}): string {
   const layout = options.layout ?? "treemap";
   const level: Granularity = options.level ?? "file";
   const seed = options.seed ?? 1;
@@ -140,8 +129,7 @@ export function renderAtlasSvg(
   const height = options.height ?? (layout === "rings" ? RINGS_H : TREE_H);
   const maxSteps = options.maxSteps ?? DEFAULT_MAX_STEPS;
   // a file boundary makes files the leaf cells; otherwise modules are the leaves
-  const boundaries =
-    level === "file" ? [moduleGrouping(), fileGrouping()] : [moduleGrouping()];
+  const boundaries = level === "file" ? [moduleGrouping(), fileGrouping()] : [moduleGrouping()];
   const solver = {
     width,
     height,
@@ -154,15 +142,11 @@ export function renderAtlasSvg(
   // the theme tokens are ESM live bindings the components read at render time
   setMapTheme(dark);
 
-  const rings =
-    layout === "rings" ? solveRings(graph, { solver, maxSteps }) : null;
-  const treemap =
-    layout === "treemap" ? solveTreemap(graph, { solver, maxSteps }) : null;
+  const rings = layout === "rings" ? solveRings(graph, { solver, maxSteps }) : null;
+  const treemap = layout === "treemap" ? solveTreemap(graph, { solver, maxSteps }) : null;
 
   const labels = new Map(graph.nodes.map((n) => [n.id, n.label]));
-  const exportedIds = new Set(
-    graph.nodes.filter((n) => n.exported).map((n) => n.id),
-  );
+  const exportedIds = new Set(graph.nodes.filter((n) => n.exported).map((n) => n.id));
   const cyclicIds = new Set(
     cyclicComponents(
       graph.nodes.map((n) => n.id),
@@ -231,9 +215,7 @@ export function renderAtlasSvg(
       onViewSettle: NOOP,
     }),
   );
-  const legend = options.diffSummary
-    ? buildDiffLegend(options.diffSummary, height)
-    : "";
+  const legend = options.diffSummary ? buildDiffLegend(options.diffSummary, height) : "";
   return finalize(body, width, height, legend);
 }
 
@@ -282,12 +264,7 @@ function buildDiffLegend(
  * namespace (preact omits it), pin explicit pixel dimensions for rasterizers,
  * and paint the map background the app draws behind the <svg>.
  */
-function finalize(
-  body: string,
-  width: number,
-  height: number,
-  legend = "",
-): string {
+function finalize(body: string, width: number, height: number, legend = ""): string {
   const open = body.indexOf(">");
   if (!body.startsWith("<svg") || open === -1) return body;
   const head = body.slice(0, open);

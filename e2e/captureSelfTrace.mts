@@ -88,5 +88,8 @@ writeFileSync(vizPublic, json);
 console.log(`[capture] wrote ${join(outDir, "self-timeline.json")} and ${vizPublic}`);
 
 // surface a few resolved symbols so we can eyeball that the entry path is real
-const sample = server.steps.filter((s) => s.symbolId).slice(0, 8).map((s) => s.symbolId);
+const sample = server.steps
+  .filter((s) => s.symbolId)
+  .slice(0, 8)
+  .map((s) => s.symbolId);
 console.log("[capture] sample symbols:", sample);

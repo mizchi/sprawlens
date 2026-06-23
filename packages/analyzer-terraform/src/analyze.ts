@@ -20,10 +20,7 @@ async function terraformFiles(root: string, tfRoot?: string): Promise<string[]> 
 }
 
 /** Whether the repo has any Terraform under the (optional) terraform root. */
-export async function hasTerraform(
-  root: string,
-  tfRoot?: string,
-): Promise<boolean> {
+export async function hasTerraform(root: string, tfRoot?: string): Promise<boolean> {
   return (await terraformFiles(root, tfRoot)).length > 0;
 }
 
@@ -32,10 +29,7 @@ export async function hasTerraform(
  * services and edge derivation is `resolveServices`' job (in @sprawlens/schema);
  * this stays a thin parser.
  */
-export async function analyzeTerraform(
-  root: string,
-  tfRoot?: string,
-): Promise<RawResource[]> {
+export async function analyzeTerraform(root: string, tfRoot?: string): Promise<RawResource[]> {
   const files = await terraformFiles(root, tfRoot);
   const out: RawResource[] = [];
   for (const file of files) {

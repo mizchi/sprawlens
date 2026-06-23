@@ -67,8 +67,6 @@ describe("buildScene", () => {
   });
 
   it("prefers rings when both layouts are present", () => {
-    expect(buildScene({ ...base, rings: {} as never, treemap: {} as never })?.kind).toBe(
-      "rings",
-    );
+    expect(buildScene({ ...base, rings: {} as never, treemap: {} as never })?.kind).toBe("rings");
   });
 });

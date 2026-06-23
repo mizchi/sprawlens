@@ -113,10 +113,9 @@ export function useSymbolDetail(ctx: SymbolDetailContext) {
     const roots = selectedIds.length > 0 ? selectedIds : activeId ? [activeId] : [];
     const out: AtlasEdge[] = [];
     const seen = new Set(
-      (granularity === "symbol"
-        ? displayGraphRef.current.edges
-        : symbolEdgesRef.current
-      ).map((e) => `${e.source}->${e.target}`),
+      (granularity === "symbol" ? displayGraphRef.current.edges : symbolEdgesRef.current).map(
+        (e) => `${e.source}->${e.target}`,
+      ),
     );
     for (const root of roots) {
       for (const edge of detailEdgesRef.current.get(root) ?? []) {
@@ -177,11 +176,19 @@ export function useSymbolDetail(ctx: SymbolDetailContext) {
     }
     return out;
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [allCells, allInnerCells, zoom, cfgVersion, visibleLevels, granularity, activeId, selectedIds]);
+  }, [
+    allCells,
+    allInnerCells,
+    zoom,
+    cfgVersion,
+    visibleLevels,
+    granularity,
+    activeId,
+    selectedIds,
+  ]);
 
   /** Cached call-hierarchy edges for one root (for the detail panel). */
-  const detailEdgesOf = (id: string): AtlasEdge[] =>
-    detailEdgesRef.current.get(id) ?? [];
+  const detailEdgesOf = (id: string): AtlasEdge[] => detailEdgesRef.current.get(id) ?? [];
 
   return {
     detailOverlayEdges,

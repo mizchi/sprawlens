@@ -84,19 +84,16 @@ program
   .option("--port <n>", "port", (v) => Number.parseInt(v, 10), 4173)
   .option("--lang <id>", "force a language provider (typescript|go|rust|moonbit)")
   .option("--no-open", "do not open the browser")
-  .option(
-    "--trace <path>",
-    "overlay a runtime trace (.cpuprofile or folded/collapsed stacks)",
-  )
-  .option(
-    "--test-report <path>",
-    "overlay a test run (vitest --reporter=json output)",
-  )
+  .option("--trace <path>", "overlay a runtime trace (.cpuprofile or folded/collapsed stacks)")
+  .option("--test-report <path>", "overlay a test run (vitest --reporter=json output)")
   .option(
     "--test-traces <path>",
     "per-test traces ({ testId: artifact }) linking each case to its source",
   )
-  .option("--experimental", "enable experimental viz features (trace player, commit-log, test reporter)")
+  .option(
+    "--experimental",
+    "enable experimental viz features (trace player, commit-log, test reporter)",
+  )
   .action(
     async (
       repo: string,
@@ -134,11 +131,8 @@ program
         const p = provider;
         console.log(`analyzing ${root} (${p.id}) …`);
         const incremental = p.createIncrementalAnalyzer?.(root);
-        const rawAnalyze = incremental
-          ? () => incremental.analyze()
-          : () => p.analyze(root);
-        analyze = async (): Promise<Snapshot> =>
-          applyLayers(await rawAnalyze(), config);
+        const rawAnalyze = incremental ? () => incremental.analyze() : () => p.analyze(root);
+        analyze = async (): Promise<Snapshot> => applyLayers(await rawAnalyze(), config);
         // prefer an LSP for deep detail when one is installed: TS already drives
         // its own (LSP + compiler CFG); the others ship a static tree-sitter
         // detail that we upgrade to an LSP (hover + call hierarchy) here.
@@ -161,9 +155,7 @@ program
 
       const vizDist = resolveVizDist();
       if (!vizDist) {
-        console.error(
-          "viz build not found. Run `pnpm --filter @sprawlens/viz build` first.",
-        );
+        console.error("viz build not found. Run `pnpm --filter @sprawlens/viz build` first.");
         process.exitCode = 1;
         return;
       }
@@ -201,9 +193,7 @@ program
         : undefined;
       if (services) {
         const graph = await services();
-        console.log(
-          `  terraform: ${graph.services.length} services, ${graph.edges.length} links`,
-        );
+        console.log(`  terraform: ${graph.services.length} services, ${graph.edges.length} links`);
       }
       // ingest an out-of-band runtime trace and resolve its frames against this
       // snapshot's symbols, so the viz can light up the executed path.
@@ -280,9 +270,7 @@ program
 
 program
   .command("tui")
-  .description(
-    "print the repo's module/file/symbol treemap in the terminal (diff-tinted)",
-  )
+  .description("print the repo's module/file/symbol treemap in the terminal (diff-tinted)")
   .argument("[repo]", "repository path", ".")
   .option("--lang <id>", "force a language provider (typescript|go|rust|moonbit)")
   .option("--cols <n>", "grid width (default: terminal width)", (v) => Number.parseInt(v, 10))
@@ -311,9 +299,7 @@ program
       }
       // incremental re-analysis keeps watch cheap when the provider supports it
       const incremental = provider.createIncrementalAnalyzer?.(root);
-      const analyze = incremental
-        ? () => incremental.analyze()
-        : () => provider.analyze(root);
+      const analyze = incremental ? () => incremental.analyze() : () => provider.analyze(root);
 
       const diffOf = async (): Promise<Map<string, ChangeKind> | undefined> => {
         if (!options.diff) return undefined;
@@ -340,8 +326,7 @@ program
         const snapshot = applyLayers(await analyze(), config);
         const changed = await diffOf();
         const cols = options.cols ?? process.stdout.columns ?? 80;
-        const rows =
-          options.rows ?? (process.stdout.rows ? process.stdout.rows - 1 : 30);
+        const rows = options.rows ?? (process.stdout.rows ? process.stdout.rows - 1 : 30);
         const out = renderTui(snapshot, { cols, rows, changed });
         if (options.watch) process.stdout.write("\x1b[2J\x1b[H"); // clear + home
         process.stdout.write(`${out}\n`);
@@ -361,9 +346,7 @@ program
 
 program
   .command("render")
-  .description(
-    "render the repo's structure map straight to an SVG file (no browser)",
-  )
+  .description("render the repo's structure map straight to an SVG file (no browser)")
   .argument("[repo]", "repository path", ".")
   .option("--lang <id>", "force a language provider (typescript|go|rust|moonbit)")
   .addOption(
@@ -372,9 +355,7 @@ program
       .default("treemap"),
   )
   .addOption(
-    new Option("--level <kind>", "leaf granularity")
-      .choices(["module", "file"])
-      .default("file"),
+    new Option("--level <kind>", "leaf granularity").choices(["module", "file"]).default("file"),
   )
   .option("--seed <n>", "layout seed", parsePositiveInteger, 1)
   .option("--edges", "draw the dependency mesh")
@@ -393,10 +374,7 @@ program
   )
   .option("--width <n>", "canvas width override", parsePositiveInteger)
   .option("--height <n>", "canvas height override", parsePositiveInteger)
-  .option(
-    "-o, --output <path>",
-    "output file, or '-' for stdout (default: <repo>-<layout>.svg)",
-  )
+  .option("-o, --output <path>", "output file, or '-' for stdout (default: <repo>-<layout>.svg)")
   .action(
     async (
       repo: string,
@@ -439,14 +417,14 @@ program
           summary: overlay!.diffSummary,
         });
         if (md === "") {
-          console.error(
-            "no changed files are on the map; nothing to render as mermaid",
-          );
+          console.error("no changed files are on the map; nothing to render as mermaid");
           process.exitCode = 1;
           return;
         }
-        emit(`${md}\n`, resolveOutputTarget(options.output), () =>
-          `mermaid, diff ${formatDiffNote(overlay!.diffSummary)}`,
+        emit(
+          `${md}\n`,
+          resolveOutputTarget(options.output),
+          () => `mermaid, diff ${formatDiffNote(overlay!.diffSummary)}`,
         );
         return;
       }
@@ -459,9 +437,7 @@ program
         dark: options.dark ?? false,
         ...(options.width ? { width: options.width } : {}),
         ...(options.height ? { height: options.height } : {}),
-        ...(overlay
-          ? { changed: overlay.changed, diffSummary: overlay.diffSummary }
-          : {}),
+        ...(overlay ? { changed: overlay.changed, diffSummary: overlay.diffSummary } : {}),
       });
       const defaultPath = `${basename(root)}-${options.layout}.svg`;
       emit(svg, resolveOutputTarget(options.output, defaultPath), () => {
@@ -479,7 +455,9 @@ program
   .option("--step <step>", "sampling step; only 'weekly' is supported", parseStep)
   .action(async (repo: string, options: { commits?: number; since?: string; step?: "weekly" }) => {
     const result = await collectRepository(repo, options);
-    console.log(`Collected ${result.snapshots.length} snapshots into ${result.config.repoPath}/.codesprawl`);
+    console.log(
+      `Collected ${result.snapshots.length} snapshots into ${result.config.repoPath}/.codesprawl`,
+    );
   });
 
 program
@@ -487,7 +465,9 @@ program
   .argument("<repo>", "repository path or repository containing .codesprawl")
   .action(async (repo: string) => {
     const result = await analyzeRepository(repo);
-    console.log(`Analyzed ${result.snapshots.length} snapshots and wrote ${result.diffs.length} diffs`);
+    console.log(
+      `Analyzed ${result.snapshots.length} snapshots and wrote ${result.diffs.length} diffs`,
+    );
   });
 
 program
@@ -521,9 +501,7 @@ program
               : "source-preview hover only";
       console.log(`• ${p.id}${tag}`);
       console.log(
-        `    language server : ${
-          bin ? `${bin} — ${found ? "found ✓" : "not installed ✗"}` : "—"
-        }`,
+        `    language server : ${bin ? `${bin} — ${found ? "found ✓" : "not installed ✗"}` : "—"}`,
       );
       console.log(`    deep detail     : ${detail}\n`);
     }
@@ -552,10 +530,7 @@ function emptySnapshot(root: string, name: string): Snapshot {
 }
 
 /** doctor: report the terraform service layer (the upper layer). */
-async function reportTerraform(
-  root: string,
-  config: LayersConfig,
-): Promise<void> {
+async function reportTerraform(root: string, config: LayersConfig): Promise<void> {
   const tfRoot = config.terraform?.root;
   if (!(await hasTerraform(root, tfRoot))) {
     console.log(`• terraform : none detected${tfRoot ? ` under ${tfRoot}` : ""}\n`);
@@ -566,7 +541,9 @@ async function reportTerraform(
   });
   const where = tfRoot ? ` (root: ${tfRoot})` : "";
   console.log(`• terraform${where}`);
-  console.log(`    service layer   : ${graph.services.length} services, ${graph.edges.length} links`);
+  console.log(
+    `    service layer   : ${graph.services.length} services, ${graph.edges.length} links`,
+  );
   console.log(
     `    mapping         : ${
       config.services?.length
@@ -610,11 +587,7 @@ function lspAvailable(bin: string): boolean {
   const sep = process.platform === "win32" ? ";" : ":";
   return (process.env.PATH ?? "")
     .split(sep)
-    .some(
-      (d) =>
-        d.length > 0 &&
-        (existsSync(join(d, bin)) || existsSync(join(d, `${bin}.exe`))),
-    );
+    .some((d) => d.length > 0 && (existsSync(join(d, bin)) || existsSync(join(d, `${bin}.exe`))));
 }
 
 /**
@@ -629,12 +602,7 @@ function lspAvailable(bin: string): boolean {
  * Trace. `parsed` is the JSON value (undefined when the text isn't JSON, e.g.
  * folded stacks); `text` is the raw file for the folded-stack fallback.
  */
-function parseTraceArtifact(
-  parsed: unknown,
-  text: string,
-  realRoot: string,
-  label: string,
-): Trace {
+function parseTraceArtifact(parsed: unknown, text: string, realRoot: string, label: string): Trace {
   const obj =
     parsed !== undefined && typeof parsed === "object"
       ? (parsed as Record<string, unknown>)
@@ -645,8 +613,7 @@ function parseTraceArtifact(
       ? (list[0] as Record<string, unknown>)
       : undefined;
   };
-  const isCpuProfile =
-    obj !== undefined && Array.isArray(obj.nodes) && Array.isArray(obj.samples);
+  const isCpuProfile = obj !== undefined && Array.isArray(obj.nodes) && Array.isArray(obj.samples);
   // V8 precise coverage: { result: [{ url, functions }] } (NODE_V8_COVERAGE)
   const isV8Coverage = firstOf("result")?.functions !== undefined;
   // llvm-cov export: { data: [{ functions }] }
@@ -657,11 +624,7 @@ function parseTraceArtifact(
   return parseFoldedStacks(text, { label });
 }
 
-function loadTrace(
-  tracePath: string,
-  root: string,
-  snapshot: Snapshot,
-): Trace | undefined {
+function loadTrace(tracePath: string, root: string, snapshot: Snapshot): Trace | undefined {
   const path = resolve(tracePath);
   if (!existsSync(path)) {
     console.error(`trace file not found: ${path}`);
@@ -699,11 +662,7 @@ const EMPTY_TEST_TREE: TestTree = {
  * it to this snapshot: case ids resolve to the test tree, `covers` (if any) to
  * snapshot symbols. Returns undefined on a missing or unparsable file.
  */
-function loadTestRun(
-  reportPath: string,
-  root: string,
-  snapshot: Snapshot,
-): TestRun | undefined {
+function loadTestRun(reportPath: string, root: string, snapshot: Snapshot): TestRun | undefined {
   const path = resolve(reportPath);
   if (!existsSync(path)) {
     console.error(`test report not found: ${path}`);
@@ -758,9 +717,7 @@ function applyTestTraces(
       );
       const ids = [
         ...new Set(
-          trace.nodes
-            .map((n) => n.ref.symbolId)
-            .filter((id): id is string => id !== undefined),
+          trace.nodes.map((n) => n.ref.symbolId).filter((id): id is string => id !== undefined),
         ),
       ];
       if (ids.length > 0)
@@ -850,13 +807,8 @@ function makeTestCaseRunner(
     }
     try {
       const report = JSON.parse(readFileSync(out, "utf8"));
-      const run = resolveTestRun(
-        vitestReportAdapter.parse(report, realRoot),
-        tree,
-        snapshot,
-      );
-      const result =
-        run.results.find((r) => r.testId === testId) ?? run.results[0] ?? null;
+      const run = resolveTestRun(vitestReportAdapter.parse(report, realRoot), tree, snapshot);
+      const result = run.results.find((r) => r.testId === testId) ?? run.results[0] ?? null;
       if (!result) return null;
       // resolve the executed functions to symbol ids → the case's `covers`
       let covers = result.covers;
@@ -891,17 +843,12 @@ function makeTestCaseRunner(
  * the exit code) when no provider matches or the analysis is empty; the
  * specific reason is already reported by chooseProvider or here.
  */
-async function buildRepoGraph(
-  root: string,
-  lang: string | undefined,
-): Promise<AtlasGraph | null> {
+async function buildRepoGraph(root: string, lang: string | undefined): Promise<AtlasGraph | null> {
   const config = (await readSprawlensConfig(root)) ?? {};
   const provider = await chooseProvider(root, lang ?? config.lang);
   if (!provider) return null;
   const snapshot = applyLayers(await provider.analyze(root), config);
-  const graph = snapshotToAtlasGraph(
-    snapshot as Parameters<typeof snapshotToAtlasGraph>[0],
-  );
+  const graph = snapshotToAtlasGraph(snapshot as Parameters<typeof snapshotToAtlasGraph>[0]);
   if (graph.nodes.length === 0) {
     console.error("no files to render (empty analysis)");
     return null;
@@ -916,10 +863,7 @@ type OutputTarget = { kind: "stdout" } | { kind: "file"; path: string };
  * file; omitted → defaultPath when given (the SVG case), else stdout (mermaid,
  * which is meant to be piped into a comment).
  */
-function resolveOutputTarget(
-  output: string | undefined,
-  defaultPath?: string,
-): OutputTarget {
+function resolveOutputTarget(output: string | undefined, defaultPath?: string): OutputTarget {
   if (output === "-") return { kind: "stdout" };
   if (output === undefined)
     return defaultPath ? { kind: "file", path: defaultPath } : { kind: "stdout" };
@@ -972,9 +916,7 @@ async function chooseProvider(
 }
 
 /** Ask the user which detected language to use (TTY); default is the first. */
-async function promptProvider(
-  candidates: LanguageProvider[],
-): Promise<LanguageProvider | null> {
+async function promptProvider(candidates: LanguageProvider[]): Promise<LanguageProvider | null> {
   const rl = readline.createInterface({
     input: process.stdin,
     output: process.stdout,
@@ -1008,11 +950,7 @@ function resolveVizDist(): string | null {
 
 function openBrowser(url: string): void {
   const cmd =
-    process.platform === "darwin"
-      ? "open"
-      : process.platform === "win32"
-        ? "cmd"
-        : "xdg-open";
+    process.platform === "darwin" ? "open" : process.platform === "win32" ? "cmd" : "xdg-open";
   const args = process.platform === "win32" ? ["/c", "start", "", url] : [url];
   spawn(cmd, args, { stdio: "ignore", detached: true }).unref();
 }

@@ -15,10 +15,7 @@ let loadFailed = false;
 // `../vendor` resolves in the workspace (from analyzer-moonbit's src or dist);
 // `./vendor` resolves when this module is bundled into the CLI (the build
 // copies the parser next to dist/index.js). Tried in order.
-const VENDOR_CANDIDATES = [
-  "../vendor/moonbit-parser.js",
-  "./vendor/moonbit-parser.js",
-];
+const VENDOR_CANDIDATES = ["../vendor/moonbit-parser.js", "./vendor/moonbit-parser.js"];
 
 /** Lazily load the vendored parser bundle (≈900 KB) once. */
 async function loadExtract(): Promise<ExtractFn | null> {
@@ -85,7 +82,11 @@ function symbolOfImpl(impl: Impl, file: string): CodeSymbol | null {
   switch (impl.type) {
     case "Impl::TopFuncDef": {
       const f = impl.fun_decl as
-        | { name?: { name?: string }; vis?: Vis; type_name?: { name?: Record<string, string> } | null }
+        | {
+            name?: { name?: string };
+            vis?: Vis;
+            type_name?: { name?: Record<string, string> } | null;
+          }
         | undefined;
       const name = f?.name?.name;
       if (!name) return null;
@@ -110,9 +111,7 @@ function symbolOfImpl(impl: Impl, file: string): CodeSymbol | null {
       return makeSymbol(file, kind, name, d?.loc, isExported(d?.type_vis));
     }
     case "Impl::TopTrait": {
-      const d = impl["0"] as
-        | { name?: { name?: string }; vis?: Vis; loc?: Loc }
-        | undefined;
+      const d = impl["0"] as { name?: { name?: string }; vis?: Vis; loc?: Loc } | undefined;
       const name = d?.name?.name;
       if (!name) return null;
       return makeSymbol(file, "interface", name, d?.loc, isExported(d?.vis));

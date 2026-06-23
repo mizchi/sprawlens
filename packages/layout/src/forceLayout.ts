@@ -1,10 +1,4 @@
-import {
-  clampInto,
-  clipCenter,
-  clipScale,
-  randomPointIn,
-  type ClipRegion,
-} from "./clip.js";
+import { clampInto, clipCenter, clipScale, randomPointIn, type ClipRegion } from "./clip.js";
 import { centroid, nearestPointInRing, signedArea, type Ring } from "./polygon.js";
 import { createRng } from "./rng.js";
 import type { Vec2 } from "./vec.js";
@@ -89,8 +83,7 @@ export function createForceLayout(
   const radii = new Map(
     nodes.map((n) => [
       n.id,
-      Math.sqrt((clipArea * Math.max(n.weight, 0)) / totalWeight / Math.PI) ||
-        scale * 1e-3,
+      Math.sqrt((clipArea * Math.max(n.weight, 0)) / totalWeight / Math.PI) || scale * 1e-3,
     ]),
   );
   return {
@@ -131,10 +124,7 @@ export function forceStep(state: ForceLayoutState): ForceLayoutState {
         d = Math.hypot(dx, dy);
       }
       const minDist = (radii.get(a.id)! + radii.get(b.id)!) * 1.1;
-      const f = Math.min(
-        (options.repulsionStrength * minDist * minDist) / (d * d),
-        maxMove,
-      );
+      const f = Math.min((options.repulsionStrength * minDist * minDist) / (d * d), maxMove);
       const ux = dx / d;
       const uy = dy / d;
       const da = disp.get(a.id)!;
@@ -155,8 +145,7 @@ export function forceStep(state: ForceLayoutState): ForceLayoutState {
     const d = Math.hypot(dx, dy);
     if (d < scale * 1e-9) continue;
     const rest = (radii.get(edge.source)! + radii.get(edge.target)!) * 1.4;
-    const f =
-      options.springStrength * (d - rest) * (edge.weight ?? 1);
+    const f = options.springStrength * (d - rest) * (edge.weight ?? 1);
     const ux = dx / d;
     const uy = dy / d;
     const da = disp.get(edge.source)!;
@@ -186,10 +175,7 @@ export function forceStep(state: ForceLayoutState): ForceLayoutState {
       y: p.y + d.y * limit * cooling,
     };
     const region = options.regions.get(node.id);
-    positions.set(
-      node.id,
-      region ? nearestPointInRing(region, next) : clampInto(clip, next),
-    );
+    positions.set(node.id, region ? nearestPointInRing(region, next) : clampInto(clip, next));
   }
   return { ...state, positions, iteration: state.iteration + 1 };
 }

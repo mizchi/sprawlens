@@ -109,9 +109,7 @@ export function applyLayers(snapshot: Snapshot, config: LayersConfig): Snapshot 
   const layers = resolveLayers(config.layers ?? []);
   const matchers = layers.map((l) => ({ name: l.name, test: compileMatcher(l) }));
   const isIgnored =
-    config.ignore && config.ignore.length > 0
-      ? picomatch(config.ignore)
-      : () => false;
+    config.ignore && config.ignore.length > 0 ? picomatch(config.ignore) : () => false;
 
   const dropped = new Set<string>();
   const nodes: CodeNode[] = [];

@@ -1,13 +1,5 @@
-import type {
-  AtlasEdge,
-  AtlasGraph,
-  AtlasNodeKind,
-} from "@sprawlens/schema";
-import {
-  deriveLevels,
-  moduleGrouping,
-  type Grouping,
-} from "@sprawlens/schema";
+import type { AtlasEdge, AtlasGraph, AtlasNodeKind } from "@sprawlens/schema";
+import { deriveLevels, moduleGrouping, type Grouping } from "@sprawlens/schema";
 import type { ModuleIdOf } from "@sprawlens/schema";
 import {
   applyGraphChanges,
@@ -19,11 +11,7 @@ import {
   type ClipRegion,
 } from "@sprawlens/layout";
 import { nearestPointInRing } from "@sprawlens/layout";
-import {
-  createGraphLayout,
-  embedSeedHints,
-  forceIterationsFor,
-} from "@sprawlens/layout";
+import { createGraphLayout, embedSeedHints, forceIterationsFor } from "@sprawlens/layout";
 import {
   assignedSlotHints,
   DECLUMP_ITERATIONS,
@@ -76,10 +64,7 @@ export type TreemapState = {
 
 const LEAF_CONVERGENCE = 0.005;
 
-export function createTreemapState(
-  graph: AtlasGraph,
-  options: TreemapOptions,
-): TreemapState {
+export function createTreemapState(graph: AtlasGraph, options: TreemapOptions): TreemapState {
   const boundaries =
     options.boundaries && options.boundaries.length > 0
       ? options.boundaries
@@ -124,9 +109,7 @@ export function createTreemapState(
       : createGraphLayout(topGraph, clip, {
           ...solver,
           hints: topHints ?? undefined,
-          forceIterations: topHints
-            ? DECLUMP_ITERATIONS
-            : forceIterationsFor(top.nodes.length),
+          forceIterations: topHints ? DECLUMP_ITERATIONS : forceIterationsFor(top.nodes.length),
         }),
   );
   const levels: TreemapLevelCells[] = [
@@ -154,13 +137,7 @@ export function createTreemapState(
     if (leaves.length === 0) continue;
     leafLayouts.set(
       groupId,
-      seedLeafLayout(
-        leaves,
-        tree.innerEdgesOf.get(groupId) ?? [],
-        leafClip,
-        sub.positions,
-        solver,
-      ),
+      seedLeafLayout(leaves, tree.innerEdgesOf.get(groupId) ?? [], leafClip, sub.positions, solver),
     );
   }
 
@@ -282,8 +259,7 @@ export function applyTreemapChanges(
             return {
               id: child.id,
               weight: child.metrics.loc,
-              hint:
-                previous && ring ? nearestPointInRing(ring, previous) : previous,
+              hint: previous && ring ? nearestPointInRing(ring, previous) : previous,
             };
           }),
           parentClip,
@@ -313,9 +289,7 @@ export function applyTreemapChanges(
     const existing = state.leafLayouts.get(groupId);
     if (existing) {
       const leafIds = new Set(leaves.map((leaf) => leaf.id));
-      const remove = existing.cells
-        .map((c) => c.id)
-        .filter((id) => !leafIds.has(id));
+      const remove = existing.cells.map((c) => c.id).filter((id) => !leafIds.has(id));
       leafLayouts.set(
         groupId,
         applyGraphChanges(existing, {
@@ -345,8 +319,7 @@ export function applyTreemapChanges(
           return {
             id: leaf.id,
             weight: leaf.metrics.loc,
-            hint:
-              previous && ring ? nearestPointInRing(ring, previous) : previous,
+            hint: previous && ring ? nearestPointInRing(ring, previous) : previous,
           };
         }),
         leafClip,

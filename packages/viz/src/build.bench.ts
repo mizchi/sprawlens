@@ -16,9 +16,7 @@ const opts = {
 
 /** The playwright monorepo snapshot (1.4k files) is the worst-case build. */
 function playwrightGraph(): AtlasGraph {
-  const path = fileURLToPath(
-    new URL("../public-atlas/fixtures/playwright.json", import.meta.url),
-  );
+  const path = fileURLToPath(new URL("../public-atlas/fixtures/playwright.json", import.meta.url));
   const snapshot = JSON.parse(readFileSync(path, "utf8")) as SnapshotLike;
   return snapshotToAtlasGraph(snapshot);
 }

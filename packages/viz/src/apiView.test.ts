@@ -60,19 +60,13 @@ const symbolEdges: AtlasEdge[] = [
 describe("buildApiGraph", () => {
   it("keeps only exported symbols", () => {
     const api = buildApiGraph(fileGraph, (id) => symbolsOf.get(id) ?? [], symbolEdges);
-    expect(api.nodes.map((n) => n.label).sort()).toEqual([
-      "Bar",
-      "View",
-      "foo",
-      "only",
-    ]);
+    expect(api.nodes.map((n) => n.label).sort()).toEqual(["Bar", "View", "foo", "only"]);
     expect(api.nodes.every((n) => n.exported === true)).toBe(true);
   });
 
   it("weights symbols by the complexity they transitively pull in", () => {
     const api = buildApiGraph(fileGraph, (id) => symbolsOf.get(id) ?? [], symbolEdges);
-    const weight = (label: string) =>
-      api.nodes.find((n) => n.label === label)!.metrics.loc;
+    const weight = (label: string) => api.nodes.find((n) => n.label === label)!.metrics.loc;
     // View references foo, only references Bar — the referrer carries its
     // own complexity plus everything downstream
     expect(weight("View")).toBeGreaterThan(weight("foo"));
@@ -97,29 +91,17 @@ describe("buildApiGraph", () => {
 
 describe("buildApiGraph options", () => {
   it("weight: loc keeps each symbol's own LOC as its area", () => {
-    const api = buildApiGraph(
-      fileGraph,
-      (id) => symbolsOf.get(id) ?? [],
-      symbolEdges,
-      { weight: "loc" },
-    );
+    const api = buildApiGraph(fileGraph, (id) => symbolsOf.get(id) ?? [], symbolEdges, {
+      weight: "loc",
+    });
     expect(api.nodes.every((n) => n.metrics.loc === 40)).toBe(true);
   });
 
   it("includePrivate keeps non-exported symbols and their edges", () => {
-    const api = buildApiGraph(
-      fileGraph,
-      (id) => symbolsOf.get(id) ?? [],
-      symbolEdges,
-      { includePrivate: true },
-    );
-    expect(api.nodes.map((n) => n.label).sort()).toEqual([
-      "Bar",
-      "View",
-      "foo",
-      "hidden",
-      "only",
-    ]);
+    const api = buildApiGraph(fileGraph, (id) => symbolsOf.get(id) ?? [], symbolEdges, {
+      includePrivate: true,
+    });
+    expect(api.nodes.map((n) => n.label).sort()).toEqual(["Bar", "View", "foo", "hidden", "only"]);
     // the private-source edge survives because both endpoints are nodes now
     expect(api.edges).toContainEqual({
       source: "symbol:src/core/a.ts:function:hidden:30",
@@ -130,24 +112,12 @@ describe("buildApiGraph options", () => {
 
 describe("splitApiBoundary", () => {
   it("moves externally-referenced symbols to the module boundary", () => {
-    const api = buildApiGraph(
-      fileGraph,
-      (id) => symbolsOf.get(id) ?? [],
-      symbolEdges,
-    );
+    const api = buildApiGraph(fileGraph, (id) => symbolsOf.get(id) ?? [], symbolEdges);
     // View (src/ui) → foo (src/core) is the only cross-module edge:
     // foo becomes src/core's boundary port; everything else stays internal
     const split = splitApiBoundary(api, apiModuleIdOf);
-    expect(
-      split.boundaryByModule
-        .get("src/core")!
-        .map((n) => n.label),
-    ).toEqual(["foo"]);
-    expect(split.internal.nodes.map((n) => n.label).sort()).toEqual([
-      "Bar",
-      "View",
-      "only",
-    ]);
+    expect(split.boundaryByModule.get("src/core")!.map((n) => n.label)).toEqual(["foo"]);
+    expect(split.internal.nodes.map((n) => n.label).sort()).toEqual(["Bar", "View", "only"]);
     // internal layout edges keep only internal↔internal pairs
     expect(split.internal.edges).toEqual([
       {
@@ -160,29 +130,24 @@ describe("splitApiBoundary", () => {
 
 describe("splitApiBoundary with raw edges", () => {
   it("marks targets of ambiguous cross-module references as boundary", () => {
-    const api = buildApiGraph(
-      fileGraph,
-      (id) => symbolsOf.get(id) ?? [],
-      symbolEdges,
-    );
+    const api = buildApiGraph(fileGraph, (id) => symbolsOf.get(id) ?? [], symbolEdges);
     // src/core/a.ts has two exports, so this file-source reference was
     // dropped from the projection — but it still proves `only` is used
     // from another module
-    const raw = [
-      { source: "src/ui/v.tsx", target: "symbol:src/core/b.ts:function:only:1" },
-    ];
+    const raw = [{ source: "src/ui/v.tsx", target: "symbol:src/core/b.ts:function:only:1" }];
     const split = splitApiBoundary(api, apiModuleIdOf, raw);
     expect(
-      split.boundaryByModule.get("src/core")!.map((n) => n.label).sort(),
+      split.boundaryByModule
+        .get("src/core")!
+        .map((n) => n.label)
+        .sort(),
     ).toEqual(["foo", "only"]);
   });
 });
 
 describe("apiModuleIdOf", () => {
   it("groups symbols by their parent file's module", () => {
-    expect(apiModuleIdOf("symbol:src/core/a.ts:function:foo:1")).toBe(
-      "src/core",
-    );
+    expect(apiModuleIdOf("symbol:src/core/a.ts:function:foo:1")).toBe("src/core");
     expect(apiModuleIdOf("packages/x/f.ts#s1")).toBe("packages/x");
   });
 });
@@ -230,9 +195,7 @@ describe("applySymbolBudget", () => {
   it("drops the folded filler entirely when dropFolded is set", () => {
     const out = applySymbolBudget(big, { budget: 3, dropFolded: true });
     expect(out.nodes).toHaveLength(3); // 3 kept, no filler
-    expect(
-      out.nodes.find((n) => n.id === moduleScopeId("src/core")),
-    ).toBeUndefined();
+    expect(out.nodes.find((n) => n.id === moduleScopeId("src/core"))).toBeUndefined();
     expect(out.nodes.every((n) => n.label !== "(module scope)")).toBe(true);
   });
 

@@ -64,10 +64,7 @@ describe("topoRank", () => {
   });
 
   it("ignores edges referencing unknown nodes", () => {
-    const ranks = topoRank(
-      ["a"],
-      [{ source: "a", target: "ghost" }],
-    );
+    const ranks = topoRank(["a"], [{ source: "a", target: "ghost" }]);
     expect(ranks.get("a")).toBe(0);
   });
 });

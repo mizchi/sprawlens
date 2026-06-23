@@ -91,13 +91,7 @@ function symbolOf(
 }
 
 /** The implicit standard-library crates: external, but not project deps. */
-const RUST_STDLIB: ReadonlySet<string> = new Set([
-  "std",
-  "core",
-  "alloc",
-  "proc_macro",
-  "test",
-]);
+const RUST_STDLIB: ReadonlySet<string> = new Set(["std", "core", "alloc", "proc_macro", "test"]);
 
 /** A `use` declaration: the resolvable path + the names it brings into scope. */
 type RustUse = { path: string; names: string[] };
@@ -200,7 +194,7 @@ function useNamesOf(node: SyntaxNode): string[] {
   if (/::\*\s*$/.test(text)) return []; // glob: can't enumerate
   const lastSegment = (segment: string): string => {
     const asAt = segment.indexOf(" as ");
-    return (asAt >= 0 ? segment.slice(asAt + 4) : segment.split("::").pop() ?? "").trim();
+    return (asAt >= 0 ? segment.slice(asAt + 4) : (segment.split("::").pop() ?? "")).trim();
   };
   const names = new Set<string>();
   const group = text.match(/\{([^}]*)\}/);
@@ -279,11 +273,7 @@ function moduleSegsOf(rel: string, root: string): string[] {
 }
 
 /** Longest module-path prefix that maps to an existing file. */
-function resolveModule(
-  root: string,
-  segs: string[],
-  fileSet: ReadonlySet<string>,
-): string | null {
+function resolveModule(root: string, segs: string[], fileSet: ReadonlySet<string>): string | null {
   for (let len = segs.length; len >= 1; len--) {
     const base = [root, ...segs.slice(0, len)].filter(Boolean).join("/");
     for (const cand of [`${base}.rs`, `${base}/mod.rs`]) {
@@ -335,9 +325,7 @@ async function detectCrates(
     const members: WorkspacePackage[] = [];
     for (const rel of manifests.sort()) {
       const toml =
-        rel === "Cargo.toml"
-          ? rootToml
-          : await readFile(posix.join(repoPath, rel), "utf8");
+        rel === "Cargo.toml" ? rootToml : await readFile(posix.join(repoPath, rel), "utf8");
       const name = packageName(toml);
       if (!name) continue; // a virtual workspace root has no [package]
       const dir = posix.dirname(rel);
@@ -477,8 +465,7 @@ export async function snapshotRustWorkingTree(
     }
   }
 
-  for (const dir of [...dirs].sort())
-    nodes.push({ id: `dir:${dir}`, type: "dir", path: dir });
+  for (const dir of [...dirs].sort()) nodes.push({ id: `dir:${dir}`, type: "dir", path: dir });
 
   const fileSet = new Set(fileEntries.map((f) => f.rel));
   const { crates, members } = await detectCrates(repoPath, fileSet);
@@ -552,7 +539,12 @@ export async function snapshotRustWorkingTree(
     // module/type prefix to a file and the last segment to its exported symbol.
     for (const sref of f.scoped) {
       const target = resolveScopedTarget(
-        sref.segs, f.rel, importerCrate, members, fileSet, nameToFile,
+        sref.segs,
+        f.rel,
+        importerCrate,
+        members,
+        fileSet,
+        nameToFile,
       );
       if (!target || target.file === f.rel) continue;
       const si = symbolImportOf(
@@ -595,7 +587,12 @@ export async function snapshotRustWorkingTree(
   }
   for (const dir of dirs) {
     const parent = dir.includes("/") ? `dir:${dir.slice(0, dir.lastIndexOf("/"))}` : "repo";
-    edges.push({ id: `contains:${parent}->dir:${dir}`, type: "contains", from: parent, to: `dir:${dir}` });
+    edges.push({
+      id: `contains:${parent}->dir:${dir}`,
+      type: "contains",
+      from: parent,
+      to: `dir:${dir}`,
+    });
   }
 
   const { metrics } = computeGraphMetrics(nodes, edges);

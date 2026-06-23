@@ -8,10 +8,7 @@ import type { MapHandlers, MapScene } from "./contract.ts";
  * TUI or three.js renderer would take the same `{ scene, ...handlers }` and
  * draw it some other way.
  */
-export function SvgRenderer({
-  scene,
-  ...handlers
-}: { scene: MapScene } & MapHandlers) {
+export function SvgRenderer({ scene, ...handlers }: { scene: MapScene } & MapHandlers) {
   if (scene.kind === "rings") {
     return (
       <RingsMapSvg

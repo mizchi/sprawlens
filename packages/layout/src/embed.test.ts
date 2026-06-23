@@ -2,7 +2,10 @@ import { describe, expect, it } from "vitest";
 import { embedGraph, procrustesAlign, type EmbedEdge } from "./embed.js";
 import type { Vec2 } from "./vec.js";
 
-function clique(prefix: string, size: number): {
+function clique(
+  prefix: string,
+  size: number,
+): {
   nodes: string[];
   edges: EmbedEdge[];
 } {
@@ -78,10 +81,7 @@ describe("embedGraph", () => {
   it("keeps disconnected components finite and apart", () => {
     const a = clique("a", 4);
     const b = clique("b", 4);
-    const pos = embedGraph(
-      [...a.nodes, ...b.nodes],
-      [...a.edges, ...b.edges],
-    );
+    const pos = embedGraph([...a.nodes, ...b.nodes], [...a.edges, ...b.edges]);
     for (const p of pos.values()) {
       expect(Number.isFinite(p.x)).toBe(true);
       expect(Number.isFinite(p.y)).toBe(true);
@@ -99,8 +99,7 @@ describe("embedGraph", () => {
     expect(cx).toBeCloseTo(0, 6);
     expect(cy).toBeCloseTo(0, 6);
     const rms = Math.sqrt(
-      [...pos.values()].reduce((s, p) => s + p.x ** 2 + p.y ** 2, 0) /
-        pos.size,
+      [...pos.values()].reduce((s, p) => s + p.x ** 2 + p.y ** 2, 0) / pos.size,
     );
     expect(rms).toBeCloseTo(1, 6);
   });
@@ -110,18 +109,13 @@ describe("embedGraph", () => {
     const previous = embedGraph(nodes, edges);
     // one extra member joins cluster b
     const grownNodes = [...nodes, "b5"];
-    const grownEdges = [
-      ...edges,
-      { source: "b5", target: "b0" },
-      { source: "b5", target: "b1" },
-    ];
+    const grownEdges = [...edges, { source: "b5", target: "b0" }, { source: "b5", target: "b1" }];
     const next = embedGraph(grownNodes, grownEdges, {
       previous,
       temporalStrength: 0.2,
     });
     const drift =
-      nodes.reduce((s, id) => s + dist(previous.get(id)!, next.get(id)!), 0) /
-      nodes.length;
+      nodes.reduce((s, id) => s + dist(previous.get(id)!, next.get(id)!), 0) / nodes.length;
     // layout extent is ~1 (RMS); existing nodes barely move
     expect(drift).toBeLessThan(0.25);
     // the new node lands near its cluster, not at the origin/elsewhere
@@ -184,9 +178,7 @@ describe("procrustesAlign", () => {
 
   it("undoes reflection", () => {
     const reference = new Map(square);
-    const mirrored = new Map(
-      square.map(([id, p]) => [id, { x: -p.x, y: p.y }]),
-    );
+    const mirrored = new Map(square.map(([id, p]) => [id, { x: -p.x, y: p.y }]));
     const aligned = procrustesAlign(reference, mirrored);
     for (const [id, p] of reference) {
       expect(aligned.get(id)!.x).toBeCloseTo(p.x, 6);

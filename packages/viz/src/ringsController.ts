@@ -1,14 +1,5 @@
-import type {
-  AtlasEdge,
-  AtlasGraph,
-  AtlasNodeKind,
-} from "@sprawlens/schema";
-import {
-  deriveLevels,
-  moduleGrouping,
-  type Grouping,
-  type LevelTree,
-} from "@sprawlens/schema";
+import type { AtlasEdge, AtlasGraph, AtlasNodeKind } from "@sprawlens/schema";
+import { deriveLevels, moduleGrouping, type Grouping, type LevelTree } from "@sprawlens/schema";
 import type { ModuleIdOf } from "@sprawlens/schema";
 import {
   applyGraphChanges,
@@ -17,16 +8,8 @@ import {
   type CapacityLayoutState,
   type ClipRegion,
 } from "@sprawlens/layout";
-import {
-  createGraphLayout,
-  embedSeedHints,
-  forceIterationsFor,
-} from "@sprawlens/layout";
-import {
-  centralityRings,
-  dependentWeights,
-  importanceScore,
-} from "@sprawlens/layout";
+import { createGraphLayout, embedSeedHints, forceIterationsFor } from "@sprawlens/layout";
+import { centralityRings, dependentWeights, importanceScore } from "@sprawlens/layout";
 import { ringLayout, type PlacedCircle } from "@sprawlens/layout";
 import {
   DECLUMP_ITERATIONS,
@@ -151,9 +134,7 @@ function placeCircles(
   return { circles, tree, ranks };
 }
 
-function circleClips(
-  circles: ReadonlyMap<string, PlacedCircle>,
-): Map<string, ClipRegion> {
+function circleClips(circles: ReadonlyMap<string, PlacedCircle>): Map<string, ClipRegion> {
   const clips = new Map<string, ClipRegion>();
   for (const [id, circle] of circles) {
     clips.set(id, {
@@ -166,10 +147,7 @@ function circleClips(
   return clips;
 }
 
-export function createRingsState(
-  graph: AtlasGraph,
-  options: RingsOptions,
-): RingsState {
+export function createRingsState(graph: AtlasGraph, options: RingsOptions): RingsState {
   const base = placeCircles(graph, options);
   const solver = solverOf(options);
   const sub = subdivideUnder(
@@ -246,13 +224,7 @@ export function applyRingsChanges(
   let leafClips: ReadonlyMap<string, ClipRegion> = topClips;
   let positions: ReadonlyMap<string, { x: number; y: number }> | null = null;
   if (base.tree.levels.length > 1) {
-    const sub = subdivideUnder(
-      graph,
-      base.tree,
-      topClips,
-      canvasOf(options),
-      solver,
-    );
+    const sub = subdivideUnder(graph, base.tree, topClips, canvasOf(options), solver);
     innerLevels = sub.innerLevels;
     leafClips = sub.leafClips;
     positions = sub.positions;
@@ -266,9 +238,7 @@ export function applyRingsChanges(
     const existing = state.leafLayouts.get(groupId);
     if (existing) {
       const leafIds = new Set(leaves.map((f) => f.id));
-      const remove = existing.cells
-        .map((c) => c.id)
-        .filter((id) => !leafIds.has(id));
+      const remove = existing.cells.map((c) => c.id).filter((id) => !leafIds.has(id));
       leafLayouts.set(
         groupId,
         applyGraphChanges(existing, {
@@ -280,10 +250,7 @@ export function applyRingsChanges(
       continue;
     }
     if (positions) {
-      leafLayouts.set(
-        groupId,
-        seedLeafLayout(leaves, edges, clip, positions, solver),
-      );
+      leafLayouts.set(groupId, seedLeafLayout(leaves, edges, clip, positions, solver));
       continue;
     }
     // cold group on the fast path: embedding seeds inside its own clip

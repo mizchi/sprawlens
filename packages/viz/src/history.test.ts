@@ -42,10 +42,7 @@ describe("diffGraphs", () => {
 });
 
 describe("buildHistoryIndex", () => {
-  const entry = (
-    hash: string,
-    files: [string, number][],
-  ): HistoryEntry => ({
+  const entry = (hash: string, files: [string, number][]): HistoryEntry => ({
     hash,
     shortHash: hash,
     message: hash,
@@ -63,7 +60,10 @@ describe("buildHistoryIndex", () => {
   });
   const entries = [
     entry("c0", [["a.ts", 10]]),
-    entry("c1", [["a.ts", 20], ["b.ts", 5]]), // a modified, b added
+    entry("c1", [
+      ["a.ts", 20],
+      ["b.ts", 5],
+    ]), // a modified, b added
     entry("c2", [["b.ts", 5]]), // a removed
   ];
 
@@ -81,8 +81,6 @@ describe("buildHistoryIndex", () => {
       { index: 1, kind: "modified" },
       { index: 2, kind: "removed" },
     ]);
-    expect(index.nodeHistory.get("b.ts")).toEqual([
-      { index: 1, kind: "added" },
-    ]);
+    expect(index.nodeHistory.get("b.ts")).toEqual([{ index: 1, kind: "added" }]);
   });
 });

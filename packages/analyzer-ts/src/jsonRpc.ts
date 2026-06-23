@@ -5,10 +5,7 @@
 
 export function encodeMessage(message: unknown): Buffer {
   const body = Buffer.from(JSON.stringify(message), "utf8");
-  return Buffer.concat([
-    Buffer.from(`Content-Length: ${body.length}\r\n\r\n`, "ascii"),
-    body,
-  ]);
+  return Buffer.concat([Buffer.from(`Content-Length: ${body.length}\r\n\r\n`, "ascii"), body]);
 }
 
 const HEADER_END = Buffer.from("\r\n\r\n", "ascii");

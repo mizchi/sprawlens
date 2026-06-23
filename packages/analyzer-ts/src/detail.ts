@@ -32,9 +32,7 @@ export function createLspDetail(spec: LspServerSpec): LanguageDetail {
     return client;
   };
   const langOf =
-    typeof spec.languageId === "function"
-      ? spec.languageId
-      : () => spec.languageId as string;
+    typeof spec.languageId === "function" ? spec.languageId : () => spec.languageId as string;
   return {
     backend: "lsp",
     cfg: () => null,

@@ -1,9 +1,4 @@
-import {
-  centroid,
-  circleToPolygon,
-  nearestPointInRing,
-  type Ring,
-} from "./polygon.js";
+import { centroid, circleToPolygon, nearestPointInRing, type Ring } from "./polygon.js";
 import type { Rng } from "./rng.js";
 import type { Vec2 } from "./vec.js";
 
@@ -51,9 +46,7 @@ export function randomPointIn(clip: ClipRegion, rng: Rng): Vec2 {
     for (let i = 0; i < clip.ring.length; i++) {
       const a = clip.ring[i]!;
       const b = clip.ring[(i + 1) % clip.ring.length]!;
-      const area = Math.abs(
-        (a.x - c.x) * (b.y - c.y) - (b.x - c.x) * (a.y - c.y),
-      );
+      const area = Math.abs((a.x - c.x) * (b.y - c.y) - (b.x - c.x) * (a.y - c.y));
       areas.push(area);
       totalArea += area;
     }

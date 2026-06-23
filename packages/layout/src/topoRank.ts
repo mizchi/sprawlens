@@ -13,10 +13,7 @@ export function topoRank(
   edges: readonly RankEdge[],
 ): Map<string, number> {
   const ids = new Set(nodes);
-  const { componentOf, components } = stronglyConnectedComponents(
-    nodes,
-    edges,
-  );
+  const { componentOf, components } = stronglyConnectedComponents(nodes, edges);
 
   // condensed DAG, then longest path via memoized DFS (acyclic by SCC)
   const componentDeps = new Map<number, Set<number>>();

@@ -6,7 +6,13 @@ import { promisify } from "node:util";
 import { detectAIIndicators } from "@sprawlens/schema";
 import { diffSnapshots } from "@sprawlens/schema";
 import { createSnapshotFromWorkingTree } from "./snapshot.js";
-import type { CodesprawlConfig, CommitRecord, GraphDiff, Snapshot, SnapshotCommit } from "@sprawlens/schema";
+import type {
+  CodesprawlConfig,
+  CommitRecord,
+  GraphDiff,
+  Snapshot,
+  SnapshotCommit,
+} from "@sprawlens/schema";
 
 const exec = promisify(execFile);
 
@@ -34,7 +40,10 @@ export type RealtimeAnalyzeResult = {
   status: string[];
 };
 
-export async function collectRepository(repoPath: string, options: CollectOptions = {}): Promise<CollectResult> {
+export async function collectRepository(
+  repoPath: string,
+  options: CollectOptions = {},
+): Promise<CollectResult> {
   const repo = path.resolve(repoPath);
   const commits = await getGitCommits(repo, options);
   const selectedCommits = options.step === "weekly" ? sampleWeekly(commits) : commits;
@@ -98,7 +107,10 @@ export async function analyzeRepository(repoPath: string): Promise<AnalyzeResult
     }
     const diff = diffSnapshots(before, after);
     diffs.push(diff);
-    await writeJson(path.join(diffsDir(repo), `${before.commit.hash}..${after.commit.hash}.json`), diff);
+    await writeJson(
+      path.join(diffsDir(repo), `${before.commit.hash}..${after.commit.hash}.json`),
+      diff,
+    );
   }
 
   await writeMetricsCsv(repo, snapshots);
@@ -122,17 +134,21 @@ export async function analyzeRealtimeRepository(repoPath: string): Promise<Realt
         repoPath: repo,
         repoName,
       }),
-      createSnapshotFromWorkingTree(repo, {
-        hash: "WORKTREE",
-        shortHash: "worktree",
-        timestamp: new Date().toISOString(),
-        authorName: "Working Tree",
-        message: "Uncommitted working tree",
-        aiIndicators: [],
-      }, {
-        repoPath: repo,
-        repoName,
-      }),
+      createSnapshotFromWorkingTree(
+        repo,
+        {
+          hash: "WORKTREE",
+          shortHash: "worktree",
+          timestamp: new Date().toISOString(),
+          authorName: "Working Tree",
+          message: "Uncommitted working tree",
+          aiIndicators: [],
+        },
+        {
+          repoPath: repo,
+          repoName,
+        },
+      ),
       getGitStatus(repo),
     ]);
 
@@ -156,13 +172,17 @@ async function readSnapshots(repoPath: string): Promise<Snapshot[]> {
   try {
     const commits = JSON.parse(await readFile(commitsPath, "utf8")) as CommitRecord[];
     const snapshots = await Promise.all(
-      commits.map(async (commit) => readSnapshot(path.join(snapshotsDir(repo), `${commit.hash}.json`))),
+      commits.map(async (commit) =>
+        readSnapshot(path.join(snapshotsDir(repo), `${commit.hash}.json`)),
+      ),
     );
     return snapshots.sort((a, b) => a.commit.timestamp.localeCompare(b.commit.timestamp));
   } catch (error) {
     const files = await readdir(snapshotsDir(repo));
     const snapshots = await Promise.all(
-      files.filter((file) => file.endsWith(".json")).map(async (file) => readSnapshot(path.join(snapshotsDir(repo), file))),
+      files
+        .filter((file) => file.endsWith(".json"))
+        .map(async (file) => readSnapshot(path.join(snapshotsDir(repo), file))),
     );
     return snapshots.sort((a, b) => a.commit.timestamp.localeCompare(b.commit.timestamp));
   }
@@ -175,7 +195,10 @@ async function readDiffs(repoPath: string): Promise<GraphDiff[]> {
     files
       .filter((file) => file.endsWith(".json"))
       .sort()
-      .map(async (file) => JSON.parse(await readFile(path.join(diffsDir(repo), file), "utf8")) as GraphDiff),
+      .map(
+        async (file) =>
+          JSON.parse(await readFile(path.join(diffsDir(repo), file), "utf8")) as GraphDiff,
+      ),
   );
   return diffs;
 }
@@ -214,7 +237,12 @@ async function getGitCommits(repo: string, options: CollectOptions): Promise<Sna
 }
 
 async function getGitCommit(repo: string, revision: string): Promise<SnapshotCommit> {
-  const { stdout } = await git(repo, ["show", "-s", "--format=%H%x1f%ct%x1f%an%x1f%ae%x1f%B%x1e", revision]);
+  const { stdout } = await git(repo, [
+    "show",
+    "-s",
+    "--format=%H%x1f%ct%x1f%an%x1f%ae%x1f%B%x1e",
+    revision,
+  ]);
   const [commit] = parseGitCommitLog(stdout);
   if (!commit) {
     throw new Error(`Unable to read git commit: ${revision}`);
@@ -233,7 +261,11 @@ async function getGitStatus(repo: string): Promise<string[]> {
 
 function isCodesprawlStatusLine(line: string): boolean {
   const pathPart = line.slice(3);
-  return pathPart.startsWith(".codesprawl/") || pathPart === ".codesprawl" || pathPart.includes(" -> .codesprawl/");
+  return (
+    pathPart.startsWith(".codesprawl/") ||
+    pathPart === ".codesprawl" ||
+    pathPart.includes(" -> .codesprawl/")
+  );
 }
 
 function parseGitCommitLog(stdout: string): SnapshotCommit[] {
@@ -242,7 +274,8 @@ function parseGitCommitLog(stdout: string): SnapshotCommit[] {
     .map((record) => record.replace(/^\n+|\n+$/g, ""))
     .filter(Boolean)
     .map((record) => {
-      const [hash, timestampSeconds, authorName, authorEmail, ...messageParts] = record.split("\x1f");
+      const [hash, timestampSeconds, authorName, authorEmail, ...messageParts] =
+        record.split("\x1f");
       if (!hash || !timestampSeconds || !authorName) {
         throw new Error(`Unable to parse git log record: ${record}`);
       }
@@ -324,7 +357,10 @@ async function writeMetricsCsv(repo: string, snapshots: Snapshot[]) {
       .map(csvCell)
       .join(","),
   );
-  await writeFile(path.join(codesprawlDir(repo), "metrics.csv"), `${header.join(",")}\n${rows.join("\n")}\n`);
+  await writeFile(
+    path.join(codesprawlDir(repo), "metrics.csv"),
+    `${header.join(",")}\n${rows.join("\n")}\n`,
+  );
 }
 
 function csvCell(value: string | number): string {

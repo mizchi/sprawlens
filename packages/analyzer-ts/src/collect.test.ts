@@ -22,7 +22,10 @@ async function withGitRepo(fn: (root: string) => Promise<void>) {
     await writeFile(path.join(root, "src", "a.ts"), "export const a = 1;\n");
     await git(root, ["add", "."]);
     await git(root, ["commit", "-m", "initial"]);
-    await writeFile(path.join(root, "src", "b.ts"), "import { a } from './a';\nexport const b = a + 1;\n");
+    await writeFile(
+      path.join(root, "src", "b.ts"),
+      "import { a } from './a';\nexport const b = a + 1;\n",
+    );
     await git(root, ["add", "."]);
     await git(root, ["commit", "-m", "Generated with Claude Code"]);
     await fn(root);
@@ -39,7 +42,9 @@ describe("collectRepository", () => {
       expect(result.snapshots).toHaveLength(2);
       expect(result.commits[1]?.aiIndicators).toContain("claude-code");
 
-      const commitsJson = JSON.parse(await readFile(path.join(root, ".codesprawl", "commits.json"), "utf8")) as unknown[];
+      const commitsJson = JSON.parse(
+        await readFile(path.join(root, ".codesprawl", "commits.json"), "utf8"),
+      ) as unknown[];
       expect(commitsJson).toHaveLength(2);
 
       const metricsCsv = await readFile(path.join(root, ".codesprawl", "metrics.csv"), "utf8");
@@ -57,8 +62,14 @@ describe("collectRepository", () => {
 
   it("compares uncommitted working tree changes against HEAD for realtime analysis", async () => {
     await withGitRepo(async (root) => {
-      await writeFile(path.join(root, "src", "live.ts"), "import { a } from './a';\nexport const live = a + 2;\n");
-      await writeFile(path.join(root, "src", "b.ts"), "import { a } from './a';\nimport { live } from './live';\nexport const b = a + live;\n");
+      await writeFile(
+        path.join(root, "src", "live.ts"),
+        "import { a } from './a';\nexport const live = a + 2;\n",
+      );
+      await writeFile(
+        path.join(root, "src", "b.ts"),
+        "import { a } from './a';\nimport { live } from './live';\nexport const b = a + live;\n",
+      );
 
       const result = await analyzeRealtimeRepository(root);
 

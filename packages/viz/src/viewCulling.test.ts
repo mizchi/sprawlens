@@ -38,34 +38,22 @@ describe("cellInView", () => {
 
 describe("segmentInView", () => {
   it("keeps a segment fully inside", () => {
-    expect(segmentInView({ x: 10, y: 10 }, { x: 90, y: 70 }, VIEW, 0)).toBe(
-      true,
-    );
+    expect(segmentInView({ x: 10, y: 10 }, { x: 90, y: 70 }, VIEW, 0)).toBe(true);
   });
 
   it("keeps a segment that crosses the view from outside to outside", () => {
     // a long diagonal whose endpoints are both off-screen but whose body
     // sweeps over the rect — its bounding box still overlaps
-    expect(
-      segmentInView({ x: -50, y: -50 }, { x: 150, y: 130 }, VIEW, 0),
-    ).toBe(true);
+    expect(segmentInView({ x: -50, y: -50 }, { x: 150, y: 130 }, VIEW, 0)).toBe(true);
   });
 
   it("drops a segment whose bounding box misses the view", () => {
-    expect(
-      segmentInView({ x: 120, y: 10 }, { x: 200, y: 70 }, VIEW, 0),
-    ).toBe(false);
-    expect(
-      segmentInView({ x: 10, y: -90 }, { x: 90, y: -20 }, VIEW, 0),
-    ).toBe(false);
+    expect(segmentInView({ x: 120, y: 10 }, { x: 200, y: 70 }, VIEW, 0)).toBe(false);
+    expect(segmentInView({ x: 10, y: -90 }, { x: 90, y: -20 }, VIEW, 0)).toBe(false);
   });
 
   it("admits a near-miss within slack", () => {
-    expect(
-      segmentInView({ x: 115, y: 10 }, { x: 130, y: 70 }, VIEW, 0),
-    ).toBe(false);
-    expect(
-      segmentInView({ x: 115, y: 10 }, { x: 130, y: 70 }, VIEW, 20),
-    ).toBe(true);
+    expect(segmentInView({ x: 115, y: 10 }, { x: 130, y: 70 }, VIEW, 0)).toBe(false);
+    expect(segmentInView({ x: 115, y: 10 }, { x: 130, y: 70 }, VIEW, 20)).toBe(true);
   });
 });

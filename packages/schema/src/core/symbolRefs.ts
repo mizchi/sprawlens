@@ -10,10 +10,7 @@ import type { CodeSymbol, CodeSymbolImport } from "@sprawlens/contracts";
  */
 
 /** The innermost declared symbol whose line range contains `line`, else null. */
-export function enclosingSymbol(
-  line: number,
-  symbols: readonly CodeSymbol[],
-): CodeSymbol | null {
+export function enclosingSymbol(line: number, symbols: readonly CodeSymbol[]): CodeSymbol | null {
   let best: CodeSymbol | null = null;
   for (const symbol of symbols) {
     if (symbol.startLine <= line && line <= symbol.endLine) {

@@ -22,8 +22,7 @@ export function resolveEdgeAtClient(
   toViewScale: () => number,
 ): { source: string; target: string } | null {
   const tag = document.elementFromPoint(clientX, clientY)?.tagName?.toLowerCase();
-  const px =
-    tag === "circle" || tag === "polygon" ? EDGE_PICK_NODE_PX : EDGE_PICK_PX;
+  const px = tag === "circle" || tag === "polygon" ? EDGE_PICK_NODE_PX : EDGE_PICK_PX;
   const hit = pickEdgeAtPoint(
     clientToWorld,
     clientX,

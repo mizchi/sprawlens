@@ -1,7 +1,10 @@
 import { describe, expect, it } from "vitest";
 import { louvain, type LouvainEdge } from "./louvain.js";
 
-function clique(prefix: string, size: number): {
+function clique(
+  prefix: string,
+  size: number,
+): {
   nodes: string[];
   edges: LouvainEdge[];
 } {
@@ -33,9 +36,7 @@ describe("louvain", () => {
       [...a.nodes, ...b.nodes],
       [...a.edges, ...b.edges, { source: "a0", target: "b0" }],
     );
-    const sets = communitySets(result.communityOf).sort(
-      (x, y) => x[0]!.localeCompare(y[0]!),
-    );
+    const sets = communitySets(result.communityOf).sort((x, y) => x[0]!.localeCompare(y[0]!));
     expect(sets).toEqual([a.nodes.slice().sort(), b.nodes.slice().sort()]);
   });
 
@@ -66,10 +67,7 @@ describe("louvain", () => {
   it("gives disconnected components separate communities", () => {
     const a = clique("a", 3);
     const b = clique("b", 3);
-    const result = louvain(
-      [...a.nodes, ...b.nodes, "lone"],
-      [...a.edges, ...b.edges],
-    );
+    const result = louvain([...a.nodes, ...b.nodes, "lone"], [...a.edges, ...b.edges]);
     const cA = result.communityOf.get("a0");
     const cB = result.communityOf.get("b0");
     const cLone = result.communityOf.get("lone");
@@ -119,9 +117,7 @@ describe("louvain", () => {
     ];
     const result = louvain(nodes, edges);
     expect(result.communityOf.get("x")).toBe(result.communityOf.get("a0"));
-    expect(result.communityOf.get("x")).not.toBe(
-      result.communityOf.get("b0"),
-    );
+    expect(result.communityOf.get("x")).not.toBe(result.communityOf.get("b0"));
   });
 
   it("handles empty and trivial inputs", () => {

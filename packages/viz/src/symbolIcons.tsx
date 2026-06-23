@@ -22,10 +22,7 @@ export type SymbolGlyph =
 /** Map a producer kind + name to a glyph. CamelCase functions/values read as
  * components (React etc.); class members collapse to method/property (the
  * static distinction is carried separately, see isStaticKind). */
-export function symbolGlyphOf(
-  kind: SymbolKind | undefined,
-  name: string,
-): SymbolGlyph | null {
+export function symbolGlyphOf(kind: SymbolKind | undefined, name: string): SymbolGlyph | null {
   if (!kind) return null;
   if (kind === "method" || kind === "static-method") return "method";
   if (kind === "property" || kind === "static-property") return "property";
@@ -41,10 +38,7 @@ export function isStaticKind(kind: SymbolKind | undefined): boolean {
 
 // Codicon paths (16×16, fill="currentColor").
 // component, method and macro are drawn as custom strokes (below), not fill paths
-const GLYPH_PATHS: Record<
-  Exclude<SymbolGlyph, "component" | "method" | "macro">,
-  string[]
-> = {
+const GLYPH_PATHS: Record<Exclude<SymbolGlyph, "component" | "method" | "macro">, string[]> = {
   function: [
     "M4.69684 5.04043C4.44303 4.93166 4.14909 5.04923 4.04031 5.30305C3.93153 5.55686 4.04911 5.8508 4.30292 5.95958L7.49988 7.3297V10.5C7.49988 10.7761 7.72374 11 7.99988 11C8.27603 11 8.49988 10.7761 8.49988 10.5V7.3297L11.6968 5.95958C11.9507 5.8508 12.0682 5.55686 11.9595 5.30305C11.8507 5.04923 11.5567 4.93166 11.3029 5.04043L7.99988 6.45602L4.69684 5.04043ZM9.07694 1.37855C8.38373 1.11193 7.61627 1.11193 6.92306 1.37855L1.96153 3.28683C1.38224 3.50964 1 4.06619 1 4.68685V11.3133C1 11.9339 1.38224 12.4905 1.96153 12.7133L6.92306 14.6216C7.61627 14.8882 8.38373 14.8882 9.07694 14.6216L14.0385 12.7133C14.6178 12.4905 15 11.9339 15 11.3133V4.68685C15 4.06619 14.6178 3.50964 14.0385 3.28683L9.07694 1.37855ZM7.28204 2.3119C7.74418 2.13415 8.25582 2.13415 8.71796 2.3119L13.6795 4.22018C13.8726 4.29445 14 4.47997 14 4.68685V11.3133C14 11.5201 13.8726 11.7057 13.6795 11.7799L8.71796 13.6882C8.25582 13.866 7.74418 13.866 7.28204 13.6882L2.32051 11.7799C2.12741 11.7057 2 11.5201 2 11.3133V4.68685C2 4.47997 2.12741 4.29445 2.32051 4.22018L7.28204 2.3119Z",
   ],
@@ -146,9 +140,7 @@ function SymbolIcon(props: {
   const s = size / 16;
   const transform = `translate(${cx - size / 2},${cy - size / 2}) scale(${s})`;
   // a filled corner dot marks static members
-  const badge = props.static ? (
-    <circle cx={14} cy={2.5} r={3} fill={color} stroke="none" />
-  ) : null;
+  const badge = props.static ? <circle cx={14} cy={2.5} r={3} fill={color} stroke="none" /> : null;
   if (glyph === "component") {
     return (
       <g transform={transform} style={{ pointerEvents: "none" }}>
@@ -179,12 +171,7 @@ function SymbolIcon(props: {
     // a bold "!" — Rust macros are invoked as `name!`
     return (
       <g transform={transform} style={{ pointerEvents: "none" }}>
-        <g
-          fill="none"
-          stroke={color}
-          stroke-width={2.2}
-          stroke-linecap="round"
-        >
+        <g fill="none" stroke={color} stroke-width={2.2} stroke-linecap="round">
           <path d="M8 2.6 L8 9.4" />
           <path d="M8 12.6 L8 13.0" />
         </g>

@@ -42,7 +42,16 @@ function snap(files: FileSpec[]): Snapshot {
 }
 
 function sym(name: string, loc: number): CodeSymbol {
-  return { id: `s:${name}`, kind: "function", name, startLine: 1, endLine: loc, loc, complexity: 1, exported: true };
+  return {
+    id: `s:${name}`,
+    kind: "function",
+    name,
+    startLine: 1,
+    endLine: loc,
+    loc,
+    complexity: 1,
+    exported: true,
+  };
 }
 
 describe("renderTui", () => {

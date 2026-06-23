@@ -34,7 +34,10 @@ describe("tsProvider incremental analyzer", () => {
     expect(a1?.symbols?.map((s) => s.name)).toEqual(["alpha"]);
 
     // change a.ts (different length → cache miss), leave b.ts untouched
-    await write("src/a.ts", "export function alpha() { return 1; }\nexport function gamma() { return 3; }\n");
+    await write(
+      "src/a.ts",
+      "export function alpha() { return 1; }\nexport function gamma() { return 3; }\n",
+    );
 
     const s2 = await analyzer.analyze();
     const a2 = fileNode(s2, "src/a.ts") as { symbols?: { name: string }[] };

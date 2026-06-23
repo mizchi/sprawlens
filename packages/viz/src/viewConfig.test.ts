@@ -48,8 +48,7 @@ describe("reweightByTransitiveComplexity", () => {
 
   it("weights a node by the complexity it transitively pulls in", () => {
     const weighted = reweightByTransitiveComplexity(graph);
-    const weight = (id: string) =>
-      weighted.nodes.find((n) => n.id === id)!.metrics.loc;
+    const weight = (id: string) => weighted.nodes.find((n) => n.id === id)!.metrics.loc;
     expect(weight("a.ts")).toBe(16); // 10 + 4 + 2
     expect(weight("b.ts")).toBe(6);
     expect(weight("c.ts")).toBe(2);
@@ -57,9 +56,7 @@ describe("reweightByTransitiveComplexity", () => {
 
   it("estimates missing complexity from LOC and keeps inputs intact", () => {
     const bare: AtlasGraph = {
-      nodes: [
-        { id: "x.ts", kind: "file", label: "x", metrics: { loc: 24 } },
-      ],
+      nodes: [{ id: "x.ts", kind: "file", label: "x", metrics: { loc: 24 } }],
       edges: [],
     };
     const weighted = reweightByTransitiveComplexity(bare);
@@ -67,4 +64,3 @@ describe("reweightByTransitiveComplexity", () => {
     expect(bare.nodes[0]!.metrics.loc).toBe(24);
   });
 });
-

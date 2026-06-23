@@ -220,9 +220,7 @@ describe("deriveLevels — native edges", () => {
       kind: "call",
     });
     // unknown endpoints are dropped
-    expect(
-      serviceEdges.some((e) => e.target === "svc-unknown"),
-    ).toBe(false);
+    expect(serviceEdges.some((e) => e.target === "svc-unknown")).toBe(false);
   });
 
   it("preserves a uniform kind through lifting", () => {
@@ -231,9 +229,7 @@ describe("deriveLevels — native edges", () => {
         { id: "src/a/x.ts", kind: "file", label: "x", metrics: { loc: 1 } },
         { id: "src/b/y.ts", kind: "file", label: "y", metrics: { loc: 1 } },
       ],
-      edges: [
-        { source: "src/a/x.ts", target: "src/b/y.ts", kind: "import" },
-      ],
+      edges: [{ source: "src/a/x.ts", target: "src/b/y.ts", kind: "import" }],
     };
     const tree = deriveLevels(graph, [moduleGrouping()]);
     expect(tree.levels[0]!.edges[0]!.kind).toBe("import");
@@ -243,9 +239,7 @@ describe("deriveLevels — native edges", () => {
 describe("deriveLevels — degenerate group ids", () => {
   it("wraps a group whose id equals the leaf id (file boundary on files)", () => {
     const graph: AtlasGraph = {
-      nodes: [
-        { id: "src/a/x.ts", kind: "file", label: "x", metrics: { loc: 1 } },
-      ],
+      nodes: [{ id: "src/a/x.ts", kind: "file", label: "x", metrics: { loc: 1 } }],
       edges: [],
     };
     const tree = deriveLevels(graph, [moduleGrouping(), fileGrouping()]);
@@ -267,9 +261,7 @@ describe("ancestorAt", () => {
   const tree = deriveLevels(fileGraph(), [moduleGrouping(), directoryGrouping(3)]);
 
   it("walks a leaf up to the requested level kind", () => {
-    expect(ancestorAt(tree, "src/alpha/core/a.ts", "directory")).toBe(
-      "src/alpha/core",
-    );
+    expect(ancestorAt(tree, "src/alpha/core/a.ts", "directory")).toBe("src/alpha/core");
     expect(ancestorAt(tree, "src/alpha/core/a.ts", "module")).toBe("src/alpha");
   });
 
@@ -308,12 +300,8 @@ describe("classGrouping", () => {
 
 describe("classIdOf", () => {
   it("returns the class id for a member or class declaration", () => {
-    expect(classIdOf("symbol:src/a.ts:class:Widget:5")).toBe(
-      "class:src/a.ts:Widget",
-    );
-    expect(classIdOf("symbol:src/a.ts:method:Widget.render:7")).toBe(
-      "class:src/a.ts:Widget",
-    );
+    expect(classIdOf("symbol:src/a.ts:class:Widget:5")).toBe("class:src/a.ts:Widget");
+    expect(classIdOf("symbol:src/a.ts:method:Widget.render:7")).toBe("class:src/a.ts:Widget");
     expect(classIdOf("symbol:src/a.ts:static-property:Widget.count:6")).toBe(
       "class:src/a.ts:Widget",
     );

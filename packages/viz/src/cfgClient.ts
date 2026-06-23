@@ -8,9 +8,7 @@ import type { DetailGraph } from "@sprawlens/schema";
  */
 
 /** Fetch params from a snapshot symbol id; null for synthesized symbols. */
-export function cfgRequestOf(
-  symbolId: string,
-): { file: string; line: number } | null {
+export function cfgRequestOf(symbolId: string): { file: string; line: number } | null {
   if (!symbolId.startsWith("symbol:")) return null;
   const parts = symbolId.split(":"); // symbol:<path>:<kind>:<name>:<line>
   const line = Number(parts[parts.length - 1]);

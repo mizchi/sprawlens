@@ -14,7 +14,7 @@ All gated behind `sprawlens serve --experimental` (or `?experimental=1`); see th
   - Comet visuals are thin (edge trail sparse, heat over-saturates large cells).
   - Decide: build v2, or retire the player.
 
-- **Commit-log / history** 
+- **Commit-log / history**
   - Vertical (right) and horizontal (bottom) layouts both exist for A/B — pick
     one as the default and drop the toggle.
   - The vertical "graph" column is a single lane; draw real branch lanes if the

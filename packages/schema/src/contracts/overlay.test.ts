@@ -2,11 +2,7 @@ import { describe, expect, it } from "vitest";
 import { liftOverlay, type FlowOverlay } from "./overlay.js";
 
 const moduleOf = (id: string): string | null =>
-  id.startsWith("src/alpha/")
-    ? "src/alpha"
-    : id.startsWith("src/beta/")
-      ? "src/beta"
-      : null;
+  id.startsWith("src/alpha/") ? "src/alpha" : id.startsWith("src/beta/") ? "src/beta" : null;
 
 describe("liftOverlay — path", () => {
   const trace: FlowOverlay = {
@@ -26,10 +22,7 @@ describe("liftOverlay — path", () => {
     const lifted = liftOverlay(trace, moduleOf);
     expect(lifted.kind).toBe("path");
     if (lifted.kind !== "path") return;
-    expect(lifted.steps.map((s) => s.nodeId)).toEqual([
-      "src/alpha",
-      "src/beta",
-    ]);
+    expect(lifted.steps.map((s) => s.nodeId)).toEqual(["src/alpha", "src/beta"]);
     // first step of each run keeps its timestamp
     expect(lifted.steps[0]!.at).toBe(0);
     expect(lifted.steps[1]!.at).toBe(2);

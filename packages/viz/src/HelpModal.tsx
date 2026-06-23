@@ -64,7 +64,9 @@ export function HelpModal({
           <tbody>
             {bound.map((c) => (
               <tr key={c.id}>
-                <td style={{ padding: "3px 8px 3px 0", whiteSpace: "nowrap", verticalAlign: "top" }}>
+                <td
+                  style={{ padding: "3px 8px 3px 0", whiteSpace: "nowrap", verticalAlign: "top" }}
+                >
                   {c.keys!.map((k) => (
                     <kbd
                       key={k}

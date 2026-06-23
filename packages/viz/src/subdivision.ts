@@ -1,9 +1,4 @@
-import type {
-  AtlasEdge,
-  AtlasGraph,
-  AtlasNode,
-  AtlasNodeKind,
-} from "@sprawlens/schema";
+import type { AtlasEdge, AtlasGraph, AtlasNode, AtlasNodeKind } from "@sprawlens/schema";
 import type { LevelTree } from "@sprawlens/schema";
 import { minCostAssignment } from "@sprawlens/layout";
 import {
@@ -16,10 +11,7 @@ import {
 } from "@sprawlens/layout";
 import { clipCenter, clipToRing } from "@sprawlens/layout";
 import { createForceLayout, forceStep } from "@sprawlens/layout";
-import {
-  cellAdjacency,
-  greedySwapAssignment,
-} from "@sprawlens/layout";
+import { cellAdjacency, greedySwapAssignment } from "@sprawlens/layout";
 import { embedSeedHints } from "@sprawlens/layout";
 import { centroid, type Ring } from "@sprawlens/layout";
 import type { Vec2 } from "@sprawlens/layout";
@@ -88,10 +80,7 @@ const FORCE_SKIP_ABOVE = 700;
 function constrainedForceIterations(nodeCount: number): number {
   if (nodeCount === 0) return 0;
   if (nodeCount > FORCE_SKIP_ABOVE) return 0;
-  return Math.max(
-    8,
-    Math.min(60, Math.floor(8_000_000 / (nodeCount * nodeCount))),
-  );
+  return Math.max(8, Math.min(60, Math.floor(8_000_000 / (nodeCount * nodeCount))));
 }
 
 /** Above this the O(n³) Kuhn-Munkres assignment dominates the build; large
@@ -128,10 +117,7 @@ export function assignedSlotHints(
     clip,
     { seed },
   );
-  const cvtSteps = Math.max(
-    12,
-    Math.min(CVT_MAX_STEPS, Math.floor(CVT_STEP_BUDGET / (n * n))),
-  );
+  const cvtSteps = Math.max(12, Math.min(CVT_MAX_STEPS, Math.floor(CVT_STEP_BUDGET / (n * n))));
   for (let i = 0; i < cvtSteps && !isConverged(cvt, CVT_CONVERGENCE); i++) {
     cvt = capacityStep(cvt);
   }
@@ -139,18 +125,13 @@ export function assignedSlotHints(
   const center = clipCenter(clip);
   const cost = nodes.map((node) => {
     const p = similarity.get(node.id) ?? center;
-    return slots.map(
-      (slot) => (p.x - slot.site.x) ** 2 + (p.y - slot.site.y) ** 2,
-    );
+    return slots.map((slot) => (p.x - slot.site.x) ** 2 + (p.y - slot.site.y) ** 2);
   });
   const matched = minCostAssignment(cost);
   const slotIndexOf = new Map(slots.map((slot, i) => [slot.id, i]));
   const adjacency = cellAdjacency(slots);
   const slotAdjacency = slots.map(
-    (slot) =>
-      new Set(
-        [...(adjacency.get(slot.id) ?? [])].map((id) => slotIndexOf.get(id)!),
-      ),
+    (slot) => new Set([...(adjacency.get(slot.id) ?? [])].map((id) => slotIndexOf.get(id)!)),
   );
   const swapped = greedySwapAssignment(
     matched,
@@ -158,29 +139,20 @@ export function assignedSlotHints(
     slotAdjacency,
     edges,
   );
-  return new Map(
-    nodes.map((node, i) => [node.id, { ...slots[swapped[i]!]!.site }]),
-  );
+  return new Map(nodes.map((node, i) => [node.id, { ...slots[swapped[i]!]!.site }]));
 }
 
 /** Solve one capacity layout to (near) convergence synchronously. */
 export function solveLevel(layout: CapacityLayoutState): CapacityLayoutState {
   let current = layout;
-  for (
-    let i = 0;
-    i < LEVEL_MAX_STEPS && !isConverged(current, LEVEL_CONVERGENCE);
-    i++
-  ) {
+  for (let i = 0; i < LEVEL_MAX_STEPS && !isConverged(current, LEVEL_CONVERGENCE); i++) {
     current = capacityStep(current);
   }
   return current;
 }
 
 /** Leaves of every group (transitively), in graph order. */
-function leavesOfGroups(
-  graph: AtlasGraph,
-  tree: LevelTree,
-): Map<string, AtlasNode[]> {
+function leavesOfGroups(graph: AtlasGraph, tree: LevelTree): Map<string, AtlasNode[]> {
   const leavesOf = new Map<string, AtlasNode[]>();
   for (const leaf of graph.nodes) {
     let current = tree.parentOf.get(leaf.id) ?? null;
@@ -319,13 +291,7 @@ export function seedLeafLayout(
   similarity: ReadonlyMap<string, Vec2>,
   options: SolverOptions,
 ): CapacityLayoutState {
-  const slotHints = assignedSlotHints(
-    leaves,
-    edges,
-    clip,
-    similarity,
-    options.seed,
-  );
+  const slotHints = assignedSlotHints(leaves, edges, clip, similarity, options.seed);
   return createCapacityLayout(
     leaves.map((leaf) => ({
       id: leaf.id,

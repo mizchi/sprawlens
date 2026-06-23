@@ -25,6 +25,7 @@
 ### Task 1: Export the diff color tokens from `mapShared`
 
 **Files:**
+
 - Modify: `packages/viz/src/mapShared.tsx:33-34`
 
 The legend swatches reuse the same `ADDED_FILL` / `MODIFIED_FILL` tokens the map uses, so dark mode (handled by `setMapTheme`) applies automatically. They are currently private `let` bindings. The reassignments inside `setMapTheme` (lines ~134-135 and ~196-197) keep working unchanged because they assign to the same module binding — only the declaration gains `export`.
@@ -32,11 +33,14 @@ The legend swatches reuse the same `ADDED_FILL` / `MODIFIED_FILL` tokens the map
 - [ ] **Step 1: Add `export` to both tokens**
 
 Change:
+
 ```tsx
 let MODIFIED_FILL = "hsl(8 85% 78%)";
 let ADDED_FILL = "hsl(150 55% 80%)";
 ```
+
 to:
+
 ```tsx
 export let MODIFIED_FILL = "hsl(8 85% 78%)";
 export let ADDED_FILL = "hsl(150 55% 80%)";
@@ -59,23 +63,25 @@ git commit -m "feat(viz): export ADDED_FILL/MODIFIED_FILL tokens for the diff le
 ### Task 2: Extend `renderAtlasSvg` options and wire `changedOf` (TDD)
 
 **Files:**
+
 - Modify: `packages/viz/src/headless/renderAtlasSvg.ts` (type at lines 31-48; `changedOf` at line 196; imports at line 18)
 - Test: `packages/viz/src/headless/renderAtlasSvg.test.ts`
 
 - [ ] **Step 1: Write the failing test**
 
 Append to `renderAtlasSvg.test.ts` (inside the existing `describe("renderAtlasSvg", ...)`):
+
 ```ts
-  it("tints added/modified files when a changed map is supplied", () => {
-    const changed = new Map<string, "added" | "modified">([
-      ["src/a/foo.ts", "modified"],
-      ["src/b/qux.ts", "added"],
-    ]);
-    const svg = renderAtlasSvg(GRAPH, { layout: "treemap", level: "file", seed: 1, changed });
-    // ADDED_FILL = hsl(150 55% 80%), MODIFIED_FILL = hsl(8 85% 78%) in the light theme
-    expect(svg).toContain("hsl(150 55% 80%)");
-    expect(svg).toContain("hsl(8 85% 78%)");
-  });
+it("tints added/modified files when a changed map is supplied", () => {
+  const changed = new Map<string, "added" | "modified">([
+    ["src/a/foo.ts", "modified"],
+    ["src/b/qux.ts", "added"],
+  ]);
+  const svg = renderAtlasSvg(GRAPH, { layout: "treemap", level: "file", seed: 1, changed });
+  // ADDED_FILL = hsl(150 55% 80%), MODIFIED_FILL = hsl(8 85% 78%) in the light theme
+  expect(svg).toContain("hsl(150 55% 80%)");
+  expect(svg).toContain("hsl(8 85% 78%)");
+});
 ```
 
 - [ ] **Step 2: Run test to verify it fails**
@@ -86,6 +92,7 @@ Expected: FAIL — `changed` is not an accepted option (type error) or the fills
 - [ ] **Step 3: Extend the options type**
 
 In `renderAtlasSvg.ts`, add these fields to `AtlasSvgOptions` (before the closing `}` at line 48):
+
 ```ts
   /** Map of node id → change kind; tints added/modified leaf cells. */
   changed?: Map<string, "added" | "modified">;
@@ -96,10 +103,13 @@ In `renderAtlasSvg.ts`, add these fields to `AtlasSvgOptions` (before the closin
 - [ ] **Step 4: Wire `changedOf` to the map**
 
 In the `buildScene({ ... })` call, replace:
+
 ```ts
     changedOf: () => undefined,
 ```
+
 with:
+
 ```ts
     changedOf: (id) => options.changed?.get(id),
 ```
@@ -126,41 +136,43 @@ git commit -m "feat(viz): renderAtlasSvg accepts a changed map and tints diff ce
 ### Task 3: Render the diff legend in `renderAtlasSvg` (TDD)
 
 **Files:**
+
 - Modify: `packages/viz/src/headless/renderAtlasSvg.ts` (import line 18; the `return finalize(...)` at line 222; the `finalize` function at lines 230-240; add a `buildDiffLegend` helper)
 - Test: `packages/viz/src/headless/renderAtlasSvg.test.ts`
 
 - [ ] **Step 1: Write the failing test**
 
 Append to `renderAtlasSvg.test.ts`:
+
 ```ts
-  it("embeds a diff legend with per-kind counts", () => {
-    const svg = renderAtlasSvg(GRAPH, {
-      layout: "treemap",
-      seed: 1,
-      diffSummary: { added: 2, modified: 7, removed: 3 },
-    });
-    expect(svg).toContain("added 2");
-    expect(svg).toContain("modified 7");
-    expect(svg).toContain("removed 3");
+it("embeds a diff legend with per-kind counts", () => {
+  const svg = renderAtlasSvg(GRAPH, {
+    layout: "treemap",
+    seed: 1,
+    diffSummary: { added: 2, modified: 7, removed: 3 },
   });
+  expect(svg).toContain("added 2");
+  expect(svg).toContain("modified 7");
+  expect(svg).toContain("removed 3");
+});
 
-  it("omits zero-count rows from the legend and draws none when all zero", () => {
-    const someZero = renderAtlasSvg(GRAPH, {
-      layout: "treemap",
-      seed: 1,
-      diffSummary: { added: 1, modified: 0, removed: 0 },
-    });
-    expect(someZero).toContain("added 1");
-    expect(someZero).not.toContain("modified 0");
-    expect(someZero).not.toContain("removed 0");
-
-    const allZero = renderAtlasSvg(GRAPH, {
-      layout: "treemap",
-      seed: 1,
-      diffSummary: { added: 0, modified: 0, removed: 0 },
-    });
-    expect(allZero).not.toContain("added 0");
+it("omits zero-count rows from the legend and draws none when all zero", () => {
+  const someZero = renderAtlasSvg(GRAPH, {
+    layout: "treemap",
+    seed: 1,
+    diffSummary: { added: 1, modified: 0, removed: 0 },
   });
+  expect(someZero).toContain("added 1");
+  expect(someZero).not.toContain("modified 0");
+  expect(someZero).not.toContain("removed 0");
+
+  const allZero = renderAtlasSvg(GRAPH, {
+    layout: "treemap",
+    seed: 1,
+    diffSummary: { added: 0, modified: 0, removed: 0 },
+  });
+  expect(allZero).not.toContain("added 0");
+});
 ```
 
 - [ ] **Step 2: Run test to verify it fails**
@@ -171,10 +183,13 @@ Expected: FAIL — no legend text in the SVG.
 - [ ] **Step 3: Import the legend tokens**
 
 In `renderAtlasSvg.ts`, replace the import at line 18:
+
 ```ts
 import { MAP_BG, setMapTheme } from "../mapShared.tsx";
 ```
+
 with:
+
 ```ts
 import {
   ADDED_FILL,
@@ -190,6 +205,7 @@ import {
 - [ ] **Step 4: Add the `buildDiffLegend` helper**
 
 Add this function near `finalize` in `renderAtlasSvg.ts`. It reads the theme tokens at call time (after `setMapTheme` has run), so dark mode is honored via the ESM live bindings:
+
 ```ts
 function buildDiffLegend(
   summary: { added: number; modified: number; removed: number },
@@ -235,20 +251,22 @@ function buildDiffLegend(
 - [ ] **Step 5: Build the legend and pass it to `finalize`**
 
 In `renderAtlasSvg`, replace the final return (line 222):
+
 ```ts
-  return finalize(body, width, height);
+return finalize(body, width, height);
 ```
+
 with:
+
 ```ts
-  const legend = options.diffSummary
-    ? buildDiffLegend(options.diffSummary, height)
-    : "";
-  return finalize(body, width, height, legend);
+const legend = options.diffSummary ? buildDiffLegend(options.diffSummary, height) : "";
+return finalize(body, width, height, legend);
 ```
 
 - [ ] **Step 6: Extend `finalize` to inject the legend before `</svg>`**
 
 Replace the `finalize` function body:
+
 ```ts
 function finalize(body: string, width: number, height: number): string {
   const open = body.indexOf(">");
@@ -262,14 +280,11 @@ function finalize(body: string, width: number, height: number): string {
   return `${ns}>${bg}${rest}`;
 }
 ```
+
 with:
+
 ```ts
-function finalize(
-  body: string,
-  width: number,
-  height: number,
-  legend = "",
-): string {
+function finalize(body: string, width: number, height: number, legend = ""): string {
   const open = body.indexOf(">");
   if (!body.startsWith("<svg") || open === -1) return body;
   const head = body.slice(0, open);
@@ -300,6 +315,7 @@ git commit -m "feat(viz): embed a diff legend with per-kind counts in renderAtla
 ### Task 4: CLI `toDiffOverlay` helper (TDD)
 
 **Files:**
+
 - Create: `packages/cli/src/diffRender.ts`
 - Test: `packages/cli/src/diffRender.test.ts`
 
@@ -308,6 +324,7 @@ This is the wiring from a `WorkingDiff` (git plumbing result) to the `renderAtla
 - [ ] **Step 1: Write the failing test**
 
 Create `packages/cli/src/diffRender.test.ts`:
+
 ```ts
 import { describe, expect, it } from "vitest";
 import type { WorkingDiff } from "@sprawlens/server";
@@ -341,6 +358,7 @@ Expected: FAIL — `./diffRender.ts` does not exist.
 - [ ] **Step 3: Write the implementation**
 
 Create `packages/cli/src/diffRender.ts`:
+
 ```ts
 import type { WorkingDiff } from "@sprawlens/server";
 
@@ -351,9 +369,7 @@ export type DiffOverlay = {
 
 /** Convert a git WorkingDiff into the inputs renderAtlasSvg expects. */
 export function toDiffOverlay(diff: WorkingDiff): DiffOverlay {
-  const changed = new Map<string, "added" | "modified">(
-    Object.entries(diff.changed),
-  );
+  const changed = new Map<string, "added" | "modified">(Object.entries(diff.changed));
   let added = 0;
   let modified = 0;
   for (const kind of changed.values()) {
@@ -384,6 +400,7 @@ git commit -m "feat(cli): add toDiffOverlay to map a WorkingDiff onto renderAtla
 ### Task 5: End-to-end diff render against a temp git repo (TDD)
 
 **Files:**
+
 - Test: `packages/cli/src/diffRender.test.ts` (extend)
 
 Proves the real path: `workingDiff` (git) → `toDiffOverlay` → `renderAtlasSvg` produces an SVG whose changed files are tinted and whose legend counts match. Uses the temp-git-repo pattern from `packages/analyzer-ts/src/collect.test.ts`.
@@ -391,6 +408,7 @@ Proves the real path: `workingDiff` (git) → `toDiffOverlay` → `renderAtlasSv
 - [ ] **Step 1: Write the failing test**
 
 Add to the top of `packages/cli/src/diffRender.test.ts` (imports) and a new `describe`:
+
 ```ts
 import { execFile } from "node:child_process";
 import { mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
@@ -431,9 +449,7 @@ describe("diff render end-to-end", () => {
       expect(diffSummary).toEqual({ added: 1, modified: 1, removed: 1 });
 
       const snapshot = await tsProvider.analyze(root);
-      const graph = snapshotToAtlasGraph(
-        snapshot as Parameters<typeof snapshotToAtlasGraph>[0],
-      );
+      const graph = snapshotToAtlasGraph(snapshot as Parameters<typeof snapshotToAtlasGraph>[0]);
       const svg = renderAtlasSvg(graph, { layout: "treemap", seed: 1, changed, diffSummary });
 
       expect(svg).toContain("hsl(150 55% 80%)"); // ADDED_FILL — b.ts
@@ -472,19 +488,23 @@ git commit -m "test(cli): end-to-end diff render against a temp git repo"
 ### Task 6: Wire `--diff [base]` into the `render` command
 
 **Files:**
+
 - Modify: `packages/cli/src/index.ts` (the `render` command, lines ~360-440)
 
 - [ ] **Step 1: Add the import**
 
 Ensure `toDiffOverlay` is imported near the other local imports in `index.ts`:
+
 ```ts
 import { toDiffOverlay } from "./diffRender.ts";
 ```
+
 `workingDiff` is already imported at line 54 (`import { createAtlasServer, watchDir, workingDiff } from "@sprawlens/server";`).
 
 - [ ] **Step 2: Add the option to the `render` command**
 
 After the `.option("--dark", ...)` line, add:
+
 ```ts
   .option(
     "--diff [base]",
@@ -495,6 +515,7 @@ After the `.option("--dark", ...)` line, add:
 - [ ] **Step 3: Add `diff` to the action's options type**
 
 In the `.action(async (repo, options: { ... })` type literal, add:
+
 ```ts
         diff?: string | boolean;
 ```
@@ -502,43 +523,44 @@ In the `.action(async (repo, options: { ... })` type literal, add:
 - [ ] **Step 4: Compute the diff overlay before calling `renderAtlasSvg`**
 
 Immediately after the `if (graph.nodes.length === 0) { ... }` guard and before `const svg = renderAtlasSvg(...)`, insert:
+
 ```ts
-      let overlay: ReturnType<typeof toDiffOverlay> | undefined;
-      if (options.diff !== undefined) {
-        // commander yields `true` for a bare --diff (no base), a string for --diff <base>
-        const base = typeof options.diff === "string" ? options.diff : undefined;
-        overlay = toDiffOverlay(await workingDiff(root, base));
-      }
+let overlay: ReturnType<typeof toDiffOverlay> | undefined;
+if (options.diff !== undefined) {
+  // commander yields `true` for a bare --diff (no base), a string for --diff <base>
+  const base = typeof options.diff === "string" ? options.diff : undefined;
+  overlay = toDiffOverlay(await workingDiff(root, base));
+}
 ```
 
 - [ ] **Step 5: Pass the overlay into `renderAtlasSvg`**
 
 Change the `renderAtlasSvg(graph, { ... })` call to spread the overlay:
+
 ```ts
-      const svg = renderAtlasSvg(graph, {
-        layout: options.layout,
-        level: options.level,
-        seed: options.seed,
-        showEdges: options.edges ?? false,
-        dark: options.dark ?? false,
-        ...(options.width ? { width: options.width } : {}),
-        ...(options.height ? { height: options.height } : {}),
-        ...(overlay
-          ? { changed: overlay.changed, diffSummary: overlay.diffSummary }
-          : {}),
-      });
+const svg = renderAtlasSvg(graph, {
+  layout: options.layout,
+  level: options.level,
+  seed: options.seed,
+  showEdges: options.edges ?? false,
+  dark: options.dark ?? false,
+  ...(options.width ? { width: options.width } : {}),
+  ...(options.height ? { height: options.height } : {}),
+  ...(overlay ? { changed: overlay.changed, diffSummary: overlay.diffSummary } : {}),
+});
 ```
 
 - [ ] **Step 6: Surface the counts in the success log**
 
 Replace the final `console.log(...)` in the render action with a variant that appends diff counts when present:
+
 ```ts
-      const diffNote = overlay
-        ? `, diff +${overlay.diffSummary.added} ~${overlay.diffSummary.modified} -${overlay.diffSummary.removed}`
-        : "";
-      console.log(
-        `wrote ${out} (${options.layout}, ${options.level}, ${graph.nodes.length} files, seed ${options.seed}${diffNote})`,
-      );
+const diffNote = overlay
+  ? `, diff +${overlay.diffSummary.added} ~${overlay.diffSummary.modified} -${overlay.diffSummary.removed}`
+  : "";
+console.log(
+  `wrote ${out} (${options.layout}, ${options.level}, ${graph.nodes.length} files, seed ${options.seed}${diffNote})`,
+);
 ```
 
 - [ ] **Step 7: Typecheck**
@@ -563,11 +585,13 @@ git commit -m "feat(cli): add render --diff to highlight PR-changed files on the
 ### Task 7: Document GitHub Actions usage
 
 **Files:**
+
 - Modify: `packages/cli/README.md`
 
 - [ ] **Step 1: Add a "PR diff visualization" section**
 
 Append to `packages/cli/README.md`:
+
 ````markdown
 ## PR diff visualization (GitHub Actions)
 

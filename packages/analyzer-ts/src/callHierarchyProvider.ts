@@ -2,11 +2,7 @@ import { resolve } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import type { LspClient } from "./lspClient.js";
 import type { CallHierarchyResult, SymbolRef } from "@sprawlens/schema";
-import {
-  type DocumentSymbol,
-  findSymbol,
-  namePosition,
-} from "./symbolPosition.js";
+import { type DocumentSymbol, findSymbol, namePosition } from "./symbolPosition.js";
 
 type LspRange = { start: { line: number; character: number } };
 type CallHierarchyItem = {
@@ -18,9 +14,7 @@ type CallHierarchyItem = {
 function toRef(rootDir: string, item: CallHierarchyItem): SymbolRef {
   const absolute = fileURLToPath(item.uri);
   const root = resolve(rootDir);
-  const file = absolute.startsWith(root + "/")
-    ? absolute.slice(root.length + 1)
-    : absolute;
+  const file = absolute.startsWith(root + "/") ? absolute.slice(root.length + 1) : absolute;
   return { file, name: item.name, line: item.selectionRange.start.line + 1 };
 }
 
@@ -43,10 +37,9 @@ export async function callHierarchy(
   let symbols: DocumentSymbol[] = [];
   for (let attempt = 0; attempt < 10; attempt++) {
     symbols =
-      (await client.request<DocumentSymbol[] | null>(
-        "textDocument/documentSymbol",
-        { textDocument: { uri } },
-      )) ?? [];
+      (await client.request<DocumentSymbol[] | null>("textDocument/documentSymbol", {
+        textDocument: { uri },
+      })) ?? [];
     if (symbols.length > 0) break;
     await new Promise((r) => setTimeout(r, 300));
   }
@@ -61,14 +54,8 @@ export async function callHierarchy(
   if (!item) return { incoming: [], outgoing: [] };
 
   const [incoming, outgoing] = await Promise.all([
-    client.request<{ from: CallHierarchyItem }[] | null>(
-      "callHierarchy/incomingCalls",
-      { item },
-    ),
-    client.request<{ to: CallHierarchyItem }[] | null>(
-      "callHierarchy/outgoingCalls",
-      { item },
-    ),
+    client.request<{ from: CallHierarchyItem }[] | null>("callHierarchy/incomingCalls", { item }),
+    client.request<{ to: CallHierarchyItem }[] | null>("callHierarchy/outgoingCalls", { item }),
   ]);
   return {
     incoming: (incoming ?? []).map((call) => toRef(rootDir, call.from)),

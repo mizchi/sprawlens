@@ -49,10 +49,7 @@ describe("rotate", () => {
     const c = { x: 5, y: 5 };
     const p = { x: 8, y: 9 };
     const r = apply(rotate(0.7, c), p);
-    expect(Math.hypot(r.x - c.x, r.y - c.y)).toBeCloseTo(
-      Math.hypot(p.x - c.x, p.y - c.y),
-      10,
-    );
+    expect(Math.hypot(r.x - c.x, r.y - c.y)).toBeCloseTo(Math.hypot(p.x - c.x, p.y - c.y), 10);
   });
 });
 
@@ -101,7 +98,12 @@ describe("uprightAt", () => {
     const c = uprightAt(m, anchor);
     const nums = c.slice(7, -1).split(",").map(Number);
     const cMat = {
-      a: nums[0]!, b: nums[1]!, c: nums[2]!, d: nums[3]!, e: nums[4]!, f: nums[5]!,
+      a: nums[0]!,
+      b: nums[1]!,
+      c: nums[2]!,
+      d: nums[3]!,
+      e: nums[4]!,
+      f: nums[5]!,
     };
     const composed = compose(m, cMat);
     closeTo(apply(composed, { x: 0, y: 0 }), apply(m, anchor));
@@ -119,7 +121,12 @@ describe("uprightAt", () => {
     const c = uprightAt(m, { x: 10, y: 90 });
     const nums = c.slice(7, -1).split(",").map(Number);
     const cMat = {
-      a: nums[0]!, b: nums[1]!, c: nums[2]!, d: nums[3]!, e: nums[4]!, f: nums[5]!,
+      a: nums[0]!,
+      b: nums[1]!,
+      c: nums[2]!,
+      d: nums[3]!,
+      e: nums[4]!,
+      f: nums[5]!,
     };
     const composed = compose(m, cMat);
     // linear part of m·uprightAt is the identity
@@ -143,10 +150,7 @@ describe("compose", () => {
     const n = squashY(0.6);
     const o = translate(2, 3);
     const p = { x: 7, y: -4 };
-    closeTo(
-      apply(compose(compose(m, n), o), p),
-      apply(m, apply(n, apply(o, p))),
-    );
+    closeTo(apply(compose(compose(m, n), o), p), apply(m, apply(n, apply(o, p))));
   });
 });
 
@@ -164,9 +168,7 @@ describe("invert", () => {
 
 describe("toMatrixString", () => {
   it("emits the SVG matrix() form", () => {
-    expect(toMatrixString({ a: 1, b: 2, c: 3, d: 4, e: 5, f: 6 })).toBe(
-      "matrix(1,2,3,4,5,6)",
-    );
+    expect(toMatrixString({ a: 1, b: 2, c: 3, d: 4, e: 5, f: 6 })).toBe("matrix(1,2,3,4,5,6)");
   });
 });
 

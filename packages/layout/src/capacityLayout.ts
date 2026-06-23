@@ -1,16 +1,6 @@
-import {
-  clampInto,
-  clipScale,
-  clipToRing,
-  randomPointIn,
-  type ClipRegion,
-} from "./clip.js";
+import { clampInto, clipScale, clipToRing, randomPointIn, type ClipRegion } from "./clip.js";
 import { centroid, signedArea, type Ring } from "./polygon.js";
-import {
-  computePowerDiagram,
-  type CellEdge,
-  type PowerSite,
-} from "./powerDiagram.js";
+import { computePowerDiagram, type CellEdge, type PowerSite } from "./powerDiagram.js";
 import { createRng, type Rng } from "./rng.js";
 import { nearestNeighborSquared } from "./spatialGrid.js";
 import type { Vec2 } from "./vec.js";
@@ -70,9 +60,7 @@ const DEFAULT_OPTIONS: Required<CapacityOptions> = {
 };
 
 /** Like {...defaults, ...overrides} but explicit undefined keeps the default. */
-function mergeOptions(
-  options: CapacityOptions | undefined,
-): Required<CapacityOptions> {
+function mergeOptions(options: CapacityOptions | undefined): Required<CapacityOptions> {
   const merged = { ...DEFAULT_OPTIONS };
   if (options) {
     for (const key of Object.keys(options) as (keyof CapacityOptions)[]) {
@@ -151,10 +139,7 @@ function buildState(
   };
 }
 
-function assignTargets(
-  sites: SiteState[],
-  clipArea: number,
-): SiteState[] {
+function assignTargets(sites: SiteState[], clipArea: number): SiteState[] {
   const totalRaw = sites.reduce((sum, s) => sum + s.rawWeight, 0);
   return sites.map((s) => ({
     ...s,
@@ -173,9 +158,7 @@ export function createCapacityLayout(
   const clipArea = signedArea(clipRing);
   const raws = flooredWeights(nodes, opts.weightFloorRatio);
   let sites: SiteState[] = nodes.map((node, i) => {
-    const position = node.hint
-      ? clampInto(clip, node.hint)
-      : randomPointIn(clip, rng);
+    const position = node.hint ? clampInto(clip, node.hint) : randomPointIn(clip, rng);
     return {
       id: node.id,
       x: position.x,
@@ -271,9 +254,7 @@ function adaptWeights(
  */
 const FUSED_SWITCH = 0.5;
 
-export function capacityStep(
-  state: CapacityLayoutState,
-): CapacityLayoutState {
+export function capacityStep(state: CapacityLayoutState): CapacityLayoutState {
   // Far from convergence the stale-gradient single-diagram step makes the same
   // progress at half the power-diagram cost; only the precise tail needs the
   // post-move gradient (see capacityStepFused).
@@ -284,8 +265,7 @@ export function capacityStep(
   // shrink — capacity convergence is limited by geometry churn (classic CVT
   // tails are O(1/k)) and we only need sites near their cell centers, not an
   // exact centroidal diagram.
-  const lloydRate =
-    options.lloydRate * Math.min(1, 10 * state.maxRelativeError);
+  const lloydRate = options.lloydRate * Math.min(1, 10 * state.maxRelativeError);
   const cellById = new Map(state.cells.map((c) => [c.id, c]));
   const rng = createRng(options.seed + state.iteration + 1);
   const moved = state.sites.map((site) => {
@@ -306,12 +286,7 @@ export function capacityStep(
   // pre-move geometry feeds a stale gradient into the update and was the
   // main source of slow, oscillating convergence.
   const midway = computeCells(moved, clipRing);
-  const adapted = adaptWeights(
-    moved,
-    midway.cells,
-    options.adaptationRate,
-    state.clipArea,
-  );
+  const adapted = adaptWeights(moved, midway.cells, options.adaptationRate, state.clipArea);
 
   const { cells, maxRelativeError } = computeCells(adapted, clipRing);
   return {
@@ -332,22 +307,14 @@ export function capacityStep(
  * the move) but, applied jointly, that costs convergence steps only if the move
  * is large; the damped Lloyd rate keeps it small near convergence.
  */
-function capacityStepFused(
-  state: CapacityLayoutState,
-): CapacityLayoutState {
+function capacityStepFused(state: CapacityLayoutState): CapacityLayoutState {
   const { options, clip, clipRing } = state;
 
   // Weight update from the current diagram (positions still match state.cells).
-  const adapted = adaptWeights(
-    state.sites,
-    state.cells,
-    options.adaptationRate,
-    state.clipArea,
-  );
+  const adapted = adaptWeights(state.sites, state.cells, options.adaptationRate, state.clipArea);
 
   // Lloyd move from the same current diagram, damped as area errors shrink.
-  const lloydRate =
-    options.lloydRate * Math.min(1, 10 * state.maxRelativeError);
+  const lloydRate = options.lloydRate * Math.min(1, 10 * state.maxRelativeError);
   const cellById = new Map(state.cells.map((c) => [c.id, c]));
   const rng = createRng(options.seed + state.iteration + 1);
   const moved = adapted.map((site) => {
@@ -374,10 +341,7 @@ function capacityStepFused(
   };
 }
 
-export function isConverged(
-  state: CapacityLayoutState,
-  tolerance: number,
-): boolean {
+export function isConverged(state: CapacityLayoutState, tolerance: number): boolean {
   return state.maxRelativeError < tolerance;
 }
 
@@ -429,10 +393,7 @@ export function applyGraphChanges(
   // (possibly large) neighbor weights starts as an empty cell; the
   // minimum surviving weight keeps it alive (PowerHierarchy's insert)
   const surviving = kept.filter((k) => k.site !== null);
-  const entryWeight =
-    surviving.length > 0
-      ? Math.min(...surviving.map((k) => k.site!.weight))
-      : 0;
+  const entryWeight = surviving.length > 0 ? Math.min(...surviving.map((k) => k.site!.weight)) : 0;
   let sites: SiteState[] = kept.map((k, i) => {
     if (k.site) {
       const clamped = clampInto(clip, { x: k.site.x, y: k.site.y });

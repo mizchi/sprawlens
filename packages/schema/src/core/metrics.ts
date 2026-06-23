@@ -21,7 +21,9 @@ export function computeGraphMetrics(nodes: CodeNode[], edges: CodeEdge[]): Metri
   const fileIdToPath = new Map(fileNodes.map((node) => [node.id, node.path] as const));
   const fileIds = new Set(fileIdToPath.keys());
   const importEdges = edges.filter(isImportEdge);
-  const resolvedImportEdges = importEdges.filter((edge) => edge.resolved && fileIds.has(edge.from) && fileIds.has(edge.to));
+  const resolvedImportEdges = importEdges.filter(
+    (edge) => edge.resolved && fileIds.has(edge.from) && fileIds.has(edge.to),
+  );
 
   const fileMetrics: Record<string, FileGraphMetric> = {};
   for (const file of fileNodes) {
@@ -162,7 +164,8 @@ function findCyclicComponents(
       }
     }
 
-    const hasSelfLoop = component.length === 1 && (graph.get(component[0] ?? "") ?? []).includes(component[0] ?? "");
+    const hasSelfLoop =
+      component.length === 1 && (graph.get(component[0] ?? "") ?? []).includes(component[0] ?? "");
     if (component.length > 1 || hasSelfLoop) {
       cycleCount += 1;
       for (const id of component) {

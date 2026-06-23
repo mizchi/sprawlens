@@ -26,9 +26,7 @@ type FilePackageImport = { spec: string; alias: string };
 
 /** What an import spec resolves to: the importable files of a local package, or
  * a grouped external dependency id (with a stdlib flag). */
-type ImportResolution =
-  | { local: readonly string[] }
-  | { external: string; stdlib?: boolean };
+type ImportResolution = { local: readonly string[] } | { external: string; stdlib?: boolean };
 
 type ResolvePackageImportsArgs = {
   /** The importing file's node id (`file:<rel>`). */

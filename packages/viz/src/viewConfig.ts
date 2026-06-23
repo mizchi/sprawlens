@@ -29,12 +29,7 @@ export function granularityOf(
  * Changing this re-solves the layout; the display axis never does.
  */
 export type BoundaryLevel = "module" | "directory" | "file" | "class";
-export const BOUNDARY_LEVELS: readonly BoundaryLevel[] = [
-  "module",
-  "directory",
-  "file",
-  "class",
-];
+export const BOUNDARY_LEVELS: readonly BoundaryLevel[] = ["module", "directory", "file", "class"];
 
 /**
  * Display levels select which strata are *drawn*, never the partition: a
@@ -44,13 +39,7 @@ export const BOUNDARY_LEVELS: readonly BoundaryLevel[] = [
  * and CFG are planned dynamic levels: fetched on demand and rendered only
  * past a zoom threshold, never part of the static graph.
  */
-export type DisplayLevel =
-  | "module"
-  | "directory"
-  | "class"
-  | "symbol"
-  | "ast"
-  | "cfg";
+export type DisplayLevel = "module" | "directory" | "class" | "symbol" | "ast" | "cfg";
 export const DISPLAY_LEVELS: readonly DisplayLevel[] = [
   "module",
   "directory",
@@ -136,10 +125,8 @@ export function presetOf(config: ViewConfig): string {
   const match = VIEW_PRESETS.find(
     (p) =>
       p.config.boundaries.join("+") === config.boundaries.join("+") &&
-      [...p.config.displayLevels].sort().join("+") ===
-        [...config.displayLevels].sort().join("+") &&
-      [...p.config.omit].sort().join("+") ===
-        [...config.omit].sort().join("+") &&
+      [...p.config.displayLevels].sort().join("+") === [...config.displayLevels].sort().join("+") &&
+      [...p.config.omit].sort().join("+") === [...config.omit].sort().join("+") &&
       p.config.weight === config.weight,
   );
   return match?.id ?? "custom";
@@ -186,4 +173,3 @@ export function reweightByTransitiveComplexity(graph: AtlasGraph): AtlasGraph {
     edges: graph.edges,
   };
 }
-

@@ -78,9 +78,7 @@ describe("applyLayers", () => {
       resolved: true,
     });
     const out = applyLayers(base, { ignore: ["gen/**"] });
-    expect(out.nodes.some((n) => n.type === "file" && n.path === "gen/big.ts")).toBe(
-      false,
-    );
+    expect(out.nodes.some((n) => n.type === "file" && n.path === "gen/big.ts")).toBe(false);
     expect(out.edges.length).toBe(0);
   });
 

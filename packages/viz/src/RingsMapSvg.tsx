@@ -65,14 +65,9 @@ import type { EdgePickCandidate } from "./edgePick.ts";
 import { resolveEdgeAtClient } from "./edgePickDom.ts";
 import { ambientEdgeVisual, lspDash, selectionDash } from "./edgeStyle.ts";
 import { segmentInView } from "./viewCulling.ts";
-import {
-  useMapViewport,
-  type FocusRequest,
-  type FocusView,
-} from "./useMapViewport.ts";
+import { useMapViewport, type FocusRequest, type FocusView } from "./useMapViewport.ts";
 
 export type { FocusRequest, FocusView } from "./useMapViewport.ts";
-
 
 type Props = {
   rings: RingsState;
@@ -214,8 +209,7 @@ export function RingsMapSvg(props: Props) {
     onViewSettle,
   } = props;
   const showFiles = props.showFiles ?? true;
-  const levelVisible = (kind: string): boolean =>
-    props.visibleLevels?.has(kind) ?? true;
+  const levelVisible = (kind: string): boolean => props.visibleLevels?.has(kind) ?? true;
   const compactModuleLabels = props.compactModuleLabels ?? false;
   const multiSelected = props.selectedIds ?? new Set<string>();
   const detailEdges = props.detailEdges ?? [];
@@ -238,26 +232,22 @@ export function RingsMapSvg(props: Props) {
     selectedEdges.some((e) => e.source === s && e.target === t);
   // assigned below once geometry is in scope; the hook calls them in the
   // click capture / hover phases so edges win over the shapes beneath them
-  const pickEdgeRef = useRef<(x: number, y: number, shift: boolean) => boolean>(
-    () => false,
-  );
+  const pickEdgeRef = useRef<(x: number, y: number, shift: boolean) => boolean>(() => false);
   const hoverEdgeRef = useRef<(x: number, y: number) => void>(() => {});
-  const { svgProps, committedView, zoom, contentRef, clientToWorld, toViewScale } =
-    useMapViewport({
-      width,
-      height,
-      focusRequest,
-      onViewSettle,
-      onPickEdge: (x, y, shift) => pickEdgeRef.current(x, y, shift),
-      onHover: (x, y) => hoverEdgeRef.current(x, y),
-      onTilt: onTiltDrag,
-    });
+  const { svgProps, committedView, zoom, contentRef, clientToWorld, toViewScale } = useMapViewport({
+    width,
+    height,
+    focusRequest,
+    onViewSettle,
+    onPickEdge: (x, y, shift) => pickEdgeRef.current(x, y, shift),
+    onHover: (x, y) => hoverEdgeRef.current(x, y),
+    onTilt: onTiltDrag,
+  });
   // affine that lays the plane flat (pitch squash) and spins it (rotate); the
   // content group carries it so all geometry and edges inherit one transform.
   // labels read `tiltAffine` to stay upright on top.
   const tiltActive =
-    !!tilt?.enabled &&
-    (tilt.theta !== 0 || tilt.pitch !== 0 || anyPlaneShown(tilt));
+    !!tilt?.enabled && (tilt.theta !== 0 || tilt.pitch !== 0 || anyPlaneShown(tilt));
   const tiltOpts = tilt
     ? {
         theta: tilt.theta,
@@ -266,17 +256,13 @@ export function RingsMapSvg(props: Props) {
       }
     : null;
   const tiltAffine: Affine | undefined =
-    tiltActive && tiltOpts
-      ? layerTransform({ ...tiltOpts, gap: 0, index: 0 })
-      : undefined;
+    tiltActive && tiltOpts ? layerTransform({ ...tiltOpts, gap: 0, index: 0 }) : undefined;
   const tiltMatrix = tiltAffine ? toMatrixString(tiltAffine) : undefined;
   // every satellite plane is the same tilt dropped `planeIndex` gaps down
   const layers = props.layers ?? [];
   const satellitesOn = !!tilt?.enabled && layers.length > 0 && !!tiltOpts;
   const planeFor = (index: number): Affine | undefined =>
-    tilt && tiltOpts
-      ? layerTransform({ ...tiltOpts, gap: tilt.gap * height, index })
-      : undefined;
+    tilt && tiltOpts ? layerTransform({ ...tiltOpts, gap: tilt.gap * height, index }) : undefined;
   // representative upper-plane point per source file = centroid of its leaf
   // cells; satellite cross-layer links drop to / rise from these
   const sourceSiteOf = useMemo(() => {
@@ -289,8 +275,7 @@ export function RingsMapSvg(props: Props) {
         for (const c of layout.cells) {
           const f = parentFileOf(c.id);
           const e = best.get(f);
-          if (!e || c.actualArea > e.area)
-            best.set(f, { site: c.site, area: c.actualArea });
+          if (!e || c.actualArea > e.area) best.set(f, { site: c.site, area: c.actualArea });
         }
     }
     const m = new Map<string, Vec2>();
@@ -303,8 +288,7 @@ export function RingsMapSvg(props: Props) {
   // plane (its test importers) rather than being dropped.
   const screenPos = useMemo(() => {
     const m = new Map<string, Vec2>();
-    if (tiltAffine)
-      for (const [f, site] of sourceSiteOf) m.set(f, apply(tiltAffine, site));
+    if (tiltAffine) for (const [f, site] of sourceSiteOf) m.set(f, apply(tiltAffine, site));
     for (const layer of layers) {
       const t = planeFor(layer.planeIndex);
       if (!t) continue;
@@ -363,14 +347,10 @@ export function RingsMapSvg(props: Props) {
   // rings keeps its identity once converged, innerCells once settled — these
   // memos stop per-commit Map/array rebuilds (a major GC-pressure source)
   const fileCells = useMemo(
-    () =>
-      showFiles ? [...rings.leafLayouts.values()].flatMap((l) => l.cells) : [],
+    () => (showFiles ? [...rings.leafLayouts.values()].flatMap((l) => l.cells) : []),
     [rings, showFiles],
   );
-  const fileSiteById = useMemo(
-    () => new Map(fileCells.map((c) => [c.id, c.site])),
-    [fileCells],
-  );
+  const fileSiteById = useMemo(() => new Map(fileCells.map((c) => [c.id, c.site])), [fileCells]);
   const symbolSiteById = useMemo(
     () => new Map(innerCells.map((c) => [c.id, c.site])),
     [innerCells],
@@ -385,16 +365,10 @@ export function RingsMapSvg(props: Props) {
     const ids = new Set<string>();
     if (!selectedId && multiSelected.size === 0) return ids;
     for (const edge of symbolEdges) {
-      if (
-        isSelected(edge.source) ||
-        isSelected(parentFileOf(edge.source))
-      ) {
+      if (isSelected(edge.source) || isSelected(parentFileOf(edge.source))) {
         ids.add(edge.target);
       }
-      if (
-        isSelected(edge.target) ||
-        isSelected(parentFileOf(edge.target))
-      ) {
+      if (isSelected(edge.target) || isSelected(parentFileOf(edge.target))) {
         ids.add(edge.source);
       }
     }
@@ -403,13 +377,9 @@ export function RingsMapSvg(props: Props) {
   }, [symbolEdges, selectedId, multiSelected, parentFileOf]);
   // displayed CFGs re-anchor reference edges: incoming at the entry
   // terminal, outgoing at the step block that makes the call
-  const cfgAnchors = useMemo(
-    () => cfgAnchorsOf(props.cfgEntries ?? []),
-    [props.cfgEntries],
-  );
+  const cfgAnchors = useMemo(() => cfgAnchorsOf(props.cfgEntries ?? []), [props.cfgEntries]);
   const resolveSite = (id: string): Vec2 | undefined => {
-    const site =
-      symbolSiteById.get(id) ?? fileSiteById.get(id) ?? portSiteById.get(id);
+    const site = symbolSiteById.get(id) ?? fileSiteById.get(id) ?? portSiteById.get(id);
     if (site) return site;
     for (const level of rings.innerLevels) {
       const cell = level.cells.get(id);
@@ -489,9 +459,7 @@ export function RingsMapSvg(props: Props) {
     symbolNameOf,
   });
   const moduleList = useMemo(() => [...rings.circles.entries()], [rings]);
-  const topAncestorOf = makeTopAncestorOf(rings.parentOf, (id) =>
-    rings.circles.has(id),
-  );
+  const topAncestorOf = makeTopAncestorOf(rings.parentOf, (id) => rings.circles.has(id));
 
   const sourceVisible = !hiddenLayers.has("source");
   const showInner = sourceVisible && zoom > 0.8;
@@ -504,8 +472,7 @@ export function RingsMapSvg(props: Props) {
     p.x <= committedView.x + committedView.w + slack &&
     p.y >= committedView.y - slack &&
     p.y <= committedView.y + committedView.h + slack;
-  const cellVisible = (cell: CellResult) =>
-    inView(cell.site, Math.sqrt(cell.actualArea) * 1.5);
+  const cellVisible = (cell: CellResult) => inView(cell.site, Math.sqrt(cell.actualArea) * 1.5);
 
   // proximity edge picking: a click (or hover) resolves to the nearest
   // *prominent* edge by distance, not paint order. Only the macro module
@@ -601,9 +568,7 @@ export function RingsMapSvg(props: Props) {
       cellVisible(c) &&
       (Math.sqrt(c.actualArea) * zoom >= MIN_CELL_PX || mustRender(c.id)),
   );
-  const visibleInnerCells = innerCells.filter(
-    (c) => c.polygon.length >= 3 && innerVisible(c),
-  );
+  const visibleInnerCells = innerCells.filter((c) => c.polygon.length >= 3 && innerVisible(c));
   /** Files whose symbols are labeled right now: the file's own foreground
    * name yields instead of stacking on top of the symbol's name. */
   const labeledSymbolFiles = (() => {
@@ -611,8 +576,7 @@ export function RingsMapSvg(props: Props) {
     for (const cell of visibleInnerCells) {
       if (cell.id.endsWith("#rest")) continue;
       const dominant =
-        Math.sqrt(cell.actualArea) * zoom >=
-        Math.min(width, height) * SYMBOL_DOMINANT_FRACTION;
+        Math.sqrt(cell.actualArea) * zoom >= Math.min(width, height) * SYMBOL_DOMINANT_FRACTION;
       if (
         dominant ||
         linkedToSelection.has(cell.id) ||
@@ -735,14 +699,8 @@ export function RingsMapSvg(props: Props) {
   };
   // nodes one reference away from the selection, keyed by direction —
   // their backgrounds take the matching edge color
-  const dependencyIds = new Set([
-    ...directions.dependencyIds,
-    ...lspDirections.dependencyIds,
-  ]);
-  const dependentIds = new Set([
-    ...directions.dependentIds,
-    ...lspDirections.dependentIds,
-  ]);
+  const dependencyIds = new Set([...directions.dependencyIds, ...lspDirections.dependencyIds]);
+  const dependentIds = new Set([...directions.dependentIds, ...lspDirections.dependentIds]);
 
   const dim = focusDimOf(focus);
   const moduleOpacity = dim.module;
@@ -801,434 +759,411 @@ export function RingsMapSvg(props: Props) {
     >
       {/* vector-effect does not inherit from <g>; apply to every shape so
           stroke widths (including selection highlights) stay in screen px */}
-      <style>
-        {"polygon, line, circle, path { vector-effect: non-scaling-stroke; }"}
-      </style>
+      <style>{"polygon, line, circle, path { vector-effect: non-scaling-stroke; }"}</style>
       <g ref={contentRef} transform={tiltMatrix}>
-      {/* aggregated module dependencies: the macro structure, always on.
+        {/* aggregated module dependencies: the macro structure, always on.
           a→b reads "a imports b": the arrow points at the target, and the
           imported symbol names are listed under the edge (zoom-gated). */}
-      {!focus ? (
-        <g stroke={MACRO_EDGE} fill="none">
-          {rings.topEdges.map((edge) => {
-            const a = rings.circles.get(edge.source);
-            const b = rings.circles.get(edge.target);
-            if (!a || !b) return null;
-            const dx = b.cx - a.cx;
-            const dy = b.cy - a.cy;
-            const len = Math.hypot(dx, dy) || 1;
-            const ux = dx / len;
-            const uy = dy / len;
-            // arrowhead just outside the target circle, pointing inward
-            const head = MACRO_ARROW_PX / zoom;
-            const tip = b.r + 2 / zoom; // apex distance from b center, a-side
-            const ax = b.cx - ux * tip;
-            const ay = b.cy - uy * tip;
-            const cx = b.cx - ux * (tip + head);
-            const cy = b.cy - uy * (tip + head);
-            const w = head * 0.5;
-            const refs = edge.refs ?? [];
-            // labels need room: gate on the edge's on-screen length
-            const mx = (a.cx + b.cx) / 2;
-            const my = (a.cy + b.cy) / 2;
-            const labelled =
-              refs.length > 0 &&
-              zoom > MACRO_LABEL_MIN_ZOOM &&
-              len * zoom > MACRO_LABEL_MIN_PX &&
-              inView({ x: mx, y: my }, 0);
-            const shown = refs.slice(0, MACRO_REF_MAX);
-            const extra = refs.length - shown.length;
-            const fs = MACRO_LABEL_PX / zoom;
-            const lines = extra > 0 ? [...shown, `+${extra} more`] : shown;
-            return (
-              <g key={`${edge.source}->${edge.target}`}>
-                <line
-                  x1={a.cx}
-                  y1={a.cy}
-                  x2={b.cx}
-                  y2={b.cy}
-                  stroke-width={1 + Math.log2(1 + (edge.weight ?? 1))}
-                  stroke-opacity={0.35}
-                />
-                {len > b.r + tip + head ? (
-                  <polygon
-                    points={`${ax},${ay} ${cx + -uy * w},${cy + ux * w} ${cx - -uy * w},${cy - ux * w}`}
-                    fill={MACRO_EDGE}
-                    stroke="none"
-                    fill-opacity={0.55}
-                  />
-                ) : null}
-                {labelled ? (
-                  <text
-                    transform={uprightAt(tiltAffine, { x: mx, y: my })}
-                    font-size={fs}
-                    text-anchor="middle"
-                    fill={MODULE_LABEL_INK}
-                    fill-opacity={0.85}
-                    stroke="none"
-                    style={{ pointerEvents: "none" }}
-                  >
-                    {lines.map((name) => (
-                      <tspan key={name} x={0} dy={fs * 1.1}>
-                        {name}
-                      </tspan>
-                    ))}
-                  </text>
-                ) : null}
-              </g>
-            );
-          })}
-        </g>
-      ) : null}
-      <g
-        style={{
-          display: levelVisible(
-            rings.kindOf.get(moduleList[0]?.[0] ?? "") ?? "module",
-          )
-            ? ""
-            : "none",
-        }}
-      >
-        {moduleList.map(([id, circle]) => (
-          <circle
-            key={id}
-            cx={circle.cx}
-            cy={circle.cy}
-            r={circle.r}
-            fill={
-              dependencyIds.has(id)
-                ? DOWNSTREAM_FILL
-                : dependentIds.has(id)
-                  ? UPSTREAM_FILL
-                  : cyclicModuleIds.has(id)
-                    ? CIRCLE_CYCLE_FILL
-                    : CIRCLE_FILL
-            }
-            stroke={isSelected(id) ? SELECT_STROKE : CIRCLE_STROKE}
-            stroke-width={isSelected(id) ? 2.4 : 1.2}
-            opacity={moduleOpacity(id)}
-            onClick={(event) => {
-              event.stopPropagation();
-              onSelect(id, event.shiftKey);
-            }}
-          />
-        ))}
-      </g>
-      {/* intermediate boundary districts (shared with treemap) */}
-      <InnerLevelsLayer
-        levels={rings.innerLevels}
-        topAncestorOf={topAncestorOf}
-        isSelected={(id) => isSelected(id)}
-        onSelect={onSelect}
-        dim={dim}
-        zoom={zoom}
-        labels={labels}
-        visibleLevels={props.visibleLevels}
-        tilt={tiltAffine}
-        labelMinPx={props.labelMinPx}
-        labelScale={props.labelScale}
-      />
-      <g style={{ display: sourceVisible ? "" : "none" }}>
-        {visibleFileCells.map((cell) => {
-          // the fill texture always reads; the outline is zoom-gated so a
-          // macro view shows colored regions, not a mesh of borders
-          const border =
-            isSelected(cell.id) ||
-            Math.sqrt(cell.actualArea) * zoom >= LEAF_BORDER_MIN_PX;
-          // referenced by a cross-layer edge (a test / dep points here): give
-          // the source file a bright outline so the nodes in play surface.
-          // referencedIds are file paths, so a symbol cell matches via its file.
-          // hidden while a link highlight is active so it doesn't fight the tint.
-          const linked =
-            !isSelected(cell.id) &&
-            !hasActiveLinks &&
-            referencedIds.size > 0 &&
-            (referencedIds.has(cell.id) ||
-              referencedIds.has(parentFileOf(cell.id)));
-          // dim cells the active highlight doesn't touch, so the tinted ones pop
-          const dimmed =
-            hasActiveLinks &&
-            !isSelected(cell.id) &&
-            !activeLinkTint.has(parentFileOf(cell.id));
-          return (
-            <polygon
-              key={cell.id}
-              points={pointsOf(cell)}
-              fill={
-                traceFillOf(cell.id) ??
-                leafFillOf(cell.id, {
-                  changedOf,
-                  cyclicIds,
-                  testFileIds,
-                  dependencyIds,
-                  dependentIds,
-                  topAncestorOf,
-                })
-              }
-              stroke={
-                isSelected(cell.id)
-                  ? SELECT_STROKE
-                  : linked
-                    ? LINKED_STROKE
-                    : border
-                      ? LEAF_STROKE
-                      : "none"
-              }
-              stroke-width={isSelected(cell.id) ? 2 : linked ? 1.4 : 0.8}
-              stroke-opacity={linked ? 0.95 : undefined}
-              opacity={fileOpacity(cell.id) * (dimmed ? 0.35 : 1)}
-              onMouseEnter={
-                satellitesOn
-                  ? () => setLinkHover(parentFileOf(cell.id))
-                  : undefined
-              }
-              onMouseLeave={satellitesOn ? () => setLinkHover(null) : undefined}
-              onClick={(event) => {
-                event.stopPropagation();
-                onSelect(cell.id, event.shiftKey);
-              }}
-            />
-          );
-        })}
-      </g>
-      {activeLinkTint.size > 0 ? (
-        <g style={{ pointerEvents: "none" }}>
-          {visibleFileCells.map((cell) => {
-            const tint = activeLinkTint.get(parentFileOf(cell.id));
-            if (!tint) return null;
-            return (
-              <polygon
-                key={`lt:${cell.id}`}
-                points={pointsOf(cell)}
-                fill={tint}
-                fill-opacity={0.28}
-                stroke={tint}
-                stroke-opacity={0.55}
-                stroke-width={1}
-              />
-            );
-          })}
-        </g>
-      ) : null}
-      {showInner ? (
-        <g
-          stroke={SYMBOL_STROKE}
-          stroke-width={0.4}
-          stroke-opacity={0.8}
-
-        >
-          {visibleInnerCells.map((cell) =>
-            true ? (
-              <polygon
-                key={cell.id}
-                points={pointsOf(cell)}
-                fill={
-                  dependencyIds.has(cell.id)
-                    ? DOWNSTREAM_FILL
-                    : dependentIds.has(cell.id)
-                      ? UPSTREAM_FILL
-                      : (traceFillOf(cell.id) ?? "transparent")
-                }
-                stroke={isSelected(cell.id) ? SELECT_STROKE : undefined}
-                stroke-width={isSelected(cell.id) ? 1.6 : undefined}
-                opacity={symbolOpacity(cell.id)}
-                onClick={(event) => {
-                  event.stopPropagation();
-                  onSelect(cell.id, event.shiftKey);
-                }}
-              />
-            ) : null,
-          )}
-        </g>
-      ) : null}
-      <CfgLayer
-        entries={props.cfgEntries ?? []}
-        zoom={zoom}
-        view={committedView}
-      />
-      {showEdges && sourceVisible && !focus && !symbolMode ? (
-        <g fill="none">
-          {fileEdges.map((edge) => {
-            const active =
-              isSelected(edge.source) ||
-              isSelected(edge.target) ||
-              isSelected(rings.parentOf.get(edge.source) ?? "") ||
-              isSelected(rings.parentOf.get(edge.target) ?? "");
-            // off-screen ambient edges are pure overdraw; the selection's
-            // own edges stay regardless so they read at any pan
-            if (!active) {
-              const ends = edgeEndpoints(edge);
-              if (
-                !ends ||
-                !segmentInView(ends[0], ends[1], committedView, committedView.w * 0.1)
-              ) {
-                return null;
-              }
-            }
-            const bundle = bundleOf(edge);
-            if (!bundle) return null;
-            if (!active && bundle.chord * zoom < MIN_EDGE_PX) return null;
-            const v = ambientEdgeVisual(active, !!selectedId, {
-              active: ACTIVE_EDGE,
-              ambient: UPSTREAM_COLOR,
-            });
-            return (
-              <path
-                key={`${edge.source}-${edge.target}`}
-                d={bundle.d}
-                stroke={v.stroke}
-                stroke-opacity={v.opacity}
-                stroke-width={v.width}
-                style={{ pointerEvents: "none" }}
-              />
-            );
-          })}
-        </g>
-      ) : null}
-      {showEdges && !focus && symbolMode ? (
-        <g stroke={SYMBOL_EDGE} stroke-opacity={0.45} fill="none">
-          {symbolEdges.map((edge) => {
-            const ends = edgeEndpoints(edge);
-            if (!ends) return null;
-            const slack = committedView.w * 0.1;
-            if (!inView(ends[0], slack) && !inView(ends[1], slack)) {
-              return null;
-            }
-            const bundle = bundleOf(edge);
-            if (!bundle) return null;
-            return (
-              <path
-                key={`${edge.source}-${edge.target}`}
-                d={bundle.d}
-                stroke-width={0.6}
-                style={{ pointerEvents: "none" }}
-              />
-            );
-          })}
-        </g>
-      ) : null}
-      {focus
-        ? (
-            [
-              [focus.downstreamEdges, DOWNSTREAM_COLOR],
-              [focus.upstreamEdges, UPSTREAM_COLOR],
-            ] as const
-          ).map(([edges, color]) => (
-            <BundledEdges
-              key={color}
-              edges={edges}
-              bundleOf={bundleOf}
-              stroke={color}
-              strokeOpacity={0.85}
-              strokeWidth={(edge) =>
-                focus.level === "module"
-                  ? 1.5 + Math.log2(1 + (edge.weight ?? 1))
-                  : 1.2
-              }
-              keyPrefix="focus"
-            />
-          ))
-        : null}
-      {(
-        [
-          [selectedOutgoing, DOWNSTREAM_COLOR],
-          [selectedIncoming, UPSTREAM_COLOR],
-        ] as const
-      ).map(([edges, color]) => (
-        <BundledEdges
-          key={`sel-${color}`}
-          edges={edges}
-          bundleOf={bundleOf}
-          stroke={color}
-          strokeOpacity={0.9}
-          strokeWidth={1.6}
-          dash={selectionDash(zoom)}
-          keyPrefix="sel"
-        />
-      ))}
-      {(
-        [
-          [lspOutgoing, DOWNSTREAM_COLOR],
-          [lspIncoming, UPSTREAM_COLOR],
-        ] as const
-      ).map(([edges, color]) => (
-        <BundledEdges
-          key={`lsp-${color}`}
-          edges={edges}
-          bundleOf={bundleOf}
-          stroke={color}
-          strokeOpacity={0.85}
-          strokeWidth={1.4}
-          dash={lspDash(zoom)}
-          keyPrefix="lsp"
-        />
-      ))}
-      {/* runtime-trace overlay: the executed call path, always on (when a trace
-          was ingested), drawn solid + warm so it reads as a lit path */}
-      <BundledEdges
-        edges={traceEdges}
-        bundleOf={bundleOf}
-        stroke="#ff7a1a"
-        strokeOpacity={0.75}
-        strokeWidth={1.6}
-        keyPrefix="trace"
-      />
-      {/* hover preview: a faint accent over the edge a click would pick */}
-      {hoveredEdge && !isSelectedEdge(hoveredEdge.source, hoveredEdge.target)
-        ? (() => {
-            const a = rings.circles.get(hoveredEdge.source);
-            const b = rings.circles.get(hoveredEdge.target);
-            if (a && b) {
+        {!focus ? (
+          <g stroke={MACRO_EDGE} fill="none">
+            {rings.topEdges.map((edge) => {
+              const a = rings.circles.get(edge.source);
+              const b = rings.circles.get(edge.target);
+              if (!a || !b) return null;
               const dx = b.cx - a.cx;
               const dy = b.cy - a.cy;
               const len = Math.hypot(dx, dy) || 1;
               const ux = dx / len;
               const uy = dy / len;
-              const x1 = a.cx + ux * a.r;
-              const y1 = a.cy + uy * a.r;
-              const x2 = b.cx - ux * b.r;
-              const y2 = b.cy - uy * b.r;
-              // a wide translucent halo signals the fat grab zone, a crisp
-              // core says exactly which edge a click would take
+              // arrowhead just outside the target circle, pointing inward
+              const head = MACRO_ARROW_PX / zoom;
+              const tip = b.r + 2 / zoom; // apex distance from b center, a-side
+              const ax = b.cx - ux * tip;
+              const ay = b.cy - uy * tip;
+              const cx = b.cx - ux * (tip + head);
+              const cy = b.cy - uy * (tip + head);
+              const w = head * 0.5;
+              const refs = edge.refs ?? [];
+              // labels need room: gate on the edge's on-screen length
+              const mx = (a.cx + b.cx) / 2;
+              const my = (a.cy + b.cy) / 2;
+              const labelled =
+                refs.length > 0 &&
+                zoom > MACRO_LABEL_MIN_ZOOM &&
+                len * zoom > MACRO_LABEL_MIN_PX &&
+                inView({ x: mx, y: my }, 0);
+              const shown = refs.slice(0, MACRO_REF_MAX);
+              const extra = refs.length - shown.length;
+              const fs = MACRO_LABEL_PX / zoom;
+              const lines = extra > 0 ? [...shown, `+${extra} more`] : shown;
               return (
-                <g style={{ pointerEvents: "none" }}>
+                <g key={`${edge.source}->${edge.target}`}>
                   <line
-                    x1={x1}
-                    y1={y1}
-                    x2={x2}
-                    y2={y2}
-                    stroke={SELECT_STROKE}
-                    stroke-width={8}
-                    stroke-opacity={0.2}
-                    stroke-linecap="round"
+                    x1={a.cx}
+                    y1={a.cy}
+                    x2={b.cx}
+                    y2={b.cy}
+                    stroke-width={1 + Math.log2(1 + (edge.weight ?? 1))}
+                    stroke-opacity={0.35}
                   />
-                  <line
-                    x1={x1}
-                    y1={y1}
-                    x2={x2}
-                    y2={y2}
-                    stroke={SELECT_STROKE}
-                    stroke-width={2.5}
-                    stroke-opacity={0.85}
-                  />
+                  {len > b.r + tip + head ? (
+                    <polygon
+                      points={`${ax},${ay} ${cx + -uy * w},${cy + ux * w} ${cx - -uy * w},${cy - ux * w}`}
+                      fill={MACRO_EDGE}
+                      stroke="none"
+                      fill-opacity={0.55}
+                    />
+                  ) : null}
+                  {labelled ? (
+                    <text
+                      transform={uprightAt(tiltAffine, { x: mx, y: my })}
+                      font-size={fs}
+                      text-anchor="middle"
+                      fill={MODULE_LABEL_INK}
+                      fill-opacity={0.85}
+                      stroke="none"
+                      style={{ pointerEvents: "none" }}
+                    >
+                      {lines.map((name) => (
+                        <tspan key={name} x={0} dy={fs * 1.1}>
+                          {name}
+                        </tspan>
+                      ))}
+                    </text>
+                  ) : null}
                 </g>
               );
-            }
-            const bundle = bundleOf(hoveredEdge);
-            return bundle ? (
-              <g style={{ pointerEvents: "none" }}>
-                <RaisedEdgePath d={bundle.d} width={8} opacity={0.2} />
-                <RaisedEdgePath d={bundle.d} width={2} opacity={0.85} />
-              </g>
-            ) : null;
-          })()
-        : null}
-      {/* picked edge, raised above unrelated modules: bold, arrowed, with its
+            })}
+          </g>
+        ) : null}
+        <g
+          style={{
+            display: levelVisible(rings.kindOf.get(moduleList[0]?.[0] ?? "") ?? "module")
+              ? ""
+              : "none",
+          }}
+        >
+          {moduleList.map(([id, circle]) => (
+            <circle
+              key={id}
+              cx={circle.cx}
+              cy={circle.cy}
+              r={circle.r}
+              fill={
+                dependencyIds.has(id)
+                  ? DOWNSTREAM_FILL
+                  : dependentIds.has(id)
+                    ? UPSTREAM_FILL
+                    : cyclicModuleIds.has(id)
+                      ? CIRCLE_CYCLE_FILL
+                      : CIRCLE_FILL
+              }
+              stroke={isSelected(id) ? SELECT_STROKE : CIRCLE_STROKE}
+              stroke-width={isSelected(id) ? 2.4 : 1.2}
+              opacity={moduleOpacity(id)}
+              onClick={(event) => {
+                event.stopPropagation();
+                onSelect(id, event.shiftKey);
+              }}
+            />
+          ))}
+        </g>
+        {/* intermediate boundary districts (shared with treemap) */}
+        <InnerLevelsLayer
+          levels={rings.innerLevels}
+          topAncestorOf={topAncestorOf}
+          isSelected={(id) => isSelected(id)}
+          onSelect={onSelect}
+          dim={dim}
+          zoom={zoom}
+          labels={labels}
+          visibleLevels={props.visibleLevels}
+          tilt={tiltAffine}
+          labelMinPx={props.labelMinPx}
+          labelScale={props.labelScale}
+        />
+        <g style={{ display: sourceVisible ? "" : "none" }}>
+          {visibleFileCells.map((cell) => {
+            // the fill texture always reads; the outline is zoom-gated so a
+            // macro view shows colored regions, not a mesh of borders
+            const border =
+              isSelected(cell.id) || Math.sqrt(cell.actualArea) * zoom >= LEAF_BORDER_MIN_PX;
+            // referenced by a cross-layer edge (a test / dep points here): give
+            // the source file a bright outline so the nodes in play surface.
+            // referencedIds are file paths, so a symbol cell matches via its file.
+            // hidden while a link highlight is active so it doesn't fight the tint.
+            const linked =
+              !isSelected(cell.id) &&
+              !hasActiveLinks &&
+              referencedIds.size > 0 &&
+              (referencedIds.has(cell.id) || referencedIds.has(parentFileOf(cell.id)));
+            // dim cells the active highlight doesn't touch, so the tinted ones pop
+            const dimmed =
+              hasActiveLinks && !isSelected(cell.id) && !activeLinkTint.has(parentFileOf(cell.id));
+            return (
+              <polygon
+                key={cell.id}
+                points={pointsOf(cell)}
+                fill={
+                  traceFillOf(cell.id) ??
+                  leafFillOf(cell.id, {
+                    changedOf,
+                    cyclicIds,
+                    testFileIds,
+                    dependencyIds,
+                    dependentIds,
+                    topAncestorOf,
+                  })
+                }
+                stroke={
+                  isSelected(cell.id)
+                    ? SELECT_STROKE
+                    : linked
+                      ? LINKED_STROKE
+                      : border
+                        ? LEAF_STROKE
+                        : "none"
+                }
+                stroke-width={isSelected(cell.id) ? 2 : linked ? 1.4 : 0.8}
+                stroke-opacity={linked ? 0.95 : undefined}
+                opacity={fileOpacity(cell.id) * (dimmed ? 0.35 : 1)}
+                onMouseEnter={satellitesOn ? () => setLinkHover(parentFileOf(cell.id)) : undefined}
+                onMouseLeave={satellitesOn ? () => setLinkHover(null) : undefined}
+                onClick={(event) => {
+                  event.stopPropagation();
+                  onSelect(cell.id, event.shiftKey);
+                }}
+              />
+            );
+          })}
+        </g>
+        {activeLinkTint.size > 0 ? (
+          <g style={{ pointerEvents: "none" }}>
+            {visibleFileCells.map((cell) => {
+              const tint = activeLinkTint.get(parentFileOf(cell.id));
+              if (!tint) return null;
+              return (
+                <polygon
+                  key={`lt:${cell.id}`}
+                  points={pointsOf(cell)}
+                  fill={tint}
+                  fill-opacity={0.28}
+                  stroke={tint}
+                  stroke-opacity={0.55}
+                  stroke-width={1}
+                />
+              );
+            })}
+          </g>
+        ) : null}
+        {showInner ? (
+          <g stroke={SYMBOL_STROKE} stroke-width={0.4} stroke-opacity={0.8}>
+            {visibleInnerCells.map((cell) =>
+              true ? (
+                <polygon
+                  key={cell.id}
+                  points={pointsOf(cell)}
+                  fill={
+                    dependencyIds.has(cell.id)
+                      ? DOWNSTREAM_FILL
+                      : dependentIds.has(cell.id)
+                        ? UPSTREAM_FILL
+                        : (traceFillOf(cell.id) ?? "transparent")
+                  }
+                  stroke={isSelected(cell.id) ? SELECT_STROKE : undefined}
+                  stroke-width={isSelected(cell.id) ? 1.6 : undefined}
+                  opacity={symbolOpacity(cell.id)}
+                  onClick={(event) => {
+                    event.stopPropagation();
+                    onSelect(cell.id, event.shiftKey);
+                  }}
+                />
+              ) : null,
+            )}
+          </g>
+        ) : null}
+        <CfgLayer entries={props.cfgEntries ?? []} zoom={zoom} view={committedView} />
+        {showEdges && sourceVisible && !focus && !symbolMode ? (
+          <g fill="none">
+            {fileEdges.map((edge) => {
+              const active =
+                isSelected(edge.source) ||
+                isSelected(edge.target) ||
+                isSelected(rings.parentOf.get(edge.source) ?? "") ||
+                isSelected(rings.parentOf.get(edge.target) ?? "");
+              // off-screen ambient edges are pure overdraw; the selection's
+              // own edges stay regardless so they read at any pan
+              if (!active) {
+                const ends = edgeEndpoints(edge);
+                if (
+                  !ends ||
+                  !segmentInView(ends[0], ends[1], committedView, committedView.w * 0.1)
+                ) {
+                  return null;
+                }
+              }
+              const bundle = bundleOf(edge);
+              if (!bundle) return null;
+              if (!active && bundle.chord * zoom < MIN_EDGE_PX) return null;
+              const v = ambientEdgeVisual(active, !!selectedId, {
+                active: ACTIVE_EDGE,
+                ambient: UPSTREAM_COLOR,
+              });
+              return (
+                <path
+                  key={`${edge.source}-${edge.target}`}
+                  d={bundle.d}
+                  stroke={v.stroke}
+                  stroke-opacity={v.opacity}
+                  stroke-width={v.width}
+                  style={{ pointerEvents: "none" }}
+                />
+              );
+            })}
+          </g>
+        ) : null}
+        {showEdges && !focus && symbolMode ? (
+          <g stroke={SYMBOL_EDGE} stroke-opacity={0.45} fill="none">
+            {symbolEdges.map((edge) => {
+              const ends = edgeEndpoints(edge);
+              if (!ends) return null;
+              const slack = committedView.w * 0.1;
+              if (!inView(ends[0], slack) && !inView(ends[1], slack)) {
+                return null;
+              }
+              const bundle = bundleOf(edge);
+              if (!bundle) return null;
+              return (
+                <path
+                  key={`${edge.source}-${edge.target}`}
+                  d={bundle.d}
+                  stroke-width={0.6}
+                  style={{ pointerEvents: "none" }}
+                />
+              );
+            })}
+          </g>
+        ) : null}
+        {focus
+          ? (
+              [
+                [focus.downstreamEdges, DOWNSTREAM_COLOR],
+                [focus.upstreamEdges, UPSTREAM_COLOR],
+              ] as const
+            ).map(([edges, color]) => (
+              <BundledEdges
+                key={color}
+                edges={edges}
+                bundleOf={bundleOf}
+                stroke={color}
+                strokeOpacity={0.85}
+                strokeWidth={(edge) =>
+                  focus.level === "module" ? 1.5 + Math.log2(1 + (edge.weight ?? 1)) : 1.2
+                }
+                keyPrefix="focus"
+              />
+            ))
+          : null}
+        {(
+          [
+            [selectedOutgoing, DOWNSTREAM_COLOR],
+            [selectedIncoming, UPSTREAM_COLOR],
+          ] as const
+        ).map(([edges, color]) => (
+          <BundledEdges
+            key={`sel-${color}`}
+            edges={edges}
+            bundleOf={bundleOf}
+            stroke={color}
+            strokeOpacity={0.9}
+            strokeWidth={1.6}
+            dash={selectionDash(zoom)}
+            keyPrefix="sel"
+          />
+        ))}
+        {(
+          [
+            [lspOutgoing, DOWNSTREAM_COLOR],
+            [lspIncoming, UPSTREAM_COLOR],
+          ] as const
+        ).map(([edges, color]) => (
+          <BundledEdges
+            key={`lsp-${color}`}
+            edges={edges}
+            bundleOf={bundleOf}
+            stroke={color}
+            strokeOpacity={0.85}
+            strokeWidth={1.4}
+            dash={lspDash(zoom)}
+            keyPrefix="lsp"
+          />
+        ))}
+        {/* runtime-trace overlay: the executed call path, always on (when a trace
+          was ingested), drawn solid + warm so it reads as a lit path */}
+        <BundledEdges
+          edges={traceEdges}
+          bundleOf={bundleOf}
+          stroke="#ff7a1a"
+          strokeOpacity={0.75}
+          strokeWidth={1.6}
+          keyPrefix="trace"
+        />
+        {/* hover preview: a faint accent over the edge a click would pick */}
+        {hoveredEdge && !isSelectedEdge(hoveredEdge.source, hoveredEdge.target)
+          ? (() => {
+              const a = rings.circles.get(hoveredEdge.source);
+              const b = rings.circles.get(hoveredEdge.target);
+              if (a && b) {
+                const dx = b.cx - a.cx;
+                const dy = b.cy - a.cy;
+                const len = Math.hypot(dx, dy) || 1;
+                const ux = dx / len;
+                const uy = dy / len;
+                const x1 = a.cx + ux * a.r;
+                const y1 = a.cy + uy * a.r;
+                const x2 = b.cx - ux * b.r;
+                const y2 = b.cy - uy * b.r;
+                // a wide translucent halo signals the fat grab zone, a crisp
+                // core says exactly which edge a click would take
+                return (
+                  <g style={{ pointerEvents: "none" }}>
+                    <line
+                      x1={x1}
+                      y1={y1}
+                      x2={x2}
+                      y2={y2}
+                      stroke={SELECT_STROKE}
+                      stroke-width={8}
+                      stroke-opacity={0.2}
+                      stroke-linecap="round"
+                    />
+                    <line
+                      x1={x1}
+                      y1={y1}
+                      x2={x2}
+                      y2={y2}
+                      stroke={SELECT_STROKE}
+                      stroke-width={2.5}
+                      stroke-opacity={0.85}
+                    />
+                  </g>
+                );
+              }
+              const bundle = bundleOf(hoveredEdge);
+              return bundle ? (
+                <g style={{ pointerEvents: "none" }}>
+                  <RaisedEdgePath d={bundle.d} width={8} opacity={0.2} />
+                  <RaisedEdgePath d={bundle.d} width={2} opacity={0.85} />
+                </g>
+              ) : null;
+            })()
+          : null}
+        {/* picked edge, raised above unrelated modules: bold, arrowed, with its
           referenced symbols always shown (pointer-through so the endpoints
           underneath stay clickable) */}
-      {selectedEdges.map((selectedEdge) => {
-        const key = `${selectedEdge.source}->${selectedEdge.target}`;
-        return (() => {
+        {selectedEdges.map((selectedEdge) => {
+          const key = `${selectedEdge.source}->${selectedEdge.target}`;
+          return (() => {
             const a = rings.circles.get(selectedEdge.source);
             const b = rings.circles.get(selectedEdge.target);
             if (a && b) {
@@ -1245,9 +1180,7 @@ export function RingsMapSvg(props: Props) {
               const hy = b.cy - uy * (tipDist + head);
               const w = head * 0.5;
               const top = rings.topEdges.find(
-                (e) =>
-                  e.source === selectedEdge.source &&
-                  e.target === selectedEdge.target,
+                (e) => e.source === selectedEdge.source && e.target === selectedEdge.target,
               );
               const refs = top?.refs ?? [];
               const shown = refs.slice(0, MACRO_REF_MAX);
@@ -1307,260 +1240,242 @@ export function RingsMapSvg(props: Props) {
             if (!bundle) return null;
             return <RaisedEdgePath key={key} d={bundle.d} />;
           })();
-      })}
-      {/* names of reference targets that left the screen, docked where
+        })}
+        {/* names of reference targets that left the screen, docked where
           their edge crosses the viewport border */}
-      {(focus
-        ? ([
-            [focus.downstreamEdges, DOWNSTREAM_COLOR, "exit-focus-down"],
-            [focus.upstreamEdges, UPSTREAM_COLOR, "exit-focus-up"],
-          ] as const)
-        : ([
-            [
-              [...selectedOutgoing, ...lspOutgoing],
-              DOWNSTREAM_COLOR,
-              "exit-sel-down",
-            ],
-            [
-              [...selectedIncoming, ...lspIncoming],
-              UPSTREAM_COLOR,
-              "exit-sel-up",
-            ],
-          ] as const)
-      ).map(([edges, color, key]) => (
-        <ExitPreviewsLayer
-          key={key}
-          edges={edges}
-          color={color}
-          view={committedView}
-          endpointsOf={edgeEndpoints}
-          labelOf={(id) => labels.get(id) ?? fallbackLabel(id)}
-          onSelect={onSelect}
-          onFocus={props.onFocusId}
-          zoom={zoom}
-          tilt={tiltAffine}
-        />
-      ))}
-      {/* symbol sites are conceptual edge waypoints only — no dots */}
-      {/* adapter ports on the module rim (API view) */}
-      {portNodes.length > 0 ? (
-        <g>
-          {portNodes.map((port) => {
-            if (!inView({ x: port.x, y: port.y }, 20)) return null;
-            const opacity = focus
-              ? focus.fileIds.has(port.id) || focus.symbolIds.has(port.id)
-                ? 1
-                : DIM
-              : 1;
-            return (
-              <g key={port.id} opacity={opacity}>
-                <circle
-                  cx={port.x}
-                  cy={port.y}
-                  r={screenRadius(isSelected(port.id) ? 5 : 3.6)}
-                  fill={PORT_FILL}
-                  stroke={isSelected(port.id) ? SELECT_STROKE : EXPORTED_DOT}
-                  stroke-width={isSelected(port.id) ? 2.4 : 1.8}
-                  onClick={(event) => {
-                    event.stopPropagation();
-                    onSelect(port.id, event.shiftKey);
-                  }}
-                />
+        {(focus
+          ? ([
+              [focus.downstreamEdges, DOWNSTREAM_COLOR, "exit-focus-down"],
+              [focus.upstreamEdges, UPSTREAM_COLOR, "exit-focus-up"],
+            ] as const)
+          : ([
+              [[...selectedOutgoing, ...lspOutgoing], DOWNSTREAM_COLOR, "exit-sel-down"],
+              [[...selectedIncoming, ...lspIncoming], UPSTREAM_COLOR, "exit-sel-up"],
+            ] as const)
+        ).map(([edges, color, key]) => (
+          <ExitPreviewsLayer
+            key={key}
+            edges={edges}
+            color={color}
+            view={committedView}
+            endpointsOf={edgeEndpoints}
+            labelOf={(id) => labels.get(id) ?? fallbackLabel(id)}
+            onSelect={onSelect}
+            onFocus={props.onFocusId}
+            zoom={zoom}
+            tilt={tiltAffine}
+          />
+        ))}
+        {/* symbol sites are conceptual edge waypoints only — no dots */}
+        {/* adapter ports on the module rim (API view) */}
+        {portNodes.length > 0 ? (
+          <g>
+            {portNodes.map((port) => {
+              if (!inView({ x: port.x, y: port.y }, 20)) return null;
+              const opacity = focus
+                ? focus.fileIds.has(port.id) || focus.symbolIds.has(port.id)
+                  ? 1
+                  : DIM
+                : 1;
+              return (
+                <g key={port.id} opacity={opacity}>
+                  <circle
+                    cx={port.x}
+                    cy={port.y}
+                    r={screenRadius(isSelected(port.id) ? 5 : 3.6)}
+                    fill={PORT_FILL}
+                    stroke={isSelected(port.id) ? SELECT_STROKE : EXPORTED_DOT}
+                    stroke-width={isSelected(port.id) ? 2.4 : 1.8}
+                    onClick={(event) => {
+                      event.stopPropagation();
+                      onSelect(port.id, event.shiftKey);
+                    }}
+                  />
+                  <text
+                    transform={uprightAt(tiltAffine, {
+                      x: port.x,
+                      y: port.y - screenRadius(7),
+                    })}
+                    font-size={11 / zoom}
+                    text-anchor="middle"
+                    font-weight="600"
+                    fill={EXPORTED_LABEL}
+                    style={{ pointerEvents: "none", userSelect: "none" }}
+                  >
+                    {port.label}
+                  </text>
+                </g>
+              );
+            })}
+          </g>
+        ) : null}
+        <g
+          text-anchor="middle"
+          style={{
+            pointerEvents: "none",
+            userSelect: "none",
+            display: levelVisible(rings.kindOf.get(moduleList[0]?.[0] ?? "") ?? "module")
+              ? ""
+              : "none",
+          }}
+        >
+          {moduleList.map(([id, circle]) => {
+            // modules are the macro anchors: always labeled, 10–18px on screen
+            const fontSize = screenFont(circle.r * 0.18, 10, 18, true);
+            if (fontSize === null) return null;
+            const segments = id.split("/");
+            const expanded =
+              compactModuleLabels &&
+              segments.length > 1 &&
+              circle.r * zoom >= Math.min(width, height) * 0.3;
+            if (expanded) {
+              // zoomed in: full path, one segment per line
+              const lineHeight = fontSize * 1.1;
+              return (
                 <text
+                  key={id}
                   transform={uprightAt(tiltAffine, {
-                    x: port.x,
-                    y: port.y - screenRadius(7),
+                    x: circle.cx,
+                    y: circle.cy - circle.r - fontSize * 0.4 - (segments.length - 1) * lineHeight,
                   })}
-                  font-size={11 / zoom}
-                  text-anchor="middle"
+                  font-size={fontSize}
                   font-weight="600"
-                  fill={EXPORTED_LABEL}
-                  style={{ pointerEvents: "none", userSelect: "none" }}
+                  fill={MODULE_LABEL_INK}
+                  opacity={moduleOpacity(id)}
                 >
-                  {port.label}
+                  {segments.map((segment, i) => (
+                    <tspan key={segment} x={0} dy={i === 0 ? 0 : lineHeight}>
+                      {i < segments.length - 1 ? `${segment}/` : segment}
+                    </tspan>
+                  ))}
                 </text>
-              </g>
-            );
-          })}
-        </g>
-      ) : null}
-      <g
-        text-anchor="middle"
-        style={{
-          pointerEvents: "none",
-          userSelect: "none",
-          display: levelVisible(
-            rings.kindOf.get(moduleList[0]?.[0] ?? "") ?? "module",
-          )
-            ? ""
-            : "none",
-        }}
-      >
-        {moduleList.map(([id, circle]) => {
-          // modules are the macro anchors: always labeled, 10–18px on screen
-          const fontSize = screenFont(circle.r * 0.18, 10, 18, true);
-          if (fontSize === null) return null;
-          const segments = id.split("/");
-          const expanded =
-            compactModuleLabels &&
-            segments.length > 1 &&
-            circle.r * zoom >= Math.min(width, height) * 0.3;
-          if (expanded) {
-            // zoomed in: full path, one segment per line
-            const lineHeight = fontSize * 1.1;
+              );
+            }
             return (
               <text
                 key={id}
                 transform={uprightAt(tiltAffine, {
                   x: circle.cx,
-                  y:
-                    circle.cy -
-                    circle.r -
-                    fontSize * 0.4 -
-                    (segments.length - 1) * lineHeight,
+                  y: circle.cy - circle.r - fontSize * 0.4,
                 })}
                 font-size={fontSize}
                 font-weight="600"
                 fill={MODULE_LABEL_INK}
                 opacity={moduleOpacity(id)}
               >
-                {segments.map((segment, i) => (
-                  <tspan key={segment} x={0} dy={i === 0 ? 0 : lineHeight}>
-                    {i < segments.length - 1 ? `${segment}/` : segment}
-                  </tspan>
-                ))}
+                {compactModuleLabels ? segments[segments.length - 1] : id}
               </text>
             );
-          }
-          return (
-            <text
-              key={id}
-              transform={uprightAt(tiltAffine, {
-                x: circle.cx,
-                y: circle.cy - circle.r - fontSize * 0.4,
-              })}
-              font-size={fontSize}
-              font-weight="600"
-              fill={MODULE_LABEL_INK}
-              opacity={moduleOpacity(id)}
-            >
-              {compactModuleLabels
-                ? segments[segments.length - 1]
-                : id}
-            </text>
-          );
-        })}
-        {showInner
-          ? visibleFileCells.map((cell) => {
-              // past the watermark size the background copy takes over
-              if (isWatermarkSized(cell, zoom)) return null;
-              // a labeled symbol owns the spot — no stacked file name
-              if (labeledSymbolFiles.has(cell.id)) return null;
-              const fontSize = screenFont(
-                Math.sqrt(cell.actualArea) * 0.18,
-                9,
-                15,
-                cell.id === selectedId,
-                Infinity, // the watermark gate above already capped it
-              );
-              if (fontSize === null) return null;
-              return (
-                <text
-                  key={cell.id}
-                  transform={uprightAt(tiltAffine, {
-                    x: cell.site.x,
-                    y: cell.site.y + fontSize * 0.35,
-                  })}
-                  font-size={fontSize}
-                  fill={
-                    testFileIds.has(cell.id) ? TEST_LABEL_INK : FILE_LABEL_INK
-                  }
-                  opacity={fileOpacity(cell.id)}
-                >
-                  {labels.get(cell.id) ?? fallbackLabel(cell.id)}
-                </text>
-              );
-            })
-          : null}
-        {showInner
-          ? visibleInnerCells.map((cell) => {
-              // module-scope filler cells stay unlabeled to reduce noise
-              if (cell.id.endsWith("#rest") && cell.id !== selectedId)
-                return null;
-              const exported = exportedIds.has(cell.id);
-              // symbol names are noise until you commit to the symbol:
-              // show them only when (a) the cell dominates the screen,
-              // (b) its file is selected, (c) it's the selection itself,
-              // (d) the selection references it directly
-              const linked = linkedToSelection.has(cell.id);
-              const fileSelected = isSelected(parentFileOf(cell.id));
-              const dominant =
-                Math.sqrt(cell.actualArea) * zoom >=
-                Math.min(width, height) * SYMBOL_DOMINANT_FRACTION * labelFactor;
-              const name = labels.get(cell.id) ?? fallbackLabel(cell.id);
-              const kind = props.symbolKindOf?.(cell.id);
-              const glyph = symbolGlyphOf(kind, name);
-              // class members are detail: keep them hidden until a deep zoom
-              // makes their cell large, so the overview shows classes/functions
-              const isMember = glyph === "method" || glyph === "property";
-              const onScreen = Math.sqrt(cell.actualArea) * zoom;
-              const roomy =
-                symbolMode &&
-                onScreen >=
-                  (isMember ? MEMBER_TAG_MIN_PX : SYMBOL_ICON_MIN_PX) * labelFactor;
-              const fontSize = screenFont(
-                Math.sqrt(cell.actualArea) * 0.3,
-                exported ? 7 : 13,
-                12,
-                isSelected(cell.id) || fileSelected || dominant || linked,
-                200,
-              );
-              if (fontSize === null) return null;
-              // only auto-show a label that fits its cell on screen, so dense
-              // rings don't fill with overlapping names (selections always show)
-              const fits = onScreen * 1.25 >= name.length * fontSize * zoom * 0.5;
-              // members never ride the dominant/linked shortcut — only room
-              const passes = isMember
-                ? roomy || cell.id === selectedId
-                : cell.id === selectedId || fileSelected || ((linked || dominant || roomy) && fits);
-              if (!passes) return null;
-              return (
-                <SymbolTag
-                  key={cell.id}
-                  cx={cell.site.x}
-                  cy={cell.site.y - screenRadius(4)}
-                  name={name}
-                  glyph={glyph}
-                  static={isStaticKind(kind)}
-                  fontSize={fontSize}
-                  showIcon={fontSize * zoom * 1.1 >= 9}
-                  color={
-                    glyph
-                      ? SYMBOL_KIND_COLORS[glyph]!
-                      : exported
-                        ? EXPORTED_LABEL
-                        : INTERNAL_LABEL
-                  }
-                  opacity={symbolOpacity(cell.id)}
-                  tilt={tiltAffine}
-                />
-              );
-            })
-          : null}
-      </g>
-      {/* file/module watermark names ride in FRONT of the symbols so they are
+          })}
+          {showInner
+            ? visibleFileCells.map((cell) => {
+                // past the watermark size the background copy takes over
+                if (isWatermarkSized(cell, zoom)) return null;
+                // a labeled symbol owns the spot — no stacked file name
+                if (labeledSymbolFiles.has(cell.id)) return null;
+                const fontSize = screenFont(
+                  Math.sqrt(cell.actualArea) * 0.18,
+                  9,
+                  15,
+                  cell.id === selectedId,
+                  Infinity, // the watermark gate above already capped it
+                );
+                if (fontSize === null) return null;
+                return (
+                  <text
+                    key={cell.id}
+                    transform={uprightAt(tiltAffine, {
+                      x: cell.site.x,
+                      y: cell.site.y + fontSize * 0.35,
+                    })}
+                    font-size={fontSize}
+                    fill={testFileIds.has(cell.id) ? TEST_LABEL_INK : FILE_LABEL_INK}
+                    opacity={fileOpacity(cell.id)}
+                  >
+                    {labels.get(cell.id) ?? fallbackLabel(cell.id)}
+                  </text>
+                );
+              })
+            : null}
+          {showInner
+            ? visibleInnerCells.map((cell) => {
+                // module-scope filler cells stay unlabeled to reduce noise
+                if (cell.id.endsWith("#rest") && cell.id !== selectedId) return null;
+                const exported = exportedIds.has(cell.id);
+                // symbol names are noise until you commit to the symbol:
+                // show them only when (a) the cell dominates the screen,
+                // (b) its file is selected, (c) it's the selection itself,
+                // (d) the selection references it directly
+                const linked = linkedToSelection.has(cell.id);
+                const fileSelected = isSelected(parentFileOf(cell.id));
+                const dominant =
+                  Math.sqrt(cell.actualArea) * zoom >=
+                  Math.min(width, height) * SYMBOL_DOMINANT_FRACTION * labelFactor;
+                const name = labels.get(cell.id) ?? fallbackLabel(cell.id);
+                const kind = props.symbolKindOf?.(cell.id);
+                const glyph = symbolGlyphOf(kind, name);
+                // class members are detail: keep them hidden until a deep zoom
+                // makes their cell large, so the overview shows classes/functions
+                const isMember = glyph === "method" || glyph === "property";
+                const onScreen = Math.sqrt(cell.actualArea) * zoom;
+                const roomy =
+                  symbolMode &&
+                  onScreen >= (isMember ? MEMBER_TAG_MIN_PX : SYMBOL_ICON_MIN_PX) * labelFactor;
+                const fontSize = screenFont(
+                  Math.sqrt(cell.actualArea) * 0.3,
+                  exported ? 7 : 13,
+                  12,
+                  isSelected(cell.id) || fileSelected || dominant || linked,
+                  200,
+                );
+                if (fontSize === null) return null;
+                // only auto-show a label that fits its cell on screen, so dense
+                // rings don't fill with overlapping names (selections always show)
+                const fits = onScreen * 1.25 >= name.length * fontSize * zoom * 0.5;
+                // members never ride the dominant/linked shortcut — only room
+                const passes = isMember
+                  ? roomy || cell.id === selectedId
+                  : cell.id === selectedId ||
+                    fileSelected ||
+                    ((linked || dominant || roomy) && fits);
+                if (!passes) return null;
+                return (
+                  <SymbolTag
+                    key={cell.id}
+                    cx={cell.site.x}
+                    cy={cell.site.y - screenRadius(4)}
+                    name={name}
+                    glyph={glyph}
+                    static={isStaticKind(kind)}
+                    fontSize={fontSize}
+                    showIcon={fontSize * zoom * 1.1 >= 9}
+                    color={
+                      glyph
+                        ? SYMBOL_KIND_COLORS[glyph]!
+                        : exported
+                          ? EXPORTED_LABEL
+                          : INTERNAL_LABEL
+                    }
+                    opacity={symbolOpacity(cell.id)}
+                    tilt={tiltAffine}
+                  />
+                );
+              })
+            : null}
+        </g>
+        {/* file/module watermark names ride in FRONT of the symbols so they are
           never buried; WatermarkLabelsLayer fades them with zoom so they don't
           block the symbols at depth */}
-      {sourceVisible ? (
-        <WatermarkLabelsLayer
-          cells={visibleFileCells}
-          zoom={zoom}
-          labelOf={(id) => labels.get(id) ?? fallbackLabel(id)}
-          dim={dim}
-          view={committedView}
-          tilt={tiltAffine}
-        />
-      ) : null}
+        {sourceVisible ? (
+          <WatermarkLabelsLayer
+            cells={visibleFileCells}
+            zoom={zoom}
+            labelOf={(id) => labels.get(id) ?? fallbackLabel(id)}
+            dim={dim}
+            view={committedView}
+            tilt={tiltAffine}
+          />
+        ) : null}
       </g>
       {tiltAffine
         ? layers.map((layer, i) => {

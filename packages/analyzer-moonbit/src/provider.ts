@@ -9,16 +9,10 @@ import { moonbitDetail } from "./detail.js";
 export const moonbitProvider: LanguageProvider = {
   id: "moonbit",
   matchesManifest(repoPath) {
-    return (
-      existsSync(join(repoPath, "moon.mod.json")) ||
-      existsSync(join(repoPath, "moon.mod"))
-    );
+    return existsSync(join(repoPath, "moon.mod.json")) || existsSync(join(repoPath, "moon.mod"));
   },
   async match(repoPath) {
-    if (
-      existsSync(join(repoPath, "moon.mod.json")) ||
-      existsSync(join(repoPath, "moon.mod"))
-    )
+    if (existsSync(join(repoPath, "moon.mod.json")) || existsSync(join(repoPath, "moon.mod")))
       return true;
     const hits = await fg("**/*.mbt", {
       cwd: repoPath,

@@ -49,11 +49,34 @@ const snapshot = {
 // ancestor); node 3 is a library frame *under* foo (resolves to foo via ancestor).
 const profile = {
   nodes: [
-    { id: 1, callFrame: { functionName: "(root)", url: "", lineNumber: -1, columnNumber: -1 }, children: [2, 4, 6] },
-    { id: 2, callFrame: { functionName: "foo", url: "file:///r/src/a.ts", lineNumber: 0, columnNumber: 0 }, children: [3] },
-    { id: 3, callFrame: { functionName: "readSync", url: "node:fs", lineNumber: 10, columnNumber: 0 } },
-    { id: 4, callFrame: { functionName: "bar", url: "file:///r/src/a.ts", lineNumber: 11, columnNumber: 0 }, children: [5] },
-    { id: 5, callFrame: { functionName: "baz", url: "file:///r/src/b.ts", lineNumber: 0, columnNumber: 0 } },
+    {
+      id: 1,
+      callFrame: { functionName: "(root)", url: "", lineNumber: -1, columnNumber: -1 },
+      children: [2, 4, 6],
+    },
+    {
+      id: 2,
+      callFrame: { functionName: "foo", url: "file:///r/src/a.ts", lineNumber: 0, columnNumber: 0 },
+      children: [3],
+    },
+    {
+      id: 3,
+      callFrame: { functionName: "readSync", url: "node:fs", lineNumber: 10, columnNumber: 0 },
+    },
+    {
+      id: 4,
+      callFrame: {
+        functionName: "bar",
+        url: "file:///r/src/a.ts",
+        lineNumber: 11,
+        columnNumber: 0,
+      },
+      children: [5],
+    },
+    {
+      id: 5,
+      callFrame: { functionName: "baz", url: "file:///r/src/b.ts", lineNumber: 0, columnNumber: 0 },
+    },
     { id: 6, callFrame: { functionName: "gc", url: "", lineNumber: -1, columnNumber: -1 } },
   ],
   samples: [6, 2, 2, 3, 4, 5, 5],

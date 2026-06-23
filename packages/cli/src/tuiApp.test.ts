@@ -13,7 +13,16 @@ const commit = {
 };
 const stripAnsi = (s: string) => s.replace(/\x1b\[[0-9;]*m/g, "");
 function sym(name: string, loc: number): CodeSymbol {
-  return { id: `s:${name}`, kind: "function", name, startLine: 1, endLine: loc, loc, complexity: 1, exported: true };
+  return {
+    id: `s:${name}`,
+    kind: "function",
+    name,
+    startLine: 1,
+    endLine: loc,
+    loc,
+    complexity: 1,
+    exported: true,
+  };
 }
 const snapshot: Snapshot = {
   schemaVersion: 1,
@@ -82,7 +91,10 @@ describe("composeFrame", () => {
   });
 
   it("fills the scope with source when zoomed into a symbol", () => {
-    const code = { title: "solve — packages/viz/App.tsx", lines: ["12│const x = 1", "13│return x"] };
+    const code = {
+      title: "solve — packages/viz/App.tsx",
+      lines: ["12│const x = 1", "13│return x"],
+    };
     const { frame, tiles } = composeFrame(
       forest,
       { rootPath: "packages/viz/App.tsx#solve:1", hoverPath: null, code },

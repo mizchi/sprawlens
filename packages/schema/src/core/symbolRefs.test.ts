@@ -9,11 +9,30 @@ import {
 } from "./symbolRefs.js";
 
 function sym(id: string, name: string, startLine: number, endLine: number): CodeSymbol {
-  return { id, kind: "function", name, startLine, endLine, loc: endLine - startLine + 1, complexity: 1, exported: true };
+  return {
+    id,
+    kind: "function",
+    name,
+    startLine,
+    endLine,
+    loc: endLine - startLine + 1,
+    complexity: 1,
+    exported: true,
+  };
 }
 
 function method(id: string, name: string, parentClass: string): CodeSymbol {
-  return { id, kind: "method", name, startLine: 1, endLine: 2, loc: 2, complexity: 1, exported: true, parentClass };
+  return {
+    id,
+    kind: "method",
+    name,
+    startLine: 1,
+    endLine: 2,
+    loc: 2,
+    complexity: 1,
+    exported: true,
+    parentClass,
+  };
 }
 
 describe("enclosingSymbol", () => {
@@ -76,18 +95,18 @@ describe("pickExported", () => {
 
 describe("mergeSymbolImports", () => {
   const a: CodeSymbolImport = {
-    imported: "x", local: "x", kind: "named",
-    fromSymbolId: "f1", toSymbolId: "t1",
+    imported: "x",
+    local: "x",
+    kind: "named",
+    fromSymbolId: "f1",
+    toSymbolId: "t1",
   };
   const dupOfA: CodeSymbolImport = { ...a, imported: "x2" }; // same from->to
   const b: CodeSymbolImport = { ...a, fromSymbolId: "f2" };
   it("appends only pairs not already present (deduped by from->to)", () => {
     const into: CodeSymbolImport[] = [a];
     mergeSymbolImports(into, [dupOfA, b]);
-    expect(into.map((s) => `${s.fromSymbolId}->${s.toSymbolId}`)).toEqual([
-      "f1->t1",
-      "f2->t1",
-    ]);
+    expect(into.map((s) => `${s.fromSymbolId}->${s.toSymbolId}`)).toEqual(["f1->t1", "f2->t1"]);
   });
 });
 
@@ -95,11 +114,19 @@ describe("symbolImportOf", () => {
   const sourceSymbols = [sym("make", "make", 5, 9)];
   const targetSymbols = [method("new#C", "new", "Calc"), method("new#D", "new", "Other")];
   it("resolves a Type::method ref to the method symbol of the matching class", () => {
-    const si = symbolImportOf({ line: 6, name: "new", preferClass: "Calc" }, sourceSymbols, targetSymbols);
+    const si = symbolImportOf(
+      { line: 6, name: "new", preferClass: "Calc" },
+      sourceSymbols,
+      targetSymbols,
+    );
     expect(si).toEqual({
-      imported: "new", local: "new", kind: "named",
-      fromSymbolId: "make", fromSymbolName: "make",
-      toSymbolId: "new#C", toSymbolName: "new",
+      imported: "new",
+      local: "new",
+      kind: "named",
+      fromSymbolId: "make",
+      fromSymbolName: "make",
+      toSymbolId: "new#C",
+      toSymbolName: "new",
     });
   });
   it("returns null when the target has no such symbol", () => {

@@ -38,10 +38,7 @@ const SOLVER = {
 
 /** Cross-plane links: edges from a layer's nodes to nodes outside it (the
  * source files a test/doc references). */
-function outboundLinks(
-  graph: AtlasGraph,
-  ids: ReadonlySet<string>,
-): Map<string, Set<string>> {
+function outboundLinks(graph: AtlasGraph, ids: ReadonlySet<string>): Map<string, Set<string>> {
   const importsBy = new Map<string, Set<string>>();
   for (const e of graph.edges) {
     if (!ids.has(e.source) || ids.has(e.target)) continue;
@@ -82,13 +79,17 @@ function solveNodeLayer(
       { w: ext.width, h: ext.height },
     );
     if (placed.length === 0) return null;
-    return { id: layerName, planeIndex, placed, districts: [], extent: { w: ext.width, h: ext.height } };
+    return {
+      id: layerName,
+      planeIndex,
+      placed,
+      districts: [],
+      extent: { w: ext.width, h: ext.height },
+    };
   }
 
   // rings: module-grouped concentric layout, same as the source map
-  const layerEdges = graph.edges.filter(
-    (e) => ids.has(e.source) && ids.has(e.target),
-  );
+  const layerEdges = graph.edges.filter((e) => ids.has(e.source) && ids.has(e.target));
   let state = createRingsState(
     { nodes, edges: layerEdges },
     { width: ext.width, height: ext.height, ...SOLVER },
@@ -114,8 +115,7 @@ function solveNodeLayer(
   for (const circle of state.circles.values())
     districts.push(circleToPolygon({ cx: circle.cx, cy: circle.cy, r: circle.r }, 48));
   for (const level of state.innerLevels)
-    for (const c of level.cells.values())
-      if (c.polygon.length >= 3) districts.push(c.polygon);
+    for (const c of level.cells.values()) if (c.polygon.length >= 3) districts.push(c.polygon);
   if (placed.length === 0) return null;
   return { id: layerName, planeIndex, placed, districts, extent: { w: ext.width, h: ext.height } };
 }
@@ -160,7 +160,13 @@ function solveDepLayer(
   if (input.length === 0) return null;
   const placed = ringPlane(input, { w: ext.width, h: ext.height });
   if (placed.length === 0) return null;
-  return { id: layerName, planeIndex, placed, districts: [], extent: { w: ext.width, h: ext.height } };
+  return {
+    id: layerName,
+    planeIndex,
+    placed,
+    districts: [],
+    extent: { w: ext.width, h: ext.height },
+  };
 }
 
 /** Weight a test node by lines of code (cases) or by its subtree (suites). */

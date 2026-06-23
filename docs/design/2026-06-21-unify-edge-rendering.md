@@ -11,7 +11,7 @@ testable path, so the two renderers stop drifting.
 ## Constraint
 
 No rendering tests exist; visual regressions are hard to catch. So the refactor
-is **incremental and behavior-preserving**: extract the duplicated *pure* logic
+is **incremental and behavior-preserving**: extract the duplicated _pure_ logic
 (endpoint resolution, pick-candidate assembly) behind unit tests first, then a
 shared rendering component, leaving each renderer's geometry inputs intact. Each
 phase keeps all gates green and changes no visible output.
@@ -60,7 +60,7 @@ phase keeps all gates green and changes no visible output.
   on rings) into one `SceneEdges` on the common scene; `buildScene` fills it
   once, `SvgRenderer` maps it to the unchanged renderer props. Verified
   behavior-preserving by the synthetic render snapshots. The ambient file/symbol
-  *render loops* stay per-renderer — rings culls-then-bundles per edge, treemap
+  _render loops_ stay per-renderer — rings culls-then-bundles per edge, treemap
   memoizes pre-bundled, a legitimate perf difference, not worth forcing into one
   loop. Gated by the rendering-test harness added first
   (docs/design/2026-06-21-rendering-test-harness.md).

@@ -26,11 +26,7 @@ function hashString(value: string): number {
  * Splits a file's LOC into 2..8 symbol nodes with a skewed distribution.
  * Deterministic per (fileId, seed) so nested layouts are reproducible.
  */
-export function synthesizeSymbols(
-  fileId: string,
-  loc: number,
-  seed: number,
-): AtlasNode[] {
+export function synthesizeSymbols(fileId: string, loc: number, seed: number): AtlasNode[] {
   const rng = createRng(hashString(fileId) ^ seed);
   const count = 2 + Math.floor(rng() * 7);
   const shares = Array.from({ length: count }, () => 0.1 + rng() ** 2);
@@ -38,9 +34,7 @@ export function synthesizeSymbols(
   let remaining = loc;
   return shares.map((share, i) => {
     const isLast = i === count - 1;
-    const symbolLoc = isLast
-      ? remaining
-      : Math.max(1, Math.round((loc * share) / totalShare));
+    const symbolLoc = isLast ? remaining : Math.max(1, Math.round((loc * share) / totalShare));
     remaining -= symbolLoc;
     return {
       id: `${fileId}#s${i}`,
@@ -59,16 +53,10 @@ export function synthesizeSymbols(
  * dependency edges; a few intra-file references link symbols within a file.
  * Symbol ids match `synthesizeSymbols(fileId, loc, 1)`.
  */
-export function synthesizeSymbolEdges(
-  graph: AtlasGraph,
-  seed: number,
-): AtlasEdge[] {
+export function synthesizeSymbolEdges(graph: AtlasGraph, seed: number): AtlasEdge[] {
   const rng = createRng(seed ^ 0x5f3759df);
   const symbolIds = new Map<string, string[]>(
-    graph.nodes.map((n) => [
-      n.id,
-      synthesizeSymbols(n.id, n.metrics.loc, 1).map((s) => s.id),
-    ]),
+    graph.nodes.map((n) => [n.id, synthesizeSymbols(n.id, n.metrics.loc, 1).map((s) => s.id)]),
   );
   const edges: AtlasEdge[] = [];
   for (const node of graph.nodes) {
@@ -104,8 +92,7 @@ export function createSyntheticGraph(options: SyntheticOptions): AtlasGraph {
   // populated rings instead of one module per rank
   const moduleCount = Math.max(3, Math.round(Math.sqrt(count)));
   const levelCount = Math.max(2, Math.round(Math.sqrt(moduleCount)));
-  const levelOfModule = (m: number) =>
-    Math.floor((m / moduleCount) * levelCount);
+  const levelOfModule = (m: number) => Math.floor((m / moduleCount) * levelCount);
   const moduleDeps: number[][] = [];
   for (let m = 0; m < moduleCount; m++) {
     const lower: number[] = [];

@@ -4,8 +4,14 @@ import { resolvePackageImports } from "./packageImports.js";
 
 function sym(id: string, name: string, parentClass?: string): CodeSymbol {
   return {
-    id, name, kind: parentClass ? "method" : "function",
-    startLine: 1, endLine: 9, loc: 9, complexity: 1, exported: true,
+    id,
+    name,
+    kind: parentClass ? "method" : "function",
+    startLine: 1,
+    endLine: 9,
+    loc: 9,
+    complexity: 1,
+    exported: true,
     ...(parentClass ? { parentClass } : {}),
   };
 }
@@ -61,9 +67,7 @@ describe("resolvePackageImports", () => {
       symbols: [],
       exportedSymbolsOf,
       resolveImport: (spec) =>
-        spec === "fmt"
-          ? { external: "fmt", stdlib: true }
-          : { external: "github.com/x/y" }, // both sub-packages group to one
+        spec === "fmt" ? { external: "fmt", stdlib: true } : { external: "github.com/x/y" }, // both sub-packages group to one
     });
     const ext = edges.flatMap((e) => (e.type === "imports" && e.external ? [e] : []));
     expect(ext.map((e) => e.specifier).sort()).toEqual(["fmt", "github.com/x/y"]);

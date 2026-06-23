@@ -19,11 +19,7 @@ export type SolverLoopContext = {
   repaintSkipRef: Ref<number>;
   paramsRef: Ref<PlaygroundParams>;
   /** Step the nested per-file symbol layouts within a time budget. */
-  syncInnerLayouts: (
-    outerCells: CellResult[],
-    outerActive: boolean,
-    budgetMs: number,
-  ) => void;
+  syncInnerLayouts: (outerCells: CellResult[], outerActive: boolean, budgetMs: number) => void;
   convergenceTolerance: number;
   /** Commit a repaint (bump the frame counter). */
   onFrame: () => void;
@@ -84,11 +80,7 @@ export function useSolverLoop(ctx: SolverLoopContext) {
       if (ringsRef.current) {
         let steps = 0;
         let active = true;
-        while (
-          active &&
-          steps < maxSteps &&
-          performance.now() - solverStart < solverBudget
-        ) {
+        while (active && steps < maxSteps && performance.now() - solverStart < solverBudget) {
           const result = stepRingsState(ringsRef.current, 1);
           ringsRef.current = result.state;
           active = result.active;
@@ -101,11 +93,7 @@ export function useSolverLoop(ctx: SolverLoopContext) {
       } else if (treemapRef.current) {
         let steps = 0;
         let active = true;
-        while (
-          active &&
-          steps < maxSteps &&
-          performance.now() - solverStart < solverBudget
-        ) {
+        while (active && steps < maxSteps && performance.now() - solverStart < solverBudget) {
           const result = stepTreemapState(treemapRef.current, 1);
           treemapRef.current = result.state;
           active = result.active;
@@ -121,10 +109,7 @@ export function useSolverLoop(ctx: SolverLoopContext) {
       if (
         (showsSymbolLevels(paramsRef.current.displayLevels) ||
           paramsRef.current.displayLevels.includes("cfg")) &&
-        granularityOf(
-          paramsRef.current.boundaries,
-          paramsRef.current.displayLevels,
-        ) === "file"
+        granularityOf(paramsRef.current.boundaries, paramsRef.current.displayLevels) === "file"
       ) {
         syncInnerLayouts(outerCells, outerActive, innerBudget);
         for (const layout of innerLayoutsRef.current.values()) {
@@ -136,9 +121,7 @@ export function useSolverLoop(ctx: SolverLoopContext) {
       }
       if (innerDirtyRef.current) {
         innerDirtyRef.current = false;
-        innerCellsRef.current = [...innerLayoutsRef.current.values()].flatMap(
-          (l) => l.cells,
-        );
+        innerCellsRef.current = [...innerLayoutsRef.current.values()].flatMap((l) => l.cells);
       }
       // re-render only while a solver is actually advancing; a converged layout
       // would otherwise burn CPU at full frame rate. On big maps a full SVG
@@ -151,8 +134,7 @@ export function useSolverLoop(ctx: SolverLoopContext) {
         // proportion to the live element count, so the denser the map the fewer
         // frames we actually commit while solving.
         const cells = outerCells.length + innerCellsRef.current.length;
-        const repaintEvery =
-          cells > 4000 ? 6 : cells > 1500 ? 4 : cells > 600 ? 3 : 1;
+        const repaintEvery = cells > 4000 ? 6 : cells > 1500 ? 4 : cells > 600 ? 3 : 1;
         if (repaintSkipRef.current >= repaintEvery || !outerActive) {
           repaintSkipRef.current = 0;
           onFrame();

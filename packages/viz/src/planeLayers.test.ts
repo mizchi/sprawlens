@@ -13,10 +13,7 @@ describe("capacityPlane", () => {
   const extent = { w: 400, h: 300 };
 
   it("places every node inside the plane rect with a polygon", () => {
-    const placed = capacityPlane(
-      [node("a", 100), node("b", 50), node("c", 25)],
-      extent,
-    );
+    const placed = capacityPlane([node("a", 100), node("b", 50), node("c", 25)], extent);
     expect(placed).toHaveLength(3);
     for (const p of placed) {
       expect(p.polygon!.length).toBeGreaterThanOrEqual(3);
@@ -51,10 +48,7 @@ describe("ringPlane", () => {
   const extent = { w: 400, h: 400 };
 
   it("places nodes with a radius, fitted into the plane", () => {
-    const placed = ringPlane(
-      [node("x", 40), node("y", 20), node("z", 10)],
-      extent,
-    );
+    const placed = ringPlane([node("x", 40), node("y", 20), node("z", 10)], extent);
     expect(placed).toHaveLength(3);
     for (const p of placed) {
       expect(p.r).toBeGreaterThan(0);
@@ -64,10 +58,7 @@ describe("ringPlane", () => {
   });
 
   it("puts a lower rank closer to the plane center", () => {
-    const placed = ringPlane(
-      [node("center", 20, 0), node("outer", 20, 2)],
-      extent,
-    );
+    const placed = ringPlane([node("center", 20, 0), node("outer", 20, 2)], extent);
     const c = { x: extent.w / 2, y: extent.h / 2 };
     const dist = (id: string) => {
       const p = placed.find((q) => q.id === id)!;

@@ -35,8 +35,7 @@ export function useSelection() {
     setSelectedIds((prev) => [...prev.filter((x) => x !== id), id]);
 
   /** Drop a single id from the selection. */
-  const deselect = (id: string) =>
-    setSelectedIds((prev) => prev.filter((x) => x !== id));
+  const deselect = (id: string) => setSelectedIds((prev) => prev.filter((x) => x !== id));
 
   /** Node click: shift toggles membership, a plain click replaces. */
   const selectNode = (id: string | null, additive = false) => {
@@ -48,9 +47,7 @@ export function useSelection() {
     }
     if (additive) {
       setSelectedIds(
-        selectedIds.includes(id)
-          ? selectedIds.filter((x) => x !== id)
-          : [...selectedIds, id],
+        selectedIds.includes(id) ? selectedIds.filter((x) => x !== id) : [...selectedIds, id],
       );
       if (focusId !== null) setFocusId(id);
       return;
@@ -65,11 +62,7 @@ export function useSelection() {
    * selection; a plain click replaces the selection with it. Returns true when
    * the host should frame the edge's endpoints (plain click only).
    */
-  const selectEdgeState = (
-    source: string,
-    target: string,
-    additive = false,
-  ): boolean => {
+  const selectEdgeState = (source: string, target: string, additive = false): boolean => {
     const edge = { source, target };
     if (additive) {
       setSelectedEdges(

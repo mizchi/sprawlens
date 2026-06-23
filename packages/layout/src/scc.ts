@@ -32,9 +32,7 @@ export function stronglyConnectedComponents(
 
   for (const root of nodes) {
     if (indexOf.has(root)) continue;
-    const work: { node: string; edgeIndex: number }[] = [
-      { node: root, edgeIndex: 0 },
-    ];
+    const work: { node: string; edgeIndex: number }[] = [{ node: root, edgeIndex: 0 }];
     while (work.length > 0) {
       const frame = work[work.length - 1]!;
       const { node } = frame;
@@ -56,10 +54,7 @@ export function stronglyConnectedComponents(
           break;
         }
         if (onStack.has(target)) {
-          lowlink.set(
-            node,
-            Math.min(lowlink.get(node)!, indexOf.get(target)!),
-          );
+          lowlink.set(node, Math.min(lowlink.get(node)!, indexOf.get(target)!));
         }
       }
       if (descended) continue;
@@ -77,10 +72,7 @@ export function stronglyConnectedComponents(
       work.pop();
       const parent = work[work.length - 1];
       if (parent) {
-        lowlink.set(
-          parent.node,
-          Math.min(lowlink.get(parent.node)!, lowlink.get(node)!),
-        );
+        lowlink.set(parent.node, Math.min(lowlink.get(parent.node)!, lowlink.get(node)!));
       }
     }
   }
@@ -91,10 +83,7 @@ export function stronglyConnectedComponents(
  * Components that actually contain a cycle (size > 1, or a self-loop),
  * largest first — the ranking refactor suggestions start from.
  */
-export function cyclicComponents(
-  nodes: readonly string[],
-  edges: readonly SccEdge[],
-): string[][] {
+export function cyclicComponents(nodes: readonly string[], edges: readonly SccEdge[]): string[][] {
   const ids = new Set(nodes);
   const selfLooped = new Set<string>();
   for (const edge of edges) {
@@ -114,10 +103,7 @@ export function cyclicComponents(
  * edges that "go against the flow" — drawn as red flows in the map.
  * Deterministic for a fixed node/edge order.
  */
-export function feedbackEdges(
-  nodes: readonly string[],
-  edges: readonly SccEdge[],
-): Set<string> {
+export function feedbackEdges(nodes: readonly string[], edges: readonly SccEdge[]): Set<string> {
   const adjacency = buildAdjacency(nodes, edges);
   const feedback = new Set<string>();
   const visited = new Set<string>();
@@ -125,9 +111,7 @@ export function feedbackEdges(
 
   for (const root of nodes) {
     if (visited.has(root)) continue;
-    const work: { node: string; edgeIndex: number }[] = [
-      { node: root, edgeIndex: 0 },
-    ];
+    const work: { node: string; edgeIndex: number }[] = [{ node: root, edgeIndex: 0 }];
     visited.add(root);
     onPath.add(root);
     while (work.length > 0) {

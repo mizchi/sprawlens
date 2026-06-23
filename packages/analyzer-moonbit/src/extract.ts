@@ -115,9 +115,7 @@ type MbImport = { path: string; alias: string };
  * legacy JSON `moon.pkg.json` and the newer `moon.pkg` DSL — dispatch on the
  * leading `{` (only the JSON object starts with one). */
 function pkgImports(content: string): MbImport[] {
-  return content.trimStart().startsWith("{")
-    ? pkgImportsJson(content)
-    : pkgImportsDsl(content);
+  return content.trimStart().startsWith("{") ? pkgImportsJson(content) : pkgImportsDsl(content);
 }
 
 /** Imports declared in a moon.pkg.json (strings or {path, alias}). */
@@ -168,9 +166,9 @@ function pkgImportsDsl(content: string): MbImport[] {
 /** The module name from moon.mod.json (JSON) or moon.mod (TOML), else "". */
 async function readModuleName(repoPath: string): Promise<string> {
   try {
-    const mod = JSON.parse(
-      await readFile(posix.join(repoPath, "moon.mod.json"), "utf8"),
-    ) as { name?: unknown };
+    const mod = JSON.parse(await readFile(posix.join(repoPath, "moon.mod.json"), "utf8")) as {
+      name?: unknown;
+    };
     if (typeof mod.name === "string") return mod.name;
   } catch {
     // no JSON module file; try the TOML form
@@ -281,24 +279,24 @@ export async function snapshotMoonbitWorkingTree(
   // The moon.mod.json module is a one-package workspace rooted at the repo;
   // imports under its name resolve to local package dirs (same neutral matcher
   // the other analyzers use, generalized here to a single named root).
-  const workspace: WorkspacePackage[] = moduleName
-    ? [{ name: moduleName, sourceRoot: "" }]
-    : [];
+  const workspace: WorkspacePackage[] = moduleName ? [{ name: moduleName, sourceRoot: "" }] : [];
   /** Local package dir for an import under the module, else null. */
   const localDirOf = (spec: string): string | null => {
     const m = matchWorkspacePackage(workspace, spec);
     return m ? [m.pkg.sourceRoot, m.subpath].filter(Boolean).join("/") : null;
   };
 
-  for (const dir of [...dirs].sort())
-    nodes.push({ id: `dir:${dir}`, type: "dir", path: dir });
+  for (const dir of [...dirs].sort()) nodes.push({ id: `dir:${dir}`, type: "dir", path: dir });
 
   // exported symbols per file — the target side of symbol references. The full
   // list (not just name→symbol) lets a `Type::method` ref prefer the method
   // whose parentClass matches the qualifier.
   const exportedSymbolsByFile = new Map<string, CodeSymbol[]>();
   for (const f of entries) {
-    exportedSymbolsByFile.set(f.rel, f.symbols.filter((s) => s.exported));
+    exportedSymbolsByFile.set(
+      f.rel,
+      f.symbols.filter((s) => s.exported),
+    );
   }
 
   for (const f of entries) {
@@ -320,8 +318,16 @@ export async function snapshotMoonbitWorkingTree(
       ...resolvePackageImports({
         fileId: id,
         rel: f.rel,
-        imports: (importsByDir.get(f.dir) ?? []).map((imp) => ({ spec: imp.path, alias: imp.alias })),
-        uses: f.selectors.map((s) => ({ line: s.line, alias: s.pkg, name: s.name, preferClass: s.preferClass })),
+        imports: (importsByDir.get(f.dir) ?? []).map((imp) => ({
+          spec: imp.path,
+          alias: imp.alias,
+        })),
+        uses: f.selectors.map((s) => ({
+          line: s.line,
+          alias: s.pkg,
+          name: s.name,
+          preferClass: s.preferClass,
+        })),
         symbols: f.symbols,
         exportedSymbolsOf: (rel) => exportedSymbolsByFile.get(rel) ?? [],
         resolveImport: (spec) => {
@@ -329,16 +335,19 @@ export async function snapshotMoonbitWorkingTree(
           const localFiles = localDir !== null ? filesByDir.get(localDir) : undefined;
           // test files (`*_test.mbt` / `*_wbtest.mbt`) are not importable surface
           const importable = localFiles?.filter((t) => !/_(test|wbtest)\.mbt$/.test(t));
-          return importable && importable.length > 0
-            ? { local: importable }
-            : { external: spec };
+          return importable && importable.length > 0 ? { local: importable } : { external: spec };
         },
       }),
     );
   }
   for (const dir of dirs) {
     const parent = dir.includes("/") ? `dir:${dir.slice(0, dir.lastIndexOf("/"))}` : "repo";
-    edges.push({ id: `contains:${parent}->dir:${dir}`, type: "contains", from: parent, to: `dir:${dir}` });
+    edges.push({
+      id: `contains:${parent}->dir:${dir}`,
+      type: "contains",
+      from: parent,
+      to: `dir:${dir}`,
+    });
   }
 
   const { metrics } = computeGraphMetrics(nodes, edges);

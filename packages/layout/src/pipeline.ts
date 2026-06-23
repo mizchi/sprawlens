@@ -27,10 +27,7 @@ export type GraphLayoutOptions = CapacityOptions & {
  */
 function embedIterationsFor(nodeCount: number): number {
   if (nodeCount === 0) return 0;
-  return Math.max(
-    30,
-    Math.min(200, Math.floor(20_000_000 / (nodeCount * nodeCount))),
-  );
+  return Math.max(30, Math.min(200, Math.floor(20_000_000 / (nodeCount * nodeCount))));
 }
 
 /**
@@ -40,10 +37,7 @@ function embedIterationsFor(nodeCount: number): number {
  */
 export function forceIterationsFor(nodeCount: number): number {
   if (nodeCount === 0) return 0;
-  return Math.max(
-    4,
-    Math.min(80, Math.floor(2_000_000 / (nodeCount * nodeCount))),
-  );
+  return Math.max(4, Math.min(80, Math.floor(2_000_000 / (nodeCount * nodeCount))));
 }
 
 /** Above this the O(n²) embedding setup itself gets too slow; use force. */
@@ -54,10 +48,7 @@ const EMBED_NODE_CAP = 800;
  * mapped into the clip region. Returns null when the graph is empty or too
  * large for the O(n²) embedding (callers fall back to force seeding).
  */
-export function embedSeedHints(
-  graph: AtlasGraph,
-  clip: ClipRegion,
-): Map<string, Vec2> | null {
+export function embedSeedHints(graph: AtlasGraph, clip: ClipRegion): Map<string, Vec2> | null {
   const n = graph.nodes.length;
   if (n === 0 || n > EMBED_NODE_CAP) return null;
   const positions = embedGraph(
@@ -70,18 +61,12 @@ export function embedSeedHints(
 
 /** Embedding space is centered with RMS radius 1; place that radius at
  * ~30% of the clip extent and clamp outliers inside. */
-function mapToClip(
-  positions: ReadonlyMap<string, Vec2>,
-  clip: ClipRegion,
-): Map<string, Vec2> {
+function mapToClip(positions: ReadonlyMap<string, Vec2>, clip: ClipRegion): Map<string, Vec2> {
   const center = clipCenter(clip);
   const scale = clipScale(clip) * 0.3;
   const mapped = new Map<string, Vec2>();
   for (const [id, p] of positions) {
-    mapped.set(
-      id,
-      clampInto(clip, { x: center.x + p.x * scale, y: center.y + p.y * scale }),
-    );
+    mapped.set(id, clampInto(clip, { x: center.x + p.x * scale, y: center.y + p.y * scale }));
   }
   return mapped;
 }

@@ -9,8 +9,7 @@ import { fileURLToPath } from "node:url";
 // headless SVG renderer pulls the viz components, so the CLI must carry preact
 // to stay self-contained without adding it as a runtime dependency.
 const BUNDLED = ["preact", "preact-render-to-string"];
-const isBundled = (path) =>
-  BUNDLED.some((p) => path === p || path.startsWith(`${p}/`));
+const isBundled = (path) => BUNDLED.some((p) => path === p || path.startsWith(`${p}/`));
 await build({
   entryPoints: ["src/index.ts"],
   bundle: true,
@@ -28,8 +27,7 @@ await build({
       setup(b) {
         b.onResolve({ filter: /.*/ }, (args) => {
           if (args.kind === "entry-point") return null;
-          if (args.path.startsWith(".") || args.path.startsWith("@sprawlens/"))
-            return null;
+          if (args.path.startsWith(".") || args.path.startsWith("@sprawlens/")) return null;
           if (isBundled(args.path)) return null;
           if (isAbsolute(args.path)) return null;
           return { path: args.path, external: true };

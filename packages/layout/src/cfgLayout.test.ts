@@ -95,16 +95,9 @@ describe("layoutCfg", () => {
     expect(layout.rows).toBe(4);
     expect(layout.cols).toBe(2);
     // the spine shares one x column; else sits one column right
-    expect(layout.positions.get("then")!.x).toBeCloseTo(
-      layout.positions.get("if")!.x,
-      5,
-    );
-    expect(layout.positions.get("else")!.x).toBeGreaterThan(
-      layout.positions.get("then")!.x,
-    );
-    expect(layout.positions.get("b-exit")!.y).toBeGreaterThan(
-      layout.positions.get("else")!.y,
-    );
+    expect(layout.positions.get("then")!.x).toBeCloseTo(layout.positions.get("if")!.x, 5);
+    expect(layout.positions.get("else")!.x).toBeGreaterThan(layout.positions.get("then")!.x);
+    expect(layout.positions.get("b-exit")!.y).toBeGreaterThan(layout.positions.get("else")!.y);
   });
 
   it("ranks the longer branch fully before the merge", () => {
@@ -119,8 +112,6 @@ describe("layoutCfg", () => {
         flow("b", "merge"),
       ],
     );
-    expect(layout.positions.get("merge")!.y).toBeGreaterThan(
-      layout.positions.get("b")!.y,
-    );
+    expect(layout.positions.get("merge")!.y).toBeGreaterThan(layout.positions.get("b")!.y);
   });
 });

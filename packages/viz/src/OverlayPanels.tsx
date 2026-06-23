@@ -63,9 +63,7 @@ function DegSlider(props: {
         max={props.max}
         step={1}
         value={props.value}
-        onInput={(e) =>
-          props.onChange(Number((e.target as HTMLInputElement).value))
-        }
+        onInput={(e) => props.onChange(Number((e.target as HTMLInputElement).value))}
       />
     </label>
   );
@@ -82,10 +80,7 @@ function DarkButton(props: { dark: boolean; onToggle: () => void }) {
     >
       <svg width="16" height="16" viewBox="0 0 16 16" aria-hidden="true">
         {props.dark ? (
-          <path
-            d="M11 8a3 3 0 1 1-3.6-2.94A4 4 0 1 0 11 8Z"
-            fill="currentColor"
-          />
+          <path d="M11 8a3 3 0 1 1-3.6-2.94A4 4 0 1 0 11 8Z" fill="currentColor" />
         ) : (
           <>
             <circle cx="8" cy="8" r="3" fill="currentColor" />
@@ -193,38 +188,36 @@ export function CameraPanel(props: {
           }}
         >
           {tilt.enabled ? (
-        <>
-          <DegSlider
-            label="rotate"
-            min={-180}
-            max={180}
-            value={toDeg(tilt.theta)}
-            onChange={(d) => setTilt({ theta: toRad(d) })}
-          />
-          <DegSlider
-            label="pitch"
-            min={0}
-            max={80}
-            value={toDeg(tilt.pitch)}
-            onChange={(d) => setTilt({ pitch: toRad(d) })}
-          />
-          <label style={sliderRow}>
-            <span style={{ width: "78px" }}>gap {tilt.gap.toFixed(2)}×</span>
-            <input
-              type="range"
-              min={0.2}
-              max={2}
-              step={0.05}
-              value={tilt.gap}
-              onInput={(e) =>
-                setTilt({ gap: Number((e.target as HTMLInputElement).value) })
-              }
-            />
-          </label>
-          <div style={{ opacity: 0.55, fontSize: "11px" }}>
-            Alt+drag the map to rotate / pitch
-          </div>
-        </>
+            <>
+              <DegSlider
+                label="rotate"
+                min={-180}
+                max={180}
+                value={toDeg(tilt.theta)}
+                onChange={(d) => setTilt({ theta: toRad(d) })}
+              />
+              <DegSlider
+                label="pitch"
+                min={0}
+                max={80}
+                value={toDeg(tilt.pitch)}
+                onChange={(d) => setTilt({ pitch: toRad(d) })}
+              />
+              <label style={sliderRow}>
+                <span style={{ width: "78px" }}>gap {tilt.gap.toFixed(2)}×</span>
+                <input
+                  type="range"
+                  min={0.2}
+                  max={2}
+                  step={0.05}
+                  value={tilt.gap}
+                  onInput={(e) => setTilt({ gap: Number((e.target as HTMLInputElement).value) })}
+                />
+              </label>
+              <div style={{ opacity: 0.55, fontSize: "11px" }}>
+                Alt+drag the map to rotate / pitch
+              </div>
+            </>
           ) : (
             <div style={{ opacity: 0.55, fontSize: "11px" }}>
               enable a layer (tests / deps) on the left to tilt
@@ -292,9 +285,7 @@ export function LayersMenu(props: {
   const setBoundary = (level: BoundaryLevel, on: boolean) =>
     props.onChange({
       ...params,
-      boundaries: BOUNDARY_LEVELS.filter((l) =>
-        l === level ? on : params.boundaries.includes(l),
-      ),
+      boundaries: BOUNDARY_LEVELS.filter((l) => (l === level ? on : params.boundaries.includes(l))),
     });
   const setDisplay = (level: DisplayLevel, on: boolean) =>
     props.onChange({
@@ -357,31 +348,49 @@ export function LayersMenu(props: {
         }}
       >
         <div>
-          <div style={{ fontSize: "11px", opacity: 0.6, marginBottom: "6px", letterSpacing: "0.06em" }}>
+          <div
+            style={{ fontSize: "11px", opacity: 0.6, marginBottom: "6px", letterSpacing: "0.06em" }}
+          >
             PLANES — stack below source
           </div>
-          <div style={{ display: "flex", alignItems: "center", gap: "8px", height: "26px", fontSize: "12px", opacity: 0.5 }}>
+          <div
+            style={{
+              display: "flex",
+              alignItems: "center",
+              gap: "8px",
+              height: "26px",
+              fontSize: "12px",
+              opacity: 0.5,
+            }}
+          >
             <span style={{ width: "13px" }} />
             <span style={{ flex: 1 }}>source</span>
           </div>
           {planes.map((plane) => (
             <label
               key={plane}
-              style={{ display: "flex", alignItems: "center", gap: "8px", height: "26px", fontSize: "12px", cursor: "pointer" }}
+              style={{
+                display: "flex",
+                alignItems: "center",
+                gap: "8px",
+                height: "26px",
+                fontSize: "12px",
+                cursor: "pointer",
+              }}
             >
               <input
                 type="checkbox"
                 checked={params.tilt.layers[plane] === true}
-                onInput={(e) =>
-                  setPlane(plane, (e.target as HTMLInputElement).checked)
-                }
+                onInput={(e) => setPlane(plane, (e.target as HTMLInputElement).checked)}
               />
               <span style={{ flex: 1 }}>{plane}</span>
             </label>
           ))}
         </div>
         <div>
-          <div style={{ fontSize: "11px", opacity: 0.6, marginBottom: "6px", letterSpacing: "0.06em" }}>
+          <div
+            style={{ fontSize: "11px", opacity: 0.6, marginBottom: "6px", letterSpacing: "0.06em" }}
+          >
             LAYERS — boundary · eye = shown
           </div>
           {LEVEL_ROW_ORDER.map((level) => {
@@ -393,7 +402,13 @@ export function LayersMenu(props: {
             return (
               <div
                 key={level}
-                style={{ display: "flex", alignItems: "center", gap: "8px", height: "26px", fontSize: "12px" }}
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  gap: "8px",
+                  height: "26px",
+                  fontSize: "12px",
+                }}
               >
                 {isBoundary ? (
                   <input
@@ -433,12 +448,17 @@ export function LayersMenu(props: {
           })}
         </div>
         <div>
-          <div style={{ fontSize: "11px", opacity: 0.6, marginBottom: "6px", letterSpacing: "0.06em" }}>
+          <div
+            style={{ fontSize: "11px", opacity: 0.6, marginBottom: "6px", letterSpacing: "0.06em" }}
+          >
             INCLUDE
           </div>
           <div style={{ display: "flex", flexWrap: "wrap", gap: "8px" }}>
             {OMIT_SCOPES.map((scope) => (
-              <label key={scope} style={{ display: "flex", alignItems: "center", gap: "4px", fontSize: "12px" }}>
+              <label
+                key={scope}
+                style={{ display: "flex", alignItems: "center", gap: "4px", fontSize: "12px" }}
+              >
                 <input
                   type="checkbox"
                   checked={!params.omit.includes(scope)}
@@ -456,7 +476,10 @@ export function LayersMenu(props: {
               </label>
             ))}
             {availableScopes.map((scope) => (
-              <label key={scope} style={{ display: "flex", alignItems: "center", gap: "4px", fontSize: "12px" }}>
+              <label
+                key={scope}
+                style={{ display: "flex", alignItems: "center", gap: "4px", fontSize: "12px" }}
+              >
                 <input
                   type="checkbox"
                   checked={!params.omitModules.includes(scope)}
@@ -477,7 +500,14 @@ export function LayersMenu(props: {
         </div>
         {props.children ? (
           <div>
-            <div style={{ fontSize: "11px", opacity: 0.6, marginBottom: "6px", letterSpacing: "0.06em" }}>
+            <div
+              style={{
+                fontSize: "11px",
+                opacity: 0.6,
+                marginBottom: "6px",
+                letterSpacing: "0.06em",
+              }}
+            >
               VIEW
             </div>
             {props.children}

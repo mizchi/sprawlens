@@ -34,10 +34,7 @@ export function transitiveWeights(
   }
 
   // component DAG
-  const successors: Set<number>[] = Array.from(
-    { length: componentCount },
-    () => new Set(),
-  );
+  const successors: Set<number>[] = Array.from({ length: componentCount }, () => new Set());
   const indegree = new Int32Array(componentCount);
   for (const edge of edges) {
     if (!idSet.has(edge.source) || !idSet.has(edge.target)) continue;
@@ -50,10 +47,7 @@ export function transitiveWeights(
 
   // reachability bitsets in reverse topological order
   const words = Math.ceil(componentCount / 32);
-  const reach = Array.from(
-    { length: componentCount },
-    () => new Uint32Array(words),
-  );
+  const reach = Array.from({ length: componentCount }, () => new Uint32Array(words));
   const order: number[] = [];
   const queue: number[] = [];
   for (let c = 0; c < componentCount; c++) {

@@ -46,9 +46,7 @@ describe("hierarchyControlPoints", () => {
   });
 
   it("returns null when an endpoint has no position", () => {
-    expect(
-      hierarchyControlPoints("a", "missing", parentOf, positionOf),
-    ).toBeNull();
+    expect(hierarchyControlPoints("a", "missing", parentOf, positionOf)).toBeNull();
   });
 });
 

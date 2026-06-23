@@ -1,12 +1,5 @@
-import {
-  capacityStep,
-  createCapacityLayout,
-  isConverged,
-} from "@sprawlens/layout";
-import {
-  centralityRings,
-  importanceScore,
-} from "@sprawlens/layout";
+import { capacityStep, createCapacityLayout, isConverged } from "@sprawlens/layout";
+import { centralityRings, importanceScore } from "@sprawlens/layout";
 import { ringLayout } from "@sprawlens/layout";
 import type { Vec2 } from "@sprawlens/layout";
 
@@ -55,11 +48,7 @@ export const capacityPlane: PlaneLayout = (nodes, extent) => {
     { kind: "rect", x: 0, y: 0, width: extent.w, height: extent.h },
     { seed: 1 },
   );
-  for (
-    let i = 0;
-    i < SOLVE_MAX_STEPS && !isConverged(state, SOLVE_CONVERGENCE);
-    i++
-  )
+  for (let i = 0; i < SOLVE_MAX_STEPS && !isConverged(state, SOLVE_CONVERGENCE); i++)
     state = capacityStep(state);
   const meta = new Map(nodes.map((n) => [n.id, n]));
   return state.cells.map((c) => ({
@@ -76,16 +65,15 @@ export const capacityPlane: PlaneLayout = (nodes, extent) => {
 export const ringPlane: PlaneLayout = (nodes, extent) => {
   if (nodes.length === 0) return [];
   // rank from the supplied rank, or derive shells from weight as centrality
-  const ranks =
-    nodes.every((n) => n.rank === undefined)
-      ? centralityRings(
-          nodes.map((n) => ({
-            id: n.id,
-            area: Math.max(n.weight, 1),
-            centrality: importanceScore(n.weight, n.weight),
-          })),
-        )
-      : new Map(nodes.map((n) => [n.id, n.rank ?? 0]));
+  const ranks = nodes.every((n) => n.rank === undefined)
+    ? centralityRings(
+        nodes.map((n) => ({
+          id: n.id,
+          area: Math.max(n.weight, 1),
+          centrality: importanceScore(n.weight, n.weight),
+        })),
+      )
+    : new Map(nodes.map((n) => [n.id, n.rank ?? 0]));
   const result = ringLayout(
     nodes.map((n) => ({
       id: n.id,

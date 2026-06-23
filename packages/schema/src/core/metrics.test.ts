@@ -12,9 +12,30 @@ describe("computeGraphMetrics", () => {
       { id: "file:d.ts", type: "file", path: "d.ts", ext: ".ts", loc: 1, sizeBytes: 1 },
     ];
     const edges: CodeEdge[] = [
-      { id: "imports:file:a.ts->file:b.ts:./b", type: "imports", from: "file:a.ts", to: "file:b.ts", specifier: "./b", resolved: true },
-      { id: "imports:file:b.ts->file:c.ts:./c", type: "imports", from: "file:b.ts", to: "file:c.ts", specifier: "./c", resolved: true },
-      { id: "imports:file:c.ts->file:a.ts:./a", type: "imports", from: "file:c.ts", to: "file:a.ts", specifier: "./a", resolved: true },
+      {
+        id: "imports:file:a.ts->file:b.ts:./b",
+        type: "imports",
+        from: "file:a.ts",
+        to: "file:b.ts",
+        specifier: "./b",
+        resolved: true,
+      },
+      {
+        id: "imports:file:b.ts->file:c.ts:./c",
+        type: "imports",
+        from: "file:b.ts",
+        to: "file:c.ts",
+        specifier: "./c",
+        resolved: true,
+      },
+      {
+        id: "imports:file:c.ts->file:a.ts:./a",
+        type: "imports",
+        from: "file:c.ts",
+        to: "file:a.ts",
+        specifier: "./a",
+        resolved: true,
+      },
     ];
 
     const result = computeGraphMetrics(nodes, edges);

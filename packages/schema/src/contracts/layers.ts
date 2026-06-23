@@ -20,16 +20,14 @@ function testSubject(fileId: string): string {
     .replace(/_(test|wbtest)\.mbt$/, ".mbt");
 }
 
-export const defaultLayerOf: LayerOf = (fileId) =>
-  TEST_PATTERN.test(fileId) ? "test" : "source";
+export const defaultLayerOf: LayerOf = (fileId) => (TEST_PATTERN.test(fileId) ? "test" : "source");
 
 /** Node-aware layer classifier: respects a stamped `layer`, else the default. */
 export type NodeLayerOf = (node: { id: string; layer?: string }) => string;
 
 /** A node's layer: its stamped `layer` (from applyLayers), else the path/id
  * based default. The single classifier the viz and splitters should use. */
-export const layerOfNode: NodeLayerOf = (node) =>
-  node.layer ?? defaultLayerOf(node.id);
+export const layerOfNode: NodeLayerOf = (node) => node.layer ?? defaultLayerOf(node.id);
 
 export type LayerSplit = {
   /** Source-only graph: drives module derivation and the capacity layout. */
@@ -38,10 +36,7 @@ export type LayerSplit = {
   test: AtlasNode[];
 };
 
-export function splitByLayer(
-  graph: AtlasGraph,
-  layerOf: NodeLayerOf = layerOfNode,
-): LayerSplit {
+export function splitByLayer(graph: AtlasGraph, layerOf: NodeLayerOf = layerOfNode): LayerSplit {
   const test: AtlasNode[] = [];
   const sourceNodes: AtlasNode[] = [];
   for (const node of graph.nodes) {
@@ -55,9 +50,7 @@ export function splitByLayer(
   return {
     source: {
       nodes: sourceNodes,
-      edges: graph.edges.filter(
-        (e) => sourceIds.has(e.source) && sourceIds.has(e.target),
-      ),
+      edges: graph.edges.filter((e) => sourceIds.has(e.source) && sourceIds.has(e.target)),
     },
     test,
   };
@@ -72,9 +65,7 @@ export function matchTestTargets(
   graph: AtlasGraph,
   layerOf: NodeLayerOf = layerOfNode,
 ): Map<string, string> {
-  const sourceIds = new Set(
-    graph.nodes.filter((n) => layerOf(n) === "source").map((n) => n.id),
-  );
+  const sourceIds = new Set(graph.nodes.filter((n) => layerOf(n) === "source").map((n) => n.id));
   // single pass over edges; per-test scans don't scale to monorepo sizes
   const importCounts = new Map<string, Map<string, number>>();
   for (const edge of graph.edges) {

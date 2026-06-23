@@ -1,9 +1,4 @@
-import type {
-  AtlasEdge,
-  AtlasGraph,
-  AtlasNode,
-  AtlasNodeKind,
-} from "@sprawlens/contracts";
+import type { AtlasEdge, AtlasGraph, AtlasNode, AtlasNodeKind } from "@sprawlens/contracts";
 import { defaultModuleIdOf, type ModuleIdOf } from "./modules.js";
 
 /**
@@ -97,10 +92,7 @@ export function deriveLevels(
   }
 
   // Group nodes per level: loc sums and parent/child links.
-  const nodesByLevel: Map<string, AtlasNode>[] = Array.from(
-    { length: depth },
-    () => new Map(),
-  );
+  const nodesByLevel: Map<string, AtlasNode>[] = Array.from({ length: depth }, () => new Map());
   for (const leaf of graph.nodes) {
     const chain = chains.get(leaf.id)!;
     for (let k = 0; k < depth; k++) {
@@ -238,11 +230,7 @@ export function deriveLevels(
  * when the id is unknown or the chain has no such level. Composes with
  * liftOverlay: `liftOverlay(o, (id) => ancestorAt(tree, id, "module"))`.
  */
-export function ancestorAt(
-  tree: LevelTree,
-  id: string,
-  kind: AtlasNodeKind,
-): string | null {
+export function ancestorAt(tree: LevelTree, id: string, kind: AtlasNodeKind): string | null {
   if (tree.kindOf.get(id) === kind) return id;
   let current = tree.parentOf.get(id);
   while (current != null) {
@@ -260,9 +248,7 @@ export function parentFileOf(id: string): string {
 }
 
 /** Module boundary via the path heuristic (or a workspace-aware mapper). */
-export function moduleGrouping(
-  moduleIdOf: ModuleIdOf = defaultModuleIdOf,
-): Grouping {
+export function moduleGrouping(moduleIdOf: ModuleIdOf = defaultModuleIdOf): Grouping {
   return { kind: "module", groupOf: (id) => moduleIdOf(parentFileOf(id)) };
 }
 
@@ -344,8 +330,7 @@ export function classGrouping(
   return {
     kind: "class",
     groupOf: (id) => classIdOf(id) ?? restBucketId(restKeyOf(id)),
-    labelOf: (gid) =>
-      gid.startsWith("class:") ? classNameOf(gid) : gid,
+    labelOf: (gid) => (gid.startsWith("class:") ? classNameOf(gid) : gid),
   };
 }
 
@@ -354,8 +339,6 @@ export function classGrouping(
  * not from code structure. Service-to-service communication edges enter
  * through DeriveLevelsOptions.nativeEdges["service"].
  */
-export function serviceGrouping(
-  serviceOf: (fileId: string) => string,
-): Grouping {
+export function serviceGrouping(serviceOf: (fileId: string) => string): Grouping {
   return { kind: "service", groupOf: (id) => serviceOf(parentFileOf(id)) };
 }

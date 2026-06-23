@@ -44,18 +44,13 @@ export function renderDiffMermaid(
   // module level collapses the file graph into a cross-module import graph and
   // remaps the per-file change kinds onto modules before the same subgraph
   // focus / capping / coloring runs.
-  const view =
-    options.level === "module"
-      ? aggregateToModules(graph, changed)
-      : { graph, changed };
+  const view = options.level === "module" ? aggregateToModules(graph, changed) : { graph, changed };
   graph = view.graph;
   changed = view.changed;
 
   const nodeById = new Map(graph.nodes.map((n) => [n.id, n]));
   // changed ids that actually have a node on the map (README.md etc. won't)
-  const changedIds = [...changed.keys()]
-    .filter((id) => nodeById.has(id))
-    .sort();
+  const changedIds = [...changed.keys()].filter((id) => nodeById.has(id)).sort();
 
   if (changedIds.length === 0) return "";
 
@@ -63,10 +58,8 @@ export function renderDiffMermaid(
   // 1-hop neighbors: the other endpoint of any edge touching a changed node
   const neighborIds = new Set<string>();
   for (const e of graph.edges) {
-    if (changedSet.has(e.source) && nodeById.has(e.target))
-      neighborIds.add(e.target);
-    if (changedSet.has(e.target) && nodeById.has(e.source))
-      neighborIds.add(e.source);
+    if (changedSet.has(e.source) && nodeById.has(e.target)) neighborIds.add(e.target);
+    if (changedSet.has(e.target) && nodeById.has(e.source)) neighborIds.add(e.source);
   }
   for (const id of changedSet) neighborIds.delete(id);
 
@@ -82,12 +75,8 @@ export function renderDiffMermaid(
 
   const lines: string[] = [];
   lines.push(`flowchart ${direction}`);
-  lines.push(
-    `  classDef added fill:${ADDED_FILL},stroke:${ADDED_STROKE},color:#052e16`,
-  );
-  lines.push(
-    `  classDef modified fill:${MODIFIED_FILL},stroke:${MODIFIED_STROKE},color:#431407`,
-  );
+  lines.push(`  classDef added fill:${ADDED_FILL},stroke:${ADDED_STROKE},color:#052e16`);
+  lines.push(`  classDef modified fill:${MODIFIED_FILL},stroke:${MODIFIED_STROKE},color:#431407`);
 
   for (const id of kept) {
     // a flat dep graph has no spatial grouping, so a basename ("index.ts")
@@ -117,9 +106,7 @@ export function renderDiffMermaid(
     : "";
   const fenced = "```mermaid\n" + lines.join("\n") + "\n```";
   const note =
-    dropped > 0
-      ? `\n\n_+${dropped} more node(s) not shown (node cap ${maxNodes})._`
-      : "";
+    dropped > 0 ? `\n\n_+${dropped} more node(s) not shown (node cap ${maxNodes})._` : "";
   return `${heading}${fenced}${note}`;
 }
 

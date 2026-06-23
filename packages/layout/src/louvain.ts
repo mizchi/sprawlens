@@ -42,9 +42,7 @@ export function louvain(
     edges.flatMap((e) => {
       const a = indexOf.get(e.source);
       const b = indexOf.get(e.target);
-      return a === undefined || b === undefined
-        ? []
-        : [[a, b, e.weight ?? 1] as const];
+      return a === undefined || b === undefined ? [] : [[a, b, e.weight ?? 1] as const];
     }),
   );
 
@@ -75,10 +73,7 @@ function buildGraph(
   size: number,
   weightedEdges: readonly (readonly [number, number, number])[],
 ): WorkGraph {
-  const adjacency: Map<number, number>[] = Array.from(
-    { length: size },
-    () => new Map(),
-  );
+  const adjacency: Map<number, number>[] = Array.from({ length: size }, () => new Map());
   const strength = new Array<number>(size).fill(0);
   let totalStrength = 0;
   const add = (a: number, b: number, w: number) => {
@@ -122,8 +117,7 @@ function onePass(graph: WorkGraph, resolution: number): number[] {
       }
       communityStrength[own]! -= ki;
       let best = own;
-      let bestGain = (linkTo.get(own) ?? 0) -
-        (resolution * communityStrength[own]! * ki) / m2;
+      let bestGain = (linkTo.get(own) ?? 0) - (resolution * communityStrength[own]! * ki) / m2;
       for (const [c, link] of linkTo) {
         if (c === own) continue;
         const gain = link - (resolution * communityStrength[c]! * ki) / m2;

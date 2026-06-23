@@ -32,7 +32,11 @@ describe("tokenizeCode", () => {
 
   it("never drops characters — tokens rejoin to the input", () => {
     const code = "fn f<T: Trait>(x: &T) -> Vec<T> { x }";
-    expect(tokenizeCode(code).map((t) => t.text).join("")).toBe(code);
+    expect(
+      tokenizeCode(code)
+        .map((t) => t.text)
+        .join(""),
+    ).toBe(code);
   });
 
   it("treats an unterminated string as a string to the end of line", () => {
@@ -45,9 +49,7 @@ describe("parseHoverMarkdown", () => {
   it("splits fenced code blocks (carrying their lang) from prose", () => {
     const md = "```rust\npub fn parse() -> Expr\n```";
     const blocks = parseHoverMarkdown(md);
-    expect(blocks).toEqual([
-      { type: "code", lang: "rust", text: "pub fn parse() -> Expr" },
-    ]);
+    expect(blocks).toEqual([{ type: "code", lang: "rust", text: "pub fn parse() -> Expr" }]);
   });
 
   it("keeps prose between code blocks as text", () => {
@@ -58,9 +60,7 @@ describe("parseHoverMarkdown", () => {
   });
 
   it("returns a lone prose string as a single text block", () => {
-    expect(parseHoverMarkdown("just text")).toEqual([
-      { type: "text", text: "just text" },
-    ]);
+    expect(parseHoverMarkdown("just text")).toEqual([{ type: "text", text: "just text" }]);
   });
 
   it("dedents a code block so source nesting depth doesn't skew it", () => {

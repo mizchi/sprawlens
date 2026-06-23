@@ -18,8 +18,19 @@ export function diffSnapshots(before: Snapshot, after: Snapshot): GraphDiff {
   const afterEdgeIds = new Set(after.edges.map((edge) => edge.id));
   const beforeComputed = computeGraphMetrics(before.nodes, before.edges);
   const afterComputed = computeGraphMetrics(after.nodes, after.edges);
-  const changedFiles = computeChangedFiles(before, after, beforeComputed.fileMetrics, afterComputed.fileMetrics);
-  const hotspots = computeHotspots(before, after, changedFiles, beforeComputed.cycleFiles, afterComputed.cycleFiles);
+  const changedFiles = computeChangedFiles(
+    before,
+    after,
+    beforeComputed.fileMetrics,
+    afterComputed.fileMetrics,
+  );
+  const hotspots = computeHotspots(
+    before,
+    after,
+    changedFiles,
+    beforeComputed.cycleFiles,
+    afterComputed.cycleFiles,
+  );
 
   return {
     schemaVersion: 1,
@@ -90,7 +101,9 @@ function computeHotspots(
   afterCycleFiles: string[],
 ): Hotspot[] {
   const beforePaths = new Set(fileMap(before).keys());
-  const newCycleFiles = new Set(afterCycleFiles.filter((filePath) => !beforeCycleFiles.includes(filePath)));
+  const newCycleFiles = new Set(
+    afterCycleFiles.filter((filePath) => !beforeCycleFiles.includes(filePath)),
+  );
   const unresolvedImportFiles = new Set(
     addedImportEdges(before, after)
       .filter((edge) => !edge.resolved)
@@ -143,7 +156,9 @@ function computeHotspots(
 
 function addedImportEdges(before: Snapshot, after: Snapshot): ImportsEdge[] {
   const beforeEdges = new Set(before.edges.map((edge) => edge.id));
-  return after.edges.filter((edge): edge is ImportsEdge => edge.type === "imports" && !beforeEdges.has(edge.id));
+  return after.edges.filter(
+    (edge): edge is ImportsEdge => edge.type === "imports" && !beforeEdges.has(edge.id),
+  );
 }
 
 function fileMap(snapshot: Snapshot): Map<string, FileNode> {
@@ -156,7 +171,10 @@ function fileMap(snapshot: Snapshot): Map<string, FileNode> {
   return files;
 }
 
-function computeMetricDelta(before: SnapshotMetrics, after: SnapshotMetrics): Partial<Record<keyof SnapshotMetrics, number>> {
+function computeMetricDelta(
+  before: SnapshotMetrics,
+  after: SnapshotMetrics,
+): Partial<Record<keyof SnapshotMetrics, number>> {
   return {
     loc: after.loc - before.loc,
     fileCount: after.fileCount - before.fileCount,

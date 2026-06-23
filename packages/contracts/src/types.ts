@@ -119,7 +119,15 @@ export type TestTree = {
   root: TestNode;
 };
 
-export type CodeImportBindingKind = "named" | "default" | "namespace" | "side-effect" | "reexport-named" | "reexport-all" | "require" | "dynamic";
+export type CodeImportBindingKind =
+  | "named"
+  | "default"
+  | "namespace"
+  | "side-effect"
+  | "reexport-named"
+  | "reexport-all"
+  | "require"
+  | "dynamic";
 
 export type CodeImportBinding = {
   imported: string;

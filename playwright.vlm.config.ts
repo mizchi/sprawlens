@@ -35,8 +35,7 @@ export default defineConfig({
     ? {}
     : {
         webServer: {
-          command:
-            "pnpm --filter @sprawlens/viz build && pnpm --filter @sprawlens/viz preview",
+          command: "pnpm --filter @sprawlens/viz build && pnpm --filter @sprawlens/viz preview",
           url: "http://127.0.0.1:5179/",
           reuseExistingServer: !process.env.CI,
           timeout: 120_000,

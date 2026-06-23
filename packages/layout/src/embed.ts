@@ -142,9 +142,7 @@ export function embedGraph(
 
   // --- output frame -------------------------------------------------------
   if (previous) {
-    const raw = new Map(
-      nodes.map((id, i): [string, Vec2] => [id, { x: xs[i]!, y: ys[i]! }]),
-    );
+    const raw = new Map(nodes.map((id, i): [string, Vec2] => [id, { x: xs[i]!, y: ys[i]! }]));
     return procrustesAlign(previous, raw);
   }
   let cx = 0;
@@ -161,10 +159,7 @@ export function embedGraph(
   }
   rms = Math.sqrt(rms / n) || 1;
   return new Map(
-    nodes.map((id, i): [string, Vec2] => [
-      id,
-      { x: (xs[i]! - cx) / rms, y: (ys[i]! - cy) / rms },
-    ]),
+    nodes.map((id, i): [string, Vec2] => [id, { x: (xs[i]! - cx) / rms, y: (ys[i]! - cy) / rms }]),
   );
 }
 
@@ -268,11 +263,7 @@ function bfsAllPairs(n: number, neighbors: readonly number[][]): Float64Array {
 }
 
 /** Symmetric t-SNE affinities with per-point entropy calibration. */
-function affinities(
-  n: number,
-  dist: Float64Array,
-  perplexity: number,
-): Float64Array {
+function affinities(n: number, dist: Float64Array, perplexity: number): Float64Array {
   const target = Math.log(Math.max(Math.min(perplexity, (n - 1) / 2), 1.3));
   const conditional = new Float64Array(n * n);
   for (let i = 0; i < n; i++) {
@@ -383,10 +374,7 @@ function classicalMds(n: number, dist: Float64Array): Vec2[] {
   };
 
   const first = powerIterate((i) => Math.cos((i + 1) * GOLDEN_ANGLE));
-  const second = powerIterate(
-    (i) => Math.sin((i + 1) * GOLDEN_ANGLE + 1),
-    first.vector,
-  );
+  const second = powerIterate((i) => Math.sin((i + 1) * GOLDEN_ANGLE + 1), first.vector);
   const s1 = Math.sqrt(Math.max(first.value, 1e-9));
   const s2 = Math.sqrt(Math.max(second.value, 1e-9));
   return Array.from({ length: n }, (_, i) => ({

@@ -17,11 +17,7 @@ import { Controls, type PlaygroundParams } from "./Controls.tsx";
 import { CameraPanel, LayersMenu } from "./OverlayPanels.tsx";
 import { SvgRenderer } from "./renderer/SvgRenderer.tsx";
 import { fetchHover } from "./cfgClient.ts";
-import {
-  HIGHLIGHT_THEME,
-  parseHoverMarkdown,
-  tokenizeCode,
-} from "./highlightCode.ts";
+import { HIGHLIGHT_THEME, parseHoverMarkdown, tokenizeCode } from "./highlightCode.ts";
 import type { MapHandlers } from "./renderer/contract.ts";
 import { buildScene } from "./engine/buildScene.ts";
 import { useSelection } from "./engine/useSelection.ts";
@@ -32,10 +28,7 @@ import { useColorScheme } from "./useColorScheme.ts";
 import { useEventSource } from "./useEventSource.ts";
 import { useSymbolDetail } from "./engine/useSymbolDetail.ts";
 import { useSolverLoop } from "./engine/useSolverLoop.ts";
-import {
-  buildSatelliteLayers,
-  DEFAULT_LAYER_MANIFEST,
-} from "./layerModel.ts";
+import { buildSatelliteLayers, DEFAULT_LAYER_MANIFEST } from "./layerModel.ts";
 import {
   INK,
   makeTopAncestorOf,
@@ -68,24 +61,12 @@ import {
 } from "@sprawlens/schema";
 import { apply, layerTransform } from "@sprawlens/layout";
 import { sprawlensSnapshot } from "./fixtures/sprawlens.ts";
-import {
-  applyRingsChanges,
-  createRingsState,
-  type RingsState,
-} from "./ringsController.ts";
-import {
-  applyTreemapChanges,
-  createTreemapState,
-  type TreemapState,
-} from "./treemapController.ts";
+import { applyRingsChanges, createRingsState, type RingsState } from "./ringsController.ts";
+import { applyTreemapChanges, createTreemapState, type TreemapState } from "./treemapController.ts";
 import { reachSubgraph } from "@sprawlens/layout";
 import { cyclicComponents } from "@sprawlens/layout";
 import type { FocusRequest, FocusView } from "./RingsMapSvg.tsx";
-import {
-  createSyntheticGraph,
-  synthesizeSymbolEdges,
-  synthesizeSymbols,
-} from "./synthetic.ts";
+import { createSyntheticGraph, synthesizeSymbolEdges, synthesizeSymbols } from "./synthetic.ts";
 import type { AtlasEdge } from "@sprawlens/schema";
 import { TracePlayer } from "./TracePlayer.tsx";
 import { TestLogPanel } from "./TestLogPanel.tsx";
@@ -94,11 +75,7 @@ import { CommitLog } from "./CommitLog.tsx";
 import { useCommandBridge } from "./useCommandBridge.ts";
 import { buildVizCommands } from "./vizCommands.ts";
 import { HelpModal } from "./HelpModal.tsx";
-import {
-  projectTimelineCursor,
-  stepClockUs,
-  timelineDurationUs,
-} from "./tracePlayer.ts";
+import { projectTimelineCursor, stepClockUs, timelineDurationUs } from "./tracePlayer.ts";
 import {
   classGrouping,
   deriveModuleIdOf,
@@ -110,11 +87,7 @@ import {
   type ModuleIdOf,
 } from "@sprawlens/schema";
 import { layerOfNode, matchTestTargets } from "@sprawlens/schema";
-import {
-  applySymbolBudget,
-  buildApiGraph,
-  splitApiBoundary,
-} from "./apiView.ts";
+import { applySymbolBudget, buildApiGraph, splitApiBoundary } from "./apiView.ts";
 import {
   granularityOf,
   hiddenLayersOf,
@@ -122,11 +95,7 @@ import {
   showsSymbolLevels,
 } from "./viewConfig.ts";
 import { diffGraphs, isEmptyDelta } from "@sprawlens/schema";
-import {
-  buildHistoryIndex,
-  type HistoryEntry,
-  type HistoryIndex,
-} from "./history.ts";
+import { buildHistoryIndex, type HistoryEntry, type HistoryIndex } from "./history.ts";
 
 const WIDTH = 960;
 const HEIGHT = 640;
@@ -188,9 +157,7 @@ function scopeOf(id: string): string {
 }
 
 /** ?debug=1 reveals the graph-mutation experiment buttons. */
-const DEBUG =
-  typeof location !== "undefined" &&
-  new URLSearchParams(location.search).has("debug");
+const DEBUG = typeof location !== "undefined" && new URLSearchParams(location.search).has("debug");
 
 /** Shrink a convex ring toward its centroid so nested cells stay visually inside. */
 function insetRing(ring: Ring, factor: number): Ring {
@@ -212,10 +179,7 @@ function changedSymbolsBetween(
   before: SnapshotLike,
   after: SnapshotLike,
 ): Map<string, "added" | "modified"> {
-  const beforeByFile = new Map<
-    string,
-    Map<string, { loc: number; complexity?: number }>
-  >();
+  const beforeByFile = new Map<string, Map<string, { loc: number; complexity?: number }>>();
   for (const n of before.nodes) {
     if (n.type !== "file" || !n.path) continue;
     const m = new Map<string, { loc: number; complexity?: number }>();
@@ -230,8 +194,7 @@ function changedSymbolsBetween(
     for (const s of n.symbols ?? []) {
       const p = prev?.get(`${s.name}\u0000${s.kind}`);
       if (!p) result.set(s.id, "added");
-      else if (p.loc !== s.loc || p.complexity !== s.complexity)
-        result.set(s.id, "modified");
+      else if (p.loc !== s.loc || p.complexity !== s.complexity) result.set(s.id, "modified");
     }
   }
   return result;
@@ -239,8 +202,7 @@ function changedSymbolsBetween(
 
 export function App() {
   const systemPrefersDark =
-    typeof matchMedia !== "undefined" &&
-    matchMedia("(prefers-color-scheme: dark)").matches;
+    typeof matchMedia !== "undefined" && matchMedia("(prefers-color-scheme: dark)").matches;
   // render-affecting settings mirrored to the URL (reproducible / shareable).
   // `params` stays the single interface the app + Controls use; this seeds its
   // synced fields from the URL on mount and an effect below writes them back.
@@ -324,8 +286,10 @@ export function App() {
     selectEdgeState,
   } = useSelection();
   // camera: pending fly-to + settled view; focusBounds frames a world bbox
-  const { focusRequest, viewInfo, focusBounds, onViewSettle } =
-    useCamera({ width: WIDTH, height: HEIGHT });
+  const { focusRequest, viewInfo, focusBounds, onViewSettle } = useCamera({
+    width: WIDTH,
+    height: HEIGHT,
+  });
   const [, setFrame] = useState(0);
 
   // LSP hover tooltip: hovering a symbol cell fetches textDocument/hover from
@@ -433,10 +397,7 @@ export function App() {
   const testTreeRef = useRef<TestTree | null>(null);
   /** Per-symbol metadata accumulated as nested layouts materialize. */
   const symbolMetaRef = useRef(
-    new Map<
-      string,
-      { exported: boolean; fileId: string; kind?: SymbolKind }
-    >(),
+    new Map<string, { exported: boolean; fileId: string; kind?: SymbolKind }>(),
   );
   /** Lazily fetched large fixture (served from public-atlas/). */
   const playwrightSnapRef = useRef<SnapshotLike | null>(null);
@@ -471,9 +432,7 @@ export function App() {
   const [testRun, setTestRun] = useState<TestRun | null>(null);
   /** Layer render manifest from the server (sprawlens.toml); defaults to the
    * built-in test/deps presets for demo / fixtures with no server config. */
-  const [layerManifest, setLayerManifest] = useState<LayerManifestEntry[]>(
-    DEFAULT_LAYER_MANIFEST,
-  );
+  const [layerManifest, setLayerManifest] = useState<LayerManifestEntry[]>(DEFAULT_LAYER_MANIFEST);
   // launched by the CLI? a snapshot is served — adopt it as the default source
   // (cached here so the rebuild below doesn't refetch). No-ops in dev/demo.
   useEffect(() => {
@@ -573,9 +532,7 @@ export function App() {
   /** API view: module id → boundary ports, and port id → consumer modules. */
   const apiBoundaryRef = useRef(new Map<string, AtlasNode[]>());
   const apiPortPartnersRef = useRef(new Map<string, Set<string>>());
-  const portNodesRef = useRef<
-    { id: string; label: string; x: number; y: number }[]
-  >([]);
+  const portNodesRef = useRef<{ id: string; label: string; x: number; y: number }[]>([]);
   const labelsRef = useRef(new Map<string, string>());
   const exportedIdsRef = useRef(new Set<string>());
   const testFileIdsRef = useRef(new Set<string>());
@@ -588,9 +545,7 @@ export function App() {
     const graph = graphRef.current;
     locOfRef.current = new Map(graph.nodes.map((n) => [n.id, n.metrics.loc]));
     testFileIdsRef.current = new Set(
-      graph.nodes
-        .filter((n) => layerOfNode(n) === "test")
-        .map((n) => n.id),
+      graph.nodes.filter((n) => layerOfNode(n) === "test").map((n) => n.id),
     );
     testTargetsRef.current = matchTestTargets(graph);
     const labels = labelsRef.current;
@@ -618,16 +573,14 @@ export function App() {
     return moduleIdOfRef.current.fn;
   };
   /** Module of any id (file/symbol) under the derived, language-neutral rule. */
-  const moduleOfId = (id: string): string =>
-    currentModuleIdOf()(contractParentFileOf(id));
+  const moduleOfId = (id: string): string => currentModuleIdOf()(contractParentFileOf(id));
 
   /** Subdivision rings above the leaf (module ⊃ directory); the leaf and
    * file outlines live on the display axis, not here. */
   const boundariesOf = (p: PlaygroundParams): Grouping[] => {
     // the class level groups symbol leaves by their class; it only applies
     // when symbols are the leaves (no file boundary nesting them per file)
-    const symbolLeaves =
-      granularityOf(p.boundaries, p.displayLevels) === "symbol";
+    const symbolLeaves = granularityOf(p.boundaries, p.displayLevels) === "symbol";
     // with a directory boundary the class rest bucket must nest under the
     // directory (its parent), not the module — otherwise the one module-wide
     // bucket is shared across directories and empties all but one
@@ -638,12 +591,7 @@ export function App() {
       if (level === "module") return [moduleGrouping(moduleIdOf)];
       if (level === "directory") return [dir];
       if (level === "class" && symbolLeaves)
-        return [
-          classGrouping(
-            moduleIdOf,
-            hasDirectory ? (id) => dir.groupOf(id) : undefined,
-          ),
-        ];
+        return [classGrouping(moduleIdOf, hasDirectory ? (id) => dir.groupOf(id) : undefined)];
       return [];
     });
     const inner = groupings.length > 0 ? groupings : [moduleGrouping(moduleIdOf)];
@@ -652,8 +600,7 @@ export function App() {
     // toggle is on and a sprawlens.toml source mapping gave us file→service.
     const fileServices = serviceGraphRef.current?.fileServices;
     if (p.groupByService && fileServices && Object.keys(fileServices).length > 0) {
-      const serviceOf = (file: string): string =>
-        fileServices[file] ?? UNASSIGNED_SERVICE;
+      const serviceOf = (file: string): string => fileServices[file] ?? UNASSIGNED_SERVICE;
       return [serviceGrouping(serviceOf), ...inner];
     }
     return inner;
@@ -699,8 +646,7 @@ export function App() {
   const symbolsForFile = (fileId: string): AtlasNode[] => {
     const real = symbolsRef.current?.get(fileId);
     if (real) return real;
-    const loc = graphRef.current.nodes.find((n) => n.id === fileId)?.metrics
-      .loc;
+    const loc = graphRef.current.nodes.find((n) => n.id === fileId)?.metrics.loc;
     return loc === undefined ? [] : synthesizeSymbols(fileId, loc, 1);
   };
 
@@ -721,8 +667,7 @@ export function App() {
       : symbolId.split("#")[0]!;
     const changedBoost =
       changedFilesRef.current.size > 0 &&
-      (changedFilesRef.current.has(file) ||
-        changedSymbolsRef.current.has(symbolId))
+      (changedFilesRef.current.has(file) || changedSymbolsRef.current.has(symbolId))
         ? 1e6
         : 0;
     const rings = ringsRef.current;
@@ -770,9 +715,7 @@ export function App() {
           ? {
               files: referencedFilesRef.current,
               fileOf: (id) =>
-                id.startsWith("symbol:")
-                  ? (id.split(":")[1] ?? id)
-                  : id.split("#")[0]!,
+                id.startsWith("symbol:") ? (id.split(":")[1] ?? id) : id.split("#")[0]!,
             }
           : undefined,
     });
@@ -815,15 +758,12 @@ export function App() {
     if (hiddenLayers.length || omitScopes.size) {
       const hidden = new Set(hiddenLayers);
       const nodes = graph.nodes.filter(
-        (n) =>
-          !hidden.has(layerOfNode(n)) && !omitScopes.has(scopeOf(n.id)),
+        (n) => !hidden.has(layerOfNode(n)) && !omitScopes.has(scopeOf(n.id)),
       );
       const ids = new Set(nodes.map((n) => n.id));
       graph = {
         nodes,
-        edges: graph.edges.filter(
-          (e) => ids.has(e.source) && ids.has(e.target),
-        ),
+        edges: graph.edges.filter((e) => ids.has(e.source) && ids.has(e.target)),
       };
     }
     if (granularityOf(p.boundaries, p.displayLevels) === "symbol") {
@@ -835,13 +775,8 @@ export function App() {
         // a changed symbol is shown even when private, so the diff is visible
         // at symbol granularity without flipping the whole "local" filter
         keep: (id) => {
-          const file = id.startsWith("symbol:")
-            ? (id.split(":")[1] ?? id)
-            : id.split("#")[0]!;
-          return (
-            changedFilesRef.current.has(file) ||
-            changedSymbolsRef.current.has(id)
-          );
+          const file = id.startsWith("symbol:") ? (id.split(":")[1] ?? id) : id.split("#")[0]!;
+          return changedFilesRef.current.has(file) || changedSymbolsRef.current.has(id);
         },
         weight: p.weight,
       });
@@ -863,11 +798,7 @@ export function App() {
    * (1000+ files) never block the main thread; cells catch up over frames.
    */
   const innerCursorRef = useRef(0);
-  const syncInnerLayouts = (
-    outerCells: CellResult[],
-    outerMoved: boolean,
-    budgetMs: number,
-  ) => {
+  const syncInnerLayouts = (outerCells: CellResult[], outerMoved: boolean, budgetMs: number) => {
     const inner = innerLayoutsRef.current;
     // deletions only happen after graph changes; skip the per-tick set churn
     if (inner.size > outerCells.length) {
@@ -898,9 +829,7 @@ export function App() {
       };
       let layout = inner.get(cell.id);
       if (!layout) {
-        let symbols =
-          symbolsRef.current?.get(cell.id) ??
-          synthesizeSymbols(cell.id, loc, 1);
+        let symbols = symbolsRef.current?.get(cell.id) ?? synthesizeSymbols(cell.id, loc, 1);
         if (paramsRef.current.omit.includes("local")) {
           symbols = symbols.filter((s) => s.exported === true);
         }
@@ -950,12 +879,10 @@ export function App() {
     // refine to a per-symbol diff against the parent commit's snapshot
     const before = commitsRef.current?.[index - 1]?.snapshot;
     const after = commitsRef.current?.[index]?.snapshot;
-    changedSymbolsRef.current =
-      before && after ? changedSymbolsBetween(before, after) : new Map();
+    changedSymbolsRef.current = before && after ? changedSymbolsBetween(before, after) : new Map();
     lastDiffRef.current = {
       added: [...diff.changed.values()].filter((k) => k === "added").length,
-      modified: [...diff.changed.values()].filter((k) => k === "modified")
-        .length,
+      modified: [...diff.changed.values()].filter((k) => k === "modified").length,
       removed: diff.removed.length,
     };
   };
@@ -1018,8 +945,7 @@ export function App() {
           .catch((error) => console.error("history load failed", error));
       } else {
         const index =
-          commitIndexRef.current >= 0 &&
-          commitIndexRef.current < history.length
+          commitIndexRef.current >= 0 && commitIndexRef.current < history.length
             ? commitIndexRef.current
             : history.length - 1;
         const range = commitRangeRef.current;
@@ -1121,8 +1047,7 @@ export function App() {
 
   // structural params trigger a rebuild; solver params only update
   // options on the existing layout
-  const treemapSizeKey =
-    params.layout === "treemap" ? `${mapSize.width}x${mapSize.height}` : "";
+  const treemapSizeKey = params.layout === "treemap" ? `${mapSize.width}x${mapSize.height}` : "";
   const structuralKey = `${params.source}|${params.layout}|${granularity}|${params.boundaries.join("+")}|${treemapSizeKey}|svc:${params.groupByService}`;
   // weight / filters re-flow warm (the diff animation); only granularity
   // and data swaps rebuild cold
@@ -1175,7 +1100,6 @@ export function App() {
     }
   }, [structuralKey, flowKey]);
 
-
   // the solver's animation loop (time-budgeted outer + inner stepping, paced
   // repaints); the central layout refs stay here as the whole render reads them
   useSolverLoop({
@@ -1192,8 +1116,7 @@ export function App() {
     // expose a settled signal for the rendering harness: a global flag + a
     // data-converged attribute on the map root, flipped as the layout settles.
     onSettleChange: (settled) => {
-      (window as unknown as { __sprawlensConverged?: boolean }).__sprawlensConverged =
-        settled;
+      (window as unknown as { __sprawlensConverged?: boolean }).__sprawlensConverged = settled;
       mapContainerRef.current?.setAttribute("data-converged", settled ? "1" : "0");
     },
   });
@@ -1263,9 +1186,7 @@ export function App() {
     }
     const nextGraph: AtlasGraph = {
       nodes,
-      edges: prev.edges.filter(
-        (e) => !removed.has(e.source) && !removed.has(e.target),
-      ),
+      edges: prev.edges.filter((e) => !removed.has(e.source) && !removed.has(e.target)),
     };
     const delta = diffGraphs(prev, nextGraph);
     if (isEmptyDelta(delta)) return;
@@ -1311,10 +1232,7 @@ export function App() {
     externalDepsRef.current = snapshotExternalDeps(snap);
     testTreeRef.current = snapshotTestTree(snap);
     const symbolGranularity =
-      granularityOf(
-        paramsRef.current.boundaries,
-        paramsRef.current.displayLevels,
-      ) === "symbol";
+      granularityOf(paramsRef.current.boundaries, paramsRef.current.displayLevels) === "symbol";
     if (symbolGranularity) {
       rebuild(paramsRef.current);
       setFrame((f) => f + 1);
@@ -1406,14 +1324,11 @@ export function App() {
 
   /** Top-level group (module) of any treemap group or leaf id. */
   const treemapTopOf = (state: TreemapState, id: string): string =>
-    makeTopAncestorOf(state.parentOf, (x) => state.levels[0]!.cells.has(x))(
-      id,
-    ) ?? id;
+    makeTopAncestorOf(state.parentOf, (x) => state.levels[0]!.cells.has(x))(id) ?? id;
 
   /** Outer-layout cell (group or file) for an id, across layout kinds. */
   const outerCellOf = (id: string): CellResult | null => {
-    const layouts =
-      ringsRef.current?.leafLayouts ?? treemapRef.current?.leafLayouts;
+    const layouts = ringsRef.current?.leafLayouts ?? treemapRef.current?.leafLayouts;
     if (layouts) {
       const groupCell = groupCellOf(id);
       if (groupCell) return groupCell;
@@ -1441,8 +1356,7 @@ export function App() {
     }
     const port = portNodesRef.current.find((p) => p.id === id);
     if (port) return { x0: port.x, x1: port.x, y0: port.y, y1: port.y };
-    const cell =
-      innerCellsRef.current.find((c) => c.id === id) ?? outerCellOf(id);
+    const cell = innerCellsRef.current.find((c) => c.id === id) ?? outerCellOf(id);
     if (!cell || cell.polygon.length < 3) return null;
     let x0 = Infinity;
     let x1 = -Infinity;
@@ -1535,14 +1449,10 @@ export function App() {
   const addNode = () => {
     const rng = mutationRng.current;
     const moduleIds = [
-      ...new Set(
-        graphRef.current.nodes.map((n) => n.id.split("/").slice(0, -1).join("/")),
-      ),
+      ...new Set(graphRef.current.nodes.map((n) => n.id.split("/").slice(0, -1).join("/"))),
     ].filter((m) => m.length > 0);
     const moduleId =
-      moduleIds.length > 0
-        ? moduleIds[Math.floor(rng() * moduleIds.length)]!
-        : "added";
+      moduleIds.length > 0 ? moduleIds[Math.floor(rng() * moduleIds.length)]! : "added";
     const node: AtlasNode = {
       id: `${moduleId}/added-${nextNodeId.current++}.ts`,
       kind: "file",
@@ -1566,9 +1476,7 @@ export function App() {
     const node = graph.nodes[Math.floor(rng() * graph.nodes.length)]!;
     graphRef.current = {
       nodes: graph.nodes.filter((n) => n.id !== node.id),
-      edges: graph.edges.filter(
-        (e) => e.source !== node.id && e.target !== node.id,
-      ),
+      edges: graph.edges.filter((e) => e.source !== node.id && e.target !== node.id),
     };
     afterGraphMutation(node.id);
     if (selectedId === node.id) setSelectedId(null);
@@ -1579,9 +1487,7 @@ export function App() {
     const rings = ringsRef.current;
     const treemap = treemapRef.current;
     if (!rings && !treemap) return null;
-    const fileLayoutsByModule = rings
-      ? rings.leafLayouts
-      : treemap!.leafLayouts;
+    const fileLayoutsByModule = rings ? rings.leafLayouts : treemap!.leafLayouts;
     const moduleEdges = rings ? rings.topEdges : treemap!.topEdges;
     const fileToModule = new Map<string, string>();
     for (const [groupId, layout] of fileLayoutsByModule) {
@@ -1605,9 +1511,7 @@ export function App() {
       return out;
     };
 
-    const isModuleId = rings
-      ? rings.circles.has(id)
-      : treemap!.levels[0]!.cells.has(id);
+    const isModuleId = rings ? rings.circles.has(id) : treemap!.levels[0]!.cells.has(id);
     if (isModuleId) {
       const reach = reachSubgraph(moduleEdges, id);
       const fileIds = filesOfModules(reach.nodes);
@@ -1622,9 +1526,9 @@ export function App() {
     }
     // intermediate boundary group (directory, file district, ...): reach
     // over that level's own network, then light up the member leaves
-    const intermediateLevel = (
-      rings ? rings.innerLevels : treemap!.levels.slice(1)
-    ).find((level) => level.cells.has(id));
+    const intermediateLevel = (rings ? rings.innerLevels : treemap!.levels.slice(1)).find((level) =>
+      level.cells.has(id),
+    );
     if (intermediateLevel) {
       const parentOf = rings ? rings.parentOf : treemap!.parentOf;
       const reach = reachSubgraph(intermediateLevel.edges, id);
@@ -1733,14 +1637,9 @@ export function App() {
     }
     return merged;
   };
-  const focusRoots =
-    focusId === null ? [] : selectedIds.length > 0 ? selectedIds : [focusId];
+  const focusRoots = focusId === null ? [] : selectedIds.length > 0 ? selectedIds : [focusId];
   const focusView = focusId
-    ? mergeFocusViews(
-        focusRoots
-          .map(computeFocus)
-          .filter((v): v is FocusView => v !== null),
-      )
+    ? mergeFocusViews(focusRoots.map(computeFocus).filter((v): v is FocusView => v !== null))
     : null;
   const exportedIds = exportedIdsRef.current;
   // symbol ids encode the declaration kind: symbol:<path>:<kind>:<name>:<line>
@@ -1768,26 +1667,19 @@ export function App() {
         .map((port, index) => {
           let sx = 0;
           let sy = 0;
-          for (const partnerModule of apiPortPartnersRef.current.get(
-            port.id,
-          ) ?? []) {
+          for (const partnerModule of apiPortPartnersRef.current.get(port.id) ?? []) {
             const partner = rings.circles.get(partnerModule);
             if (!partner) continue;
             sx += partner.cx - circle.cx;
             sy += partner.cy - circle.cy;
           }
           const angle =
-            sx === 0 && sy === 0
-              ? (index / ports.length) * 2 * Math.PI
-              : Math.atan2(sy, sx);
+            sx === 0 && sy === 0 ? (index / ports.length) * 2 * Math.PI : Math.atan2(sy, sx);
           return { port, angle };
         })
         .sort((a, b) => a.angle - b.angle);
       // keep a minimum angular separation so ports don't stack
-      const minSep = Math.min(
-        (2 * Math.PI) / Math.max(placed.length, 1),
-        0.3,
-      );
+      const minSep = Math.min((2 * Math.PI) / Math.max(placed.length, 1), 0.3);
       for (let i = 1; i < placed.length; i++) {
         if (placed[i]!.angle - placed[i - 1]!.angle < minSep) {
           placed[i]!.angle = placed[i - 1]!.angle + minSep;
@@ -1808,12 +1700,15 @@ export function App() {
 
   const labels = labelsRef.current;
   const labelOf = (id: string) =>
-    labels.get(id) ?? id.slice(id.indexOf("#") + 1).split("/").pop() ?? id;
+    labels.get(id) ??
+    id
+      .slice(id.indexOf("#") + 1)
+      .split("/")
+      .pop() ??
+    id;
   const parentFileOf = (id: string) =>
     symbolMetaRef.current.get(id)?.fileId ??
-    (id.startsWith("symbol:")
-      ? (id.split(":")[1] ?? id)
-      : id.split("#")[0]!);
+    (id.startsWith("symbol:") ? (id.split(":")[1] ?? id) : id.split("#")[0]!);
   /** Diff kind for any leaf, file or symbol. A file matches directly; a symbol
    * inherits its file's change so the diff stays visible at symbol granularity,
    * with its own precise change (history) taking priority when present. */
@@ -1822,18 +1717,13 @@ export function App() {
     if (direct) return direct;
     const file = parentFileOf(id);
     if (file === id) return undefined;
-    return (
-      changedSymbolsRef.current.get(id) ?? changedFilesRef.current.get(file)
-    );
+    return changedSymbolsRef.current.get(id) ?? changedFilesRef.current.get(file);
   };
 
   // --- dependency-flow analysis: cycles and the edges that sustain them ---
   // leafGraph identity changes only on rebuild, so the memo holds between
   // animation frames
-  const leafGraph =
-    granularity === "symbol"
-      ? displayGraphRef.current
-      : graphRef.current;
+  const leafGraph = granularity === "symbol" ? displayGraphRef.current : graphRef.current;
   const cyclicIds = useMemo(
     () =>
       new Set(
@@ -1847,9 +1737,7 @@ export function App() {
   const moduleEdgesNow = ringsRef.current?.topEdges ?? null;
   const cyclicModuleIds = useMemo(() => {
     if (!moduleEdgesNow) return new Set<string>();
-    const ids = [
-      ...new Set(moduleEdgesNow.flatMap((e) => [e.source, e.target])),
-    ];
+    const ids = [...new Set(moduleEdgesNow.flatMap((e) => [e.source, e.target]))];
     return new Set(cyclicComponents(ids, moduleEdgesNow).flat());
   }, [moduleEdgesNow]);
   /**
@@ -1861,11 +1749,9 @@ export function App() {
     const treemap = treemapRef.current;
     if (!rings && !treemap) return [];
     const isModuleId = (id: string) =>
-      (rings?.circles.has(id) ?? false) ||
-      (treemap?.levels[0]!.cells.has(id) ?? false);
+      (rings?.circles.has(id) ?? false) || (treemap?.levels[0]!.cells.has(id) ?? false);
     const parts: { id: string; label: string }[] = [];
-    const isSymbolId = (id: string) =>
-      id.startsWith("symbol:") || id.includes("#");
+    const isSymbolId = (id: string) => id.startsWith("symbol:") || id.includes("#");
     if (selectedId) {
       if (isModuleId(selectedId)) {
         parts.push({ id: selectedId, label: selectedId });
@@ -1904,9 +1790,7 @@ export function App() {
     parts.push({ id: moduleId, label: moduleId });
     // descend the intermediate boundary levels under the crosshair
     let leafGroupId = moduleId;
-    const intermediateLevels = rings
-      ? rings.innerLevels
-      : treemap!.levels.slice(1);
+    const intermediateLevels = rings ? rings.innerLevels : treemap!.levels.slice(1);
     for (const level of intermediateLevels) {
       const hit = [...level.cells.values()].find(
         (c) => c.polygon.length >= 3 && containsPoint(c.polygon, p),
@@ -1914,26 +1798,20 @@ export function App() {
       if (!hit) break;
       // the per-module "(rest):<module>" bucket is an implementation detail
       // (it holds every non-class symbol) — show it as the module scope
-      const label = hit.id.startsWith("(rest):")
-        ? "(module scope)"
-        : hit.id.split("/").pop()!;
+      const label = hit.id.startsWith("(rest):") ? "(module scope)" : hit.id.split("/").pop()!;
       parts.push({ id: hit.id, label });
       leafGroupId = hit.id;
     }
     const layout = rings
       ? rings.leafLayouts.get(leafGroupId)
       : treemap?.leafLayouts.get(leafGroupId);
-    const cell = layout?.cells.find(
-      (c) => c.polygon.length >= 3 && containsPoint(c.polygon, p),
-    );
+    const cell = layout?.cells.find((c) => c.polygon.length >= 3 && containsPoint(c.polygon, p));
     if (cell) {
       parts.push({ id: cell.id, label: labelOf(cell.id) });
       if (viewInfo.zoom >= 2.2 && granularity === "file") {
         const symbol = innerLayoutsRef.current
           .get(cell.id)
-          ?.cells.find(
-            (c) => c.polygon.length >= 3 && containsPoint(c.polygon, p),
-          );
+          ?.cells.find((c) => c.polygon.length >= 3 && containsPoint(c.polygon, p));
         if (symbol && !symbol.id.endsWith("#rest")) {
           parts.push({ id: symbol.id, label: labelOf(symbol.id) });
         }
@@ -1975,9 +1853,7 @@ export function App() {
   // the connection a few times and give up quietly.
   /** Recent working-tree changes, newest first — revisitable from the
    * panel after the camera has moved on. */
-  const recentChangesRef = useRef<
-    { id: string; kind: "added" | "modified"; at: number }[]
-  >([]);
+  const recentChangesRef = useRef<{ id: string; kind: "added" | "modified"; at: number }[]>([]);
   // per-connection bookkeeping for the working-diff handler (reset on each
   // (re)subscribe via onOpen); the handler itself stays here as it drives the
   // data pipeline (warm-apply / rebuild / camera follow).
@@ -2013,27 +1889,22 @@ export function App() {
           applyWorkingTreeDiff(diff);
         }
         const known = new Set(graphRef.current.nodes.map((n) => n.id));
-        const next = new Map(
-          Object.entries(diff.changed).filter(([id]) => known.has(id)),
-        );
+        const next = new Map(Object.entries(diff.changed).filter(([id]) => known.has(id)));
         const seen = seenChangesRef.current;
         const fresh = [...next.keys()].filter((id) => !seen.has(id));
         seen.clear();
         for (const id of next.keys()) seen.add(id);
         const previous = changedFilesRef.current;
         const dirty =
-          previous.size !== next.size ||
-          [...next].some(([id, kind]) => previous.get(id) !== kind);
+          previous.size !== next.size || [...next].some(([id, kind]) => previous.get(id) !== kind);
         if (dirty) {
           changedFilesRef.current = next;
           // at symbol granularity a warm reflow leaves the changed (esp. private)
           // symbols folded, so the diff never shows; a cold rebuild lays them out
           // with the keep/priority boost. file granularity recolors in place.
           if (
-            granularityOf(
-              paramsRef.current.boundaries,
-              paramsRef.current.displayLevels,
-            ) === "symbol"
+            granularityOf(paramsRef.current.boundaries, paramsRef.current.displayLevels) ===
+            "symbol"
           ) {
             rebuild(paramsRef.current);
           }
@@ -2057,18 +1928,15 @@ export function App() {
   // pushes a fresh snapshot, which we warm-apply so symbols + import edges
   // update in place. Only the served source has a live analyzer; the baked and
   // history sources have none, so the stream 404s and stays closed.
-  useEventSource(
-    params.source === "served" ? `/api/snapshot/stream?repo=${params.source}` : null,
-    {
-      onMessage: (data) => {
-        try {
-          applyServedSnapshot(JSON.parse(data) as SnapshotLike);
-        } catch (error) {
-          console.error("snapshot stream", error);
-        }
-      },
+  useEventSource(params.source === "served" ? `/api/snapshot/stream?repo=${params.source}` : null, {
+    onMessage: (data) => {
+      try {
+        applyServedSnapshot(JSON.parse(data) as SnapshotLike);
+      } catch (error) {
+        console.error("snapshot stream", error);
+      }
     },
-  );
+  });
 
   const allCells: CellResult[] = ringsRef.current
     ? [...ringsRef.current.leafLayouts.values()].flatMap((l) => l.cells)
@@ -2080,29 +1948,24 @@ export function App() {
   const testTargets = testTargetsRef.current;
   // per-symbol detail (call hierarchy + CFG), fetched from the provider's
   // neutral detail endpoints — LSP today, tree-sitter / moon ide tomorrow
-  const {
-    detailOverlayEdges,
-    cfgEntries,
-    hierarchyVersion,
-    resetDetail,
-    detailEdgesOf,
-  } = useSymbolDetail({
-    activeId,
-    selectedIds,
-    selectedIdsRef,
-    granularity,
-    visibleLevels,
-    zoom: viewInfo.zoom,
-    allCells,
-    allInnerCells,
-    paramsRef,
-    graphRef,
-    symbolsRef,
-    displayGraphRef,
-    symbolEdgesRef,
-    source: params.source,
-    displayLevels: params.displayLevels,
-  });
+  const { detailOverlayEdges, cfgEntries, hierarchyVersion, resetDetail, detailEdgesOf } =
+    useSymbolDetail({
+      activeId,
+      selectedIds,
+      selectedIdsRef,
+      granularity,
+      visibleLevels,
+      zoom: viewInfo.zoom,
+      allCells,
+      allInnerCells,
+      paramsRef,
+      graphRef,
+      symbolsRef,
+      displayGraphRef,
+      symbolEdgesRef,
+      source: params.source,
+      displayLevels: params.displayLevels,
+    });
   resetDetailRef.current = resetDetail;
   // every stacked plane below the source is a SolvedLayer built by the same
   // pipeline (layout + cross-layer links); adding a layer type is one builder
@@ -2116,14 +1979,12 @@ export function App() {
   const testCovers = useMemo(() => {
     const map = new Map<string, string[]>();
     if (!testRun) return map;
-    for (const [id, ids] of Object.entries(testRunOverlay(testRun).coversOf))
-      map.set(id, ids);
+    for (const [id, ids] of Object.entries(testRunOverlay(testRun).coversOf)) map.set(id, ids);
     return map;
   }, [testRun]);
   const satelliteLayers = useMemo(() => {
     if (!params.tilt.enabled || enabledPlanesKey === "") return [];
-    const ext =
-      params.layout === "rings" ? { width: WIDTH, height: HEIGHT } : mapSize;
+    const ext = params.layout === "rings" ? { width: WIDTH, height: HEIGHT } : mapSize;
     return buildSatelliteLayers({
       manifest: layerManifest,
       enabled: new Set(enabledPlanesKey.split("+")),
@@ -2151,8 +2012,7 @@ export function App() {
     for (const layer of satelliteLayers)
       for (const n of layer.placed) for (const sid of n.sourceIds) next.add(sid);
     const prev = referencedFilesRef.current;
-    const changed =
-      prev.size !== next.size || [...next].some((f) => !prev.has(f));
+    const changed = prev.size !== next.size || [...next].some((f) => !prev.has(f));
     if (changed) {
       referencedFilesRef.current = next;
       rebuild(paramsRef.current);
@@ -2162,8 +2022,7 @@ export function App() {
   // refit the camera to the whole stack whenever the layer set changes (or the
   // viewport resizes) so a newly added / removed plane is framed full-screen
   useEffect(() => {
-    const ext =
-      params.layout === "rings" ? { width: WIDTH, height: HEIGHT } : mapSize;
+    const ext = params.layout === "rings" ? { width: WIDTH, height: HEIGHT } : mapSize;
     if (!params.tilt.enabled || satelliteLayers.length === 0) {
       focusBounds({ x0: 0, y0: 0, x1: ext.width, y1: ext.height }, 1.04);
       return;
@@ -2217,9 +2076,7 @@ export function App() {
   /** Intermediate boundary group (directory etc.) — its level kind. */
   const selectedGroupKind =
     activeId !== null && !selectedIsModule
-      ? (ringsRef.current?.kindOf.get(activeId) ??
-        treemapRef.current?.kindOf.get(activeId) ??
-        null)
+      ? (ringsRef.current?.kindOf.get(activeId) ?? treemapRef.current?.kindOf.get(activeId) ?? null)
       : null;
   const selectedTest =
     activeId !== null && testFileIds.has(activeId)
@@ -2229,44 +2086,28 @@ export function App() {
   // Keyed off activeId directly (not selectedTest) so it works whether the test
   // was picked from the dot panel or a test-plane cell.
   const selectedTestResult =
-    activeId && testRun
-      ? (testRun.results.find((r) => r.testId === activeId) ?? null)
-      : null;
+    activeId && testRun ? (testRun.results.find((r) => r.testId === activeId) ?? null) : null;
   const selectedPort =
     activeId !== null && granularity === "symbol"
       ? (portNodesRef.current.find((p) => p.id === activeId) ?? null)
       : null;
-  const selectedIsSymbol =
-    selected !== null && !allCells.some((c) => c.id === selected.id);
+  const selectedIsSymbol = selected !== null && !allCells.some((c) => c.id === selected.id);
   const selectedRefs = useMemo(() => {
     if (!activeId) return { incoming: [], outgoing: [] };
     const edges = [
-      ...(granularityOf(
-        paramsRef.current.boundaries,
-        paramsRef.current.displayLevels,
-      ) === "symbol"
+      ...(granularityOf(paramsRef.current.boundaries, paramsRef.current.displayLevels) === "symbol"
         ? displayGraphRef.current.edges
         : symbolEdgesRef.current),
       // display-only call-hierarchy overlay of the active root
       ...detailEdgesOf(activeId),
     ];
     return {
-      incoming: [
-        ...new Set(
-          edges.filter((e) => e.target === activeId).map((e) => e.source),
-        ),
-      ],
-      outgoing: [
-        ...new Set(
-          edges.filter((e) => e.source === activeId).map((e) => e.target),
-        ),
-      ],
+      incoming: [...new Set(edges.filter((e) => e.target === activeId).map((e) => e.source))],
+      outgoing: [...new Set(edges.filter((e) => e.source === activeId).map((e) => e.target))],
     };
   }, [activeId, hierarchyVersion, granularity]);
 
-  const innerCells = showsSymbolLevels(params.displayLevels)
-    ? allInnerCells
-    : [];
+  const innerCells = showsSymbolLevels(params.displayLevels) ? allInnerCells : [];
   // project the trace onto symbol-keyed edges + heat for the overlay. A loaded
   // timeline drives a moving comet at the playback cursor; otherwise an ingested
   // static trace lights its whole call path at once.
@@ -2317,9 +2158,7 @@ export function App() {
       };
     const overlay = testRunOverlay(testRun);
     return {
-      testStatus: new Map<string, TestStatus>(
-        Object.entries(overlay.statusOf),
-      ),
+      testStatus: new Map<string, TestStatus>(Object.entries(overlay.statusOf)),
       testDuration: new Map<string, number>(Object.entries(overlay.durationOf)),
     };
   }, [testRun]);
@@ -2332,10 +2171,7 @@ export function App() {
         ...p.tilt,
         enabled: true,
         theta: p.tilt.theta + dxPx * 0.01,
-        pitch: Math.min(
-          Math.max(p.tilt.pitch + dyPx * 0.01, 0),
-          (80 * Math.PI) / 180,
-        ),
+        pitch: Math.min(Math.max(p.tilt.pitch + dyPx * 0.01, 0), (80 * Math.PI) / 180),
       },
     }));
   };
@@ -2487,8 +2323,7 @@ export function App() {
                   key={bi}
                   style={{
                     margin: bi === 0 ? 0 : "6px 0 0",
-                    fontFamily:
-                      "ui-monospace, SFMono-Regular, Menlo, monospace",
+                    fontFamily: "ui-monospace, SFMono-Regular, Menlo, monospace",
                     fontSize: "11px",
                     whiteSpace: "pre-wrap",
                     wordBreak: "break-word",
@@ -2498,10 +2333,7 @@ export function App() {
                     <span
                       key={ti}
                       style={{
-                        color:
-                          HIGHLIGHT_THEME[params.dark ? "dark" : "light"][
-                            tok.kind
-                          ],
+                        color: HIGHLIGHT_THEME[params.dark ? "dark" : "light"][tok.kind],
                       }}
                     >
                       {tok.text}
@@ -2840,132 +2672,129 @@ export function App() {
                 </div>
                 {isActive ? (
                   <div style={{ maxHeight: "42vh", overflowY: "auto", marginTop: "6px" }}>
-            {selectedTest && testTargets.get(selectedTest.id) ? (
-              <button
-                onClick={() => jumpTo(testTargets.get(selectedTest.id)!)}
-                style={{
-                  marginTop: "4px",
-                  padding: "2px 4px",
-                  fontSize: "11px",
-                  cursor: "pointer",
-                  background: "none",
-                  border: "none",
-                  color: "#0891b2",
-                  textAlign: "left",
-                }}
-              >
-                covers: {labelOf(testTargets.get(selectedTest.id)!)}
-              </button>
-            ) : null}
-            {experimentalOn && selectedTestResult ? (
-              <TestLogPanel result={selectedTestResult} />
-            ) : null}
-            {params.source === "sprawlens-history" &&
-            activeId &&
-            historyIndexRef.current?.nodeHistory.has(activeId) ? (
-              <div style={{ marginTop: "6px" }}>
-                <div style={{ fontWeight: "600" }}>
-                  Change history (
-                  {historyIndexRef.current.nodeHistory.get(activeId)!.length}
-                  )
-                </div>
-                {[...historyIndexRef.current.nodeHistory.get(activeId)!]
-                  .reverse()
-                  .map((change) => {
-                    const commit = commitsRef.current?.[change.index];
-                    if (!commit) return null;
-                    const marker =
-                      change.kind === "added"
-                        ? ["＋", "#059669"]
-                        : change.kind === "modified"
-                          ? ["～", "#d97706"]
-                          : ["－", "#dc2626"];
-                    const current = change.index === commitIndexRef.current;
-                    return (
+                    {selectedTest && testTargets.get(selectedTest.id) ? (
                       <button
-                        key={`${change.index}-${change.kind}`}
-                        onClick={() => goToCommit(change.index)}
+                        onClick={() => jumpTo(testTargets.get(selectedTest.id)!)}
                         style={{
-                          display: "block",
-                          width: "100%",
-                          textAlign: "left",
+                          marginTop: "4px",
                           padding: "2px 4px",
                           fontSize: "11px",
                           cursor: "pointer",
-                          background: current ? "#e0e7ff" : "none",
+                          background: "none",
                           border: "none",
-                          color: "#0f172a",
-                          fontWeight: current ? "600" : "400",
+                          color: "#0891b2",
+                          textAlign: "left",
                         }}
                       >
-                        <span style={{ color: marker[1] }}>{marker[0]}</span>{" "}
-                        <span style={{ color: MUTED_INK }}>
-                          {commit.shortHash}
-                        </span>{" "}
-                        {commit.message.split("\n")[0]}
+                        covers: {labelOf(testTargets.get(selectedTest.id)!)}
                       </button>
-                    );
-                  })}
-              </div>
-            ) : null}
-            {selectedRefs.incoming.length > 0 ? (
-              <div style={{ marginTop: "6px" }}>
-                <div style={{ fontWeight: "600" }}>
-                  referenced by ({selectedRefs.incoming.length})
-                </div>
-                {selectedRefs.incoming.slice(0, 12).map((id) => (
-                  <button
-                    key={id}
-                    onClick={() => jumpTo(id)}
-                    style={{
-                      display: "block",
-                      width: "100%",
-                      textAlign: "left",
-                      padding: "2px 4px",
-                      fontSize: "11px",
-                      cursor: "pointer",
-                      background: "none",
-                      border: "none",
-                      color: "#0891b2",
-                    }}
-                  >
-                    ← {labelOf(id)}
-                    {granularity !== "symbol" && fileOf(id) ? (
-                      <span style={{ color: "#94a3b8" }}> · {fileOf(id)}</span>
                     ) : null}
-                  </button>
-                ))}
-              </div>
-            ) : null}
-            {selectedRefs.outgoing.length > 0 ? (
-              <div style={{ marginTop: "6px" }}>
-                <div style={{ fontWeight: "600" }}>
-                  references ({selectedRefs.outgoing.length})
-                </div>
-                {selectedRefs.outgoing.slice(0, 12).map((id) => (
-                  <button
-                    key={id}
-                    onClick={() => jumpTo(id)}
-                    style={{
-                      display: "block",
-                      width: "100%",
-                      textAlign: "left",
-                      padding: "2px 4px",
-                      fontSize: "11px",
-                      cursor: "pointer",
-                      background: "none",
-                      border: "none",
-                      color: "#ea580c",
-                    }}
-                  >
-                    → {labelOf(id)}
-                    {granularity !== "symbol" && fileOf(id) ? (
-                      <span style={{ color: "#94a3b8" }}> · {fileOf(id)}</span>
+                    {experimentalOn && selectedTestResult ? (
+                      <TestLogPanel result={selectedTestResult} />
                     ) : null}
-                  </button>
-                ))}
-              </div>
-            ) : null}
+                    {params.source === "sprawlens-history" &&
+                    activeId &&
+                    historyIndexRef.current?.nodeHistory.has(activeId) ? (
+                      <div style={{ marginTop: "6px" }}>
+                        <div style={{ fontWeight: "600" }}>
+                          Change history (
+                          {historyIndexRef.current.nodeHistory.get(activeId)!.length})
+                        </div>
+                        {[...historyIndexRef.current.nodeHistory.get(activeId)!]
+                          .reverse()
+                          .map((change) => {
+                            const commit = commitsRef.current?.[change.index];
+                            if (!commit) return null;
+                            const marker =
+                              change.kind === "added"
+                                ? ["＋", "#059669"]
+                                : change.kind === "modified"
+                                  ? ["～", "#d97706"]
+                                  : ["－", "#dc2626"];
+                            const current = change.index === commitIndexRef.current;
+                            return (
+                              <button
+                                key={`${change.index}-${change.kind}`}
+                                onClick={() => goToCommit(change.index)}
+                                style={{
+                                  display: "block",
+                                  width: "100%",
+                                  textAlign: "left",
+                                  padding: "2px 4px",
+                                  fontSize: "11px",
+                                  cursor: "pointer",
+                                  background: current ? "#e0e7ff" : "none",
+                                  border: "none",
+                                  color: "#0f172a",
+                                  fontWeight: current ? "600" : "400",
+                                }}
+                              >
+                                <span style={{ color: marker[1] }}>{marker[0]}</span>{" "}
+                                <span style={{ color: MUTED_INK }}>{commit.shortHash}</span>{" "}
+                                {commit.message.split("\n")[0]}
+                              </button>
+                            );
+                          })}
+                      </div>
+                    ) : null}
+                    {selectedRefs.incoming.length > 0 ? (
+                      <div style={{ marginTop: "6px" }}>
+                        <div style={{ fontWeight: "600" }}>
+                          referenced by ({selectedRefs.incoming.length})
+                        </div>
+                        {selectedRefs.incoming.slice(0, 12).map((id) => (
+                          <button
+                            key={id}
+                            onClick={() => jumpTo(id)}
+                            style={{
+                              display: "block",
+                              width: "100%",
+                              textAlign: "left",
+                              padding: "2px 4px",
+                              fontSize: "11px",
+                              cursor: "pointer",
+                              background: "none",
+                              border: "none",
+                              color: "#0891b2",
+                            }}
+                          >
+                            ← {labelOf(id)}
+                            {granularity !== "symbol" && fileOf(id) ? (
+                              <span style={{ color: "#94a3b8" }}> · {fileOf(id)}</span>
+                            ) : null}
+                          </button>
+                        ))}
+                      </div>
+                    ) : null}
+                    {selectedRefs.outgoing.length > 0 ? (
+                      <div style={{ marginTop: "6px" }}>
+                        <div style={{ fontWeight: "600" }}>
+                          references ({selectedRefs.outgoing.length})
+                        </div>
+                        {selectedRefs.outgoing.slice(0, 12).map((id) => (
+                          <button
+                            key={id}
+                            onClick={() => jumpTo(id)}
+                            style={{
+                              display: "block",
+                              width: "100%",
+                              textAlign: "left",
+                              padding: "2px 4px",
+                              fontSize: "11px",
+                              cursor: "pointer",
+                              background: "none",
+                              border: "none",
+                              color: "#ea580c",
+                            }}
+                          >
+                            → {labelOf(id)}
+                            {granularity !== "symbol" && fileOf(id) ? (
+                              <span style={{ color: "#94a3b8" }}> · {fileOf(id)}</span>
+                            ) : null}
+                          </button>
+                        ))}
+                      </div>
+                    ) : null}
                   </div>
                 ) : null}
               </div>
@@ -2987,9 +2816,7 @@ export function App() {
                 borderRadius: "8px",
               }}
             >
-              {focusId
-                ? "Back to full view"
-                : `Extract dependency paths (${selectedIds.length})`}
+              {focusId ? "Back to full view" : `Extract dependency paths (${selectedIds.length})`}
             </button>
           </div>
         </div>

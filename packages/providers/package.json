@@ -9,10 +9,10 @@
     ".": "./src/index.ts"
   },
   "dependencies": {
-    "@sprawlens/contracts": "workspace:*",
-    "@sprawlens/analyzer-ts": "workspace:*",
     "@sprawlens/analyzer-go": "workspace:*",
+    "@sprawlens/analyzer-moonbit": "workspace:*",
     "@sprawlens/analyzer-rust": "workspace:*",
-    "@sprawlens/analyzer-moonbit": "workspace:*"
+    "@sprawlens/analyzer-ts": "workspace:*",
+    "@sprawlens/contracts": "workspace:*"
   }
 }

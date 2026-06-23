@@ -35,18 +35,11 @@ function titleOf(arg: ts.Expression | undefined): string | undefined {
   if (!arg) return undefined;
   if (ts.isStringLiteralLike(arg)) return arg.text;
   if (ts.isTemplateExpression(arg))
-    return (
-      arg.head.text +
-      arg.templateSpans.map((span) => `\${…}${span.literal.text}`).join("")
-    );
+    return arg.head.text + arg.templateSpans.map((span) => `\${…}${span.literal.text}`).join("");
   return undefined;
 }
 
-function collectFrom(
-  container: ts.Node,
-  sf: ts.SourceFile,
-  file: string,
-): TestNode[] {
+function collectFrom(container: ts.Node, sf: ts.SourceFile, file: string): TestNode[] {
   const out: TestNode[] = [];
   const visit = (node: ts.Node): void => {
     if (ts.isCallExpression(node)) {
@@ -60,8 +53,7 @@ function collectFrom(
         : undefined;
       const title = titleOf(node.arguments[0]);
       if (kind && title !== undefined) {
-        const startLine =
-          sf.getLineAndCharacterOfPosition(node.getStart(sf)).line + 1;
+        const startLine = sf.getLineAndCharacterOfPosition(node.getStart(sf)).line + 1;
         const endLine = sf.getLineAndCharacterOfPosition(node.getEnd()).line + 1;
         const callback = node.arguments.find(
           (a) => ts.isArrowFunction(a) || ts.isFunctionExpression(a),
@@ -86,13 +78,7 @@ function collectFrom(
 
 /** Suite/case forest for one TS/JS test file (empty when it holds no tests). */
 export function extractTsTests(file: string, source: string): TestNode[] {
-  const sf = ts.createSourceFile(
-    file,
-    source,
-    ts.ScriptTarget.Latest,
-    true,
-    scriptKindFor(file),
-  );
+  const sf = ts.createSourceFile(file, source, ts.ScriptTarget.Latest, true, scriptKindFor(file));
   return collectFrom(sf, sf, file);
 }
 

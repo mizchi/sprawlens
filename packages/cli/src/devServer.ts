@@ -46,11 +46,8 @@ for (const [name, path] of repos) {
   // incremental keeps a parse cache so each fs-watch re-analysis only re-parses
   // changed files; applyLayers stamps the test/deps planes from sprawlens.toml.
   const incremental = tsProvider.createIncrementalAnalyzer?.(path);
-  const rawAnalyze = incremental
-    ? () => incremental.analyze()
-    : () => tsProvider.analyze(path);
-  const analyze = async (): Promise<Snapshot> =>
-    applyLayers(await rawAnalyze(), config);
+  const rawAnalyze = incremental ? () => incremental.analyze() : () => tsProvider.analyze(path);
+  const analyze = async (): Promise<Snapshot> => applyLayers(await rawAnalyze(), config);
   snapshots.set(name, await analyze());
   analyzers.set(name, analyze);
   layers = layerManifest(config);
@@ -60,8 +57,6 @@ createAtlasServer({ repos, snapshots, analyzers, detail: tsDetail, layers }).lis
   port,
   "127.0.0.1",
   () => {
-    console.log(
-      `atlas server: http://127.0.0.1:${port} (${[...repos.keys()].join(", ")})`,
-    );
+    console.log(`atlas server: http://127.0.0.1:${port} (${[...repos.keys()].join(", ")})`);
   },
 );

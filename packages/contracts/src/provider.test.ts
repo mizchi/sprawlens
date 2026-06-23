@@ -1,10 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { detectProviders, type LanguageProvider } from "./provider.js";
 
-function provider(
-  id: string,
-  opts: { manifest?: boolean; files?: boolean },
-): LanguageProvider {
+function provider(id: string, opts: { manifest?: boolean; files?: boolean }): LanguageProvider {
   return {
     id,
     matchesManifest: () => opts.manifest ?? false,

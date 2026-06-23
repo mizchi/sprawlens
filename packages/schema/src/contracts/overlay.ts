@@ -44,8 +44,7 @@ export function liftOverlay(
     for (const step of overlay.steps) {
       const mapped = mapTo(step.nodeId);
       if (mapped === null) continue;
-      if (steps.length > 0 && steps[steps.length - 1]!.nodeId === mapped)
-        continue;
+      if (steps.length > 0 && steps[steps.length - 1]!.nodeId === mapped) continue;
       steps.push({ ...step, nodeId: mapped });
     }
     return { ...overlay, steps };

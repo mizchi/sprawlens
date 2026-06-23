@@ -44,12 +44,7 @@ export function centroid(ring: Ring): Vec2 {
  * Sutherland–Hodgman clip against the half-plane nx*x + ny*y <= c.
  * Preserves orientation; returns [] when the ring is fully outside.
  */
-export function clipHalfPlane(
-  ring: Ring,
-  nx: number,
-  ny: number,
-  c: number,
-): Ring {
+export function clipHalfPlane(ring: Ring, nx: number, ny: number, c: number): Ring {
   if (ring.length === 0) return [];
   const out: Ring = [];
   for (let i = 0; i < ring.length; i++) {
@@ -121,10 +116,7 @@ export function nearestPointInRing(ring: Ring, p: Vec2): Vec2 {
     const ex = b.x - a.x;
     const ey = b.y - a.y;
     const len2 = ex * ex + ey * ey;
-    const t =
-      len2 > 0
-        ? Math.max(0, Math.min(1, ((p.x - a.x) * ex + (p.y - a.y) * ey) / len2))
-        : 0;
+    const t = len2 > 0 ? Math.max(0, Math.min(1, ((p.x - a.x) * ex + (p.y - a.y) * ey) / len2)) : 0;
     const qx = a.x + ex * t;
     const qy = a.y + ey * t;
     const d2 = (p.x - qx) ** 2 + (p.y - qy) ** 2;
@@ -148,10 +140,7 @@ export function convexHull(points: readonly Vec2[]): Ring {
     (a.x - o.x) * (b.y - o.y) - (a.y - o.y) * (b.x - o.x);
   const lower: Vec2[] = [];
   for (const p of sorted) {
-    while (
-      lower.length >= 2 &&
-      cross(lower[lower.length - 2]!, lower[lower.length - 1]!, p) <= 0
-    ) {
+    while (lower.length >= 2 && cross(lower[lower.length - 2]!, lower[lower.length - 1]!, p) <= 0) {
       lower.pop();
     }
     lower.push(p);
@@ -159,10 +148,7 @@ export function convexHull(points: readonly Vec2[]): Ring {
   const upper: Vec2[] = [];
   for (let i = sorted.length - 1; i >= 0; i--) {
     const p = sorted[i]!;
-    while (
-      upper.length >= 2 &&
-      cross(upper[upper.length - 2]!, upper[upper.length - 1]!, p) <= 0
-    ) {
+    while (upper.length >= 2 && cross(upper[upper.length - 2]!, upper[upper.length - 1]!, p) <= 0) {
       upper.pop();
     }
     upper.push(p);

@@ -9,8 +9,8 @@
     ".": "./src/index.ts"
   },
   "dependencies": {
-    "@sprawlens/contracts": "workspace:*",
     "@cdktf/hcl2json": "^0.21.0",
+    "@sprawlens/contracts": "workspace:*",
     "fast-glob": "^3.3.3"
   }
 }

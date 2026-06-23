@@ -63,11 +63,7 @@ describe("transitiveWeights", () => {
   });
 
   it("ignores edges with unknown endpoints", () => {
-    const weights = transitiveWeights(
-      ids("a"),
-      [{ source: "a", target: "ghost" }],
-      one,
-    );
+    const weights = transitiveWeights(ids("a"), [{ source: "a", target: "ghost" }], one);
     expect(weights.get("a")).toBe(1);
   });
 

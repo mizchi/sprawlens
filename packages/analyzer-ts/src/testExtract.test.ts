@@ -17,10 +17,7 @@ describe("extractTsTests", () => {
     expect(nodes.map((n) => n.name)).toEqual(["math", "top level"]);
     const math = nodes[0]!;
     expect(math.kind).toBe("suite");
-    expect(math.children.map((c) => `${c.kind}:${c.name}`)).toEqual([
-      "case:adds",
-      "suite:mul",
-    ]);
+    expect(math.children.map((c) => `${c.kind}:${c.name}`)).toEqual(["case:adds", "suite:mul"]);
     expect(math.children[1]!.children.map((c) => c.name)).toEqual(["by zero"]);
     expect(nodes[1]!.kind).toBe("case");
   });
