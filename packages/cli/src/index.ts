@@ -56,6 +56,7 @@ import { readSprawlensConfig } from "./config.js";
 import { renderTui, type ChangeKind } from "./tui.js";
 import { runTuiApp } from "./tuiApp.js";
 import { type DiffOverlay, toDiffOverlay } from "./diffRender.js";
+import { renderDiffMermaid } from "./mermaidRender.js";
 
 // read our own version so `--version` always matches the published package
 // (../package.json relative to both src/index.ts in dev and dist/index.js when built)
@@ -373,6 +374,11 @@ program
     "--diff [base]",
     "highlight files changed vs <base> ref, or uncommitted changes if no base",
   )
+  .option(
+    "--format <kind>",
+    "svg | mermaid (mermaid emits a PR-comment-ready diff graph; requires --diff)",
+    "svg",
+  )
   .option("--width <n>", "canvas width override", parsePositiveInteger)
   .option("--height <n>", "canvas height override", parsePositiveInteger)
   .option(
@@ -390,6 +396,7 @@ program
         edges?: boolean;
         dark?: boolean;
         diff?: string | boolean;
+        format: string;
         width?: number;
         height?: number;
         output?: string;
@@ -402,6 +409,16 @@ program
       }
       if (options.level !== "module" && options.level !== "file") {
         console.error(`--level must be module or file, got "${options.level}"`);
+        process.exitCode = 1;
+        return;
+      }
+      if (options.format !== "svg" && options.format !== "mermaid") {
+        console.error(`--format must be svg or mermaid, got "${options.format}"`);
+        process.exitCode = 1;
+        return;
+      }
+      if (options.format === "mermaid" && options.diff === undefined) {
+        console.error("--format mermaid requires --diff (it renders the changed subgraph)");
         process.exitCode = 1;
         return;
       }
@@ -426,6 +443,29 @@ program
         // commander yields `true` for a bare --diff (no base), a string for --diff <base>
         const base = typeof options.diff === "string" ? options.diff : undefined;
         overlay = toDiffOverlay(await workingDiff(root, base));
+      }
+      if (options.format === "mermaid") {
+        // overlay is guaranteed by the --diff guard above
+        const md = renderDiffMermaid(graph, overlay!.changed, {
+          level: options.level as "file" | "module",
+          summary: overlay!.diffSummary,
+        });
+        if (md === "") {
+          console.error(
+            "no changed files are on the map; nothing to render as mermaid",
+          );
+          process.exitCode = 1;
+          return;
+        }
+        if (options.output === "-" || options.output === undefined) {
+          process.stdout.write(`${md}\n`);
+          return;
+        }
+        writeFileSync(options.output, `${md}\n`);
+        console.log(
+          `wrote ${options.output} (mermaid, diff +${overlay!.diffSummary.added} ~${overlay!.diffSummary.modified} -${overlay!.diffSummary.removed})`,
+        );
+        return;
       }
       const svg = renderAtlasSvg(graph, {
         layout: options.layout,

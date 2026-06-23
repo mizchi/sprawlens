@@ -58,6 +58,39 @@ attach a structure-map of a PR's blast radius as an artifact:
 - `--diff` with no base highlights uncommitted working-tree changes instead.
 - Removed files cannot appear on the map; they are reported as a count in the legend.
 
+### Inline in a PR comment (no upload) — `--format mermaid`
+
+GitHub strips inline `<svg>` and blocks `data:` images, so an SVG always needs to
+be uploaded somewhere. To show a diff *inside* a PR comment with no upload, emit
+a GitHub-native Mermaid graph instead:
+
+```bash
+npx sprawlens render . --diff origin/main --format mermaid --level module
+```
+
+This prints a fenced ` ```mermaid ` block (to stdout by default) showing the
+**changed subgraph** — changed files plus their direct (1-hop) dependency
+neighbors — with added nodes green and modified nodes orange. Paste it into a
+comment, or post it from CI:
+
+```yaml
+- run: git fetch origin ${{ github.base_ref }} --depth=1
+- run: |
+    npx sprawlens render . \
+      --diff origin/${{ github.base_ref }} \
+      --format mermaid --level module >> "$GITHUB_STEP_SUMMARY"
+```
+
+- `--format mermaid` requires `--diff`; it renders the diff subgraph, not the
+  whole repo.
+- `--level module` (recommended for large repos) aggregates files into modules
+  and graphs cross-module imports — far fewer nodes. `--level file` (default)
+  graphs individual files.
+- Mermaid is a node+edge graph, so this is a dependency view of the blast radius,
+  not the voronoi/treemap macro shape `--format svg` produces.
+- Output is capped at 50 nodes (changed nodes kept first); the overflow count is
+  noted below the graph.
+
 ## Deep detail via LSP
 
 When a language server is installed, sprawlens wires it up automatically for
