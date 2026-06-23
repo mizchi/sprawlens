@@ -1,4 +1,4 @@
-import type { Vec2 } from "./vec.js";
+import type { Vec2 } from "./vec.ts";
 
 /**
  * Hierarchical edge bundling (Holten 2006): an edge's control polyline runs

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { topoRank } from "./topoRank.js";
+import { topoRank } from "./topoRank.ts";
 
 describe("topoRank", () => {
   it("ranks dependency-free nodes 0 and dependents above", () => {

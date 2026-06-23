@@ -3,7 +3,7 @@ import { basename, join } from "node:path";
 import fg from "fast-glob";
 import type { LanguageProvider } from "@sprawlens/schema";
 import { createStaticDetail } from "@sprawlens/schema";
-import { snapshotRustWorkingTree } from "./extract.js";
+import { snapshotRustWorkingTree } from "./extract.ts";
 
 const worktreeCommit = (timestamp: string) => ({
   hash: "WORKTREE",

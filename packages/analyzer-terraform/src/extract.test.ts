@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { parseTerraform } from "./extract.js";
+import { parseTerraform } from "./extract.ts";
 
 const SAMPLE = `
 module "orders" {

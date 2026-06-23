@@ -1,7 +1,7 @@
 import { bench, describe } from "vitest";
-import { computePowerDiagram, type PowerSite } from "./powerDiagram.js";
-import { createRng } from "./rng.js";
-import type { Ring } from "./polygon.js";
+import { computePowerDiagram, type PowerSite } from "./powerDiagram.ts";
+import { createRng } from "./rng.ts";
+import type { Ring } from "./polygon.ts";
 
 const W = 800;
 const H = 600;

@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { createRng } from "./rng.js";
-import { ringLayout, type RingModule } from "./ringLayout.js";
+import { createRng } from "./rng.ts";
+import { ringLayout, type RingModule } from "./ringLayout.ts";
 
 function modulesFixture(): RingModule[] {
   return [

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { centralityRings, dependentWeights, importanceScore } from "./centrality.js";
+import { centralityRings, dependentWeights, importanceScore } from "./centrality.ts";
 
 describe("importanceScore", () => {
   it("lets a larger foundation outrank a small one with equal dependents", () => {

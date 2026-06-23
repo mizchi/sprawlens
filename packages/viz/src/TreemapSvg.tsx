@@ -56,7 +56,7 @@ import type { EdgePickCandidate } from "./edgePick.ts";
 import { resolveEdgeAtClient } from "./edgePickDom.ts";
 import { ambientEdgeVisual, selectionDash } from "./edgeStyle.ts";
 import { cellInView, segmentInView } from "./viewCulling.ts";
-import type { TreemapState } from "./treemapController.js";
+import type { TreemapState } from "./treemapController.ts";
 import { useMapViewport, type FocusRequest, type FocusView } from "./useMapViewport.ts";
 
 type Props = {

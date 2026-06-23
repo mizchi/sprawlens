@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { minCostAssignment } from "./assignment.js";
+import { minCostAssignment } from "./assignment.ts";
 
 describe("minCostAssignment", () => {
   it("solves a trivial 1x1 matrix", () => {

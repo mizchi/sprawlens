@@ -5,7 +5,7 @@ import {
   parseLlvmCoverage,
   resolveTraceSymbols,
   traceOverlay,
-} from "./trace.js";
+} from "./trace.ts";
 
 const sym = (
   id: string,

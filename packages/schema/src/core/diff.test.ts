@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { diffSnapshots } from "./diff.js";
+import { diffSnapshots } from "./diff.ts";
 import type { Snapshot } from "@sprawlens/contracts";
 
 function snapshot(

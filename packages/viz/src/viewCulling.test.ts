@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { cellInView, pointInView, segmentInView } from "./viewCulling.js";
+import { cellInView, pointInView, segmentInView } from "./viewCulling.ts";
 
 const VIEW = { x: 0, y: 0, w: 100, h: 80 };
 

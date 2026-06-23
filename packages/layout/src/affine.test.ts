@@ -11,7 +11,7 @@ import {
   toMatrixString,
   translate,
   uprightAt,
-} from "./affine.js";
+} from "./affine.ts";
 
 const closeTo = (a: { x: number; y: number }, b: { x: number; y: number }) => {
   expect(a.x).toBeCloseTo(b.x, 10);

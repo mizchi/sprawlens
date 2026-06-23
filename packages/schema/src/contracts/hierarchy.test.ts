@@ -10,7 +10,7 @@ import {
   moduleGrouping,
   parentFileOf,
   serviceGrouping,
-} from "./hierarchy.js";
+} from "./hierarchy.ts";
 
 function fileGraph(): AtlasGraph {
   const file = (id: string, loc: number) => ({

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { extractTsTests } from "./testExtract.js";
+import { extractTsTests } from "./testExtract.ts";
 
 describe("extractTsTests", () => {
   it("extracts nested describe/it/test with names and nesting", () => {

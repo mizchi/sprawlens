@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { distanceToPolyline, pickNearestEdge, type EdgePickCandidate } from "./edgePick.js";
+import { distanceToPolyline, pickNearestEdge, type EdgePickCandidate } from "./edgePick.ts";
 
 describe("distanceToPolyline", () => {
   it("measures perpendicular distance to the nearest segment", () => {

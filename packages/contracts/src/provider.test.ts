@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { detectProviders, type LanguageProvider } from "./provider.js";
+import { detectProviders, type LanguageProvider } from "./provider.ts";
 
 function provider(id: string, opts: { manifest?: boolean; files?: boolean }): LanguageProvider {
   return {

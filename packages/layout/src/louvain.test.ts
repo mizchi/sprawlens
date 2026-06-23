@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { louvain, type LouvainEdge } from "./louvain.js";
+import { louvain, type LouvainEdge } from "./louvain.ts";
 
 function clique(
   prefix: string,

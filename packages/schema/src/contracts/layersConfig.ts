@@ -1,6 +1,6 @@
 import picomatch from "picomatch";
 import type { CodeNode, Snapshot } from "@sprawlens/contracts";
-import { defaultLayerOf } from "./layers.js";
+import { defaultLayerOf } from "./layers.ts";
 
 /**
  * Generalized layer system. `test` and `deps` are no longer hardcoded: they

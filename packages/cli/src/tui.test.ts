@@ -8,7 +8,7 @@ import {
   selectAt,
   tileAt,
   type PlacedTile,
-} from "./tui.js";
+} from "./tui.ts";
 
 const commit = {
   hash: "W",

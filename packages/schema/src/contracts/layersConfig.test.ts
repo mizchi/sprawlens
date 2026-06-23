@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import type { Snapshot } from "@sprawlens/contracts";
-import { applyLayers, layerManifest, resolveLayers } from "./layersConfig.js";
-import { layerOfNode } from "./layers.js";
+import { applyLayers, layerManifest, resolveLayers } from "./layersConfig.ts";
+import { layerOfNode } from "./layers.ts";
 
 const commit = {
   hash: "WORKTREE",

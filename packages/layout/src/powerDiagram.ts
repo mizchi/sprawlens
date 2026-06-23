@@ -1,6 +1,6 @@
-import type { Ring } from "./polygon.js";
-import { signedArea } from "./polygon.js";
-import type { Vec2 } from "./vec.js";
+import type { Ring } from "./polygon.ts";
+import { signedArea } from "./polygon.ts";
+import type { Vec2 } from "./vec.ts";
 
 export type PowerSite = {
   id: string;

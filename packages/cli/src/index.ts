@@ -53,11 +53,11 @@ import { renderAtlasSvg } from "@sprawlens/viz/headless";
 import { analyzeTerraform, hasTerraform } from "@sprawlens/analyzer-terraform";
 import { PROVIDERS, detectProviders } from "@sprawlens/providers";
 import { createAtlasServer, watchDir, workingDiff } from "@sprawlens/server";
-import { readSprawlensConfig } from "./config.js";
-import { renderTui, type ChangeKind } from "./tui.js";
-import { runTuiApp } from "./tuiApp.js";
-import { type DiffOverlay, formatDiffNote, toDiffOverlay } from "./diffRender.js";
-import { renderDiffMermaid } from "./mermaidRender.js";
+import { readSprawlensConfig } from "./config.ts";
+import { renderTui, type ChangeKind } from "./tui.ts";
+import { runTuiApp } from "./tuiApp.ts";
+import { type DiffOverlay, formatDiffNote, toDiffOverlay } from "./diffRender.ts";
+import { renderDiffMermaid } from "./mermaidRender.ts";
 
 // read our own version so `--version` always matches the published package
 // (../package.json relative to both src/index.ts in dev and dist/index.js when built)

@@ -2,8 +2,8 @@ import { existsSync } from "node:fs";
 import { basename, join } from "node:path";
 import fg from "fast-glob";
 import type { LanguageProvider } from "@sprawlens/schema";
-import { snapshotMoonbitWorkingTree } from "./extract.js";
-import { moonbitDetail } from "./detail.js";
+import { snapshotMoonbitWorkingTree } from "./extract.ts";
+import { moonbitDetail } from "./detail.ts";
 
 /** MoonBit provider (heuristic; tree-sitter when a grammar ships). */
 export const moonbitProvider: LanguageProvider = {

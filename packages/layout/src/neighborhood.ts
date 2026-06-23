@@ -1,5 +1,5 @@
 import type { AtlasEdge } from "@sprawlens/contracts";
-import type { CellResult } from "./capacityLayout.js";
+import type { CellResult } from "./capacityLayout.ts";
 
 /**
  * Neighborhood preservation for Voronoi treemaps (Paetzold et al. 2025):

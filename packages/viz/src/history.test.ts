@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { AtlasGraph } from "@sprawlens/schema";
-import { buildHistoryIndex, diffGraphs, type HistoryEntry } from "./history.js";
+import { buildHistoryIndex, diffGraphs, type HistoryEntry } from "./history.ts";
 
 function graphOf(files: [string, number][]): AtlasGraph {
   return {

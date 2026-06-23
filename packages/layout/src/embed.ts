@@ -1,4 +1,4 @@
-import type { Vec2 } from "./vec.js";
+import type { Vec2 } from "./vec.ts";
 
 /**
  * Deterministic neighborhood-preserving graph embedding (tsNET-style):

@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { AtlasGraph } from "@sprawlens/contracts";
-import { defaultModuleIdOf, deriveModuleIdOf, deriveModules } from "./modules.js";
+import { defaultModuleIdOf, deriveModuleIdOf, deriveModules } from "./modules.ts";
 
 describe("deriveModuleIdOf (structural, language-neutral)", () => {
   it("treats a top-level dir with no direct files as a container", () => {

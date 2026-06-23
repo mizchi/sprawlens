@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { parseCpuProfile, parseV8Coverage } from "./trace.js";
+import { parseCpuProfile, parseV8Coverage } from "./trace.ts";
 
 // minimal cpuprofile: (root) -> main -> [lib] -> beta ; main -> delta
 // main/beta/delta are in-repo; lib is in node_modules (excluded); root is a builtin

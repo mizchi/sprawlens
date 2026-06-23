@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { extractCfg } from "./cfgProvider.js";
+import { extractCfg } from "./cfgProvider.ts";
 
 const adjacency = (graph: { edges: { source: string; target: string }[] }) => {
   const out = new Map<string, string[]>();

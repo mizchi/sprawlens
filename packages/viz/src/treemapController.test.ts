@@ -8,7 +8,7 @@ import {
   createTreemapState,
   stepTreemapState,
   type TreemapState,
-} from "./treemapController.js";
+} from "./treemapController.ts";
 
 function sampleGraph(): AtlasGraph {
   const nodes = [

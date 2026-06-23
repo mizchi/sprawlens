@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { Snapshot } from "@sprawlens/contracts";
-import { buildTraceTimeline, mergeTimelines } from "./traceTimeline.js";
+import { buildTraceTimeline, mergeTimelines } from "./traceTimeline.ts";
 
 const sym = (id: string, name: string, startLine: number, endLine: number) => ({
   id,

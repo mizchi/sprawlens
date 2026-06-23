@@ -1,5 +1,5 @@
 import type { AtlasEdge } from "@sprawlens/contracts";
-import { transitiveWeights } from "./transitiveWeight.js";
+import { transitiveWeights } from "./transitiveWeight.ts";
 
 /**
  * Importance by reach into the dependency graph: how much transitively

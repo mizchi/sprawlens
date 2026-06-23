@@ -4,9 +4,9 @@ import {
   createCapacityLayout,
   type CellInputNode,
   type ClipRegion,
-} from "./capacityLayout.js";
-import { transitiveWeights } from "./transitiveWeight.js";
-import { createRng } from "./rng.js";
+} from "./capacityLayout.ts";
+import { transitiveWeights } from "./transitiveWeight.ts";
+import { createRng } from "./rng.ts";
 import type { AtlasEdge } from "@sprawlens/contracts";
 
 const clip: ClipRegion = { kind: "rect", x: 0, y: 0, width: 800, height: 600 };

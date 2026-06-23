@@ -13,7 +13,7 @@ export type RingOptions = {
   gapRatio?: number;
 };
 
-import { barycentricRingOrder } from "./ringOrder.js";
+import { barycentricRingOrder } from "./ringOrder.ts";
 
 export type PlacedCircle = { cx: number; cy: number; r: number; rank: number };
 

@@ -1,6 +1,6 @@
 import type { AtlasGraph } from "@sprawlens/schema";
 import { deriveModuleIdOf, deriveModules } from "@sprawlens/schema";
-import type { DiffSummary } from "./diffRender.js";
+import type { DiffSummary } from "./diffRender.ts";
 
 export type MermaidDiffOptions = {
   /** Counts shown in the diagram title; omitted when absent. */

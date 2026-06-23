@@ -1,4 +1,4 @@
-import type { CellResult } from "./capacityLayout.js";
+import type { CellResult } from "./capacityLayout.ts";
 
 /**
  * GeoJSON boundary types (RFC 7946 shapes over planar coordinates). The

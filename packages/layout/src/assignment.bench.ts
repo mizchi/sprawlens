@@ -1,6 +1,6 @@
 import { bench, describe } from "vitest";
-import { minCostAssignment } from "./assignment.js";
-import { createRng } from "./rng.js";
+import { minCostAssignment } from "./assignment.ts";
+import { createRng } from "./rng.ts";
 
 /** Random n×n cost matrices at the slot-assignment cap (subdivision uses ≤128). */
 function costMatrix(n: number, seed = 1): number[][] {

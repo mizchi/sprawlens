@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { bundlePath, hierarchyControlPoints } from "./bundling.js";
+import { bundlePath, hierarchyControlPoints } from "./bundling.ts";
 
 // two modules with one file each, plus one extra file in m1
 const parentOf = new Map<string, string | null>([

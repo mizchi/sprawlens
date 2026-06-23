@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { barycentricRingOrder, type OrderEdge } from "./ringOrder.js";
+import { barycentricRingOrder, type OrderEdge } from "./ringOrder.ts";
 
 function linearCrossings(pairs: readonly [number, number][]): number {
   let count = 0;

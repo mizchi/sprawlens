@@ -3,11 +3,11 @@ import {
   createCapacityLayout,
   type CapacityLayoutState,
   type CapacityOptions,
-} from "./capacityLayout.js";
-import { clampInto, clipCenter, clipScale, type ClipRegion } from "./clip.js";
-import { embedGraph } from "./embed.js";
-import { createForceLayout, forceStep } from "./forceLayout.js";
-import type { Vec2 } from "./vec.js";
+} from "./capacityLayout.ts";
+import { clampInto, clipCenter, clipScale, type ClipRegion } from "./clip.ts";
+import { embedGraph } from "./embed.ts";
+import { createForceLayout, forceStep } from "./forceLayout.ts";
+import type { Vec2 } from "./vec.ts";
 
 export type GraphLayoutOptions = CapacityOptions & {
   /** Force iterations used to derive initial site positions. */

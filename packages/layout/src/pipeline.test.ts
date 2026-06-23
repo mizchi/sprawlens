@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import type { AtlasGraph } from "@sprawlens/contracts";
-import { capacityStep, isConverged, type ClipRegion } from "./capacityLayout.js";
-import { createGraphLayout, embedSeedHints } from "./pipeline.js";
+import { capacityStep, isConverged, type ClipRegion } from "./capacityLayout.ts";
+import { createGraphLayout, embedSeedHints } from "./pipeline.ts";
 
 const rectClip: ClipRegion = { kind: "rect", x: 0, y: 0, width: 1, height: 1 };
 

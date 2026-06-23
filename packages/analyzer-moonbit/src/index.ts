@@ -1,3 +1,3 @@
 // @sprawlens/analyzer-moonbit — MoonBit provider (heuristic)
-export * from "./extract.js";
-export * from "./provider.js";
+export * from "./extract.ts";
+export * from "./provider.ts";

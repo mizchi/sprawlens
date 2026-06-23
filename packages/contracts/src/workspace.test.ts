@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { matchWorkspacePackage, type WorkspacePackage } from "./workspace.js";
+import { matchWorkspacePackage, type WorkspacePackage } from "./workspace.ts";
 
 const npm: WorkspacePackage[] = [
   { name: "@sprawlens/schema", sourceRoot: "packages/schema/src" },

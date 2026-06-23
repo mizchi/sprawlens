@@ -3,10 +3,9 @@
   "compilerOptions": {
     "rootDir": "src",
     "noEmit": true,
-    // the headless SVG renderer pulls @sprawlens/viz preact components (.tsx,
-    // ts-extension imports), so type-check them the way viz does
-    "jsxImportSource": "preact",
-    "allowImportingTsExtensions": true
+    // the headless SVG renderer pulls @sprawlens/viz preact components, so
+    // type-check them the way viz does (allowImportingTsExtensions is in base)
+    "jsxImportSource": "preact"
   },
   "include": ["src"]
 }

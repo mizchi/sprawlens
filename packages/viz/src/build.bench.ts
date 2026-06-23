@@ -2,8 +2,8 @@ import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { bench, describe } from "vitest";
 import { snapshotToAtlasGraph, type SnapshotLike } from "@sprawlens/schema";
-import { createRingsState } from "./ringsController.js";
-import { createTreemapState } from "./treemapController.js";
+import { createRingsState } from "./ringsController.ts";
+import { createTreemapState } from "./treemapController.ts";
 import type { AtlasGraph } from "@sprawlens/schema";
 
 const opts = {

@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { cellsToFeatureCollection } from "./geojson.js";
-import type { CellResult } from "./capacityLayout.js";
+import { cellsToFeatureCollection } from "./geojson.ts";
+import type { CellResult } from "./capacityLayout.ts";
 
 const cell: CellResult = {
   id: "a",

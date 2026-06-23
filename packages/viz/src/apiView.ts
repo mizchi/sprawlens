@@ -2,7 +2,7 @@ import type { AtlasEdge, AtlasGraph, AtlasNode } from "@sprawlens/schema";
 import { parentFileOf } from "@sprawlens/schema";
 import { defaultModuleIdOf } from "@sprawlens/schema";
 import { transitiveWeights } from "@sprawlens/layout";
-import { complexityOf } from "./viewConfig.js";
+import { complexityOf } from "./viewConfig.ts";
 
 /**
  * Public-API network projection: file scope is dropped, every exported

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { computeGraphMetrics } from "./metrics.js";
+import { computeGraphMetrics } from "./metrics.ts";
 import type { CodeEdge, CodeNode } from "@sprawlens/contracts";
 
 describe("computeGraphMetrics", () => {

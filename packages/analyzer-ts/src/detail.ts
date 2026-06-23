@@ -2,10 +2,10 @@ import { readFile } from "node:fs/promises";
 import { createRequire } from "node:module";
 import { join } from "node:path";
 import type { LanguageDetail } from "@sprawlens/schema";
-import { callHierarchy } from "./callHierarchyProvider.js";
-import { extractCfg } from "./cfgProvider.js";
-import { hover } from "./hoverProvider.js";
-import { LspClient } from "./lspClient.js";
+import { callHierarchy } from "./callHierarchyProvider.ts";
+import { extractCfg } from "./cfgProvider.ts";
+import { hover } from "./hoverProvider.ts";
+import { LspClient } from "./lspClient.ts";
 
 /** How to spawn a language server, and the LSP languageId for its files. */
 export type LspServerSpec = {

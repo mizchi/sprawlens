@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { createSyntheticGraph, synthesizeSymbolEdges, synthesizeSymbols } from "./synthetic.js";
+import { createSyntheticGraph, synthesizeSymbolEdges, synthesizeSymbols } from "./synthetic.ts";
 
 describe("createSyntheticGraph", () => {
   it("is deterministic for the same seed", () => {

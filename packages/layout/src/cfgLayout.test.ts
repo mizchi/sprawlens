@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { AtlasEdge, AtlasNode } from "@sprawlens/contracts";
-import { layoutCfg } from "./cfgLayout.js";
+import { layoutCfg } from "./cfgLayout.ts";
 
 const block = (id: string): AtlasNode => ({
   id,

@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { Snapshot, TestRun, TestTree } from "@sprawlens/contracts";
-import { parseTestId, resolveTestRun, testRunOverlay } from "./testRun.js";
+import { parseTestId, resolveTestRun, testRunOverlay } from "./testRun.ts";
 
 const snapshot = {
   schemaVersion: 1,

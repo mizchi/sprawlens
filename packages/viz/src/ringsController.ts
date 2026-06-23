@@ -16,7 +16,7 @@ import {
   seedLeafLayout,
   subdivideUnder,
   type SubdivisionLevel,
-} from "./subdivision.js";
+} from "./subdivision.ts";
 
 /**
  * Concentric-ring layout: the top boundary level's network is placed as

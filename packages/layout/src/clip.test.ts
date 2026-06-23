@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { clampInto, clipCenter, clipToRing, randomPointIn, type ClipRegion } from "./clip.js";
-import { createRng } from "./rng.js";
+import { clampInto, clipCenter, clipToRing, randomPointIn, type ClipRegion } from "./clip.ts";
+import { createRng } from "./rng.ts";
 
 const triangle: ClipRegion = {
   kind: "polygon",

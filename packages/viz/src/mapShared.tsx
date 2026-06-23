@@ -5,10 +5,10 @@ import { bundlePath, hierarchyControlPoints } from "@sprawlens/layout";
 import type { CellResult } from "@sprawlens/layout";
 import type { Vec2 } from "@sprawlens/layout";
 import { apply, toMatrixString, uprightAt, type Affine } from "@sprawlens/layout";
-import type { PlacedNode } from "./planeLayers.js";
+import type { PlacedNode } from "./planeLayers.ts";
 import { symbolNameOf } from "./cfgClient.ts";
 import type { CfgAnchor } from "./CfgLayer.tsx";
-import type { SubdivisionLevel } from "./subdivision.js";
+import type { SubdivisionLevel } from "./subdivision.ts";
 import type { FocusView } from "./useMapViewport.ts";
 
 /**

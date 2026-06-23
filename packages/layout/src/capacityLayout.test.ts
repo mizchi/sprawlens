@@ -7,8 +7,8 @@ import {
   type CapacityLayoutState,
   type CellInputNode,
   type ClipRegion,
-} from "./capacityLayout.js";
-import { createRng } from "./rng.js";
+} from "./capacityLayout.ts";
+import { createRng } from "./rng.ts";
 
 const rectClip: ClipRegion = { kind: "rect", x: 0, y: 0, width: 1, height: 1 };
 const circleClip: ClipRegion = { kind: "circle", cx: 0.5, cy: 0.5, r: 0.5 };
