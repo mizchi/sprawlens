@@ -1,0 +1,12 @@
+{
+  "$schema": "./node_modules/oxlint/configuration_schema.json",
+  "ignorePatterns": [
+    "**/dist/**",
+    "**/vendor/**",
+    "packages/viz/public-atlas/**",
+    "**/*.svg"
+  ],
+  "rules": {
+    "no-control-regex": "off"
+  }
+}
