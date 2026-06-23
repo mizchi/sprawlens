@@ -46,7 +46,7 @@
   "scripts": {
     "dev": "tsx src/index.ts",
     "dev:server": "tsx watch src/devServer.ts sprawlens=../..",
-    "build": "node esbuild.config.mjs"
+    "build": "node build.mjs"
   },
   "dependencies": {
     "@cdktf/hcl2json": "^0.21.0",
@@ -67,6 +67,6 @@
     "@sprawlens/schema": "workspace:*",
     "@sprawlens/server": "workspace:*",
     "@sprawlens/viz": "workspace:*",
-    "esbuild": "^0.28.0"
+    "tsdown": "^0.22.3"
   }
 }
