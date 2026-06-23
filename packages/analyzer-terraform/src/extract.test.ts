@@ -42,17 +42,13 @@ describe("parseTerraform", () => {
       "aws_sqs_queue.orders",
       "module.orders",
     ]);
-    expect(byAddress.get("aws_lambda_function.orders_api")?.type).toBe(
-      "aws_lambda_function",
-    );
+    expect(byAddress.get("aws_lambda_function.orders_api")?.type).toBe("aws_lambda_function");
     expect(byAddress.get("module.orders")?.type).toBe("module");
   });
 
   it("captures references with their attribute path", async () => {
     const resources = await parseTerraform("sample.tf", SAMPLE);
-    const lambda = resources.find(
-      (r) => r.address === "aws_lambda_function.orders_api",
-    )!;
+    const lambda = resources.find((r) => r.address === "aws_lambda_function.orders_api")!;
     // top-level role reference
     expect(lambda.references).toContainEqual({
       attr: "role",
@@ -67,9 +63,7 @@ describe("parseTerraform", () => {
 
   it("keeps wiring-resource endpoints as distinct attributes", async () => {
     const resources = await parseTerraform("sample.tf", SAMPLE);
-    const mapping = resources.find(
-      (r) => r.address === "aws_lambda_event_source_mapping.orders",
-    )!;
+    const mapping = resources.find((r) => r.address === "aws_lambda_event_source_mapping.orders")!;
     expect(mapping.references).toContainEqual({
       attr: "event_source_arn",
       address: "aws_sqs_queue.orders",
@@ -127,8 +121,6 @@ describe("parseTerraform", () => {
        }`,
     );
     const a = resources.find((r) => r.address === "aws_lambda_function.a")!;
-    expect(a.references.map((r) => r.address)).toEqual([
-      "aws_lambda_function.b",
-    ]);
+    expect(a.references.map((r) => r.address)).toEqual(["aws_lambda_function.b"]);
   });
 });

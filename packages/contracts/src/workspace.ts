@@ -27,17 +27,12 @@ export function matchWorkspacePackage(
 ): { pkg: WorkspacePackage; subpath: string } | null {
   let best: WorkspacePackage | null = null;
   for (const pkg of packages) {
-    if (
-      specifier === pkg.name ||
-      specifier.startsWith(pkg.name + separator)
-    ) {
+    if (specifier === pkg.name || specifier.startsWith(pkg.name + separator)) {
       if (!best || pkg.name.length > best.name.length) best = pkg;
     }
   }
   if (!best) return null;
   const subpath =
-    specifier === best.name
-      ? ""
-      : specifier.slice(best.name.length + separator.length);
+    specifier === best.name ? "" : specifier.slice(best.name.length + separator.length);
   return { pkg: best, subpath };
 }

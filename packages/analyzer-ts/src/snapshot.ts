@@ -30,7 +30,16 @@ type WorkspaceInfo = {
   entryByName: Map<string, string>;
 };
 
-export const SOURCE_EXTENSIONS = [".ts", ".tsx", ".js", ".jsx", ".mts", ".cts", ".mjs", ".cjs"] as const;
+export const SOURCE_EXTENSIONS = [
+  ".ts",
+  ".tsx",
+  ".js",
+  ".jsx",
+  ".mts",
+  ".cts",
+  ".mjs",
+  ".cjs",
+] as const;
 
 const SOURCE_PATTERNS = SOURCE_EXTENSIONS.map((ext) => `**/*${ext}`);
 const DEFAULT_IGNORES = [
@@ -65,10 +74,7 @@ type ParsedFile = {
 };
 
 /** Per-file parse cache for incremental re-analysis (path → mtime/size/parse). */
-export type ParseCache = Map<
-  string,
-  { mtimeMs: number; size: number; parsed: ParsedFile }
->;
+export type ParseCache = Map<string, { mtimeMs: number; size: number; parsed: ParsedFile }>;
 
 type SnapshotOptions = {
   repoPath?: string;
@@ -112,12 +118,14 @@ export async function createSnapshotFromWorkingTree(
   const root = path.resolve(workingTreePath);
   const repoPath = options.repoPath ? path.resolve(options.repoPath) : root;
   const repoName = options.repoName ?? path.basename(repoPath);
-  const files = (await fg(SOURCE_PATTERNS, {
-    cwd: root,
-    onlyFiles: true,
-    unique: true,
-    ignore: DEFAULT_IGNORES,
-  })).sort();
+  const files = (
+    await fg(SOURCE_PATTERNS, {
+      cwd: root,
+      onlyFiles: true,
+      unique: true,
+      ignore: DEFAULT_IGNORES,
+    })
+  ).sort();
 
   const fileSet = new Set(files.map(normalizePath));
   const cache = options.cache;
@@ -151,7 +159,10 @@ export async function createSnapshotFromWorkingTree(
 
   const workspace = await detectWorkspacePackages(root);
   const edges = [
-    ...createContainsEdges(dirPaths, fileNodes.map((node) => node.path)),
+    ...createContainsEdges(
+      dirPaths,
+      fileNodes.map((node) => node.path),
+    ),
     ...createImportEdges(root, parsedByPath, fileSet, fileNodes, workspace),
   ];
   const { metrics } = computeGraphMetrics(nodes, edges);
@@ -267,13 +278,11 @@ async function workspaceGlobs(root: string): Promise<string[]> {
     // no pnpm-workspace.yaml
   }
   try {
-    const json = JSON.parse(
-      await readFile(path.join(root, "package.json"), "utf8"),
-    ) as { workspaces?: unknown };
+    const json = JSON.parse(await readFile(path.join(root, "package.json"), "utf8")) as {
+      workspaces?: unknown;
+    };
     const ws = json.workspaces;
-    const arr = Array.isArray(ws)
-      ? ws
-      : (ws as { packages?: unknown } | undefined)?.packages;
+    const arr = Array.isArray(ws) ? ws : (ws as { packages?: unknown } | undefined)?.packages;
     if (Array.isArray(arr)) return arr.filter((g): g is string => typeof g === "string");
   } catch {
     // no package.json / no workspaces field
@@ -298,10 +307,7 @@ function workspaceEntry(
           (dot as Record<string, string>).import ??
           (dot as Record<string, string>).default)
         : undefined;
-  const rel = (json.types ?? fromExports ?? json.main ?? "src/index.ts").replace(
-    /^\.\//,
-    "",
-  );
+  const rel = (json.types ?? fromExports ?? json.main ?? "src/index.ts").replace(/^\.\//, "");
   return normalizePath(path.posix.join(dir, rel));
 }
 
@@ -330,7 +336,13 @@ async function detectWorkspacePackages(root: string): Promise<WorkspaceInfo> {
   return { packages, entryByName };
 }
 
-function createImportEdges(root: string, parsedByPath: Map<string, ParsedFile>, fileSet: Set<string>, fileNodes: FileNode[], workspace: WorkspaceInfo): CodeEdge[] {
+function createImportEdges(
+  root: string,
+  parsedByPath: Map<string, ParsedFile>,
+  fileSet: Set<string>,
+  fileNodes: FileNode[],
+  workspace: WorkspaceInfo,
+): CodeEdge[] {
   const edges = new Map<string, CodeEdge>();
   const fileByPath = new Map(fileNodes.map((file) => [file.path, file]));
 
@@ -381,7 +393,9 @@ function createImportEdges(root: string, parsedByPath: Map<string, ParsedFile>, 
       const resolvedPath = resolveRelativeImport(fromPath, specifier, fileSet);
       const to = resolvedPath ? fileId(resolvedPath) : unresolvedId(fromPath, specifier);
       const id = importId(from, to, specifier);
-      const symbolImports = resolvedPath ? resolveSymbolImports(bindings, usageByLocal, fileByPath.get(resolvedPath)) : [];
+      const symbolImports = resolvedPath
+        ? resolveSymbolImports(bindings, usageByLocal, fileByPath.get(resolvedPath))
+        : [];
       edges.set(id, {
         id,
         type: "imports",
@@ -400,7 +414,13 @@ function createImportEdges(root: string, parsedByPath: Map<string, ParsedFile>, 
 }
 
 function extractImports(content: string, fileName: string): ExtractedImport[] {
-  const sourceFile = ts.createSourceFile(fileName, content, ts.ScriptTarget.Latest, true, scriptKindFor(fileName));
+  const sourceFile = ts.createSourceFile(
+    fileName,
+    content,
+    ts.ScriptTarget.Latest,
+    true,
+    scriptKindFor(fileName),
+  );
   const imports: ExtractedImport[] = [];
 
   function visit(node: ts.Node) {
@@ -409,7 +429,11 @@ function extractImports(content: string, fileName: string): ExtractedImport[] {
         specifier: node.moduleSpecifier.text,
         bindings: bindingsFromImportDeclaration(node),
       });
-    } else if (ts.isExportDeclaration(node) && node.moduleSpecifier && ts.isStringLiteralLike(node.moduleSpecifier)) {
+    } else if (
+      ts.isExportDeclaration(node) &&
+      node.moduleSpecifier &&
+      ts.isStringLiteralLike(node.moduleSpecifier)
+    ) {
       imports.push({
         specifier: node.moduleSpecifier.text,
         bindings: bindingsFromExportDeclaration(node),
@@ -418,9 +442,15 @@ function extractImports(content: string, fileName: string): ExtractedImport[] {
       const firstArg = node.arguments[0];
       if (firstArg && ts.isStringLiteralLike(firstArg)) {
         if (node.expression.kind === ts.SyntaxKind.ImportKeyword) {
-          imports.push({ specifier: firstArg.text, bindings: [{ imported: "*", local: "*", kind: "dynamic" }] });
+          imports.push({
+            specifier: firstArg.text,
+            bindings: [{ imported: "*", local: "*", kind: "dynamic" }],
+          });
         } else if (ts.isIdentifier(node.expression) && node.expression.text === "require") {
-          imports.push({ specifier: firstArg.text, bindings: [{ imported: "*", local: "*", kind: "require" }] });
+          imports.push({
+            specifier: firstArg.text,
+            bindings: [{ imported: "*", local: "*", kind: "require" }],
+          });
         }
       }
     }
@@ -440,7 +470,12 @@ function bindingsFromImportDeclaration(node: ts.ImportDeclaration): CodeImportBi
   const bindings: CodeImportBinding[] = [];
   const typeOnly = importClause.isTypeOnly || undefined;
   if (importClause.name) {
-    bindings.push({ imported: "default", local: importClause.name.text, kind: "default", typeOnly });
+    bindings.push({
+      imported: "default",
+      local: importClause.name.text,
+      kind: "default",
+      typeOnly,
+    });
   }
   const namedBindings = importClause.namedBindings;
   if (namedBindings && ts.isNamespaceImport(namedBindings)) {
@@ -461,10 +496,19 @@ function bindingsFromImportDeclaration(node: ts.ImportDeclaration): CodeImportBi
 function bindingsFromExportDeclaration(node: ts.ExportDeclaration): CodeImportBinding[] {
   const exportClause = node.exportClause;
   if (!exportClause) {
-    return [{ imported: "*", local: "*", kind: "reexport-all", typeOnly: node.isTypeOnly || undefined }];
+    return [
+      { imported: "*", local: "*", kind: "reexport-all", typeOnly: node.isTypeOnly || undefined },
+    ];
   }
   if (ts.isNamespaceExport(exportClause)) {
-    return [{ imported: "*", local: exportClause.name.text, kind: "reexport-all", typeOnly: node.isTypeOnly || undefined }];
+    return [
+      {
+        imported: "*",
+        local: exportClause.name.text,
+        kind: "reexport-all",
+        typeOnly: node.isTypeOnly || undefined,
+      },
+    ];
   }
   return exportClause.elements.map((element) => ({
     imported: element.propertyName?.text ?? element.name.text,
@@ -482,17 +526,28 @@ function resolveSymbolImports(
   if (!targetFile) {
     return [];
   }
-  const exportedSymbols = new Map((targetFile.symbols ?? []).filter((symbol) => symbol.exported).map((symbol) => [symbol.name, symbol]));
+  const exportedSymbols = new Map(
+    (targetFile.symbols ?? [])
+      .filter((symbol) => symbol.exported)
+      .map((symbol) => [symbol.name, symbol]),
+  );
   const imports: CodeSymbolImport[] = [];
   for (const binding of bindings) {
-    if (binding.typeOnly || binding.imported === "*" || binding.kind === "side-effect" || binding.kind === "dynamic" || binding.kind === "require") {
+    if (
+      binding.typeOnly ||
+      binding.imported === "*" ||
+      binding.kind === "side-effect" ||
+      binding.kind === "dynamic" ||
+      binding.kind === "require"
+    ) {
       continue;
     }
     const target = exportedSymbols.get(binding.imported);
     if (!target) {
       continue;
     }
-    const fromSymbols = binding.kind === "reexport-named" ? [] : (usageByLocal.get(binding.local) ?? []);
+    const fromSymbols =
+      binding.kind === "reexport-named" ? [] : (usageByLocal.get(binding.local) ?? []);
     if (fromSymbols.length === 0) {
       imports.push({
         ...binding,
@@ -514,12 +569,22 @@ function resolveSymbolImports(
   return imports;
 }
 
-function collectTopLevelSymbolUsages(content: string, fileName: string, localNames: Set<string>): Map<string, CodeSymbol[]> {
+function collectTopLevelSymbolUsages(
+  content: string,
+  fileName: string,
+  localNames: Set<string>,
+): Map<string, CodeSymbol[]> {
   const usages = new Map<string, CodeSymbol[]>();
   if (localNames.size === 0 || (localNames.size === 1 && localNames.has("*"))) {
     return usages;
   }
-  const sourceFile = ts.createSourceFile(fileName, content, ts.ScriptTarget.Latest, true, scriptKindFor(fileName));
+  const sourceFile = ts.createSourceFile(
+    fileName,
+    content,
+    ts.ScriptTarget.Latest,
+    true,
+    scriptKindFor(fileName),
+  );
 
   for (const statement of sourceFile.statements) {
     if (ts.isImportDeclaration(statement) || ts.isExportDeclaration(statement)) {
@@ -548,7 +613,13 @@ function collectTopLevelSymbolUsages(content: string, fileName: string, localNam
 }
 
 function extractTopLevelSymbols(content: string, fileName: string): CodeSymbol[] {
-  const sourceFile = ts.createSourceFile(fileName, content, ts.ScriptTarget.Latest, true, scriptKindFor(fileName));
+  const sourceFile = ts.createSourceFile(
+    fileName,
+    content,
+    ts.ScriptTarget.Latest,
+    true,
+    scriptKindFor(fileName),
+  );
   const symbols: CodeSymbol[] = [];
 
   for (const statement of sourceFile.statements) {
@@ -559,11 +630,23 @@ function extractTopLevelSymbols(content: string, fileName: string): CodeSymbol[]
   return symbols.sort((a, b) => a.startLine - b.startLine || a.name.localeCompare(b.name));
 }
 
-function symbolsFromTopLevelStatement(statement: ts.Statement, sourceFile: ts.SourceFile, fileName: string, exported: boolean): CodeSymbol[] {
+function symbolsFromTopLevelStatement(
+  statement: ts.Statement,
+  sourceFile: ts.SourceFile,
+  fileName: string,
+  exported: boolean,
+): CodeSymbol[] {
   const direct = symbolFromStatement(statement, sourceFile, fileName, exported);
   if (direct) {
     if (ts.isClassDeclaration(statement) && statement.name) {
-      const members = classMemberSymbols(statement, sourceFile, fileName, statement.name.text, direct.id, exported);
+      const members = classMemberSymbols(
+        statement,
+        sourceFile,
+        fileName,
+        statement.name.text,
+        direct.id,
+        exported,
+      );
       // the class keeps only its own (non-member) lines so class + members
       // sum to the declaration's span — no double counting when both show
       const memberLoc = members.reduce((sum, m) => sum + m.loc, 0);
@@ -576,7 +659,13 @@ function symbolsFromTopLevelStatement(statement: ts.Statement, sourceFile: ts.So
     return [];
   }
   return statement.declarationList.declarations.flatMap((declaration) => {
-    const variableSymbol = symbolFromVariableDeclaration(declaration, statement, sourceFile, fileName, exported);
+    const variableSymbol = symbolFromVariableDeclaration(
+      declaration,
+      statement,
+      sourceFile,
+      fileName,
+      exported,
+    );
     return variableSymbol ? [variableSymbol] : [];
   });
 }
@@ -607,14 +696,17 @@ function classMemberSymbols(
     } else if (ts.isMethodDeclaration(member)) {
       base = "method";
       name = memberName(member.name, sourceFile);
-    } else if (ts.isGetAccessor(member) || ts.isSetAccessor(member) || ts.isPropertyDeclaration(member)) {
+    } else if (
+      ts.isGetAccessor(member) ||
+      ts.isSetAccessor(member) ||
+      ts.isPropertyDeclaration(member)
+    ) {
       base = "property";
       name = memberName(member.name, sourceFile);
     }
     if (!base || !name) continue;
     const isStatic = hasModifier(member, ts.SyntaxKind.StaticKeyword);
-    const isPrivate =
-      hasModifier(member, ts.SyntaxKind.PrivateKeyword) || name.startsWith("#");
+    const isPrivate = hasModifier(member, ts.SyntaxKind.PrivateKeyword) || name.startsWith("#");
     const kind = (isStatic ? `static-${base}` : base) as CodeSymbolKind;
     const start = sourceFile.getLineAndCharacterOfPosition(member.getStart(sourceFile)).line + 1;
     const end = sourceFile.getLineAndCharacterOfPosition(member.getEnd()).line + 1;
@@ -633,14 +725,22 @@ function classMemberSymbols(
   return out;
 }
 
-function memberName(name: ts.PropertyName | undefined, sourceFile: ts.SourceFile): string | undefined {
+function memberName(
+  name: ts.PropertyName | undefined,
+  sourceFile: ts.SourceFile,
+): string | undefined {
   if (!name) return undefined;
   if (ts.isIdentifier(name) || ts.isPrivateIdentifier(name)) return name.text;
   if (ts.isStringLiteral(name) || ts.isNumericLiteral(name)) return name.text;
   return name.getText(sourceFile);
 }
 
-function symbolFromStatement(statement: ts.Statement, sourceFile: ts.SourceFile, fileName: string, exported: boolean): CodeSymbol | undefined {
+function symbolFromStatement(
+  statement: ts.Statement,
+  sourceFile: ts.SourceFile,
+  fileName: string,
+  exported: boolean,
+): CodeSymbol | undefined {
   if (ts.isFunctionDeclaration(statement) && statement.name) {
     return createSymbol(fileName, sourceFile, statement, "function", statement.name.text, exported);
   }
@@ -648,7 +748,14 @@ function symbolFromStatement(statement: ts.Statement, sourceFile: ts.SourceFile,
     return createSymbol(fileName, sourceFile, statement, "class", statement.name.text, exported);
   }
   if (ts.isInterfaceDeclaration(statement)) {
-    return createSymbol(fileName, sourceFile, statement, "interface", statement.name.text, exported);
+    return createSymbol(
+      fileName,
+      sourceFile,
+      statement,
+      "interface",
+      statement.name.text,
+      exported,
+    );
   }
   if (ts.isEnumDeclaration(statement)) {
     return createSymbol(fileName, sourceFile, statement, "enum", statement.name.text, exported);
@@ -746,7 +853,10 @@ function cyclomaticComplexity(root: ts.Node): number {
 }
 
 function hasExportModifier(node: ts.Node): boolean {
-  return Boolean(ts.canHaveModifiers(node) && ts.getModifiers(node)?.some((modifier) => modifier.kind === ts.SyntaxKind.ExportKeyword));
+  return Boolean(
+    ts.canHaveModifiers(node) &&
+    ts.getModifiers(node)?.some((modifier) => modifier.kind === ts.SyntaxKind.ExportKeyword),
+  );
 }
 
 function scriptKindFor(fileName: string): ts.ScriptKind {
@@ -762,7 +872,11 @@ function scriptKindFor(fileName: string): ts.ScriptKind {
   return ts.ScriptKind.TS;
 }
 
-function resolveRelativeImport(fromPath: string, specifier: string, fileSet: Set<string>): string | undefined {
+function resolveRelativeImport(
+  fromPath: string,
+  specifier: string,
+  fileSet: Set<string>,
+): string | undefined {
   const fromDir = path.posix.dirname(fromPath);
   const basePath = path.posix.normalize(path.posix.join(fromDir, specifier));
   if (basePath.startsWith("../") || basePath === "..") {
@@ -805,7 +919,12 @@ function fileId(relativePath: string): string {
   return `file:${relativePath}`;
 }
 
-function symbolId(relativePath: string, kind: CodeSymbolKind, name: string, startLine: number): string {
+function symbolId(
+  relativePath: string,
+  kind: CodeSymbolKind,
+  name: string,
+  startLine: number,
+): string {
   return `symbol:${relativePath}:${kind}:${name}:${startLine}`;
 }
 

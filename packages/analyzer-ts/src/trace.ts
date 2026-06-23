@@ -28,9 +28,7 @@ type CpuProfile = {
  * repo (node_modules, node internals, V8 builtins with no url). */
 function toRepoRelative(url: string, repoRoot: string): string | undefined {
   if (!url) return undefined;
-  let path = url.startsWith("file://")
-    ? decodeURIComponent(url.slice("file://".length))
-    : url;
+  let path = url.startsWith("file://") ? decodeURIComponent(url.slice("file://".length)) : url;
   if (!path.startsWith("/")) return undefined; // builtins like "node:fs"
   if (path.includes("/node_modules/")) return undefined;
   const root = repoRoot.endsWith("/") ? repoRoot : `${repoRoot}/`;

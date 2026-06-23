@@ -67,9 +67,7 @@ function toDirNode(entry: DirEntry, relPath: string, label: string): TestNode {
  * starts where paths diverge), and single-child directory chains collapse into
  * one node. Returns null when no file carries any test.
  */
-export function buildTestTree(
-  files: readonly TestFileExtraction[],
-): TestTree | null {
+export function buildTestTree(files: readonly TestFileExtraction[]): TestTree | null {
   const withTests = files.filter((f) => f.nodes.length > 0);
   if (withTests.length === 0) return null;
 

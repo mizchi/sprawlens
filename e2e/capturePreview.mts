@@ -21,7 +21,10 @@ const PORT = 4790;
 const base = `http://127.0.0.1:${PORT}`;
 
 const VIEWS = [
-  { tag: "treemap", query: "source=served&layout=treemap&seed=1&displayLevels=module,class,symbol" },
+  {
+    tag: "treemap",
+    query: "source=served&layout=treemap&seed=1&displayLevels=module,class,symbol",
+  },
   { tag: "rings", query: "source=served&layout=rings&seed=1&displayLevels=module,class,symbol" },
 ];
 
@@ -50,7 +53,10 @@ const server = spawn(
 try {
   await waitReady(`${base}/api/snapshot`, 180_000);
   const browser = await chromium.launch();
-  const page = await browser.newPage({ viewport: { width: 1600, height: 900 }, deviceScaleFactor: 2 });
+  const page = await browser.newPage({
+    viewport: { width: 1600, height: 900 },
+    deviceScaleFactor: 2,
+  });
   for (const view of VIEWS) {
     await page.goto(`${base}/?${view.query}`);
     await page.waitForFunction(

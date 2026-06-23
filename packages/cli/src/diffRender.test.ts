@@ -66,9 +66,7 @@ describe("diff render end-to-end", () => {
       expect(diffSummary).toEqual({ added: 1, modified: 1, removed: 1 });
 
       const snapshot = await tsProvider.analyze(root);
-      const graph = snapshotToAtlasGraph(
-        snapshot as Parameters<typeof snapshotToAtlasGraph>[0],
-      );
+      const graph = snapshotToAtlasGraph(snapshot as Parameters<typeof snapshotToAtlasGraph>[0]);
       const svg = renderAtlasSvg(graph, { layout: "treemap", seed: 1, changed, diffSummary });
 
       expect(svg).toContain("hsl(150 55% 80%)"); // ADDED_FILL — b.ts

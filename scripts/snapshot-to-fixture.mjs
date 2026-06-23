@@ -3,8 +3,7 @@
 //   default emits a TS module; pass "json" as the 3rd arg for raw JSON.
 import { readFileSync } from "node:fs";
 
-const [snapPath, exportName = "sprawlensSnapshot", format = "ts"] =
-  process.argv.slice(2);
+const [snapPath, exportName = "sprawlensSnapshot", format = "ts"] = process.argv.slice(2);
 const snap = JSON.parse(readFileSync(snapPath, "utf8"));
 
 const MEMBER = /^(static-)?(method|property)$/;
@@ -59,7 +58,10 @@ for (const e of snap.edges) {
       const symbolImports = [];
       for (const b of e.bindings ?? []) {
         const id = exp.get(b.imported);
-        if (id && !seen.has(id)) { seen.add(id); symbolImports.push({ toSymbolId: id }); }
+        if (id && !seen.has(id)) {
+          seen.add(id);
+          symbolImports.push({ toSymbolId: id });
+        }
       }
       if (symbolImports.length) out.symbolImports = symbolImports;
     }

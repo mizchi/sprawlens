@@ -51,8 +51,9 @@ describe("extractCfg", () => {
     const out = adjacency(graph).get(cond.id)!;
     expect(out).toHaveLength(2); // then / else
     // both branches flow into the trailing block
-    const trailing = graph.nodes.find((n) => n.label === "done();")
-      ?? graph.nodes.find((n) => graph.edges.filter((e) => e.target === n.id).length === 2)!;
+    const trailing =
+      graph.nodes.find((n) => n.label === "done();") ??
+      graph.nodes.find((n) => graph.edges.filter((e) => e.target === n.id).length === 2)!;
     const intoTrailing = graph.edges.filter((e) => e.target === trailing.id);
     expect(intoTrailing).toHaveLength(2);
   });
@@ -113,8 +114,7 @@ describe("extractCfg", () => {
       1,
     )!;
     const callsOf = (label: string) =>
-      graph.calls![graph.nodes.find((n) => n.label.startsWith(label))!.id] ??
-      [];
+      graph.calls![graph.nodes.find((n) => n.label.startsWith(label))!.id] ?? [];
     expect(callsOf("prepare")).toContain("prepare");
     expect(callsOf("for")).toContain("iterate");
     expect(callsOf("if isReady")).toContain("isReady");
@@ -233,8 +233,7 @@ describe("extractCfg", () => {
       1,
     )!;
     const grid = graph.grid!;
-    const at = (label: string) =>
-      grid[graph.nodes.find((n) => n.label.startsWith(label))!.id]!;
+    const at = (label: string) => grid[graph.nodes.find((n) => n.label.startsWith(label))!.id]!;
     // main path stays on the spine column
     expect(at("entry").col).toBe(0);
     expect(at("if x > 0").col).toBe(0);
@@ -273,15 +272,9 @@ describe("extractCfg", () => {
     const cont = graph.nodes.find((n) => n.label === "continue")!;
     const brk = graph.nodes.find((n) => n.label === "break")!;
     const done = graph.nodes.find((n) => n.label === "done();")!;
-    expect(
-      graph.edges.some((e) => e.source === cont.id && e.target === head.id),
-    ).toBe(true);
-    expect(
-      graph.edges.some((e) => e.source === brk.id && e.target === done.id),
-    ).toBe(true);
+    expect(graph.edges.some((e) => e.source === cont.id && e.target === head.id)).toBe(true);
+    expect(graph.edges.some((e) => e.source === brk.id && e.target === done.id)).toBe(true);
     // break must NOT flow back to the head
-    expect(
-      graph.edges.some((e) => e.source === brk.id && e.target === head.id),
-    ).toBe(false);
+    expect(graph.edges.some((e) => e.source === brk.id && e.target === head.id)).toBe(false);
   });
 });

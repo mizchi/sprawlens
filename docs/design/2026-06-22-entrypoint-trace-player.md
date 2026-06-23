@@ -17,7 +17,7 @@ model shaped so a live debugger can drive the same player later.
 
 ## What already exists (reuse)
 
-Mapped in exploration — the *ingest* side is built:
+Mapped in exploration — the _ingest_ side is built:
 
 - Contract `Trace`/`TraceNode`/`TraceEdge` + `resolveTraceSymbols()`
   (`packages/schema/src/core/trace.ts`) joins frames to snapshot symbols by
@@ -28,8 +28,8 @@ Mapped in exploration — the *ingest* side is built:
   `TreemapSvg` via `SceneEdges.trace` / `traceHeat`.
 - `/api/trace` serves a `Trace`; CLI `--trace <path>` ingests one.
 
-**Missing** = (1) a *capture driver* that records sprawlens' own run, and (2) a
-*time-ordered* model + player. The existing `Trace` is aggregate (heat/counts),
+**Missing** = (1) a _capture driver_ that records sprawlens' own run, and (2) a
+_time-ordered_ model + player. The existing `Trace` is aggregate (heat/counts),
 not ordered — so the timeline is a new, parallel artifact.
 
 ## Data model (new contract)
@@ -84,7 +84,7 @@ animation stays on first-party code.
 New `e2e/trace-self.spec.ts` + `playwright.trace.config.ts`. Runs the **real**
 CLI on the sprawlens repo (not the static fixture) so the entry path is real.
 
-**Browser plane is captured against the vite *dev* server (unbundled ESM), not
+**Browser plane is captured against the vite _dev_ server (unbundled ESM), not
 the production bundle**, so `callFrame.url` resolves to real source files
 without sourcemaps. (Resolving the minified production bundle via sourcemap is a
 later option; dev is what "確認したい開発環境" means anyway.)
@@ -97,7 +97,7 @@ later option; dev is what "確認したい開発環境" means anyway.)
    `e2e/__trace__/self-server.cpuprofile`.
    - Risk to validate first: getting a clean flush on shutdown and that the
      entry/analyze frames (not just the idle server loop) are in the samples —
-     capture must start *before* analyze runs.
+     capture must start _before_ analyze runs.
 2. **Browser plane**: Playwright `context.newCDPSession(page)` →
    `Profiler.enable` → `Profiler.start` → `goto` the dev server → wait
    `__sprawlensConverged` → `Profiler.stop` returns the profile. Output:
@@ -123,7 +123,7 @@ timeline), mirroring the render harness.
   play/pause + speed. Like camera/selection, it is **not** URL-synced (excluded
   per the render-affecting-settings rule).
 - **Drive the existing overlay from the cursor** instead of the static
-  aggregate: the active step's `symbolId` cell pulses; the last *N* steps'
+  aggregate: the active step's `symbolId` cell pulses; the last _N_ steps'
   caller→callee pairs render as warm-orange edges (reusing `BundledEdges` /
   `SceneEdges.trace`), opacity decaying with age → a moving comet trail.
 - **Plane phase**: a scrubber marked with the server→browser boundary; a label
@@ -174,7 +174,7 @@ is in **fresh** traces tied to activity, with the **recent ones reviewable**.
 Decisions: trigger from **both** an in-app test run and an external watcher;
 **play after the run completes** (not live-streamed); pick from the **recent N**
 captures. The Phase 1 player (projection + playback + scrubber) is reused
-unchanged — only the *source* of timelines changes from a baked fixture to a
+unchanged — only the _source_ of timelines changes from a baked fixture to a
 live store.
 
 ### Server: a recent-traces store

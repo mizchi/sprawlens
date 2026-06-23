@@ -56,10 +56,7 @@ function points(pairs: [number, number][]): string {
 }
 
 /** Horizontal extent of a convex ring at height y. */
-function slabAt(
-  ring: readonly Vec2[],
-  y: number,
-): [number, number] | null {
+function slabAt(ring: readonly Vec2[], y: number): [number, number] | null {
   let min = Infinity;
   let max = -Infinity;
   for (let i = 0; i < ring.length; i++) {
@@ -159,9 +156,7 @@ function CfgShape(props: {
       />
     );
   } else if (RETURN_RE.test(node.label)) {
-    shape = (
-      <circle cx={x} cy={y} r={size * 0.55} fill={RETURN_FILL} {...hoverProps} />
-    );
+    shape = <circle cx={x} cy={y} r={size * 0.55} fill={RETURN_FILL} {...hoverProps} />;
   } else {
     shape = (
       <rect
@@ -213,8 +208,7 @@ function cfgGeometry(entry: CfgEntry): CfgGeometry {
     const p = layout.positions.get(id);
     if (!p) return null;
     const rowIndex = Math.max(0, Math.round(p.y * layout.rows - 0.5));
-    const y =
-      layout.rows > 1 ? topY + off + rowIndex * rowH : topY + span / 2;
+    const y = layout.rows > 1 ? topY + off + rowIndex * rowH : topY + span / 2;
     const colIndex = Math.max(0, Math.round(p.x * layout.cols - 0.5));
     const uniform = leftX + colIndex * indent;
     // only where the cell pinches does the slab pull a node inward
@@ -223,10 +217,7 @@ function cfgGeometry(entry: CfgEntry): CfgGeometry {
     const inset = Math.min((slab[1] - slab[0]) * 0.18, indent * 0.4);
     const lo = slab[0] + inset;
     const hi = slab[1] - inset;
-    const x =
-      lo >= hi
-        ? (slab[0] + slab[1]) / 2
-        : Math.min(hi, Math.max(lo, uniform));
+    const x = lo >= hi ? (slab[0] + slab[1]) / 2 : Math.min(hi, Math.max(lo, uniform));
     return { x, y };
   };
   return { layout, at, rowH, indent };
@@ -240,9 +231,7 @@ export type CfgAnchor = {
 };
 
 /** Edge-anchor positions for every displayed CFG, keyed by symbol id. */
-export function cfgAnchorsOf(
-  entries: readonly CfgEntry[],
-): Map<string, CfgAnchor> {
+export function cfgAnchorsOf(entries: readonly CfgEntry[]): Map<string, CfgAnchor> {
   const map = new Map<string, CfgAnchor>();
   for (const entry of entries) {
     const geometry = cfgGeometry(entry);
@@ -266,20 +255,14 @@ type ViewRect = { x: number; y: number; w: number; h: number };
 function CfgGlyph(props: { entry: CfgEntry; zoom: number; view?: ViewRect }) {
   const { entry, zoom, view } = props;
   const [hovered, setHovered] = useState<string | null>(null);
-  const { layout, at, rowH, indent } = useMemo(
-    () => cfgGeometry(entry),
-    [entry],
-  );
+  const { layout, at, rowH, indent } = useMemo(() => cfgGeometry(entry), [entry]);
   const w = entry.x1 - entry.x0;
   // glyphs scale with the cell (so zooming in grows them), capped by the
   // row/column spacing so deep diagrams never overlap
   const size = Math.min(rowH * 0.36, indent * 0.42);
   const strokeWidth = Math.max(1.2 / zoom, size * 0.1);
   /** Arrowheads sit at the shape border, not its center. */
-  const trim = (
-    from: { x: number; y: number },
-    to: { x: number; y: number },
-  ) => {
+  const trim = (from: { x: number; y: number }, to: { x: number; y: number }) => {
     const dx = to.x - from.x;
     const dy = to.y - from.y;
     const len = Math.hypot(dx, dy) || 1;
@@ -386,9 +369,7 @@ function CfgGlyph(props: { entry: CfgEntry; zoom: number; view?: ViewRect }) {
             // plain statement blocks skip the code dump — only their
             // externally visible effects matter at a glance
             const isPlain =
-              !PLAIN_RE.test(node.label) &&
-              node.label !== "entry" &&
-              node.label !== "exit";
+              !PLAIN_RE.test(node.label) && node.label !== "entry" && node.label !== "exit";
             let lines: string[];
             if (isPlain) {
               if (effectLines.length === 0) return null;
@@ -473,12 +454,7 @@ export function CfgLayer(props: {
         </marker>
       </defs>
       {props.entries.map((entry) => (
-        <CfgGlyph
-          key={entry.id}
-          entry={entry}
-          zoom={props.zoom}
-          view={props.view}
-        />
+        <CfgGlyph key={entry.id} entry={entry} zoom={props.zoom} view={props.view} />
       ))}
     </g>
   );

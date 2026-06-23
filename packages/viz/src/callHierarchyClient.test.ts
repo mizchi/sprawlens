@@ -25,25 +25,25 @@ const fileIds = new Set(["src/a.ts", "src/b.ts"]);
 
 describe("resolveRef", () => {
   it("maps a reference to the symbol containing its line", () => {
-    expect(
-      resolveRef({ file: "src/a.ts", name: "x", line: 15 }, symbolsByFile, fileIds),
-    ).toBe("symbol:src/a.ts:function:foo:10");
+    expect(resolveRef({ file: "src/a.ts", name: "x", line: 15 }, symbolsByFile, fileIds)).toBe(
+      "symbol:src/a.ts:function:foo:10",
+    );
     // method of class Bar resolves to the class symbol by containment
-    expect(
-      resolveRef({ file: "src/a.ts", name: "method", line: 55 }, symbolsByFile, fileIds),
-    ).toBe("symbol:src/a.ts:class:Bar:40");
+    expect(resolveRef({ file: "src/a.ts", name: "method", line: 55 }, symbolsByFile, fileIds)).toBe(
+      "symbol:src/a.ts:class:Bar:40",
+    );
   });
 
   it("falls back to name match, then to the file id", () => {
-    expect(
-      resolveRef({ file: "src/a.ts", name: "Bar", line: 999 }, symbolsByFile, fileIds),
-    ).toBe("symbol:src/a.ts:class:Bar:40");
-    expect(
-      resolveRef({ file: "src/b.ts", name: "zzz", line: 1 }, symbolsByFile, fileIds),
-    ).toBe("src/b.ts");
-    expect(
-      resolveRef({ file: "unknown.ts", name: "z", line: 1 }, symbolsByFile, fileIds),
-    ).toBe(null);
+    expect(resolveRef({ file: "src/a.ts", name: "Bar", line: 999 }, symbolsByFile, fileIds)).toBe(
+      "symbol:src/a.ts:class:Bar:40",
+    );
+    expect(resolveRef({ file: "src/b.ts", name: "zzz", line: 1 }, symbolsByFile, fileIds)).toBe(
+      "src/b.ts",
+    );
+    expect(resolveRef({ file: "unknown.ts", name: "z", line: 1 }, symbolsByFile, fileIds)).toBe(
+      null,
+    );
   });
 });
 

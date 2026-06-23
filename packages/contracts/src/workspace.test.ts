@@ -28,9 +28,7 @@ describe("matchWorkspacePackage", () => {
       "@sprawlens/schema-utils",
     );
     // and a plain schema import must not be captured by schema-utils
-    expect(matchWorkspacePackage(npm, "@sprawlens/schema")?.pkg.name).toBe(
-      "@sprawlens/schema",
-    );
+    expect(matchWorkspacePackage(npm, "@sprawlens/schema")?.pkg.name).toBe("@sprawlens/schema");
   });
 
   it("returns null for an external package", () => {
@@ -40,9 +38,7 @@ describe("matchWorkspacePackage", () => {
   });
 
   it("uses :: as the separator for Rust crate paths", () => {
-    const crates: WorkspacePackage[] = [
-      { name: "my_lib", sourceRoot: "crates/my_lib/src" },
-    ];
+    const crates: WorkspacePackage[] = [{ name: "my_lib", sourceRoot: "crates/my_lib/src" }];
     expect(matchWorkspacePackage(crates, "my_lib::module::Item", "::")).toEqual({
       pkg: crates[0],
       subpath: "module::Item",

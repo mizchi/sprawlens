@@ -76,13 +76,10 @@ describe("barycentricRingOrder", () => {
       [0, ["hub"]],
       [1, ["a", "b"]],
     ]);
-    const out = barycentricRingOrder(
-      rings,
-      [
-        { source: "a", target: "hub" },
-        { source: "b", target: "hub" },
-      ],
-    );
+    const out = barycentricRingOrder(rings, [
+      { source: "a", target: "hub" },
+      { source: "b", target: "hub" },
+    ]);
     expect(out.get(0)).toEqual(["hub"]);
   });
 

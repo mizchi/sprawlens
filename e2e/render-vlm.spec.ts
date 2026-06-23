@@ -48,6 +48,8 @@ for (const c of CASES) {
     );
     const png = await page.screenshot();
     const verdict = await reviewer({ assertion: c.assertion, image: png });
-    expect(verdict.pass, `${verdict.reasoning} (confidence ${verdict.confidence ?? "?"})`).toBe(true);
+    expect(verdict.pass, `${verdict.reasoning} (confidence ${verdict.confidence ?? "?"})`).toBe(
+      true,
+    );
   });
 }

@@ -1,9 +1,5 @@
 import { describe, expect, it } from "vitest";
-import {
-  createSyntheticGraph,
-  synthesizeSymbolEdges,
-  synthesizeSymbols,
-} from "./synthetic.js";
+import { createSyntheticGraph, synthesizeSymbolEdges, synthesizeSymbols } from "./synthetic.js";
 
 describe("createSyntheticGraph", () => {
   it("is deterministic for the same seed", () => {
@@ -56,11 +52,9 @@ describe("createSyntheticGraph", () => {
       const targetFile = edge.target.split("#")[0]!;
       // cross edges follow a file edge; intra edges stay within one file
       if (sourceFile !== targetFile) {
-        expect(
-          graph.edges.some(
-            (e) => e.source === sourceFile && e.target === targetFile,
-          ),
-        ).toBe(true);
+        expect(graph.edges.some((e) => e.source === sourceFile && e.target === targetFile)).toBe(
+          true,
+        );
       }
       expect(symbolIdsOf(sourceFile).has(edge.source)).toBe(true);
     }
@@ -77,9 +71,7 @@ describe("createSyntheticGraph", () => {
   it("synthesizes different symbols for different files", () => {
     const a = synthesizeSymbols("f1", 400, 7);
     const b = synthesizeSymbols("f2", 400, 7);
-    expect(a.map((n) => n.metrics.loc)).not.toEqual(
-      b.map((n) => n.metrics.loc),
-    );
+    expect(a.map((n) => n.metrics.loc)).not.toEqual(b.map((n) => n.metrics.loc));
   });
 
   it("produces a layered DAG (edges point to earlier layers only)", () => {

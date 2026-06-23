@@ -6,16 +6,17 @@ describe("encodeMessage", () => {
     const buffer = encodeMessage({ jsonrpc: "2.0", id: 1, method: "x" });
     const text = buffer.toString("utf8");
     const body = JSON.stringify({ jsonrpc: "2.0", id: 1, method: "x" });
-    expect(text).toBe(
-      `Content-Length: ${Buffer.byteLength(body)}\r\n\r\n${body}`,
-    );
+    expect(text).toBe(`Content-Length: ${Buffer.byteLength(body)}\r\n\r\n${body}`);
   });
 
   it("counts bytes, not code units, for multibyte payloads", () => {
     const buffer = encodeMessage({ jsonrpc: "2.0", method: "メソッド" });
     const headerEnd = buffer.indexOf("\r\n\r\n");
     const declared = Number(
-      buffer.subarray(0, headerEnd).toString().match(/Content-Length: (\d+)/)![1],
+      buffer
+        .subarray(0, headerEnd)
+        .toString()
+        .match(/Content-Length: (\d+)/)![1],
     );
     expect(declared).toBe(buffer.length - headerEnd - 4);
   });

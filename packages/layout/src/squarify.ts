@@ -28,10 +28,7 @@ function worst(areas: number[], side: number, sum: number): number {
  * positive weight (zero/negative weights are dropped). Order follows descending
  * weight, which the algorithm needs anyway.
  */
-export function squarify<T extends SquarifyItem>(
-  items: readonly T[],
-  rect: Rect,
-): Tile<T>[] {
+export function squarify<T extends SquarifyItem>(items: readonly T[], rect: Rect): Tile<T>[] {
   const positive = items.filter((i) => i.weight > 0);
   if (positive.length === 0 || rect.w <= 0 || rect.h <= 0) return [];
   const sorted = [...positive].sort((a, b) => b.weight - a.weight);

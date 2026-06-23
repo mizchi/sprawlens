@@ -100,10 +100,8 @@ const SHOW_DATA_PICKER =
 
 export function Controls(props: Props) {
   const { params, onChange } = props;
-  const set = <K extends keyof PlaygroundParams>(
-    key: K,
-    value: PlaygroundParams[K],
-  ) => onChange({ ...params, [key]: value });
+  const set = <K extends keyof PlaygroundParams>(key: K, value: PlaygroundParams[K]) =>
+    onChange({ ...params, [key]: value });
   const viewConfig: ViewConfig = {
     boundaries: params.boundaries,
     displayLevels: params.displayLevels,
@@ -127,13 +125,9 @@ export function Controls(props: Props) {
           <span style={{ width: "110px" }}>data</span>
           <select
             value={params.source}
-            onInput={(e) =>
-              set("source", (e.target as HTMLSelectElement).value as DataSource)
-            }
+            onInput={(e) => set("source", (e.target as HTMLSelectElement).value as DataSource)}
           >
-            {params.source === "served" ? (
-              <option value="served">served (this repo)</option>
-            ) : null}
+            {params.source === "served" ? <option value="served">served (this repo)</option> : null}
             <option value="synthetic">synthetic</option>
             <option value="sprawlens">sprawlens (this repo)</option>
             <option value="sprawlens-history">sprawlens (git log)</option>
@@ -163,9 +157,7 @@ export function Controls(props: Props) {
         <span style={{ width: "110px" }}>layout</span>
         <select
           value={params.layout}
-          onInput={(e) =>
-            set("layout", (e.target as HTMLSelectElement).value as LayoutKind)
-          }
+          onInput={(e) => set("layout", (e.target as HTMLSelectElement).value as LayoutKind)}
         >
           <option value="rings">rings (modules)</option>
           <option value="treemap">treemap (bundled)</option>
@@ -175,9 +167,7 @@ export function Controls(props: Props) {
         <span style={{ width: "110px" }}>weight</span>
         <select
           value={params.weight}
-          onInput={(e) =>
-            set("weight", (e.target as HTMLSelectElement).value as WeightKind)
-          }
+          onInput={(e) => set("weight", (e.target as HTMLSelectElement).value as WeightKind)}
         >
           <option value="loc">LOC</option>
           <option value="complexity">complexity (deps)</option>
@@ -188,9 +178,7 @@ export function Controls(props: Props) {
         <input
           type="checkbox"
           checked={params.followChanges}
-          onInput={(e) =>
-            set("followChanges", (e.target as HTMLInputElement).checked)
-          }
+          onInput={(e) => set("followChanges", (e.target as HTMLInputElement).checked)}
         />
       </label>
       <label style={row}>
@@ -198,9 +186,7 @@ export function Controls(props: Props) {
         <input
           type="checkbox"
           checked={params.showEdges}
-          onInput={(e) =>
-            set("showEdges", (e.target as HTMLInputElement).checked)
-          }
+          onInput={(e) => set("showEdges", (e.target as HTMLInputElement).checked)}
         />
       </label>
       <label style={row} title="nest the module map inside terraform services">
@@ -208,9 +194,7 @@ export function Controls(props: Props) {
         <input
           type="checkbox"
           checked={params.groupByService}
-          onInput={(e) =>
-            set("groupByService", (e.target as HTMLInputElement).checked)
-          }
+          onInput={(e) => set("groupByService", (e.target as HTMLInputElement).checked)}
         />
       </label>
       <label style={row}>
@@ -222,9 +206,7 @@ export function Controls(props: Props) {
           step="1"
           value={params.labelMinPx}
           style={{ flex: 1 }}
-          onInput={(e) =>
-            set("labelMinPx", Number((e.target as HTMLInputElement).value))
-          }
+          onInput={(e) => set("labelMinPx", Number((e.target as HTMLInputElement).value))}
         />
       </label>
       <label style={row}>
@@ -236,9 +218,7 @@ export function Controls(props: Props) {
           step="0.05"
           value={params.labelScale}
           style={{ flex: 1 }}
-          onInput={(e) =>
-            set("labelScale", Number((e.target as HTMLInputElement).value))
-          }
+          onInput={(e) => set("labelScale", Number((e.target as HTMLInputElement).value))}
         />
       </label>
       {props.debug ? (

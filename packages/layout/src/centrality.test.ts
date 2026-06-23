@@ -1,21 +1,13 @@
 import { describe, expect, it } from "vitest";
-import {
-  centralityRings,
-  dependentWeights,
-  importanceScore,
-} from "./centrality.js";
+import { centralityRings, dependentWeights, importanceScore } from "./centrality.js";
 
 describe("importanceScore", () => {
   it("lets a larger foundation outrank a small one with equal dependents", () => {
-    expect(importanceScore(10, 10000)).toBeGreaterThan(
-      importanceScore(10, 100),
-    );
+    expect(importanceScore(10, 10000)).toBeGreaterThan(importanceScore(10, 100));
   });
 
   it("breaks ties between same-size modules by dependents", () => {
-    expect(importanceScore(15, 4000)).toBeGreaterThan(
-      importanceScore(10, 4000),
-    );
+    expect(importanceScore(15, 4000)).toBeGreaterThan(importanceScore(10, 4000));
   });
 
   it("ranks an unreferenced leaf by its own size (dependents floor at 1)", () => {
@@ -73,9 +65,7 @@ describe("centralityRings", () => {
     const rings = centralityRings(modules);
     const sorted = [...modules].sort((a, b) => b.centrality - a.centrality);
     for (let i = 1; i < sorted.length; i++) {
-      expect(rings.get(sorted[i]!.id)!).toBeGreaterThanOrEqual(
-        rings.get(sorted[i - 1]!.id)!,
-      );
+      expect(rings.get(sorted[i]!.id)!).toBeGreaterThanOrEqual(rings.get(sorted[i - 1]!.id)!);
     }
   });
 

@@ -46,16 +46,16 @@ the static `Snapshot`.
 Same call structure measured in both languages (`main → alpha → beta → gamma`,
 `main → delta`). Two capture families exist per language, both without sudo:
 
-| | TypeScript | Rust |
-|---|---|---|
-| Node counts (exact) | V8 `Profiler.takePreciseCoverage` → exact call counts (gamma=800, beta=400, alpha=200, delta=200, main=1) | `-C instrument-coverage` + `llvm-cov export` → same exact counts (rustup `llvm-tools` only) |
-| Edges + time (sampling) | `--cpu-prof` / inspector `Profiler` → call tree (`main→delta`, `alpha→beta`, `beta→gamma`) + self time | `samply record` → sampled call stacks + module-relative addresses (no sudo on macOS) |
-| Source mapping | `callFrame`: url + lineNumber + columnNumber + scriptId | function symbol + file:line via DWARF (`nm`/`atos`/`addr2line`/`llvm-symbolizer`) |
+|                         | TypeScript                                                                                                | Rust                                                                                        |
+| ----------------------- | --------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------- |
+| Node counts (exact)     | V8 `Profiler.takePreciseCoverage` → exact call counts (gamma=800, beta=400, alpha=200, delta=200, main=1) | `-C instrument-coverage` + `llvm-cov export` → same exact counts (rustup `llvm-tools` only) |
+| Edges + time (sampling) | `--cpu-prof` / inspector `Profiler` → call tree (`main→delta`, `alpha→beta`, `beta→gamma`) + self time    | `samply record` → sampled call stacks + module-relative addresses (no sudo on macOS)        |
+| Source mapping          | `callFrame`: url + lineNumber + columnNumber + scriptId                                                   | function symbol + file:line via DWARF (`nm`/`atos`/`addr2line`/`llvm-symbolizer`)           |
 
 Findings:
 
-- **Two granularities, complementary.** *Coverage* gives exact per-function
-  call counts but no edges. *Sampling* gives caller→callee edges and self/total
+- **Two granularities, complementary.** _Coverage_ gives exact per-function
+  call counts but no edges. _Sampling_ gives caller→callee edges and self/total
   time but is approximate (unsampled functions are missing).
 - **Both normalize** to `function + source position + counts/time`, which maps
   onto the existing `symbol:<path>:<kind>:<name>:<line>` ids and the
@@ -84,10 +84,10 @@ sibling of `Snapshot`, joined to it by symbol reference.
 
 ```ts
 type TraceSource =
-  | "v8-cpuprofile"   // TS/JS sampling
-  | "v8-coverage"     // TS/JS exact node counts
-  | "samply"          // Rust/native sampling
-  | "llvm-coverage"   // Rust/native exact node counts
+  | "v8-cpuprofile" // TS/JS sampling
+  | "v8-coverage" // TS/JS exact node counts
+  | "samply" // Rust/native sampling
+  | "llvm-coverage" // Rust/native exact node counts
   | string;
 
 /** How a trace node links back to a source function. The join key to the graph. */
@@ -95,13 +95,13 @@ type TraceSymbolRef = {
   /** Resolved snapshot symbol id when computable. */
   symbolId?: string;
   /** Raw location for (re)resolution to the nearest enclosing symbol. */
-  file?: string;   // repo-relative
-  name: string;    // function name
-  line?: number;   // 1-based declaration line
+  file?: string; // repo-relative
+  name: string; // function name
+  line?: number; // 1-based declaration line
 };
 
 type TraceNode = {
-  id: string;            // stable within a trace
+  id: string; // stable within a trace
   ref: TraceSymbolRef;
   /** Exact entry count (coverage sources); absent for sampling-only. */
   calls?: number;
@@ -112,8 +112,8 @@ type TraceNode = {
 };
 
 type TraceEdge = {
-  from: string;          // caller TraceNode id
-  to: string;            // callee TraceNode id
+  from: string; // caller TraceNode id
+  to: string; // callee TraceNode id
   /** Call count (instrumented) or transition sample count (sampling). */
   count: number;
 };
@@ -128,7 +128,7 @@ type Trace = {
   sampleCount?: number;
   durationUs?: number;
   nodes: TraceNode[];
-  edges: TraceEdge[];    // empty for coverage-only sources
+  edges: TraceEdge[]; // empty for coverage-only sources
 };
 
 /** Per-language artifact parser, sibling to LanguageProvider / TestAdapter. */

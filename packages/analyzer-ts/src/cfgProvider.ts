@@ -44,16 +44,11 @@ function isFunctionLike(node: ts.Node): node is FunctionLike {
 
 /** Smallest function-like body whose declaration starts on `line`
  * (1-based; ±1 tolerance for decorator/modifier offsets). */
-function functionAt(
-  sourceFile: ts.SourceFile,
-  line: number,
-): FunctionLike | null {
+function functionAt(sourceFile: ts.SourceFile, line: number): FunctionLike | null {
   let best: FunctionLike | null = null;
   const visit = (node: ts.Node) => {
     if (isFunctionLike(node) && node.body) {
-      const start =
-        sourceFile.getLineAndCharacterOfPosition(node.getStart(sourceFile))
-          .line + 1;
+      const start = sourceFile.getLineAndCharacterOfPosition(node.getStart(sourceFile)).line + 1;
       if (Math.abs(start - line) <= 1) best = node;
       // a declaration's initializer arrow shares the statement's line; the
       // statement start also counts
@@ -92,8 +87,7 @@ class CfgBuilder {
   readonly exitId = "b-exit";
   private counter = 0;
   /** break/continue targets, innermost last. */
-  private breakables: { kind: "loop" | "switch"; headId: string; breaks: string[] }[] =
-    [];
+  private breakables: { kind: "loop" | "switch"; headId: string; breaks: string[] }[] = [];
   /** blocks that already point back to the entry (recursive calls). */
   private recursiveBlocks = new Set<string>();
   /** block id → callee names, for anchoring outgoing reference edges. */
@@ -118,10 +112,7 @@ class CfgBuilder {
     let found = false;
     const visit = (n: ts.Node) => {
       if (found) return;
-      if (
-        ts.isCallExpression(n) &&
-        n.expression.getText(this.sourceFile) === this.fnName
-      ) {
+      if (ts.isCallExpression(n) && n.expression.getText(this.sourceFile) === this.fnName) {
         found = true;
         return;
       }
@@ -188,9 +179,7 @@ class CfgBuilder {
       ) {
         writeTarget(n.left);
       }
-      if (
-        ts.isPrefixUnaryExpression(n) || ts.isPostfixUnaryExpression(n)
-      ) {
+      if (ts.isPrefixUnaryExpression(n) || ts.isPostfixUnaryExpression(n)) {
         if (
           n.operator === ts.SyntaxKind.PlusPlusToken ||
           n.operator === ts.SyntaxKind.MinusMinusToken
@@ -208,10 +197,7 @@ class CfgBuilder {
     const text = node.getText(this.sourceFile);
     const existing = this.code.get(blockId);
     const joined = existing ? `${existing}\n${text}` : text;
-    this.code.set(
-      blockId,
-      joined.length > 600 ? `${joined.slice(0, 599)}…` : joined,
-    );
+    this.code.set(blockId, joined.length > 600 ? `${joined.slice(0, 599)}…` : joined);
   }
 
   /** Record every callee name appearing in the subtree. */
@@ -302,12 +288,7 @@ class CfgBuilder {
         this.collectCalls(cond, statement.expression);
         this.addCode(cond, statement.expression);
         this.addEffects(cond, statement.expression);
-        const thenRes = this.chain(
-          this.body(statement.thenStatement),
-          [cond],
-          r + 1,
-          col,
-        );
+        const thenRes = this.chain(this.body(statement.thenStatement), [cond], r + 1, col);
         maxCol = Math.max(maxCol, thenRes.maxCol);
         let elseExits: string[] = [cond];
         let elseRow = r + 1;
@@ -346,10 +327,7 @@ class CfgBuilder {
           this.collectCalls(head, statement.expression);
           this.addCode(head, statement.expression);
           this.addEffects(head, statement.expression);
-        } else if (
-          ts.isForOfStatement(statement) ||
-          ts.isForInStatement(statement)
-        ) {
+        } else if (ts.isForOfStatement(statement) || ts.isForInStatement(statement)) {
           this.collectCalls(head, statement.expression);
           if (statement.initializer) {
             this.collectCalls(head, statement.initializer);
@@ -358,11 +336,7 @@ class CfgBuilder {
           this.addCode(head, statement.expression);
           this.addEffects(head, statement.expression);
         } else {
-          for (const part of [
-            statement.initializer,
-            statement.condition,
-            statement.incrementor,
-          ]) {
+          for (const part of [statement.initializer, statement.condition, statement.incrementor]) {
             if (part) {
               this.collectCalls(head, part);
               this.addCode(head, part);
@@ -370,17 +344,9 @@ class CfgBuilder {
             }
           }
         }
-        this.markRecursion(
-          head,
-          ts.isWhileStatement(statement) ? statement.expression : statement,
-        );
+        this.markRecursion(head, ts.isWhileStatement(statement) ? statement.expression : statement);
         this.breakables.push({ kind: "loop", headId: head, breaks: [] });
-        const bodyRes = this.chain(
-          this.body(statement.statement),
-          [head],
-          r + 1,
-          col + 1,
-        );
+        const bodyRes = this.chain(this.body(statement.statement), [head], r + 1, col + 1);
         const ctx = this.breakables.pop()!;
         this.link(bodyRes.exits, head); // loop back edge
         maxCol = Math.max(maxCol, bodyRes.maxCol);
@@ -393,18 +359,9 @@ class CfgBuilder {
         const head = this.block("do", r, col);
         this.link(current, head);
         this.breakables.push({ kind: "loop", headId: head, breaks: [] });
-        const bodyRes = this.chain(
-          this.body(statement.statement),
-          [head],
-          r + 1,
-          col + 1,
-        );
+        const bodyRes = this.chain(this.body(statement.statement), [head], r + 1, col + 1);
         const ctx = this.breakables.pop()!;
-        const cond = this.block(
-          `while ${this.text(statement.expression)}`,
-          bodyRes.row,
-          col,
-        );
+        const cond = this.block(`while ${this.text(statement.expression)}`, bodyRes.row, col);
         this.addCode(cond, statement.expression);
         this.addEffects(cond, statement.expression);
         this.link(bodyRes.exits, cond);
@@ -416,11 +373,7 @@ class CfgBuilder {
       }
       if (ts.isSwitchStatement(statement)) {
         flush();
-        const head = this.block(
-          `switch ${this.text(statement.expression)}`,
-          r,
-          col,
-        );
+        const head = this.block(`switch ${this.text(statement.expression)}`, r, col);
         this.link(current, head);
         this.addCode(head, statement.expression);
         this.addEffects(head, statement.expression);
@@ -431,12 +384,7 @@ class CfgBuilder {
         let hasDefault = false;
         for (const clause of statement.caseBlock.clauses) {
           if (ts.isDefaultClause(clause)) hasDefault = true;
-          const clauseRes = this.chain(
-            clause.statements,
-            [head],
-            r + 1,
-            clauseCol,
-          );
+          const clauseRes = this.chain(clause.statements, [head], r + 1, clauseCol);
           exits.push(...clauseRes.exits);
           maxRow = Math.max(maxRow, clauseRes.row);
           clauseCol = clauseRes.maxCol + 1;
@@ -479,9 +427,7 @@ class CfgBuilder {
       if (ts.isReturnStatement(statement) || ts.isThrowStatement(statement)) {
         flush();
         const keyword = ts.isReturnStatement(statement) ? "return" : "throw";
-        const detail = statement.expression
-          ? ` ${this.text(statement.expression)}`
-          : "";
+        const detail = statement.expression ? ` ${this.text(statement.expression)}` : "";
         // every return is its own terminal — no shared exit funnel
         const ret = this.block(truncate(`${keyword}${detail}`), r, col);
         this.link(current, ret);
@@ -514,11 +460,7 @@ class CfgBuilder {
         continue;
       }
       // plain statement: absorb into the open simple block
-      if (
-        open &&
-        current.length === 1 &&
-        current[0] === (open as AtlasNode).id
-      ) {
+      if (open && current.length === 1 && current[0] === (open as AtlasNode).id) {
         (open as AtlasNode).metrics.loc += 1;
         this.markRecursion((open as AtlasNode).id, statement);
         this.collectCalls((open as AtlasNode).id, statement);
@@ -571,10 +513,7 @@ export function extractCfg(source: string, line: number): DetailGraph | null {
     if (ts.isVariableDeclaration(n)) {
       collectBindingNames(n.name, builder.bodyLocals);
     }
-    if (
-      (ts.isFunctionDeclaration(n) || ts.isClassDeclaration(n)) &&
-      n.name
-    ) {
+    if ((ts.isFunctionDeclaration(n) || ts.isClassDeclaration(n)) && n.name) {
       builder.bodyLocals.add(n.name.text);
     }
     ts.forEachChild(n, collectDeclarations);
@@ -624,12 +563,8 @@ export function extractCfg(source: string, line: number): DetailGraph | null {
     nodes: builder.nodes,
     edges: builder.edges,
     grid: Object.fromEntries(builder.grid),
-    calls: Object.fromEntries(
-      [...builder.calls].map(([id, names]) => [id, [...names]]),
-    ),
+    calls: Object.fromEntries([...builder.calls].map(([id, names]) => [id, [...names]])),
     code: Object.fromEntries(builder.code),
-    effects: Object.fromEntries(
-      [...builder.effects].map(([id, set]) => [id, [...set]]),
-    ),
+    effects: Object.fromEntries([...builder.effects].map(([id, set]) => [id, [...set]])),
   };
 }

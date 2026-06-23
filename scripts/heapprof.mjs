@@ -26,9 +26,7 @@ for (let i = 0; i < 5; i++) build(graph, opts);
 const session = new inspector.Session();
 session.connect();
 const post = (m, p) =>
-  new Promise((res, rej) =>
-    session.post(m, p, (e, r) => (e ? rej(e) : res(r))),
-  );
+  new Promise((res, rej) => session.post(m, p, (e, r) => (e ? rej(e) : res(r))));
 
 // fine sampling interval to resolve true allocation volume
 await post("HeapProfiler.enable");
@@ -47,7 +45,7 @@ const self = new Map();
 const ours = (url) => url.includes("/packages/") || url.includes("/scripts/");
 function walk(node) {
   const cf = node.callFrame;
-  const bytes = (node.selfSize ?? 0);
+  const bytes = node.selfSize ?? 0;
   if (bytes > 0) {
     const key = `${cf.functionName || "(anonymous)"}\t${cf.url.split("/").slice(-2).join("/")}:${cf.lineNumber + 1}`;
     self.set(key, (self.get(key) ?? 0) + bytes);

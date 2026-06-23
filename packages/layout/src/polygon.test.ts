@@ -28,7 +28,12 @@ describe("signedArea", () => {
   it("is zero for degenerate rings", () => {
     expect(signedArea([])).toBe(0);
     expect(signedArea([{ x: 1, y: 1 }])).toBe(0);
-    expect(signedArea([{ x: 1, y: 1 }, { x: 2, y: 2 }])).toBe(0);
+    expect(
+      signedArea([
+        { x: 1, y: 1 },
+        { x: 2, y: 2 },
+      ]),
+    ).toBe(0);
   });
 });
 

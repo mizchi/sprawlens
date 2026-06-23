@@ -136,13 +136,7 @@ function maxVertexDistance2(cell: Cell, site: PowerSite): number {
  * next edge as its `cur` value, rather than recomputing every vertex twice
  * (once as `cur`, once as the previous edge's `next`). Halves the dot products.
  */
-function clipPlane(
-  cell: Cell,
-  nx: number,
-  ny: number,
-  c: number,
-  planeId: string,
-): void {
+function clipPlane(cell: Cell, nx: number, ny: number, c: number, planeId: string): void {
   const { ax, ay, as, bx, by, bs, n } = cell;
   let m = 0;
   let cx = ax[0]!;
@@ -205,9 +199,7 @@ function clipAgainst(
   if (d2 < COINCIDENT_EPS) {
     // Coincident sites: the heavier weight wins everywhere; ties go to the
     // earlier site in input order.
-    const loses =
-      site.weight < other.weight ||
-      (site.weight === other.weight && index > j);
+    const loses = site.weight < other.weight || (site.weight === other.weight && index > j);
     if (loses) cell.n = 0;
     return;
   }
@@ -254,10 +246,7 @@ function finishCell(cell: Cell, site: PowerSite): PowerCell {
   };
 }
 
-export function computePowerDiagram(
-  sites: PowerSite[],
-  clip: Ring,
-): PowerCell[] {
+export function computePowerDiagram(sites: PowerSite[], clip: Ring): PowerCell[] {
   if (sites.length >= GRID_MIN_SITES) {
     return computePowerDiagramGrid(sites, clip);
   }
@@ -299,16 +288,11 @@ function computePowerDiagramGrid(sites: PowerSite[], clip: Ring): PowerCell[] {
   const spanX = maxX - minX || 1;
   const spanY = maxY - minY || 1;
   // ~1 site per bucket on average keeps ring scans short
-  const cellSize = Math.max(
-    Math.sqrt((spanX * spanY) / sites.length) || 1,
-    1e-9,
-  );
+  const cellSize = Math.max(Math.sqrt((spanX * spanY) / sites.length) || 1, 1e-9);
   const cols = Math.floor(spanX / cellSize) + 1;
   const rows = Math.floor(spanY / cellSize) + 1;
-  const gx = (x: number) =>
-    Math.min(cols - 1, Math.max(0, Math.floor((x - minX) / cellSize)));
-  const gy = (y: number) =>
-    Math.min(rows - 1, Math.max(0, Math.floor((y - minY) / cellSize)));
+  const gx = (x: number) => Math.min(cols - 1, Math.max(0, Math.floor((x - minX) / cellSize)));
+  const gy = (y: number) => Math.min(rows - 1, Math.max(0, Math.floor((y - minY) / cellSize)));
   const buckets: number[][] = Array.from({ length: cols * rows }, () => []);
   for (let i = 0; i < sites.length; i++) {
     buckets[gy(sites[i]!.y) * cols + gx(sites[i]!.x)]!.push(i);

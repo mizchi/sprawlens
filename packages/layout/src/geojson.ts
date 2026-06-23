@@ -25,9 +25,7 @@ export type CellFeatureCollection = {
   features: CellFeature[];
 };
 
-export function cellsToFeatureCollection(
-  cells: readonly CellResult[],
-): CellFeatureCollection {
+export function cellsToFeatureCollection(cells: readonly CellResult[]): CellFeatureCollection {
   const features: CellFeature[] = [];
   for (const cell of cells) {
     if (cell.polygon.length < 3) continue;

@@ -69,8 +69,21 @@ export function buildVizCommands(ctx: VizCommandCtx): VizCommand[] {
         return `layout = ${value}`;
       },
     },
-    { id: "layout_rings", title: "Switch to the rings layout", keys: ["r"], run: () => (setParam({ layout: "rings" as PlaygroundParams["layout"] }), "layout = rings") },
-    { id: "layout_treemap", title: "Switch to the treemap layout", keys: ["t"], run: () => (setParam({ layout: "treemap" as PlaygroundParams["layout"] }), "layout = treemap") },
+    {
+      id: "layout_rings",
+      title: "Switch to the rings layout",
+      keys: ["r"],
+      run: () => (setParam({ layout: "rings" as PlaygroundParams["layout"] }), "layout = rings"),
+    },
+    {
+      id: "layout_treemap",
+      title: "Switch to the treemap layout",
+      keys: ["t"],
+      run: () => (
+        setParam({ layout: "treemap" as PlaygroundParams["layout"] }),
+        "layout = treemap"
+      ),
+    },
     {
       id: "set_source",
       title: "Set the data source",
@@ -145,13 +158,31 @@ export function buildVizCommands(ctx: VizCommandCtx): VizCommand[] {
   if (ctx.history?.active) {
     const h = ctx.history;
     commands.push(
-      { id: "prev_commit", title: "Go to the previous commit", keys: ["["], run: () => (h.go(h.index - 1), `commit ${Math.max(0, h.index - 1)}`) },
-      { id: "next_commit", title: "Go to the next commit", keys: ["]"], run: () => (h.go(h.index + 1), `commit ${Math.min(h.count - 1, h.index + 1)}`) },
+      {
+        id: "prev_commit",
+        title: "Go to the previous commit",
+        keys: ["["],
+        run: () => (h.go(h.index - 1), `commit ${Math.max(0, h.index - 1)}`),
+      },
+      {
+        id: "next_commit",
+        title: "Go to the next commit",
+        keys: ["]"],
+        run: () => (h.go(h.index + 1), `commit ${Math.min(h.count - 1, h.index + 1)}`),
+      },
       {
         id: "goto_commit",
         title: "Go to a commit by index",
-        inputSchema: { type: "object", properties: { index: { type: "number" } }, required: ["index"] },
-        run: (a) => { const i = Number(a?.index ?? 0); h.go(i); return `commit ${i}`; },
+        inputSchema: {
+          type: "object",
+          properties: { index: { type: "number" } },
+          required: ["index"],
+        },
+        run: (a) => {
+          const i = Number(a?.index ?? 0);
+          h.go(i);
+          return `commit ${i}`;
+        },
       },
     );
   }

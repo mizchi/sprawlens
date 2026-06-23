@@ -62,9 +62,7 @@ describe("forceLayout", () => {
   it("pulls connected nodes closer than unconnected ones on average", () => {
     const { nodes, edges } = clusteredGraph(3);
     const state = run(nodes, edges, 11);
-    const connected = new Set(
-      edges.map((e) => `${e.source}|${e.target}`),
-    );
+    const connected = new Set(edges.map((e) => `${e.source}|${e.target}`));
     let connectedSum = 0;
     let connectedCount = 0;
     let otherSum = 0;

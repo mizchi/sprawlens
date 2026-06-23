@@ -17,9 +17,7 @@ export function useColorScheme(
     const query = matchMedia("(prefers-color-scheme: dark)");
     const onSchemeChange = (event: MediaQueryListEvent) => {
       if (overridden.current) return;
-      setParams((prev) =>
-        prev.dark === event.matches ? prev : { ...prev, dark: event.matches },
-      );
+      setParams((prev) => (prev.dark === event.matches ? prev : { ...prev, dark: event.matches }));
     };
     query.addEventListener("change", onSchemeChange);
     return () => query.removeEventListener("change", onSchemeChange);

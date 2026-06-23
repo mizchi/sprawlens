@@ -119,9 +119,7 @@ describe("createTreemapState", () => {
   it("is deterministic", () => {
     const a = settled(createTreemapState(sampleGraph(), OPTIONS));
     const b = settled(createTreemapState(sampleGraph(), OPTIONS));
-    expect(
-      [...a.leafLayouts.values()].flatMap((l) => l.cells.map((c) => c.site)),
-    ).toEqual(
+    expect([...a.leafLayouts.values()].flatMap((l) => l.cells.map((c) => c.site))).toEqual(
       [...b.leafLayouts.values()].flatMap((l) => l.cells.map((c) => c.site)),
     );
   });
@@ -180,9 +178,7 @@ describe("createTreemapState — multi-level boundaries", () => {
   });
 
   it("keys leaf layouts by the innermost group and confines leaves", () => {
-    const state = settled(
-      createTreemapState(deepGraph(), { ...OPTIONS, boundaries: BOUNDARIES }),
-    );
+    const state = settled(createTreemapState(deepGraph(), { ...OPTIONS, boundaries: BOUNDARIES }));
     expect(state.leafLayouts.has("src/alpha/core")).toBe(true);
     expect(state.leafLayouts.has("src/alpha")).toBe(false);
     for (const [dirId, layout] of state.leafLayouts) {
@@ -230,18 +226,14 @@ describe("applyTreemapChanges", () => {
     const mutated = {
       ...graph,
       nodes: graph.nodes.map((n) =>
-        n.id === "src/alpha/a.ts"
-          ? { ...n, metrics: { loc: Math.round(n.metrics.loc * 1.3) } }
-          : n,
+        n.id === "src/alpha/a.ts" ? { ...n, metrics: { loc: Math.round(n.metrics.loc * 1.3) } } : n,
       ),
     };
     const next = applyTreemapChanges(state, mutated, OPTIONS);
     expect(next.leafLayouts.size).toBe(state.leafLayouts.size);
     for (const [groupId, layout] of next.leafLayouts) {
       const before = state.leafLayouts.get(groupId)!;
-      expect(layout.cells.map((c) => c.id).sort()).toEqual(
-        before.cells.map((c) => c.id).sort(),
-      );
+      expect(layout.cells.map((c) => c.id).sort()).toEqual(before.cells.map((c) => c.id).sort());
     }
   });
 
@@ -251,9 +243,7 @@ describe("applyTreemapChanges", () => {
     const mutated = {
       ...graph,
       nodes: graph.nodes.map((n) =>
-        n.id === "src/beta/d.ts"
-          ? { ...n, metrics: { loc: Math.round(n.metrics.loc * 1.4) } }
-          : n,
+        n.id === "src/beta/d.ts" ? { ...n, metrics: { loc: Math.round(n.metrics.loc * 1.4) } } : n,
       ),
     };
     const siteOf = (s: TreemapState, id: string) => {
@@ -283,9 +273,7 @@ describe("applyTreemapChanges", () => {
       ...graph,
       nodes: graph.nodes.filter((n) => !n.id.startsWith("src/gamma/")),
       edges: graph.edges.filter(
-        (e) =>
-          !e.source.startsWith("src/gamma/") &&
-          !e.target.startsWith("src/gamma/"),
+        (e) => !e.source.startsWith("src/gamma/") && !e.target.startsWith("src/gamma/"),
       ),
     };
     const next = applyTreemapChanges(state, without, OPTIONS);
@@ -333,15 +321,11 @@ describe("applyTreemapChanges", () => {
       edges: [],
     };
     const boundaries = [moduleGrouping(), directoryGrouping(3)];
-    const state = settled(
-      createTreemapState(graph, { ...OPTIONS, boundaries }),
-    );
+    const state = settled(createTreemapState(graph, { ...OPTIONS, boundaries }));
     const mutated = {
       ...graph,
       nodes: graph.nodes.map((n) =>
-        n.id === "src/alpha/core/a.ts"
-          ? { ...n, metrics: { loc: 180 } }
-          : n,
+        n.id === "src/alpha/core/a.ts" ? { ...n, metrics: { loc: 180 } } : n,
       ),
     };
     const next = applyTreemapChanges(state, mutated, { ...OPTIONS, boundaries });

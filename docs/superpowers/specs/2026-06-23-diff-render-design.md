@@ -8,7 +8,7 @@ Extend the existing `sprawlens render` CLI command with a `--diff` option that
 highlights the files changed in a pull request directly on the headless SVG
 structure map. Intended primary use: a GitHub Actions step that fetches the base
 ref, renders an SVG, and attaches it as an artifact / PR comment so reviewers can
-see *where* in the codebase a PR lands.
+see _where_ in the codebase a PR lands.
 
 Added and modified files are tinted on the map; a small legend with counts is
 embedded in the SVG. Removed files cannot appear on the map (the map is built

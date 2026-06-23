@@ -1,9 +1,4 @@
-import {
-  parseAsArrayOf,
-  parseAsBoolean,
-  parseAsInteger,
-  parseAsStringLiteral,
-} from "nuqs";
+import { parseAsArrayOf, parseAsBoolean, parseAsInteger, parseAsStringLiteral } from "nuqs";
 
 /**
  * The render-affecting settings, mirrored to the URL query so a view is
@@ -21,14 +16,7 @@ const DATA_SOURCES = [
 ] as const;
 const LAYOUTS = ["rings", "treemap"] as const;
 const BOUNDARIES = ["module", "directory", "file", "class"] as const;
-const DISPLAY_LEVELS = [
-  "module",
-  "directory",
-  "class",
-  "symbol",
-  "ast",
-  "cfg",
-] as const;
+const DISPLAY_LEVELS = ["module", "directory", "class", "symbol", "ast", "cfg"] as const;
 const WEIGHTS = ["loc", "complexity"] as const;
 
 /** Build the parser map. `darkDefault` is the system colour preference, so a
@@ -37,13 +25,12 @@ export function makeUrlParamParsers(darkDefault: boolean) {
   return {
     source: parseAsStringLiteral(DATA_SOURCES).withDefault("sprawlens"),
     layout: parseAsStringLiteral(LAYOUTS).withDefault("treemap"),
-    boundaries: parseAsArrayOf(parseAsStringLiteral(BOUNDARIES)).withDefault([
+    boundaries: parseAsArrayOf(parseAsStringLiteral(BOUNDARIES)).withDefault(["module", "class"]),
+    displayLevels: parseAsArrayOf(parseAsStringLiteral(DISPLAY_LEVELS)).withDefault([
       "module",
       "class",
+      "symbol",
     ]),
-    displayLevels: parseAsArrayOf(parseAsStringLiteral(DISPLAY_LEVELS)).withDefault(
-      ["module", "class", "symbol"],
-    ),
     weight: parseAsStringLiteral(WEIGHTS).withDefault("loc"),
     showEdges: parseAsBoolean.withDefault(false),
     groupByService: parseAsBoolean.withDefault(false),

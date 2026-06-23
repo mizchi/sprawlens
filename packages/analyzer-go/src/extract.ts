@@ -189,8 +189,7 @@ function symbolsAndImports(
             const raw = n.childForFieldName("path")?.text;
             if (raw) {
               const path = raw.replace(/^["`]|["`]$/g, "");
-              const alias =
-                n.childForFieldName("name")?.text ?? path.split("/").pop() ?? path;
+              const alias = n.childForFieldName("name")?.text ?? path.split("/").pop() ?? path;
               imports.push({ path, alias });
             }
           }
@@ -286,9 +285,7 @@ export async function snapshotGoWorkingTree(
   // The go.mod module is a one-package workspace rooted at the repo: any import
   // under the module path resolves to a local package dir (matchWorkspacePackage
   // generalizes this to N named roots; Go just has one).
-  const workspace: WorkspacePackage[] = modulePath
-    ? [{ name: modulePath, sourceRoot: "" }]
-    : [];
+  const workspace: WorkspacePackage[] = modulePath ? [{ name: modulePath, sourceRoot: "" }] : [];
   /** Local package dir for an import path under the module, else null. */
   const localDirOf = (spec: string): string | null => {
     const m = matchWorkspacePackage(workspace, spec);
@@ -298,11 +295,13 @@ export async function snapshotGoWorkingTree(
   // exported symbols per file — the target side of symbol references
   const exportedSymbolsByFile = new Map<string, CodeSymbol[]>();
   for (const f of fileEntries) {
-    exportedSymbolsByFile.set(f.rel, f.symbols.filter((s) => s.exported));
+    exportedSymbolsByFile.set(
+      f.rel,
+      f.symbols.filter((s) => s.exported),
+    );
   }
 
-  for (const dir of [...dirs].sort())
-    nodes.push({ id: `dir:${dir}`, type: "dir", path: dir });
+  for (const dir of [...dirs].sort()) nodes.push({ id: `dir:${dir}`, type: "dir", path: dir });
 
   for (const f of fileEntries) {
     const id = `file:${f.rel}`;
@@ -342,7 +341,12 @@ export async function snapshotGoWorkingTree(
   // contains edges for the dir tree (repo/parent-dir -> dir)
   for (const dir of dirs) {
     const parent = dir.includes("/") ? `dir:${dir.slice(0, dir.lastIndexOf("/"))}` : "repo";
-    edges.push({ id: `contains:${parent}->dir:${dir}`, type: "contains", from: parent, to: `dir:${dir}` });
+    edges.push({
+      id: `contains:${parent}->dir:${dir}`,
+      type: "contains",
+      from: parent,
+      to: `dir:${dir}`,
+    });
   }
 
   const { metrics } = computeGraphMetrics(nodes, edges);

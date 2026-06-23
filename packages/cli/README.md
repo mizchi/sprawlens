@@ -61,7 +61,7 @@ attach a structure-map of a PR's blast radius as an artifact:
 ### Inline in a PR comment (no upload) — `--format mermaid`
 
 GitHub strips inline `<svg>` and blocks `data:` images, so an SVG always needs to
-be uploaded somewhere. To show a diff *inside* a PR comment with no upload, emit
+be uploaded somewhere. To show a diff _inside_ a PR comment with no upload, emit
 a GitHub-native Mermaid graph instead:
 
 ```bash
@@ -98,12 +98,12 @@ hover and call-hierarchy detail (TypeScript also gets a compiler control-flow
 graph). Without one, it falls back to a tree-sitter baseline and a
 source-declaration preview.
 
-| language | server |
-| --- | --- |
+| language                | server                                 |
+| ----------------------- | -------------------------------------- |
 | TypeScript / JavaScript | `typescript-language-server` (bundled) |
-| Rust | `rust-analyzer` |
-| Go | `gopls` |
-| MoonBit | `moonbit-lsp` |
+| Rust                    | `rust-analyzer`                        |
+| Go                      | `gopls`                                |
+| MoonBit                 | `moonbit-lsp`                          |
 
 Run `npx @sprawlens/cli doctor` to see what's detected in a given repo.
 

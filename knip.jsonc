@@ -8,19 +8,19 @@
   "ignore": ["**/vendor/**", "**/dist/**", "**/public-atlas/**", "**/fixtures/**"],
   "ignoreDependencies": [
     // spawned as a CLI binary, not imported as a module
-    "typescript-language-server"
+    "typescript-language-server",
   ],
   // non-standard config name, so point knip's playwright plugin at it
   "playwright": { "config": ["playwright.atlas.config.ts"] },
   "workspaces": {
     ".": {
-      "entry": ["scripts/*.mjs", "tools/*.mjs", "e2e/**/*.spec.ts"]
+      "entry": ["scripts/*.mjs", "tools/*.mjs", "e2e/**/*.spec.ts"],
     },
     "packages/cli": {
       // the CLI bundles @sprawlens/* with esbuild and leaves node_modules deps
       // external, so the bundled output requires these at runtime even though no
       // CLI *source* file imports them (the inlined analyzers do).
-      "ignoreDependencies": ["web-tree-sitter", "tree-sitter-wasms", "fast-glob"]
-    }
-  }
+      "ignoreDependencies": ["web-tree-sitter", "tree-sitter-wasms", "fast-glob"],
+    },
+  },
 }

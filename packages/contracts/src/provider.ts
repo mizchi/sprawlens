@@ -26,17 +26,9 @@ export interface LanguageDetail {
     file: string,
     line: number,
   ): Promise<DetailGraph | null> | DetailGraph | null;
-  callHierarchy(
-    repoRoot: string,
-    file: string,
-    symbol: string,
-  ): Promise<CallHierarchyResult>;
+  callHierarchy(repoRoot: string, file: string, symbol: string): Promise<CallHierarchyResult>;
   /** Optional LSP hover (signature/type/doc) for a symbol; null when none. */
-  hover?(
-    repoRoot: string,
-    file: string,
-    symbol: string,
-  ): Promise<HoverInfo | null>;
+  hover?(repoRoot: string, file: string, symbol: string): Promise<HoverInfo | null>;
 }
 
 /**
@@ -68,10 +60,7 @@ export interface LanguageProvider {
    */
   matchesManifest?(repoPath: string): boolean | Promise<boolean>;
   /** Snapshot the current working tree. */
-  analyze(
-    repoPath: string,
-    options?: { commit?: SnapshotCommit },
-  ): Promise<Snapshot>;
+  analyze(repoPath: string, options?: { commit?: SnapshotCommit }): Promise<Snapshot>;
   /**
    * Optional incremental analyzer for live updates: re-parses only changed
    * files across calls. Providers that omit it get full re-analysis instead.
@@ -94,9 +83,7 @@ export async function detectProviders(
   const matched: LanguageProvider[] = [];
   const strong: LanguageProvider[] = [];
   for (const provider of providers) {
-    const isStrong = provider.matchesManifest
-      ? await provider.matchesManifest(repoPath)
-      : false;
+    const isStrong = provider.matchesManifest ? await provider.matchesManifest(repoPath) : false;
     if (isStrong) {
       strong.push(provider);
       matched.push(provider);

@@ -32,10 +32,7 @@ export function reachSubgraph<E extends ReachEdge>(
   }
 
   const nodes = new Set<string>([root]);
-  const walk = (
-    adjacency: Map<string, E[]>,
-    nextOf: (edge: E) => string,
-  ): Set<E> => {
+  const walk = (adjacency: Map<string, E[]>, nextOf: (edge: E) => string): Set<E> => {
     const collected = new Set<E>();
     const visited = new Set<string>([root]);
     const queue = [root];

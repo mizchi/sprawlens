@@ -11,9 +11,7 @@ import type { CellResult } from "./capacityLayout.js";
  */
 
 /** Symmetric cell adjacency from the labeled power-diagram edges. */
-export function cellAdjacency(
-  cells: readonly CellResult[],
-): Map<string, Set<string>> {
+export function cellAdjacency(cells: readonly CellResult[]): Map<string, Set<string>> {
   const adjacency = new Map<string, Set<string>>();
   for (const cell of cells) adjacency.set(cell.id, new Set());
   for (const cell of cells) {
@@ -112,8 +110,7 @@ export function greedySwapAssignment(
         const sk = current[k]!;
         // the i–k edge (if any) flips between slot pairs of identical
         // adjacency, so it cancels out of the delta; exclude it via ignore
-        const before =
-          realizedAt(i, si, k) + realizedAt(k, sk, i);
+        const before = realizedAt(i, si, k) + realizedAt(k, sk, i);
         const after = realizedAt(i, sk, k) + realizedAt(k, si, i);
         if (after > before) {
           current[i] = sk;

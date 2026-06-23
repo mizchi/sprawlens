@@ -86,7 +86,14 @@ export function TracePlayer({ timeline, cursor, playing, onCursor, onTogglePlay 
         onInput={(e) => onCursor(Number((e.target as HTMLInputElement).value))}
         style={{ width: 320, accentColor: "#ff7a1a" }}
       />
-      <span style={{ minWidth: 220, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
+      <span
+        style={{
+          minWidth: 220,
+          whiteSpace: "nowrap",
+          overflow: "hidden",
+          textOverflow: "ellipsis",
+        }}
+      >
         <strong style={{ color: "#ff9d4d" }}>{name}</strong>
         {file && <span style={{ color: "#94a3b8" }}> · {file}</span>}
       </span>

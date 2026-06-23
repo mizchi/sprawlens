@@ -1,11 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { directoryGrouping, moduleGrouping } from "@sprawlens/schema";
 import { containsPoint } from "@sprawlens/layout";
-import {
-  applyRingsChanges,
-  createRingsState,
-  stepRingsState,
-} from "./ringsController.js";
+import { applyRingsChanges, createRingsState, stepRingsState } from "./ringsController.js";
 import { createSyntheticGraph } from "./synthetic.js";
 
 const opts = { width: 960, height: 640, seed: 1 };
@@ -14,9 +10,7 @@ describe("createRingsState layers", () => {
   it("lays out test files alongside source so areas show the ratio", () => {
     const graph = createSyntheticGraph({ count: 40, seed: 9 });
     const state = createRingsState(graph, opts);
-    const allCellIds = [...state.leafLayouts.values()].flatMap((l) =>
-      l.cells.map((c) => c.id),
-    );
+    const allCellIds = [...state.leafLayouts.values()].flatMap((l) => l.cells.map((c) => c.id));
     expect(allCellIds.some((id) => id.includes(".test."))).toBe(true);
     expect(allCellIds).toHaveLength(graph.nodes.length);
   });
@@ -62,9 +56,7 @@ describe("createRingsState", () => {
     const b = createRingsState(graph, { ...opts, seed: 7 });
     for (const [moduleId, layout] of a.leafLayouts) {
       const other = b.leafLayouts.get(moduleId)!;
-      expect(layout.cells.map((c) => c.site)).toEqual(
-        other.cells.map((c) => c.site),
-      );
+      expect(layout.cells.map((c) => c.site)).toEqual(other.cells.map((c) => c.site));
     }
   });
 
@@ -166,9 +158,7 @@ describe("applyRingsChanges", () => {
     const mutated = {
       ...graph,
       nodes: graph.nodes.map((n) =>
-        n.id === targetFile.id
-          ? { ...n, metrics: { loc: Math.round(n.metrics.loc * 1.3) } }
-          : n,
+        n.id === targetFile.id ? { ...n, metrics: { loc: Math.round(n.metrics.loc * 1.3) } } : n,
       ),
     };
     const next = applyRingsChanges(state, mutated, { ...opts, seed: 5 });
@@ -176,9 +166,7 @@ describe("applyRingsChanges", () => {
     // sites carried over: the same file ids exist with similar positions
     for (const [moduleId, layout] of next.leafLayouts) {
       const before = state.leafLayouts.get(moduleId)!;
-      expect(layout.cells.map((c) => c.id).sort()).toEqual(
-        before.cells.map((c) => c.id).sort(),
-      );
+      expect(layout.cells.map((c) => c.id).sort()).toEqual(before.cells.map((c) => c.id).sort());
     }
   });
 
@@ -190,9 +178,7 @@ describe("applyRingsChanges", () => {
       ...graph,
       nodes: graph.nodes.filter((n) => !n.id.startsWith(`${someModule}/`)),
       edges: graph.edges.filter(
-        (e) =>
-          !e.source.startsWith(`${someModule}/`) &&
-          !e.target.startsWith(`${someModule}/`),
+        (e) => !e.source.startsWith(`${someModule}/`) && !e.target.startsWith(`${someModule}/`),
       ),
     };
     const next = applyRingsChanges(state, without, { ...opts, seed: 6 });

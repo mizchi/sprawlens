@@ -61,7 +61,8 @@ function extractVerdict(content: string): Verdict {
   }
   // last-resort heuristic: a clear yes/no in prose
   const lowered = content.toLowerCase();
-  const pass = /\b(pass|yes|true|correct)\b/.test(lowered) && !/\b(fail|no|false|incorrect)\b/.test(lowered);
+  const pass =
+    /\b(pass|yes|true|correct)\b/.test(lowered) && !/\b(fail|no|false|incorrect)\b/.test(lowered);
   return { pass, reasoning: content.trim().slice(0, 400) };
 }
 

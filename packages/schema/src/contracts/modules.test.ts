@@ -43,10 +43,7 @@ describe("deriveModuleIdOf (structural, language-neutral)", () => {
   });
 
   it("groups monorepo packages without any hard-coded dir names", () => {
-    const m = deriveModuleIdOf([
-      "packages/schema/src/index.ts",
-      "packages/layout/src/x.ts",
-    ]);
+    const m = deriveModuleIdOf(["packages/schema/src/index.ts", "packages/layout/src/x.ts"]);
     expect(m("packages/schema/src/index.ts")).toBe("packages/schema");
     expect(m("packages/layout/src/x.ts")).toBe("packages/layout");
   });
@@ -97,18 +94,12 @@ describe("deriveModules", () => {
     const core = result.modules.find((m) => m.id === "src/core")!;
     expect(core.kind).toBe("module");
     expect(core.metrics.loc).toBe(150);
-    expect(result.modules.map((m) => m.id).sort()).toEqual([
-      "(root)",
-      "src/core",
-      "src/ui",
-    ]);
+    expect(result.modules.map((m) => m.id).sort()).toEqual(["(root)", "src/core", "src/ui"]);
   });
 
   it("aggregates cross-module imports into weighted module edges", () => {
     const result = deriveModules(graph);
-    expect(result.moduleEdges).toEqual([
-      { source: "src/ui", target: "src/core", weight: 2 },
-    ]);
+    expect(result.moduleEdges).toEqual([{ source: "src/ui", target: "src/core", weight: 2 }]);
   });
 
   it("buckets files and intra-module edges per module", () => {

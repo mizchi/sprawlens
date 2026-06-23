@@ -2,7 +2,11 @@ import { describe, expect, it } from "vitest";
 import { diffSnapshots } from "./diff.js";
 import type { Snapshot } from "@sprawlens/contracts";
 
-function snapshot(hash: string, files: Array<{ path: string; loc: number }>, imports: Array<[string, string, string]>): Snapshot {
+function snapshot(
+  hash: string,
+  files: Array<{ path: string; loc: number }>,
+  imports: Array<[string, string, string]>,
+): Snapshot {
   return {
     schemaVersion: 1,
     repoPath: "/repo",
@@ -49,7 +53,14 @@ function snapshot(hash: string, files: Array<{ path: string; loc: number }>, imp
 
 describe("diffSnapshots", () => {
   it("computes graph deltas and ranks structural hotspots", () => {
-    const before = snapshot("before", [{ path: "a.ts", loc: 20 }, { path: "b.ts", loc: 20 }], [["a.ts", "b.ts", "./b"]]);
+    const before = snapshot(
+      "before",
+      [
+        { path: "a.ts", loc: 20 },
+        { path: "b.ts", loc: 20 },
+      ],
+      [["a.ts", "b.ts", "./b"]],
+    );
     const after = snapshot(
       "after",
       [

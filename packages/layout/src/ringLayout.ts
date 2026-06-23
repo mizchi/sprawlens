@@ -37,13 +37,9 @@ export function ringLayout(
   const circles = new Map<string, PlacedCircle>();
   if (modules.length === 0) return { circles, totalRadius: 0 };
 
-  const radii = new Map(
-    modules.map((m) => [m.id, Math.sqrt(Math.max(m.area, 1e-12) / Math.PI)]),
-  );
-  const meanRadius =
-    [...radii.values()].reduce((s, r) => s + r, 0) / radii.size;
+  const radii = new Map(modules.map((m) => [m.id, Math.sqrt(Math.max(m.area, 1e-12) / Math.PI)]));
+  const meanRadius = [...radii.values()].reduce((s, r) => s + r, 0) / radii.size;
   const gap = meanRadius * gapRatio;
-
 
   const rings = new Map<number, RingModule[]>();
   for (const module of modules) {
@@ -87,8 +83,7 @@ export function ringLayout(
     const placedEdgeAngle = (id: string): number | null => {
       const angles: number[] = [];
       for (const edge of edges) {
-        const other =
-          edge.source === id ? edge.target : edge.target === id ? edge.source : null;
+        const other = edge.source === id ? edge.target : edge.target === id ? edge.source : null;
         if (!other) continue;
         const placed = circles.get(other);
         if (!placed) continue;
@@ -113,10 +108,7 @@ export function ringLayout(
     // angular slot width proportional to diameter + gap
     const widths = ordered.map((m) => 2 * radii.get(m.id)! + gap);
     const circumference = widths.reduce((s, w) => s + w, 0);
-    let radius = Math.max(
-      circumference / (2 * Math.PI),
-      previousOuter + maxR + gap,
-    );
+    let radius = Math.max(circumference / (2 * Math.PI), previousOuter + maxR + gap);
 
     const angles: number[] = [];
     let cursor = 0;

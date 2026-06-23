@@ -2,11 +2,7 @@ import { resolve } from "node:path";
 import { pathToFileURL } from "node:url";
 import type { HoverInfo } from "@sprawlens/schema";
 import type { LspClient } from "./lspClient.js";
-import {
-  type DocumentSymbol,
-  findSymbol,
-  namePosition,
-} from "./symbolPosition.js";
+import { type DocumentSymbol, findSymbol, namePosition } from "./symbolPosition.js";
 
 /** LSP hover contents: MarkupContent, a MarkedString, or an array of them. */
 type MarkedString = string | { language: string; value: string };
@@ -44,10 +40,9 @@ export async function hover(
   let symbols: DocumentSymbol[] = [];
   for (let attempt = 0; attempt < 10; attempt++) {
     symbols =
-      (await client.request<DocumentSymbol[] | null>(
-        "textDocument/documentSymbol",
-        { textDocument: { uri } },
-      )) ?? [];
+      (await client.request<DocumentSymbol[] | null>("textDocument/documentSymbol", {
+        textDocument: { uri },
+      })) ?? [];
     if (symbols.length > 0) break;
     await new Promise((r) => setTimeout(r, 300));
   }

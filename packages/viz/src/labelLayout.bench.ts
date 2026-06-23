@@ -78,9 +78,7 @@ function labelFrame(list: readonly CellResult[], zoom: number): number {
     const fg = screenFont(Math.sqrt(cell.actualArea) * 0.18, 9, 15, zoom);
     if (fg !== null) drawn++;
     // symbol-dominance gate (inner labels reuse the same pattern)
-    const dominant =
-      Math.sqrt(cell.actualArea) * zoom >=
-      Math.min(W, H) * SYMBOL_DOMINANT_FRACTION;
+    const dominant = Math.sqrt(cell.actualArea) * zoom >= Math.min(W, H) * SYMBOL_DOMINANT_FRACTION;
     if (dominant) drawn++;
   }
   return drawn;

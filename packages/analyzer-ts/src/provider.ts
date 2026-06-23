@@ -2,11 +2,7 @@ import { existsSync } from "node:fs";
 import { basename, join } from "node:path";
 import fg from "fast-glob";
 import type { LanguageProvider, SnapshotCommit } from "@sprawlens/schema";
-import {
-  SOURCE_EXTENSIONS,
-  createSnapshotFromWorkingTree,
-  type ParseCache,
-} from "./snapshot.js";
+import { SOURCE_EXTENSIONS, createSnapshotFromWorkingTree, type ParseCache } from "./snapshot.js";
 import { tsDetail } from "./detail.js";
 
 /** Synthetic commit for an uncommitted working-tree snapshot. */
@@ -26,15 +22,11 @@ export const tsProvider: LanguageProvider = {
   id: "typescript",
   matchesManifest(repoPath) {
     return (
-      existsSync(join(repoPath, "tsconfig.json")) ||
-      existsSync(join(repoPath, "package.json"))
+      existsSync(join(repoPath, "tsconfig.json")) || existsSync(join(repoPath, "package.json"))
     );
   },
   async match(repoPath) {
-    if (
-      existsSync(join(repoPath, "tsconfig.json")) ||
-      existsSync(join(repoPath, "package.json"))
-    )
+    if (existsSync(join(repoPath, "tsconfig.json")) || existsSync(join(repoPath, "package.json")))
       return true;
     const hits = await fg(
       SOURCE_EXTENSIONS.map((ext) => `**/*${ext}`),

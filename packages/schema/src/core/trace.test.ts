@@ -135,8 +135,16 @@ describe("parseLlvmCoverage", () => {
         data: [
           {
             functions: [
-              { name: "_RNvCs7SYglE0mePz_9trace_exp5delta", count: 200, filenames: ["/repo/src/calc.rs"] },
-              { name: "_ZN9trace_exp4beta17h0643486588e47a79E", count: 400, filenames: ["/repo/src/calc.rs"] },
+              {
+                name: "_RNvCs7SYglE0mePz_9trace_exp5delta",
+                count: 200,
+                filenames: ["/repo/src/calc.rs"],
+              },
+              {
+                name: "_ZN9trace_exp4beta17h0643486588e47a79E",
+                count: 400,
+                filenames: ["/repo/src/calc.rs"],
+              },
               { name: "_ZN9trace_exp5never17habc0E", count: 0, filenames: ["/repo/src/calc.rs"] },
             ],
           },
@@ -157,7 +165,15 @@ describe("parseLlvmCoverage", () => {
 
   it("takes the last segment of an already-demangled name", () => {
     const trace = parseLlvmCoverage(
-      { data: [{ functions: [{ name: "trace_exp::calc::beta", count: 5, filenames: ["/repo/src/calc.rs"] }] }] },
+      {
+        data: [
+          {
+            functions: [
+              { name: "trace_exp::calc::beta", count: 5, filenames: ["/repo/src/calc.rs"] },
+            ],
+          },
+        ],
+      },
       "/repo",
     );
     expect(trace.nodes[0]!.ref.name).toBe("beta");

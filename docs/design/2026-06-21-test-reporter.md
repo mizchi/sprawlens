@@ -37,7 +37,7 @@ type TestCaseResult = {
   testId: string;
   /** Raw locators for (re)resolution when ids drift across a re-extraction. */
   file?: string;
-  name?: string;       // full title ("suite › case")
+  name?: string; // full title ("suite › case")
   status: TestStatus;
   durationMs?: number;
   /** Failure message / assertion diff (fail only). */
@@ -108,10 +108,10 @@ needs a configured command and a mutating endpoint:
 
 - **Phase A — report ingest + status on nodes. (done)** `TestRun` contract,
   `resolveTestRun` / `testRunOverlay`, the vitest-json adapter, `--test-report`
-  + `GET /api/test-run`, and test-case cells tinted pass/fail/skip with a
-  duration label. No runner driving. Verified e2e: a vitest `--reporter=json`
-  report joins to the extracted tree (by file + full title when the runner omits
-  task locations) and tints the cases.
+  - `GET /api/test-run`, and test-case cells tinted pass/fail/skip with a
+    duration label. No runner driving. Verified e2e: a vitest `--reporter=json`
+    report joins to the extracted tree (by file + full title when the runner omits
+    task locations) and tints the cases.
 - **Phase B — source edges per test. (done)** `serve --test-traces <file>`
   ingests a `{ testId: artifact }` map (each artifact any format `--trace`
   accepts), resolves each to the symbols that case exercised, and fills the

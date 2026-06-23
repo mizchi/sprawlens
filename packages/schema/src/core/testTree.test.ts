@@ -70,10 +70,7 @@ describe("buildTestTree", () => {
       { file: "a/b/c/y.test.ts", nodes: [caseNode("a/b/c/y.test.ts", "t2", 1)] },
     ])!;
     // common prefix a/b/c is fully stripped, so the two files sit at the root
-    expect(tree.root.children.map((c) => c.name).sort()).toEqual([
-      "x.test.ts",
-      "y.test.ts",
-    ]);
+    expect(tree.root.children.map((c) => c.name).sort()).toEqual(["x.test.ts", "y.test.ts"]);
   });
 
   it("merges a single-child dir chain when it is not the shared prefix", () => {

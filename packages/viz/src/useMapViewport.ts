@@ -54,11 +54,7 @@ export function useMapViewport(options: {
   /** Edge proximity pick, run in the click capture phase before any node or
    * background handler. Returns true when it consumed the click (an edge was
    * near), so overlapping edges win over the filled shape beneath them. */
-  onPickEdge?: (
-    clientX: number,
-    clientY: number,
-    shiftKey: boolean,
-  ) => boolean;
+  onPickEdge?: (clientX: number, clientY: number, shiftKey: boolean) => boolean;
   /** Pointer hover (no button), for edge-proximity preview. Not fired while
    * panning. */
   onHover?: (clientX: number, clientY: number) => void;
@@ -234,8 +230,7 @@ export function useMapViewport(options: {
     // pin the LOD focus to the world point under the cursor (the zoom anchor),
     // read after the viewBox update so the CTM is current; falls back to the
     // screen center if the pick fails
-    wheelFocusRef.current =
-      clientToWorld(event.clientX, event.clientY) ?? wheelFocusRef.current;
+    wheelFocusRef.current = clientToWorld(event.clientX, event.clientY) ?? wheelFocusRef.current;
   };
 
   /** Spread onto the <svg>; the component adds its own onClick(deselect). */

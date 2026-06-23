@@ -7,12 +7,7 @@ import type {
   ServiceStore,
   ServiceStoreEdge,
 } from "@sprawlens/schema";
-import {
-  createForceLayout,
-  forceStep,
-  type ClipRegion,
-  type Vec2,
-} from "@sprawlens/layout";
+import { createForceLayout, forceStep, type ClipRegion, type Vec2 } from "@sprawlens/layout";
 import { useMapViewport } from "./useMapViewport.ts";
 import { SERVICE_EDGE_COLORS, SERVICE_STORE_COLOR } from "./mapShared.tsx";
 
@@ -43,8 +38,7 @@ const MARGIN = 70;
 const CLIP: ClipRegion = { kind: "circle", cx: 0, cy: 0, r: 320 };
 const ITERATIONS = 600;
 
-const edgeColor = (kind: ServiceEdge["kind"]): string =>
-  SERVICE_EDGE_COLORS[kind] ?? "#64748b";
+const edgeColor = (kind: ServiceEdge["kind"]): string => SERVICE_EDGE_COLORS[kind] ?? "#64748b";
 
 /** Display radius for a service node, before canvas fitting. Independent of the
  * force layout's area-filling radii (which balloon for a sparse graph and
@@ -72,11 +66,7 @@ function ringPlace(i: number, count: number, ringR: number): Vec2 {
 }
 
 /** Place the i-th of `count` cells in a centered square grid of side `span`. */
-function gridCell(
-  i: number,
-  count: number,
-  span: number,
-): { x: number; y: number; size: number } {
+function gridCell(i: number, count: number, span: number): { x: number; y: number; size: number } {
   const cols = Math.max(1, Math.ceil(Math.sqrt(count)));
   const rows = Math.ceil(count / cols);
   const cell = span / Math.max(cols, rows);
@@ -181,10 +171,7 @@ function layoutServices(graph: ServiceGraph): Layout {
   const placed = solved.map((p) => ({ ...p, pos: fit(p.pos), r: p.r * scale }));
   const stores = solvedStores.map((p) => ({ ...p, pos: fit(p.pos), r: p.r * scale }));
   const posOf = new Map(
-    [...placed, ...stores].map((p) => [
-      "node" in p ? p.node.id : p.store.id,
-      p.pos,
-    ]),
+    [...placed, ...stores].map((p) => ["node" in p ? p.node.id : p.store.id, p.pos]),
   );
   return { placed, stores, posOf, edges: graph.edges, storeEdges };
 }
@@ -211,8 +198,7 @@ function ServiceCell(props: {
   codeOpacity: number;
   onHover: (id: string | null) => void;
 }): preact.JSX.Element {
-  const { service, resources, pos, r, dark, ink, labelSize, resLabelSize, strokeW } =
-    props;
+  const { service, resources, pos, r, dark, ink, labelSize, resLabelSize, strokeW } = props;
   const count = resources.length;
   const ringR = count > 1 ? r * 0.5 : 0;
   const resR = count > 1 ? r * 0.3 : r * 0.58;
@@ -224,12 +210,7 @@ function ServiceCell(props: {
       onPointerLeave={() => props.onHover(null)}
       style={{ cursor: "pointer" }}
     >
-      <circle
-        r={r}
-        fill={dark ? "#1e293b" : "#e2e8f0"}
-        stroke="#0891b2"
-        stroke-width={strokeW}
-      />
+      <circle r={r} fill={dark ? "#1e293b" : "#e2e8f0"} stroke="#0891b2" stroke-width={strokeW} />
       <text
         y={r + labelSize + 1}
         text-anchor="middle"
@@ -349,8 +330,8 @@ export function ServicesView(props: {
   if (graph.services.length === 0) {
     return (
       <Centered ink={ink}>
-        no terraform detected — add <code>.tf</code> files or a{" "}
-        <code>[terraform]</code> root in sprawlens.toml
+        no terraform detected — add <code>.tf</code> files or a <code>[terraform]</code> root in
+        sprawlens.toml
       </Centered>
     );
   }
@@ -362,155 +343,155 @@ export function ServicesView(props: {
 
   return (
     <div style={{ position: "relative", width: "100%", height: "100%" }}>
-    <svg
-      {...svgProps}
-      width="100%"
-      height="100%"
-      preserveAspectRatio="xMidYMid meet"
-      style={{ cursor: "grab", touchAction: "none" }}
-    >
-      <defs>
-        {Object.keys(EDGE_LABEL).map((kind) => (
-          <marker
-            key={kind}
-            id={`svc-arrow-${kind}`}
-            viewBox="0 0 10 10"
-            refX="9"
-            refY="5"
-            markerWidth="6"
-            markerHeight="6"
-            orient="auto-start-reverse"
-          >
-            <path d="M0 0 L10 5 L0 10 z" fill={edgeColor(kind as ServiceEdge["kind"])} />
-          </marker>
-        ))}
-      </defs>
-      {/* edges */}
-      {layout.edges.map((e, i) => {
-        const a = layout.posOf.get(e.source);
-        const b = layout.posOf.get(e.target);
-        if (!a || !b) return null;
-        const dim = hover !== null && hover !== e.source && hover !== e.target;
-        return (
-          <line
-            key={`e${i}`}
-            x1={a.x}
-            y1={a.y}
-            x2={b.x}
-            y2={b.y}
-            stroke={edgeColor(e.kind)}
-            stroke-width={Math.max(view.w / 600, (e.weight ?? 1) * (view.w / 900))}
-            stroke-opacity={dim ? 0.1 : 0.7}
-            marker-end={`url(#svc-arrow-${e.kind})`}
-          >
-            <title>
-              {e.source} {EDGE_LABEL[e.kind]} {e.target}
-              {e.via ? ` (via ${e.via})` : ""}
-            </title>
-          </line>
-        );
-      })}
-      {/* store-reference edges: a service uses an external store (dashed) */}
-      {layout.storeEdges.map((e, i) => {
-        const a = layout.posOf.get(e.service);
-        const b = layout.posOf.get(e.store);
-        if (!a || !b) return null;
-        const dim = hover !== null && hover !== e.service && hover !== e.store;
-        return (
-          <line
-            key={`s${i}`}
-            x1={a.x}
-            y1={a.y}
-            x2={b.x}
-            y2={b.y}
-            stroke={SERVICE_STORE_COLOR}
-            stroke-width={Math.max(view.w / 700, (e.weight ?? 1) * (view.w / 1000))}
-            stroke-opacity={dim ? 0.08 : 0.5}
-            stroke-dasharray={`${view.w / 120} ${view.w / 200}`}
-          >
-            <title>
-              {e.service} uses {e.store}
-              {e.via ? ` (via ${e.via})` : ""}
-            </title>
-          </line>
-        );
-      })}
-      {/* service nodes: their resources + code fade in as you zoom (semantic
-          zoom). on-screen size = world radius / view width. */}
-      {layout.placed.map((p) => {
-        const relSize = p.r / view.w;
-        return (
-          <ServiceCell
-            key={p.node.id}
-            service={p.node}
-            resources={resourcesByService.get(p.node.id) ?? []}
-            pos={p.pos}
-            r={p.r}
-            dark={props.dark}
-            ink={ink}
-            labelSize={serviceLabelSize}
-            resLabelSize={view.w / 78}
-            strokeW={view.w / 700}
-            dim={hover !== null && hover !== p.node.id}
-            resOpacity={ramp(relSize, RES_FADE[0], RES_FADE[1])}
-            codeOpacity={ramp(relSize, CODE_FADE[0], CODE_FADE[1])}
-            onHover={setHover}
-          />
-        );
-      })}
-      {/* external store nodes (S3, DynamoDB, …): rounded rects, set apart from
-          the service circles by shape + color */}
-      {layout.stores.map((s) => {
-        const dim = hover !== null && hover !== s.store.id;
-        const size = s.r * 1.6;
-        return (
-          <g
-            key={s.store.id}
-            transform={`translate(${s.pos.x} ${s.pos.y})`}
-            opacity={dim ? 0.35 : 1}
-            onPointerEnter={() => setHover(s.store.id)}
-            onPointerLeave={() => setHover(null)}
-            style={{ cursor: "pointer" }}
-          >
-            <rect
-              x={-size / 2}
-              y={-size / 2}
-              width={size}
-              height={size}
-              rx={size * 0.16}
-              fill={props.dark ? "#3f2d0b" : "#fef3c7"}
-              stroke={SERVICE_STORE_COLOR}
-              stroke-width={view.w / 700}
-            />
-            <text
-              y={s.r + serviceLabelSize * 0.85 + 1}
-              text-anchor="middle"
-              font-size={serviceLabelSize * 0.85}
-              fill={ink}
-              opacity={0.85}
-              style={{ pointerEvents: "none", userSelect: "none" }}
-            >
-              {s.store.label}
-            </text>
-            <title>
-              {s.store.address}
-              {`\n${s.store.type}`}
-            </title>
-          </g>
-        );
-      })}
-      {/* count badge — pinned to the current viewport's top-right corner */}
-      <text
-        x={view.x + view.w * 0.98}
-        y={view.y + view.h * 0.04}
-        text-anchor="end"
-        font-size={view.w / 64}
-        fill={ink}
-        opacity={0.6}
+      <svg
+        {...svgProps}
+        width="100%"
+        height="100%"
+        preserveAspectRatio="xMidYMid meet"
+        style={{ cursor: "grab", touchAction: "none" }}
       >
-        {graph.services.length} services · {graph.edges.length} links
-      </text>
-    </svg>
+        <defs>
+          {Object.keys(EDGE_LABEL).map((kind) => (
+            <marker
+              key={kind}
+              id={`svc-arrow-${kind}`}
+              viewBox="0 0 10 10"
+              refX="9"
+              refY="5"
+              markerWidth="6"
+              markerHeight="6"
+              orient="auto-start-reverse"
+            >
+              <path d="M0 0 L10 5 L0 10 z" fill={edgeColor(kind as ServiceEdge["kind"])} />
+            </marker>
+          ))}
+        </defs>
+        {/* edges */}
+        {layout.edges.map((e, i) => {
+          const a = layout.posOf.get(e.source);
+          const b = layout.posOf.get(e.target);
+          if (!a || !b) return null;
+          const dim = hover !== null && hover !== e.source && hover !== e.target;
+          return (
+            <line
+              key={`e${i}`}
+              x1={a.x}
+              y1={a.y}
+              x2={b.x}
+              y2={b.y}
+              stroke={edgeColor(e.kind)}
+              stroke-width={Math.max(view.w / 600, (e.weight ?? 1) * (view.w / 900))}
+              stroke-opacity={dim ? 0.1 : 0.7}
+              marker-end={`url(#svc-arrow-${e.kind})`}
+            >
+              <title>
+                {e.source} {EDGE_LABEL[e.kind]} {e.target}
+                {e.via ? ` (via ${e.via})` : ""}
+              </title>
+            </line>
+          );
+        })}
+        {/* store-reference edges: a service uses an external store (dashed) */}
+        {layout.storeEdges.map((e, i) => {
+          const a = layout.posOf.get(e.service);
+          const b = layout.posOf.get(e.store);
+          if (!a || !b) return null;
+          const dim = hover !== null && hover !== e.service && hover !== e.store;
+          return (
+            <line
+              key={`s${i}`}
+              x1={a.x}
+              y1={a.y}
+              x2={b.x}
+              y2={b.y}
+              stroke={SERVICE_STORE_COLOR}
+              stroke-width={Math.max(view.w / 700, (e.weight ?? 1) * (view.w / 1000))}
+              stroke-opacity={dim ? 0.08 : 0.5}
+              stroke-dasharray={`${view.w / 120} ${view.w / 200}`}
+            >
+              <title>
+                {e.service} uses {e.store}
+                {e.via ? ` (via ${e.via})` : ""}
+              </title>
+            </line>
+          );
+        })}
+        {/* service nodes: their resources + code fade in as you zoom (semantic
+          zoom). on-screen size = world radius / view width. */}
+        {layout.placed.map((p) => {
+          const relSize = p.r / view.w;
+          return (
+            <ServiceCell
+              key={p.node.id}
+              service={p.node}
+              resources={resourcesByService.get(p.node.id) ?? []}
+              pos={p.pos}
+              r={p.r}
+              dark={props.dark}
+              ink={ink}
+              labelSize={serviceLabelSize}
+              resLabelSize={view.w / 78}
+              strokeW={view.w / 700}
+              dim={hover !== null && hover !== p.node.id}
+              resOpacity={ramp(relSize, RES_FADE[0], RES_FADE[1])}
+              codeOpacity={ramp(relSize, CODE_FADE[0], CODE_FADE[1])}
+              onHover={setHover}
+            />
+          );
+        })}
+        {/* external store nodes (S3, DynamoDB, …): rounded rects, set apart from
+          the service circles by shape + color */}
+        {layout.stores.map((s) => {
+          const dim = hover !== null && hover !== s.store.id;
+          const size = s.r * 1.6;
+          return (
+            <g
+              key={s.store.id}
+              transform={`translate(${s.pos.x} ${s.pos.y})`}
+              opacity={dim ? 0.35 : 1}
+              onPointerEnter={() => setHover(s.store.id)}
+              onPointerLeave={() => setHover(null)}
+              style={{ cursor: "pointer" }}
+            >
+              <rect
+                x={-size / 2}
+                y={-size / 2}
+                width={size}
+                height={size}
+                rx={size * 0.16}
+                fill={props.dark ? "#3f2d0b" : "#fef3c7"}
+                stroke={SERVICE_STORE_COLOR}
+                stroke-width={view.w / 700}
+              />
+              <text
+                y={s.r + serviceLabelSize * 0.85 + 1}
+                text-anchor="middle"
+                font-size={serviceLabelSize * 0.85}
+                fill={ink}
+                opacity={0.85}
+                style={{ pointerEvents: "none", userSelect: "none" }}
+              >
+                {s.store.label}
+              </text>
+              <title>
+                {s.store.address}
+                {`\n${s.store.type}`}
+              </title>
+            </g>
+          );
+        })}
+        {/* count badge — pinned to the current viewport's top-right corner */}
+        <text
+          x={view.x + view.w * 0.98}
+          y={view.y + view.h * 0.04}
+          text-anchor="end"
+          font-size={view.w / 64}
+          fill={ink}
+          opacity={0.6}
+        >
+          {graph.services.length} services · {graph.edges.length} links
+        </text>
+      </svg>
       {/* edge-kind legend: screen-fixed at the bottom-left, does not pan/zoom */}
       <div
         style={{
@@ -528,10 +509,7 @@ export function ServicesView(props: {
         }}
       >
         {Object.entries(EDGE_LABEL).map(([kind, label]) => (
-          <div
-            key={kind}
-            style={{ display: "flex", alignItems: "center", gap: "8px" }}
-          >
+          <div key={kind} style={{ display: "flex", alignItems: "center", gap: "8px" }}>
             <span
               style={{
                 width: "22px",
@@ -557,10 +535,7 @@ export function ServicesView(props: {
   );
 }
 
-function Centered(props: {
-  ink: string;
-  children: preact.ComponentChildren;
-}): preact.JSX.Element {
+function Centered(props: { ink: string; children: preact.ComponentChildren }): preact.JSX.Element {
   return (
     <div
       style={{

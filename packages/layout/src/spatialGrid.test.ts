@@ -16,17 +16,24 @@ function brute(xs: Float64Array, ys: Float64Array): Float64Array {
 
 function lcg(seed: number): () => number {
   let s = seed >>> 0;
-  return () => ((s = (s * 1664525 + 1013904223) >>> 0) / 0xffffffff);
+  return () => (s = (s * 1664525 + 1013904223) >>> 0) / 0xffffffff;
 }
 
 describe("nearestNeighborSquared", () => {
   it("returns Infinity for fewer than two points", () => {
     expect([...nearestNeighborSquared(new Float64Array(0), new Float64Array(0))]).toEqual([]);
-    expect([...nearestNeighborSquared(new Float64Array([1]), new Float64Array([2]))]).toEqual([Infinity]);
+    expect([...nearestNeighborSquared(new Float64Array([1]), new Float64Array([2]))]).toEqual([
+      Infinity,
+    ]);
   });
 
   it("matches brute force across random distributions and sizes", () => {
-    for (const [n, seed] of [[2, 1], [10, 7], [200, 3], [777, 11]] as const) {
+    for (const [n, seed] of [
+      [2, 1],
+      [10, 7],
+      [200, 3],
+      [777, 11],
+    ] as const) {
       const rng = lcg(seed);
       const xs = new Float64Array(n);
       const ys = new Float64Array(n);

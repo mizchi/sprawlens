@@ -62,18 +62,14 @@ export function centralityRings(
   const result = new Map<string, number>();
   if (modules.length === 0) return result;
 
-  const radiusOf = (m: CentralityModule) =>
-    Math.sqrt(Math.max(m.area, 1e-12) / Math.PI);
-  const meanRadius =
-    modules.reduce((s, m) => s + radiusOf(m), 0) / modules.length;
+  const radiusOf = (m: CentralityModule) => Math.sqrt(Math.max(m.area, 1e-12) / Math.PI);
+  const meanRadius = modules.reduce((s, m) => s + radiusOf(m), 0) / modules.length;
   const gap = meanRadius * gapRatio;
   const meanWidth = 2 * meanRadius + gap;
 
   const sorted = [...modules].sort(
     (a, b) =>
-      b.centrality - a.centrality ||
-      b.area - a.area ||
-      (a.id < b.id ? -1 : a.id > b.id ? 1 : 0),
+      b.centrality - a.centrality || b.area - a.area || (a.id < b.id ? -1 : a.id > b.id ? 1 : 0),
   );
 
   // ring 0 = the lone hub; outer rings fill to their circumference budget

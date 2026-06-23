@@ -67,9 +67,7 @@ export function splitApiBoundary(
   return {
     internal: {
       nodes: internalNodes,
-      edges: api.edges.filter(
-        (e) => !boundaryIds.has(e.source) && !boundaryIds.has(e.target),
-      ),
+      edges: api.edges.filter((e) => !boundaryIds.has(e.source) && !boundaryIds.has(e.target)),
     },
     boundaryByModule,
   };
@@ -130,11 +128,8 @@ export function buildApiGraph(
   for (const edge of symbolEdges) {
     // static file→symbol references are lifted only when the source file
     // exports exactly one symbol; anything else is ambiguous and dropped
-    const source = nodeIds.has(edge.source)
-      ? edge.source
-      : (soleExportOf.get(edge.source) ?? null);
-    if (!source || !nodeIds.has(edge.target) || source === edge.target)
-      continue;
+    const source = nodeIds.has(edge.source) ? edge.source : (soleExportOf.get(edge.source) ?? null);
+    if (!source || !nodeIds.has(edge.target) || source === edge.target) continue;
     const key = `${source}->${edge.target}`;
     if (seen.has(key)) continue;
     seen.add(key);
@@ -231,8 +226,6 @@ export function applySymbolBudget(
   }));
   return {
     nodes: [...kept, ...fillers],
-    edges: graph.edges.filter(
-      (e) => keptIds.has(e.source) && keptIds.has(e.target),
-    ),
+    edges: graph.edges.filter((e) => keptIds.has(e.source) && keptIds.has(e.target)),
   };
 }

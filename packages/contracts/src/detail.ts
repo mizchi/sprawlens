@@ -50,6 +50,4 @@ export type DetailGraph = AtlasGraph & {
 };
 
 /** Resolves on null when the symbol has no expandable interior. */
-type DetailProvider = (
-  request: DetailRequest,
-) => Promise<DetailGraph | null>;
+type DetailProvider = (request: DetailRequest) => Promise<DetailGraph | null>;

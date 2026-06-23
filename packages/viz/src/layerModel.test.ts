@@ -6,7 +6,13 @@ const ext = { width: 800, height: 600 };
 const labelOf = (id: string) => id.split("/").pop() ?? id;
 
 function fileNode(id: string, layer?: string): AtlasGraph["nodes"][number] {
-  return { id, kind: "file", label: labelOf(id), metrics: { loc: 10 }, ...(layer ? { layer } : {}) };
+  return {
+    id,
+    kind: "file",
+    label: labelOf(id),
+    metrics: { loc: 10 },
+    ...(layer ? { layer } : {}),
+  };
 }
 
 describe("buildSatelliteLayers", () => {

@@ -17,7 +17,16 @@ const snapshot = {
       loc: 30,
       sizeBytes: 0,
       symbols: [
-        { id: "symbol:src/math.ts:function:add:1", kind: "function", name: "add", startLine: 1, endLine: 5, loc: 5, complexity: 1, exported: true },
+        {
+          id: "symbol:src/math.ts:function:add:1",
+          kind: "function",
+          name: "add",
+          startLine: 1,
+          endLine: 5,
+          loc: 5,
+          complexity: 1,
+          exported: true,
+        },
       ],
     },
   ],

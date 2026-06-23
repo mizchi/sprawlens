@@ -33,11 +33,7 @@ describe("defaultLayerOf", () => {
 describe("splitByLayer", () => {
   it("partitions nodes and keeps only intra-source edges in the source graph", () => {
     const graph: AtlasGraph = {
-      nodes: [
-        fileNode("src/a.ts"),
-        fileNode("src/a.test.ts"),
-        fileNode("src/b.ts"),
-      ],
+      nodes: [fileNode("src/a.ts"), fileNode("src/a.test.ts"), fileNode("src/b.ts")],
       edges: [
         { source: "src/a.test.ts", target: "src/a.ts" },
         { source: "src/a.ts", target: "src/b.ts" },

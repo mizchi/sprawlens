@@ -1,9 +1,5 @@
 import { describe, expect, it } from "vitest";
-import {
-  distanceToPolyline,
-  pickNearestEdge,
-  type EdgePickCandidate,
-} from "./edgePick.js";
+import { distanceToPolyline, pickNearestEdge, type EdgePickCandidate } from "./edgePick.js";
 
 describe("distanceToPolyline", () => {
   it("measures perpendicular distance to the nearest segment", () => {
@@ -76,8 +72,22 @@ describe("pickNearestEdge", () => {
 
   it("resolves ties to the first candidate", () => {
     const tied: EdgePickCandidate[] = [
-      { source: "x", target: "y", points: [{ x: 0, y: 0 }, { x: 10, y: 0 }] },
-      { source: "p", target: "q", points: [{ x: 0, y: 0 }, { x: 10, y: 0 }] },
+      {
+        source: "x",
+        target: "y",
+        points: [
+          { x: 0, y: 0 },
+          { x: 10, y: 0 },
+        ],
+      },
+      {
+        source: "p",
+        target: "q",
+        points: [
+          { x: 0, y: 0 },
+          { x: 10, y: 0 },
+        ],
+      },
     ];
     expect(pickNearestEdge({ x: 5, y: 1 }, tied, 8)!.source).toBe("x");
   });
@@ -85,8 +95,22 @@ describe("pickNearestEdge", () => {
   it("with dominance, grabs a clearly-nearest edge but not a contested one", () => {
     // two parallel edges 10 apart; the wide radius (20) reaches both
     const pair: EdgePickCandidate[] = [
-      { source: "a", target: "b", points: [{ x: 0, y: 0 }, { x: 100, y: 0 }] },
-      { source: "c", target: "d", points: [{ x: 0, y: 10 }, { x: 100, y: 10 }] },
+      {
+        source: "a",
+        target: "b",
+        points: [
+          { x: 0, y: 0 },
+          { x: 100, y: 0 },
+        ],
+      },
+      {
+        source: "c",
+        target: "d",
+        points: [
+          { x: 0, y: 10 },
+          { x: 100, y: 10 },
+        ],
+      },
     ];
     // clearly closer to a→b (2 vs 8): grabbed
     expect(pickNearestEdge({ x: 50, y: 2 }, pair, 20, 0.8)!.source).toBe("a");

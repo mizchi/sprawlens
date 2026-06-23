@@ -19,14 +19,11 @@ export function barycentricRingOrder(
   iterations = 6,
 ): Map<number, string[]> {
   const ringIndices = [...rings.keys()].sort((a, b) => a - b);
-  const order = new Map<number, string[]>(
-    ringIndices.map((i) => [i, [...rings.get(i)!]]),
-  );
+  const order = new Map<number, string[]>(ringIndices.map((i) => [i, [...rings.get(i)!]]));
   if (ringIndices.length === 0) return order;
 
   // the lone innermost circle is the center: fixed, angle-less
-  const center =
-    order.get(ringIndices[0]!)!.length === 1 ? order.get(ringIndices[0]!)![0]! : null;
+  const center = order.get(ringIndices[0]!)!.length === 1 ? order.get(ringIndices[0]!)![0]! : null;
 
   const adjacency = new Map<string, string[]>();
   const link = (a: string, b: string) => {
@@ -80,11 +77,7 @@ export function barycentricRingOrder(
       const targetOf = new Map<string, number>(
         members.map((id) => [id, meanAngle(id) ?? angle.get(id)!]),
       );
-      members.sort(
-        (a, b) =>
-          targetOf.get(a)! - targetOf.get(b)! ||
-          (a < b ? -1 : a > b ? 1 : 0),
-      );
+      members.sort((a, b) => targetOf.get(a)! - targetOf.get(b)! || (a < b ? -1 : a > b ? 1 : 0));
       respace(ring);
     }
   }

@@ -1,11 +1,7 @@
 import { execFile } from "node:child_process";
 import { isAbsolute, relative } from "node:path";
 import { promisify } from "node:util";
-import type {
-  CallHierarchyResult,
-  LanguageDetail,
-  SymbolRef,
-} from "@sprawlens/schema";
+import type { CallHierarchyResult, LanguageDetail, SymbolRef } from "@sprawlens/schema";
 
 const exec = promisify(execFile);
 
@@ -28,11 +24,7 @@ const LOC = /^(.*\.mbt):(\d+):\d+-\d+:\d+:?\s*$/;
  * Parse `moon ide find-references` output into repo-relative refs. The first
  * location is the resolved definition; the rest are the incoming references.
  */
-export function parseReferences(
-  stdout: string,
-  repoRoot: string,
-  symbol: string,
-): SymbolRef[] {
+export function parseReferences(stdout: string, repoRoot: string, symbol: string): SymbolRef[] {
   const refs: SymbolRef[] = [];
   for (const line of stdout.split("\n")) {
     const m = line.match(LOC);
@@ -51,11 +43,11 @@ async function findReferences(
   symbol: string,
 ): Promise<SymbolRef[]> {
   try {
-    const { stdout } = await exec(
-      "moon",
-      ["ide", "find-references", symbol, "--loc", file],
-      { cwd: repoRoot, timeout: 120_000, maxBuffer: 16 * 1024 * 1024 },
-    );
+    const { stdout } = await exec("moon", ["ide", "find-references", symbol, "--loc", file], {
+      cwd: repoRoot,
+      timeout: 120_000,
+      maxBuffer: 16 * 1024 * 1024,
+    });
     return parseReferences(stdout, repoRoot, symbol);
   } catch {
     // moon absent, module not checkable, or symbol unresolved — no detail

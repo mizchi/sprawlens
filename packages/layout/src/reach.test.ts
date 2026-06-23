@@ -20,9 +20,7 @@ describe("reachSubgraph", () => {
     const reach = reachSubgraph(edges, "b");
     // downstream of b (what b depends on): b→c→d, c→y
     expect(reach.downstreamEdges).toHaveLength(3);
-    expect(
-      reach.downstreamEdges.every((e) => ["b", "c"].includes(e.source)),
-    ).toBe(true);
+    expect(reach.downstreamEdges.every((e) => ["b", "c"].includes(e.source))).toBe(true);
     // upstream of b (what depends on b): a→b, x→b
     expect(reach.upstreamEdges).toHaveLength(2);
     expect(reach.upstreamEdges.every((e) => e.target === "b")).toBe(true);
@@ -34,9 +32,7 @@ describe("reachSubgraph", () => {
     expect(reach.edges).toHaveLength(5);
     const downstreamOnly = reachSubgraph(edges, "a");
     // a's paths: a→b→c→d / c→y. x→b is NOT on a path from/to a.
-    expect(
-      downstreamOnly.edges.some((e) => e.source === "x"),
-    ).toBe(false);
+    expect(downstreamOnly.edges.some((e) => e.source === "x")).toBe(false);
     expect([...downstreamOnly.nodes].sort()).toEqual(["a", "b", "c", "d", "y"]);
   });
 

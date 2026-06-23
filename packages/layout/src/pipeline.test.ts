@@ -151,5 +151,4 @@ describe("embedSeedHints", () => {
     };
     expect(embedSeedHints(big, rectClip)).toBeNull();
   });
-
 });

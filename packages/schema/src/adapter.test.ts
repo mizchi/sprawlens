@@ -86,9 +86,7 @@ describe("snapshotToAtlasGraph", () => {
   it("keeps only resolved import edges between known files", () => {
     const graph = snapshotToAtlasGraph(snapshot);
     // the edge carries the imported symbol names (deduped: foo appears twice)
-    expect(graph.edges).toEqual([
-      { source: "src/b.ts", target: "src/a.ts", refs: ["foo", "Bar"] },
-    ]);
+    expect(graph.edges).toEqual([{ source: "src/b.ts", target: "src/a.ts", refs: ["foo", "Bar"] }]);
   });
 
   it("omits refs when an import names no symbols", () => {
@@ -97,9 +95,7 @@ describe("snapshotToAtlasGraph", () => {
         { id: "file:p.ts", type: "file", path: "p.ts", loc: 5, symbols: [] },
         { id: "file:q.ts", type: "file", path: "q.ts", loc: 5, symbols: [] },
       ],
-      edges: [
-        { type: "imports", from: "file:p.ts", to: "file:q.ts", resolved: true },
-      ],
+      edges: [{ type: "imports", from: "file:p.ts", to: "file:q.ts", resolved: true }],
     });
     expect(graph.edges).toEqual([{ source: "p.ts", target: "q.ts" }]);
   });
@@ -124,9 +120,7 @@ describe("snapshotExternalDeps", () => {
   it("ignores resolved and unresolved relative imports", () => {
     const deps = snapshotExternalDeps({
       nodes: snapshot.nodes,
-      edges: [
-        { type: "imports", from: "file:src/b.ts", to: "file:src/a.ts", resolved: true },
-      ],
+      edges: [{ type: "imports", from: "file:src/b.ts", to: "file:src/a.ts", resolved: true }],
     });
     expect(deps).toEqual([]);
   });

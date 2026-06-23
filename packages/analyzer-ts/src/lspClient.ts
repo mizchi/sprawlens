@@ -42,9 +42,7 @@ export class LspClient {
     await client.request("initialize", {
       processId: process.pid,
       rootUri: pathToFileURL(rootDir).href,
-      workspaceFolders: [
-        { uri: pathToFileURL(rootDir).href, name: "workspace" },
-      ],
+      workspaceFolders: [{ uri: pathToFileURL(rootDir).href, name: "workspace" }],
       capabilities: {
         textDocument: {
           documentSymbol: { hierarchicalDocumentSymbolSupport: true },
@@ -83,9 +81,7 @@ export class LspClient {
         reject,
       });
     });
-    this.child.stdin!.write(
-      encodeMessage({ jsonrpc: "2.0", id, method, params }),
-    );
+    this.child.stdin!.write(encodeMessage({ jsonrpc: "2.0", id, method, params }));
     return promise;
   }
 
@@ -138,9 +134,7 @@ export class LspClient {
     }
     // server→client requests need a response to keep the session alive
     if (msg.id !== undefined && msg.method !== undefined) {
-      this.child.stdin!.write(
-        encodeMessage({ jsonrpc: "2.0", id: msg.id, result: null }),
-      );
+      this.child.stdin!.write(encodeMessage({ jsonrpc: "2.0", id: msg.id, result: null }));
     }
   }
 }

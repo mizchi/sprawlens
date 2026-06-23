@@ -1,11 +1,5 @@
 import { describe, expect, it } from "vitest";
-import {
-  clampInto,
-  clipCenter,
-  clipToRing,
-  randomPointIn,
-  type ClipRegion,
-} from "./clip.js";
+import { clampInto, clipCenter, clipToRing, randomPointIn, type ClipRegion } from "./clip.js";
 import { createRng } from "./rng.js";
 
 const triangle: ClipRegion = {
@@ -18,16 +12,12 @@ const triangle: ClipRegion = {
 };
 
 function insideTriangle(p: { x: number; y: number }, eps = 1e-9): boolean {
-  return (
-    p.x >= -eps && p.y >= -eps && p.x + p.y <= 4 + eps
-  );
+  return p.x >= -eps && p.y >= -eps && p.x + p.y <= 4 + eps;
 }
 
 describe("polygon clip", () => {
   it("returns the ring itself from clipToRing", () => {
-    expect(clipToRing(triangle, 64)).toEqual(
-      (triangle as { ring: unknown }).ring,
-    );
+    expect(clipToRing(triangle, 64)).toEqual((triangle as { ring: unknown }).ring);
   });
 
   it("samples random points inside the polygon", () => {

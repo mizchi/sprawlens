@@ -37,10 +37,6 @@ export const goProvider: LanguageProvider = {
   },
   // static call hierarchy from the tree-sitter symbol references (no LSP)
   detail: createStaticDetail((repoPath) =>
-    snapshotGoWorkingTree(
-      repoPath,
-      worktreeCommit("1970-01-01T00:00:00.000Z"),
-      basename(repoPath),
-    ),
+    snapshotGoWorkingTree(repoPath, worktreeCommit("1970-01-01T00:00:00.000Z"), basename(repoPath)),
   ),
 };

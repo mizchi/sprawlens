@@ -29,12 +29,7 @@ export function callHierarchyFromSnapshot(
     const toFile = fileOfId(edge.to);
     for (const si of edge.symbolImports) {
       // toSymbol is defined in `toFile`, used by fromSymbol in `fromFile`
-      if (
-        si.toSymbolName === symbol &&
-        toFile === file &&
-        si.fromSymbolName &&
-        fromFile
-      ) {
+      if (si.toSymbolName === symbol && toFile === file && si.fromSymbolName && fromFile) {
         const ref: SymbolRef = {
           file: fromFile,
           name: si.fromSymbolName,
@@ -42,12 +37,7 @@ export function callHierarchyFromSnapshot(
         };
         incoming.set(key(ref), ref);
       }
-      if (
-        si.fromSymbolName === symbol &&
-        fromFile === file &&
-        si.toSymbolName &&
-        toFile
-      ) {
+      if (si.fromSymbolName === symbol && fromFile === file && si.toSymbolName && toFile) {
         const ref: SymbolRef = {
           file: toFile,
           name: si.toSymbolName,
@@ -80,11 +70,7 @@ export function createStaticDetail(
     cfg: () => null,
     async callHierarchy(repoRoot, file, symbol) {
       try {
-        return callHierarchyFromSnapshot(
-          await snapshotOf(repoRoot),
-          file,
-          symbol,
-        );
+        return callHierarchyFromSnapshot(await snapshotOf(repoRoot), file, symbol);
       } catch {
         return { incoming: [], outgoing: [] };
       }

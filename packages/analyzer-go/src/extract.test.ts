@@ -9,7 +9,7 @@ beforeAll(async () => {
   dir = await mkdtemp(join(tmpdir(), "go-extract-"));
   await mkdir(join(dir, "sub"), { recursive: true });
   await writeFile(join(dir, "go.mod"), "module demo\ngo 1.22\n");
-  await writeFile(join(dir, "sub/sub.go"), "package sub\nfunc Default() string { return \"x\" }\n");
+  await writeFile(join(dir, "sub/sub.go"), 'package sub\nfunc Default() string { return "x" }\n');
   await writeFile(
     join(dir, "main.go"),
     `package main\nimport ("fmt"; "demo/sub")\nvar _ = sub.Default\ntype Greeter struct{ Name string }\nfunc (g Greeter) Hello() string { if g.Name=="" { return "hi" }; return g.Name }\nfunc main() { fmt.Println("x") }\n`,
@@ -46,21 +46,15 @@ describe("snapshotGoWorkingTree", () => {
     expect(syms.get("Hello")?.parentClass).toBe("Greeter");
     expect(syms.get("main")?.exported).toBe(false);
     const sub = files.find((f) => f.path === "sub/sub.go")!;
-    expect(
-      (sub.symbols ?? []).find((s) => s.name === "Config")?.kind,
-    ).toBe("interface");
+    expect((sub.symbols ?? []).find((s) => s.name === "Config")?.kind).toBe("interface");
     const imports = snap.edges.filter((e) => e.type === "imports");
     expect(imports.some((e) => e.specifier === "fmt" && !e.resolved)).toBe(true);
     // import of the local sub package resolves to its file
     expect(
-      imports.some(
-        (e) => e.from === "file:main.go" && e.to === "file:sub/sub.go" && e.resolved,
-      ),
+      imports.some((e) => e.from === "file:main.go" && e.to === "file:sub/sub.go" && e.resolved),
     ).toBe(true);
     // `sub.Default` usage becomes a symbol reference to sub's exported Default
-    const subEdge = imports.find(
-      (e) => e.from === "file:main.go" && e.to === "file:sub/sub.go",
-    );
+    const subEdge = imports.find((e) => e.from === "file:main.go" && e.to === "file:sub/sub.go");
     expect(
       subEdge?.type === "imports"
         ? subEdge.symbolImports?.some((s) => s.toSymbolName === "Default")
@@ -88,9 +82,7 @@ describe("Go external dependency classification", () => {
 
   it("tags stdlib, groups sub-packages to the go.mod module, dedupes", async () => {
     const snap = await snapshotGoWorkingTree(dir2, commit, "demo");
-    const ext = snap.edges.flatMap((e) =>
-      e.type === "imports" && e.external ? [e] : [],
-    );
+    const ext = snap.edges.flatMap((e) => (e.type === "imports" && e.external ? [e] : []));
     const bySpec = new Map(ext.map((e) => [e.specifier, e]));
     // stdlib imports are tagged
     expect(bySpec.get("fmt")?.stdlib).toBe(true);

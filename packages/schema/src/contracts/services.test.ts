@@ -1,10 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { RawResource } from "@sprawlens/contracts";
-import {
-  matchResourceFiles,
-  resolveServices,
-  serviceFileMap,
-} from "./services.js";
+import { matchResourceFiles, resolveServices, serviceFileMap } from "./services.js";
 
 /** Terse RawResource builder. */
 function res(
@@ -24,10 +20,7 @@ function res(
 
 describe("resolveServices", () => {
   it("makes each service-like resource its own service", () => {
-    const graph = resolveServices([
-      res("aws_lambda_function.a"),
-      res("aws_lambda_function.b"),
-    ]);
+    const graph = resolveServices([res("aws_lambda_function.a"), res("aws_lambda_function.b")]);
     expect(graph.services.map((s) => s.id).sort()).toEqual([
       "aws_lambda_function.a",
       "aws_lambda_function.b",
@@ -144,24 +137,26 @@ describe("resolveServices", () => {
     ]);
     const pair = graph.edges.filter(
       (e) =>
-        e.source === "aws_lambda_function.producer" &&
-        e.target === "aws_lambda_function.worker",
+        e.source === "aws_lambda_function.producer" && e.target === "aws_lambda_function.worker",
     );
     expect(pair).toHaveLength(1);
     expect(pair[0]!.kind).toBe("queue"); // typed wins over depends
   });
 
   it("exposes per-resource detail with the code source each resource implements", () => {
-    const graph = resolveServices([
-      { ...res("aws_lambda_function.orders"), source: "services/orders" },
-      res("aws_iam_role.orders_role", [], undefined),
-      { ...res("aws_lambda_function.billing"), source: "services/billing" },
-    ], {
-      services: [
-        { name: "orders", terraform: ["aws_lambda_function.orders", "aws_iam_role.orders_role"] },
-        { name: "billing", terraform: ["aws_lambda_function.billing"] },
+    const graph = resolveServices(
+      [
+        { ...res("aws_lambda_function.orders"), source: "services/orders" },
+        res("aws_iam_role.orders_role", [], undefined),
+        { ...res("aws_lambda_function.billing"), source: "services/billing" },
       ],
-    });
+      {
+        services: [
+          { name: "orders", terraform: ["aws_lambda_function.orders", "aws_iam_role.orders_role"] },
+          { name: "billing", terraform: ["aws_lambda_function.billing"] },
+        ],
+      },
+    );
     const resources = graph.resources ?? [];
     expect(resources.find((r) => r.address === "aws_lambda_function.orders")).toEqual({
       address: "aws_lambda_function.orders",
@@ -193,11 +188,7 @@ describe("resolveServices", () => {
 
   it("maps file paths to services by their source globs (first match wins)", () => {
     const map = serviceFileMap(
-      [
-        "services/orders/handler.ts",
-        "services/billing/index.ts",
-        "shared/util.ts",
-      ],
+      ["services/orders/handler.ts", "services/billing/index.ts", "shared/util.ts"],
       [
         { name: "orders", source: ["services/orders/**"] },
         { name: "billing", source: ["services/billing/**"] },
@@ -264,17 +255,13 @@ describe("resolveServices", () => {
         res("aws_s3_bucket.assets"),
       ],
       {
-        services: [
-          { name: "api", terraform: ["aws_lambda_function.api", "aws_s3_bucket.assets"] },
-        ],
+        services: [{ name: "api", terraform: ["aws_lambda_function.api", "aws_s3_bucket.assets"] }],
       },
     );
     // explicit config grouping wins: the bucket belongs to the service
     expect(graph.stores ?? []).toEqual([]);
     expect(graph.storeEdges ?? []).toEqual([]);
-    expect(graph.services.find((s) => s.id === "api")?.resources).toContain(
-      "aws_s3_bucket.assets",
-    );
+    expect(graph.services.find((s) => s.id === "api")?.resources).toContain("aws_s3_bucket.assets");
   });
 
   it("resolves module references to a module service", () => {

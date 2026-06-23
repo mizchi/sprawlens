@@ -36,7 +36,14 @@ describe("workspace package imports", () => {
           "import type { Foo } from '@acme/schema';\nexport const f: Foo = { x: 1 };\n",
       },
       async (root) => {
-        const snapshot = await createSnapshotFromWorkingTree(root, { hash: "c", shortHash: "c", timestamp: "2026-06-09T00:00:00.000Z", authorName: "T", message: "m", aiIndicators: [] });
+        const snapshot = await createSnapshotFromWorkingTree(root, {
+          hash: "c",
+          shortHash: "c",
+          timestamp: "2026-06-09T00:00:00.000Z",
+          authorName: "T",
+          message: "m",
+          aiIndicators: [],
+        });
         const edge = snapshot.edges.find(
           (e) => e.type === "imports" && e.specifier === "@acme/schema",
         );
@@ -59,10 +66,15 @@ describe("workspace package imports", () => {
         "packages/app/src/index.ts": "import { x } from 'lodash';\nexport const y = x;\n",
       },
       async (root) => {
-        const snapshot = await createSnapshotFromWorkingTree(root, { hash: "c", shortHash: "c", timestamp: "2026-06-09T00:00:00.000Z", authorName: "T", message: "m", aiIndicators: [] });
-        const edge = snapshot.edges.find(
-          (e) => e.type === "imports" && e.specifier === "lodash",
-        );
+        const snapshot = await createSnapshotFromWorkingTree(root, {
+          hash: "c",
+          shortHash: "c",
+          timestamp: "2026-06-09T00:00:00.000Z",
+          authorName: "T",
+          message: "m",
+          aiIndicators: [],
+        });
+        const edge = snapshot.edges.find((e) => e.type === "imports" && e.specifier === "lodash");
         expect(edge).toMatchObject({ to: "external:lodash", external: true });
       },
     );
@@ -160,7 +172,9 @@ describe("createSnapshotFromWorkingTree", () => {
           aiIndicators: [],
         });
 
-        const importEdge = snapshot.edges.find((edge) => edge.type === "imports" && edge.from === "file:src/consumer.ts");
+        const importEdge = snapshot.edges.find(
+          (edge) => edge.type === "imports" && edge.from === "file:src/consumer.ts",
+        );
         expect(importEdge).toMatchObject({
           type: "imports",
           bindings: [
@@ -179,7 +193,11 @@ describe("createSnapshotFromWorkingTree", () => {
             }),
           ],
         });
-        expect(importEdge?.type === "imports" ? importEdge.symbolImports?.some((usage) => usage.fromSymbolName === "idle") : false).toBe(false);
+        expect(
+          importEdge?.type === "imports"
+            ? importEdge.symbolImports?.some((usage) => usage.fromSymbolName === "idle")
+            : false,
+        ).toBe(false);
       },
     );
   });
@@ -215,15 +233,33 @@ describe("createSnapshotFromWorkingTree", () => {
         expect(file).toMatchObject({
           type: "file",
           symbols: [
-            expect.objectContaining({ name: "createService", kind: "function", startLine: 1, endLine: 3, exported: true }),
-            expect.objectContaining({ name: "Service", kind: "class", startLine: 5, endLine: 9, exported: false }),
+            expect.objectContaining({
+              name: "createService",
+              kind: "function",
+              startLine: 1,
+              endLine: 3,
+              exported: true,
+            }),
+            expect.objectContaining({
+              name: "Service",
+              kind: "class",
+              startLine: 5,
+              endLine: 9,
+              exported: false,
+            }),
             expect.objectContaining({
               name: "run",
               kind: "method",
               startLine: 6,
               parentClass: "symbol:src/service.ts:class:Service:5",
             }),
-            expect.objectContaining({ name: "helper", kind: "function", startLine: 11, endLine: 11, exported: false }),
+            expect.objectContaining({
+              name: "helper",
+              kind: "function",
+              startLine: 11,
+              endLine: 11,
+              exported: false,
+            }),
           ],
         });
       },
@@ -253,7 +289,7 @@ describe("createSnapshotFromWorkingTree", () => {
         });
         const file = snapshot.nodes.find((n) => n.id === "file:src/widget.ts");
         const kinds = new Map(
-          (file?.type === "file" ? file.symbols ?? [] : []).map((s) => [s.name, s.kind]),
+          (file?.type === "file" ? (file.symbols ?? []) : []).map((s) => [s.name, s.kind]),
         );
         expect(kinds.get("create")).toBe("static-method");
         expect(kinds.get("render")).toBe("method");
@@ -266,7 +302,8 @@ describe("createSnapshotFromWorkingTree", () => {
   it("captures package imports as external edges, separate from unresolved relative imports", async () => {
     await withFixture(
       {
-        "src/index.ts": "import React from 'react';\nimport missing from './missing';\nconsole.log(React, missing);\n",
+        "src/index.ts":
+          "import React from 'react';\nimport missing from './missing';\nconsole.log(React, missing);\n",
       },
       async (root) => {
         const snapshot = await createSnapshotFromWorkingTree(root, {
@@ -287,9 +324,7 @@ describe("createSnapshotFromWorkingTree", () => {
           resolved: true,
           external: true,
         });
-        const missing = imports.find(
-          (e) => e.type === "imports" && e.specifier === "./missing",
-        );
+        const missing = imports.find((e) => e.type === "imports" && e.specifier === "./missing");
         expect(missing).toMatchObject({ resolved: false });
         // external imports never count as unresolved (broken) imports
         expect(snapshot.metrics.unresolvedImportCount).toBe(1);
@@ -316,7 +351,9 @@ describe("createSnapshotFromWorkingTree", () => {
           aiIndicators: [],
         });
 
-        const filePaths = snapshot.nodes.filter((node) => node.type === "file").map((node) => node.path);
+        const filePaths = snapshot.nodes
+          .filter((node) => node.type === "file")
+          .map((node) => node.path);
         expect(filePaths).toEqual(["src/index.ts"]);
       },
     );

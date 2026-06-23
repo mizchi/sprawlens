@@ -8,7 +8,5 @@
     "jsxImportSource": "preact",
     "allowImportingTsExtensions": true
   },
-  "include": [
-    "src"
-  ]
+  "include": ["src"]
 }

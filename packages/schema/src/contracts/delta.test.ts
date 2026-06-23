@@ -1,13 +1,12 @@
 import { describe, expect, it } from "vitest";
-import {
-  affectedGroups,
-  diffGraphs,
-  isEmptyDelta,
-  type GraphDelta,
-} from "./delta.js";
+import { affectedGroups, diffGraphs, isEmptyDelta, type GraphDelta } from "./delta.js";
 import type { AtlasGraph } from "@sprawlens/contracts";
 
-const file = (id: string, loc: number, extra?: Partial<{ complexity: number; exported: boolean }>) => ({
+const file = (
+  id: string,
+  loc: number,
+  extra?: Partial<{ complexity: number; exported: boolean }>,
+) => ({
   id,
   kind: "file" as const,
   label: id.split("/").pop()!,
@@ -15,7 +14,10 @@ const file = (id: string, loc: number, extra?: Partial<{ complexity: number; exp
   exported: extra?.exported,
 });
 
-const graph = (nodes: ReturnType<typeof file>[], edges: { source: string; target: string }[] = []): AtlasGraph => ({
+const graph = (
+  nodes: ReturnType<typeof file>[],
+  edges: { source: string; target: string }[] = [],
+): AtlasGraph => ({
   nodes,
   edges,
 });
@@ -58,14 +60,20 @@ describe("diffGraphs", () => {
   });
 
   it("diffs edges by endpoint pair", () => {
-    const prev = graph([file("a", 1), file("b", 1), file("c", 1)], [
-      { source: "a", target: "b" },
-      { source: "b", target: "c" },
-    ]);
-    const next = graph([file("a", 1), file("b", 1), file("c", 1)], [
-      { source: "b", target: "c" }, // kept
-      { source: "a", target: "c" }, // added
-    ]);
+    const prev = graph(
+      [file("a", 1), file("b", 1), file("c", 1)],
+      [
+        { source: "a", target: "b" },
+        { source: "b", target: "c" },
+      ],
+    );
+    const next = graph(
+      [file("a", 1), file("b", 1), file("c", 1)],
+      [
+        { source: "b", target: "c" }, // kept
+        { source: "a", target: "c" }, // added
+      ],
+    );
     const d = diffGraphs(prev, next);
     expect(d.edgesAdded.map((e) => `${e.source}>${e.target}`)).toEqual(["a>c"]);
     expect(d.edgesRemoved.map((e) => `${e.source}>${e.target}`)).toEqual(["a>b"]);

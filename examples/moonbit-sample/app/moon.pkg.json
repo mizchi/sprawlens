@@ -1,5 +1,3 @@
 {
-  "import": [
-    "example/mbsample/lib"
-  ]
+  "import": ["example/mbsample/lib"]
 }

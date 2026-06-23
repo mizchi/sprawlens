@@ -4,12 +4,7 @@ import type { AtlasEdge } from "@sprawlens/schema";
 import { bundlePath, hierarchyControlPoints } from "@sprawlens/layout";
 import type { CellResult } from "@sprawlens/layout";
 import type { Vec2 } from "@sprawlens/layout";
-import {
-  apply,
-  toMatrixString,
-  uprightAt,
-  type Affine,
-} from "@sprawlens/layout";
+import { apply, toMatrixString, uprightAt, type Affine } from "@sprawlens/layout";
 import type { PlacedNode } from "./planeLayers.js";
 import { symbolNameOf } from "./cfgClient.ts";
 import type { CfgAnchor } from "./CfgLayer.tsx";
@@ -116,18 +111,12 @@ let hueProfile = {
   innerLabel: "40% 42%",
   leafTint: "25% 94%",
 };
-export const districtFill = (id: string) =>
-  `hsl(${moduleHue(id)} ${hueProfile.topFill})`;
-export const districtStroke = (id: string) =>
-  `hsl(${moduleHue(id)} ${hueProfile.topStroke})`;
-export const districtLabelFill = (id: string) =>
-  `hsl(${moduleHue(id)} ${hueProfile.topLabel})`;
-const innerDistrictStroke = (id: string) =>
-  `hsl(${moduleHue(id)} ${hueProfile.innerStroke})`;
-const innerDistrictLabelFill = (id: string) =>
-  `hsl(${moduleHue(id)} ${hueProfile.innerLabel})`;
-const leafTint = (id: string) =>
-  `hsl(${moduleHue(id)} ${hueProfile.leafTint})`;
+export const districtFill = (id: string) => `hsl(${moduleHue(id)} ${hueProfile.topFill})`;
+export const districtStroke = (id: string) => `hsl(${moduleHue(id)} ${hueProfile.topStroke})`;
+export const districtLabelFill = (id: string) => `hsl(${moduleHue(id)} ${hueProfile.topLabel})`;
+const innerDistrictStroke = (id: string) => `hsl(${moduleHue(id)} ${hueProfile.innerStroke})`;
+const innerDistrictLabelFill = (id: string) => `hsl(${moduleHue(id)} ${hueProfile.innerLabel})`;
+const leafTint = (id: string) => `hsl(${moduleHue(id)} ${hueProfile.leafTint})`;
 
 export function setMapTheme(dark: boolean): void {
   if (dark) {
@@ -327,8 +316,7 @@ export function focusDimOf(focus: FocusView | null): FocusDim {
     module,
     leaf: (id) => (focus.fileIds.has(id) ? 1 : DIM),
     symbol: (id) => (focus.symbolIds.has(id) ? 1 : DIM),
-    group: (id, top) =>
-      focus.groupIds ? (focus.groupIds.has(id) ? 1 : DIM) : module(top),
+    group: (id, top) => (focus.groupIds ? (focus.groupIds.has(id) ? 1 : DIM) : module(top)),
   };
 }
 
@@ -392,20 +380,14 @@ export function InnerLevelsLayer(props: {
             // real class districts (a `class:` group, not a singleton wrapping
             // one non-class symbol) read as a strong solid outline; singleton
             // class-level groups draw nothing, other levels stay faint+dashed
-            const isClass =
-              level.kind === "class" && cell.id.startsWith("class:");
+            const isClass = level.kind === "class" && cell.id.startsWith("class:");
             if (level.kind === "class" && !isClass) return null;
             // zoom-gate: a district outline only draws once its cell is big
             // enough on screen — macro views stay free of nested borders.
             // class boundaries are deferred until you zoom right in, so they
             // don't dominate the overview as filled regions
-            const gate = isClass
-              ? CLASS_BORDER_MIN_PX
-              : DISTRICT_BORDER_MIN_PX;
-            if (
-              !isSelected(cell.id) &&
-              Math.sqrt(cell.actualArea) * zoom < gate
-            ) {
+            const gate = isClass ? CLASS_BORDER_MIN_PX : DISTRICT_BORDER_MIN_PX;
+            if (!isSelected(cell.id) && Math.sqrt(cell.actualArea) * zoom < gate) {
               return null;
             }
             const top = topAncestorOf(cell.id) ?? "";
@@ -425,9 +407,7 @@ export function InnerLevelsLayer(props: {
                   isClass ? Math.max(0.9, dim.group(cell.id, top)) : dim.group(cell.id, top)
                 }
                 stroke-width={isSelected(cell.id) ? 2.5 : isClass ? 3 : 1}
-                stroke-dasharray={
-                  isSelected(cell.id) || isClass ? undefined : "5 3"
-                }
+                stroke-dasharray={isSelected(cell.id) || isClass ? undefined : "5 3"}
                 onClick={(event) => {
                   event.stopPropagation();
                   onSelect(cell.id, event.shiftKey);
@@ -438,10 +418,7 @@ export function InnerLevelsLayer(props: {
         </g>
       ))}
       {/* district labels appear once their region is readable */}
-      <g
-        text-anchor="middle"
-        style={{ pointerEvents: "none", userSelect: "none" }}
-      >
+      <g text-anchor="middle" style={{ pointerEvents: "none", userSelect: "none" }}>
         {levels.flatMap((level) =>
           [...level.cells.values()].map((cell) => {
             if (!visible(level.kind)) return null;
@@ -451,15 +428,13 @@ export function InnerLevelsLayer(props: {
             if (level.kind === "class" && !isClassGroup) return null;
             const px = Math.sqrt(cell.actualArea) * zoom;
             // class labels track their (deep-zoom) outline; others at 80px
-            const labelGate =
-              (isClassGroup ? CLASS_BORDER_MIN_PX : 80) * labelFactor;
+            const labelGate = (isClassGroup ? CLASS_BORDER_MIN_PX : 80) * labelFactor;
             if (px < labelGate && !isSelected(cell.id)) return null;
             const top = topAncestorOf(cell.id) ?? "";
             const fontSize =
               Math.min(Math.sqrt(cell.actualArea) * 0.12, 16 / zoom + 4) * labelScale;
             // honour the user's minimum drawn size: drop labels smaller than it
-            if (fontSize * zoom < (props.labelMinPx ?? 9) && !isSelected(cell.id))
-              return null;
+            if (fontSize * zoom < (props.labelMinPx ?? 9) && !isSelected(cell.id)) return null;
             const label =
               props.labels?.get(cell.id) ??
               (isClassGroup
@@ -502,10 +477,7 @@ export function WatermarkLabelsLayer(props: {
 }) {
   const { cells, zoom, labelOf, dim, view } = props;
   return (
-    <g
-      text-anchor="middle"
-      style={{ pointerEvents: "none", userSelect: "none" }}
-    >
+    <g text-anchor="middle" style={{ pointerEvents: "none", userSelect: "none" }}>
       {cells.map((cell) => {
         const natural = Math.sqrt(cell.actualArea) * 0.18;
         const onScreen = natural * zoom;
@@ -593,12 +565,8 @@ export function selectionDirections(options: {
   const { edges, isSelected } = options;
   const parentFileOf = options.parentFileOf ?? ((id: string) => id);
   const touches = (id: string) => isSelected(id) || isSelected(parentFileOf(id));
-  const outgoing = edges.filter(
-    (e) => touches(e.source) && !touches(e.target),
-  );
-  const incoming = edges.filter(
-    (e) => touches(e.target) && !touches(e.source),
-  );
+  const outgoing = edges.filter((e) => touches(e.source) && !touches(e.target));
+  const incoming = edges.filter((e) => touches(e.target) && !touches(e.source));
   const dependencyIds = new Set<string>();
   for (const edge of outgoing) {
     if (isSelected(edge.target)) continue;
@@ -720,11 +688,7 @@ export function ExitPreviewsLayer(props: {
           font-size={fontSize}
           font-weight="600"
           text-anchor={
-            preview.side === "left"
-              ? "start"
-              : preview.side === "right"
-                ? "end"
-                : "middle"
+            preview.side === "left" ? "start" : preview.side === "right" ? "end" : "middle"
           }
           fill={props.color}
           stroke="#f8fafc"
@@ -816,8 +780,7 @@ export function propagateLinkTints(
   }
   // one reverse hop: hovering a target lights the nodes that import it
   for (const seed of seeds)
-    for (const e of into.get(seed) ?? [])
-      if (!tint.has(e.from)) tint.set(e.from, e.color);
+    for (const e of into.get(seed) ?? []) if (!tint.has(e.from)) tint.set(e.from, e.color);
   return tint;
 }
 
@@ -890,7 +853,10 @@ export function PlaneLayerView(props: {
   const sizeOf = (d: PlacedNode): number => {
     if (d.r !== undefined) return d.r * 2;
     if (!d.polygon) return 0;
-    let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+    let minX = Infinity,
+      minY = Infinity,
+      maxX = -Infinity,
+      maxY = -Infinity;
     for (const p of d.polygon) {
       minX = Math.min(minX, p.x);
       maxX = Math.max(maxX, p.x);
@@ -909,21 +875,30 @@ export function PlaneLayerView(props: {
       .sort((a, b) => sizeOf(b) - sizeOf(a));
     const budget = Math.max(2, Math.round(zoom * LABELS_PER_ZOOM));
     const shown = new Map(eligible.slice(0, budget).map((d) => [d.id, d]));
-    for (const d of placed)
-      if (d.id === hovered || d.id === props.selectedId) shown.set(d.id, d);
+    for (const d of placed) if (d.id === hovered || d.id === props.selectedId) shown.set(d.id, d);
     return [...shown.values()];
   })();
   return (
     <>
       <style>
-        {"@keyframes sprawlens-fail-pulse{0%,100%{stroke-opacity:1;fill-opacity:.6}50%{stroke-opacity:.35;fill-opacity:.32}}.sprawlens-fail{animation:sprawlens-fail-pulse 1.5s ease-in-out infinite}"}
+        {
+          "@keyframes sprawlens-fail-pulse{0%,100%{stroke-opacity:1;fill-opacity:.6}50%{stroke-opacity:.35;fill-opacity:.32}}.sprawlens-fail{animation:sprawlens-fail-pulse 1.5s ease-in-out infinite}"
+        }
       </style>
       {/* plane frames */}
       <g fill="none" stroke={PLANE_OUTLINE} style={{ pointerEvents: "none" }}>
         {props.withSourceFrame ? (
-          <polygon points={planePolyOf(tilt0, extent.w, extent.h)} stroke-opacity={0.3} stroke-width={1.5} />
+          <polygon
+            points={planePolyOf(tilt0, extent.w, extent.h)}
+            stroke-opacity={0.3}
+            stroke-width={1.5}
+          />
         ) : null}
-        <polygon points={planePolyOf(tilt1, extent.w, extent.h)} stroke-opacity={0.5} stroke-width={1.5} />
+        <polygon
+          points={planePolyOf(tilt1, extent.w, extent.h)}
+          stroke-opacity={0.5}
+          stroke-width={1.5}
+        />
       </g>
       {/* correspondence: each node's references (top, on whichever plane owns
           them) fan up from the node (bottom). Every leg stays its own strand
@@ -949,9 +924,7 @@ export function PlaneLayerView(props: {
           const tops = d.sourceIds
             .map((s) => [s, screenPosOf(s)] as const)
             .filter((v): v is readonly [string, Vec2] => !!v[1])
-            .filter(
-              ([sid]) => showAll || hoverId === sid || (pinned?.has(sid) ?? false),
-            )
+            .filter(([sid]) => showAll || hoverId === sid || (pinned?.has(sid) ?? false))
             .slice(0, edgeCap);
           if (tops.length === 0) return [];
           // pull point = part-way from the node toward its targets' centroid;
@@ -972,10 +945,7 @@ export function PlaneLayerView(props: {
               x: gather.x + (top.x - gather.x) * 0.15,
               y: gather.y + (top.y - gather.y) * 0.15,
             };
-            const path =
-              tops.length > 1
-                ? smoothPathD([bot, via, top])
-                : smoothPathD([bot, top]);
+            const path = tops.length > 1 ? smoothPathD([bot, via, top]) : smoothPathD([bot, top]);
             const key = `${d.id}:${i}`;
             out.push(
               <path
@@ -1027,10 +997,7 @@ export function PlaneLayerView(props: {
           const failed = statusFill === TEST_STATUS_FILL.fail;
           // referenced by another plane's edges: brighten the fill so the nodes
           // actually in play surface — yields to the live tint while exploring
-          const linked =
-            !active &&
-            !props.linksActive &&
-            (referencedIds?.has(d.id) ?? false);
+          const linked = !active && !props.linksActive && (referencedIds?.has(d.id) ?? false);
           // dim untouched nodes once a highlight is active, so targets lead
           const dim = props.linksActive && !tint && !active ? 0.4 : 1;
           const fill = tint ?? statusFill ?? color;
@@ -1058,9 +1025,13 @@ export function PlaneLayerView(props: {
               class={failed ? "sprawlens-fail" : undefined}
               points={d.polygon.map((p) => `${p.x},${p.y}`).join(" ")}
               fill={fill}
-              fill-opacity={tint ? 0.34 : failed ? 0.6 : statusFill ? 0.4 : active ? 0.22 : linked ? 0.18 : 0.08}
-              stroke={tint ?? (active ? SELECT_STROKE : statusFill ?? color)}
-              stroke-opacity={failed ? 0.95 : tint ? 0.85 : statusFill ? 0.85 : active ? 0.9 : linked ? 0.75 : 0.5}
+              fill-opacity={
+                tint ? 0.34 : failed ? 0.6 : statusFill ? 0.4 : active ? 0.22 : linked ? 0.18 : 0.08
+              }
+              stroke={tint ?? (active ? SELECT_STROKE : (statusFill ?? color))}
+              stroke-opacity={
+                failed ? 0.95 : tint ? 0.85 : statusFill ? 0.85 : active ? 0.9 : linked ? 0.75 : 0.5
+              }
               stroke-width={failed ? 2.6 : active || tint ? 1.6 : 1}
               opacity={dim}
               style={{ cursor: "pointer" }}
@@ -1077,9 +1048,13 @@ export function PlaneLayerView(props: {
               cy={d.site.y}
               r={d.r}
               fill={fill}
-              fill-opacity={tint ? 0.34 : failed ? 0.6 : statusFill ? 0.4 : active ? 0.28 : linked ? 0.24 : 0.12}
-              stroke={tint ?? (active ? SELECT_STROKE : statusFill ?? color)}
-              stroke-opacity={failed ? 0.95 : tint ? 0.85 : statusFill ? 0.85 : active ? 0.9 : linked ? 0.8 : 0.6}
+              fill-opacity={
+                tint ? 0.34 : failed ? 0.6 : statusFill ? 0.4 : active ? 0.28 : linked ? 0.24 : 0.12
+              }
+              stroke={tint ?? (active ? SELECT_STROKE : (statusFill ?? color))}
+              stroke-opacity={
+                failed ? 0.95 : tint ? 0.85 : statusFill ? 0.85 : active ? 0.9 : linked ? 0.8 : 0.6
+              }
               stroke-width={failed ? 2.6 : active || tint ? 1.6 : 1}
               opacity={dim}
               style={{ cursor: "pointer" }}
@@ -1233,19 +1208,12 @@ export function makeEdgeBundler(options: {
     // instead of dragging them through the distant ancestor
     let route = 0;
     for (let i = 1; i < path.length; i++) {
-      route += Math.hypot(
-        path[i]!.x - path[i - 1]!.x,
-        path[i]!.y - path[i - 1]!.y,
-      );
+      route += Math.hypot(path[i]!.x - path[i - 1]!.x, path[i]!.y - path[i - 1]!.y);
     }
     const detour = chord > 1e-6 ? route / chord : 1;
-    const lengthRamp = options.span
-      ? Math.min(1, chord / (options.span * BUNDLE_FULL_AT))
-      : 1;
+    const lengthRamp = options.span ? Math.min(1, chord / (options.span * BUNDLE_FULL_AT)) : 1;
     const effective =
-      strength *
-      lengthRamp *
-      Math.min(1, BUNDLE_MAX_DETOUR / Math.max(detour, 1e-6));
+      strength * lengthRamp * Math.min(1, BUNDLE_MAX_DETOUR / Math.max(detour, 1e-6));
     const bundled = bundlePath(path, effective);
     return {
       source: edge.source,
@@ -1287,9 +1255,7 @@ export function BundledEdges(props: {
         const bundle = props.bundleOf(edge);
         if (!bundle) return null;
         const width =
-          typeof props.strokeWidth === "function"
-            ? props.strokeWidth(edge)
-            : props.strokeWidth;
+          typeof props.strokeWidth === "function" ? props.strokeWidth(edge) : props.strokeWidth;
         return (
           <path
             key={`${props.keyPrefix}-${edge.source}-${edge.target}`}

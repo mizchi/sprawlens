@@ -108,11 +108,7 @@ export function createAtlasServer(opts: AtlasServerOptions): Server {
     heartbeat: ReturnType<typeof setInterval>;
   };
   const diffStreams = new Map<string, DiffStream>();
-  const subscribeWorkingDiff = (
-    base: string,
-    root: string,
-    res: ServerResponse,
-  ) => {
+  const subscribeWorkingDiff = (base: string, root: string, res: ServerResponse) => {
     const key = `${root} ${base}`;
     let stream = diffStreams.get(key);
     if (!stream) {
@@ -129,8 +125,7 @@ export function createAtlasServer(opts: AtlasServerOptions): Server {
         (diff) => {
           void enrichWithLoc(root, diff).then((enriched) => {
             created.last = JSON.stringify(enriched);
-            for (const client of created.clients)
-              client.write(`data: ${created.last}\n\n`);
+            for (const client of created.clients) client.write(`data: ${created.last}\n\n`);
           });
         },
         300,
@@ -263,8 +258,7 @@ export function createAtlasServer(opts: AtlasServerOptions): Server {
       return;
     }
     const url = new URL(req.url ?? "/", "http://localhost");
-    const repoOf = (name: string | null) =>
-      name && repos.has(name) ? name : (onlyRepo ?? "");
+    const repoOf = (name: string | null) => (name && repos.has(name) ? name : (onlyRepo ?? ""));
 
     // GET /api/snapshot/stream?repo=name -> SSE of re-analyzed snapshots on change
     if (req.method === "GET" && url.pathname === "/api/snapshot/stream") {
@@ -288,9 +282,7 @@ export function createAtlasServer(opts: AtlasServerOptions): Server {
         return;
       }
       const snap = typeof producer === "function" ? await producer() : producer;
-      res
-        .writeHead(200, { "content-type": "application/json" })
-        .end(JSON.stringify(snap));
+      res.writeHead(200, { "content-type": "application/json" }).end(JSON.stringify(snap));
       return;
     }
 
@@ -309,22 +301,14 @@ export function createAtlasServer(opts: AtlasServerOptions): Server {
           ? await services()
           : services
         : { services: [], edges: [] };
-      res
-        .writeHead(200, { "content-type": "application/json" })
-        .end(JSON.stringify(graph));
+      res.writeHead(200, { "content-type": "application/json" }).end(JSON.stringify(graph));
       return;
     }
 
     // GET /api/trace -> the runtime trace overlay (null when none was ingested)
     if (req.method === "GET" && url.pathname === "/api/trace") {
-      const value = trace
-        ? typeof trace === "function"
-          ? await trace()
-          : trace
-        : null;
-      res
-        .writeHead(200, { "content-type": "application/json" })
-        .end(JSON.stringify(value));
+      const value = trace ? (typeof trace === "function" ? await trace() : trace) : null;
+      res.writeHead(200, { "content-type": "application/json" }).end(JSON.stringify(value));
       return;
     }
 
@@ -365,9 +349,7 @@ export function createAtlasServer(opts: AtlasServerOptions): Server {
           else run.results.push(result);
           testRunState = run;
         }
-        res
-          .writeHead(200, { "content-type": "application/json" })
-          .end(JSON.stringify(result));
+        res.writeHead(200, { "content-type": "application/json" }).end(JSON.stringify(result));
       } catch (error) {
         console.error(error);
         res.writeHead(500).end(JSON.stringify({ error: "test run failed" }));
@@ -392,9 +374,7 @@ export function createAtlasServer(opts: AtlasServerOptions): Server {
       }
       try {
         const diff = await workingDiff(root, base || undefined);
-        res
-          .writeHead(200, { "content-type": "application/json" })
-          .end(JSON.stringify(diff));
+        res.writeHead(200, { "content-type": "application/json" }).end(JSON.stringify(diff));
       } catch (error) {
         console.error(error);
         res.writeHead(500).end(JSON.stringify({ error: "git status failed" }));
@@ -413,9 +393,9 @@ export function createAtlasServer(opts: AtlasServerOptions): Server {
         };
         const root = repos.get(repoOf(body.repo));
         if (!root || !detail) {
-          res.writeHead(root ? 404 : 400).end(
-            JSON.stringify({ error: root ? "no detail provider" : "unknown repo" }),
-          );
+          res
+            .writeHead(root ? 404 : 400)
+            .end(JSON.stringify({ error: root ? "no detail provider" : "unknown repo" }));
           return;
         }
         if (body.file.includes("..") || body.file.startsWith("/")) {
@@ -427,9 +407,7 @@ export function createAtlasServer(opts: AtlasServerOptions): Server {
         // throw ERR_HTTP_HEADERS_SENT and crash the process (taking the whole
         // server, not just this request, down)
         const graph = await detail.cfg(root, body.file, body.line);
-        res
-          .writeHead(200, { "content-type": "application/json" })
-          .end(JSON.stringify(graph));
+        res.writeHead(200, { "content-type": "application/json" }).end(JSON.stringify(graph));
       } catch (error) {
         console.error(error);
         res.writeHead(500).end(JSON.stringify({ error: "cfg failed" }));
@@ -448,9 +426,9 @@ export function createAtlasServer(opts: AtlasServerOptions): Server {
         };
         const root = repos.get(repoOf(body.repo));
         if (!root || !detail) {
-          res.writeHead(root ? 404 : 400).end(
-            JSON.stringify({ error: root ? "no detail provider" : "unknown repo" }),
-          );
+          res
+            .writeHead(root ? 404 : 400)
+            .end(JSON.stringify({ error: root ? "no detail provider" : "unknown repo" }));
           return;
         }
         if (body.file.includes("..") || body.file.startsWith("/")) {
@@ -460,18 +438,14 @@ export function createAtlasServer(opts: AtlasServerOptions): Server {
         // await before writing headers (see the cfg handler above) so a
         // rejection returns a clean 500 instead of crashing the server
         const result = await detail.callHierarchy(root, body.file, body.symbol);
-        res
-          .writeHead(200, { "content-type": "application/json" })
-          .end(JSON.stringify(result));
+        res.writeHead(200, { "content-type": "application/json" }).end(JSON.stringify(result));
       } catch (error) {
         console.error(error);
-        res
-          .writeHead(500)
-          .end(
-            JSON.stringify({
-              error: error instanceof Error ? error.message : "error",
-            }),
-          );
+        res.writeHead(500).end(
+          JSON.stringify({
+            error: error instanceof Error ? error.message : "error",
+          }),
+        );
       }
       return;
     }
@@ -499,15 +473,11 @@ export function createAtlasServer(opts: AtlasServerOptions): Server {
         // returns a clean 500 instead of crashing the server. Prefer the LSP
         // hover (rich, resolved types); fall back to reading the declaration
         // from source for languages with no LSP detail provider.
-        let result = detail?.hover
-          ? await detail.hover(root, body.file, body.symbol)
-          : null;
+        let result = detail?.hover ? await detail.hover(root, body.file, body.symbol) : null;
         if (!result && body.line) {
           result = await definitionPreview(root, body.file, body.line);
         }
-        res
-          .writeHead(200, { "content-type": "application/json" })
-          .end(JSON.stringify(result));
+        res.writeHead(200, { "content-type": "application/json" }).end(JSON.stringify(result));
       } catch (error) {
         console.error(error);
         res.writeHead(500).end(JSON.stringify({ error: "hover failed" }));

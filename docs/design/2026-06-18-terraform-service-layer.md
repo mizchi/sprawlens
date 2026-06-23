@@ -13,7 +13,7 @@ the boundary/granularity axes (additive, gated behind the toggle).
 ## Goal
 
 Visualize how services communicate, with Terraform as the top ("upper") layer.
-Terraform supplies a set of *services* and the *communication* between them;
+Terraform supplies a set of _services_ and the _communication_ between them;
 the existing per-repo module map is later nested inside each service node.
 
 The hierarchy contract already anticipates this: `AtlasNodeKind` includes
@@ -51,12 +51,12 @@ are present, regardless of the repo's programming language.
 ```ts
 /** A service: a deployment/communication unit backed by Terraform resources. */
 export type ServiceNode = {
-  id: string;            // service id (config name, or derived tf module/resource)
+  id: string; // service id (config name, or derived tf module/resource)
   label: string;
   kind: "service";
-  resources: string[];   // backing terraform resource addresses
+  resources: string[]; // backing terraform resource addresses
   resourceType?: string; // dominant resource type, e.g. aws_lambda_function
-  source?: string[];     // mapped code-dir globs (captured; rendered in Phase B)
+  source?: string[]; // mapped code-dir globs (captured; rendered in Phase B)
   metrics: { resources: number; loc?: number };
 };
 
@@ -65,7 +65,7 @@ export type ServiceEdge = {
   source: string;
   target: string;
   kind: ServiceEdgeKind; // depends | invoke | event | queue | http
-  via?: string;          // the tf resource/attr that creates the link
+  via?: string; // the tf resource/attr that creates the link
   weight?: number;
 };
 
@@ -80,11 +80,11 @@ styling/labels.
 
 ```ts
 export type RawResource = {
-  address: string;        // "aws_lambda_function.orders_api"
-  type: string;           // "aws_lambda_function"
-  name: string;           // "orders_api"
-  module?: string;        // enclosing terraform module call, if any
-  references: string[];   // referenced addresses: "aws_sqs_queue.orders", "module.x"
+  address: string; // "aws_lambda_function.orders_api"
+  type: string; // "aws_lambda_function"
+  name: string; // "orders_api"
+  module?: string; // enclosing terraform module call, if any
+  references: string[]; // referenced addresses: "aws_sqs_queue.orders", "module.x"
 };
 ```
 
@@ -140,7 +140,7 @@ source = ["services/orders/**"]   # code dir, captured for Phase B
 - `matchesTerraform(root, tfRoot)`: any `.tf` under the terraform root.
 - Parse each `.tf` with `@cdktf/hcl2json` (HashiCorp cdktf wasm; no terraform CLI
   required) → JSON of the form `{ resource: { <type>: { <name>: [attrs] } },
-  module: { <name>: [attrs] } }`.
+module: { <name>: [attrs] } }`.
 - Walk every attribute value (recursively) collecting `${...}` interpolations;
   extract `<type>.<name>` and `module.<name>` references → `RawResource.references`.
 - Returns `RawResource[]`. Grouping and edge semantics live in schema, so the

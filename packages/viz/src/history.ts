@@ -30,9 +30,7 @@ export type HistoryIndex = {
 };
 
 /** Precomputed per-commit diffs and their per-node inversion. */
-export function buildHistoryIndex(
-  entries: readonly HistoryEntry[],
-): HistoryIndex {
+export function buildHistoryIndex(entries: readonly HistoryEntry[]): HistoryIndex {
   const diffs: GraphDiff[] = [];
   const nodeHistory = new Map<string, NodeChange[]>();
   const note = (id: string, change: NodeChange) => {
@@ -73,10 +71,7 @@ function snapshotToGraph(snapshot: SnapshotLike): AtlasGraph {
  * into one `changed` map, and prev=null highlights nothing (the first
  * commit has no parent to contrast against).
  */
-export function diffGraphs(
-  prev: AtlasGraph | null,
-  next: AtlasGraph,
-): GraphDiff {
+export function diffGraphs(prev: AtlasGraph | null, next: AtlasGraph): GraphDiff {
   const changed = new Map<string, "added" | "modified">();
   if (!prev) return { changed, removed: [] };
   const delta = deltaDiff(prev, next);

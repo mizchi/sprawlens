@@ -148,18 +148,13 @@ describe("computePowerDiagram", () => {
       for (const edge of cell.edges) {
         if (edge.neighborId === null) continue;
         const neighbor = byId.get(edge.neighborId)!;
-        expect(
-          neighbor.edges.some((e) => e.neighborId === cell.id),
-        ).toBe(true);
+        expect(neighbor.edges.some((e) => e.neighborId === cell.id)).toBe(true);
       }
     }
   });
 
   it("handles a single site by returning the whole clip region", () => {
-    const cells = computePowerDiagram(
-      [{ id: "only", x: 0.3, y: 0.3, weight: 0 }],
-      unitSquare,
-    );
+    const cells = computePowerDiagram([{ id: "only", x: 0.3, y: 0.3, weight: 0 }], unitSquare);
     expect(cells[0]!.area).toBeCloseTo(1, 9);
     expect(cells[0]!.edges.every((e) => e.neighborId === null)).toBe(true);
   });
@@ -191,7 +186,7 @@ describe("grid-pruned path equals brute force", () => {
         const curD = nx * cur.x + ny * cur.y - c;
         const nextD = nx * next.x + ny * next.y - c;
         if (curD <= 0) out.push(cur);
-        if ((curD <= 0) !== (nextD <= 0)) {
+        if (curD <= 0 !== nextD <= 0) {
           const t = curD / (curD - nextD);
           out.push({
             x: cur.x + (next.x - cur.x) * t,
@@ -261,7 +256,7 @@ describe("grid-pruned path equals brute force", () => {
           const curD = nx * cur.x + ny * cur.y - c;
           const nextD = nx * next.x + ny * next.y - c;
           if (curD <= 0) out.push(cur);
-          if ((curD <= 0) !== (nextD <= 0)) {
+          if (curD <= 0 !== nextD <= 0) {
             const t = curD / (curD - nextD);
             out.push({
               x: cur.x + (next.x - cur.x) * t,

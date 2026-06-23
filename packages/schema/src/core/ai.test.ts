@@ -6,7 +6,8 @@ describe("detectAIIndicators", () => {
     const info = detectAIIndicators({
       authorName: "Mizchi",
       authorEmail: "mz@example.com",
-      message: "Add graph UI\n\nGenerated with Claude Code\nCo-authored-by: Claude <noreply@anthropic.com>",
+      message:
+        "Add graph UI\n\nGenerated with Claude Code\nCo-authored-by: Claude <noreply@anthropic.com>",
     });
 
     expect(info.likelyAI).toBe(true);

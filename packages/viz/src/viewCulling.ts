@@ -19,11 +19,7 @@ export function pointInView(p: Vec2, view: ViewRect, slack: number): boolean {
  * (sqrt(area)); a 1.5× factor keeps partially-visible cells alive so
  * panning never reveals an empty margin.
  */
-export function cellInView(
-  site: Vec2,
-  halfSpan: number,
-  view: ViewRect,
-): boolean {
+export function cellInView(site: Vec2, halfSpan: number, view: ViewRect): boolean {
   return pointInView(site, view, halfSpan * 1.5);
 }
 
@@ -34,12 +30,7 @@ export function cellInView(
  * of edges whose both ends share an off-screen quadrant, which is where
  * the overdraw lives at monorepo scale.
  */
-export function segmentInView(
-  a: Vec2,
-  b: Vec2,
-  view: ViewRect,
-  slack: number,
-): boolean {
+export function segmentInView(a: Vec2, b: Vec2, view: ViewRect, slack: number): boolean {
   const minX = Math.min(a.x, b.x);
   const maxX = Math.max(a.x, b.x);
   const minY = Math.min(a.y, b.y);

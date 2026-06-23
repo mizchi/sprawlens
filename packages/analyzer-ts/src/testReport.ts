@@ -94,9 +94,7 @@ export function parseVitestReport(raw: unknown, repoRoot: string): TestRun {
         name: fullTitle,
         status: statusOf(a.status),
         ...(a.duration !== undefined ? { durationMs: a.duration } : {}),
-        ...(a.failureMessages?.length
-          ? { message: a.failureMessages.join("\n\n") }
-          : {}),
+        ...(a.failureMessages?.length ? { message: a.failureMessages.join("\n\n") } : {}),
       });
     }
   }

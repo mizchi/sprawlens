@@ -34,10 +34,7 @@ function runUntil(
     for (const cell of next.cells) {
       const prev = state.cells.find((c) => c.id === cell.id);
       if (prev) {
-        displacement += Math.hypot(
-          cell.site.x - prev.site.x,
-          cell.site.y - prev.site.y,
-        );
+        displacement += Math.hypot(cell.site.x - prev.site.x, cell.site.y - prev.site.y);
       }
     }
     state = next;
@@ -143,8 +140,7 @@ describe("capacityStep convergence", () => {
       for (let i = 0; i < ring.length; i++) {
         const a = ring[i]!;
         const b = ring[(i + 1) % ring.length]!;
-        const cross =
-          (b.x - a.x) * (cell.site.y - a.y) - (b.y - a.y) * (cell.site.x - a.x);
+        const cross = (b.x - a.x) * (cell.site.y - a.y) - (b.y - a.y) * (cell.site.x - a.x);
         expect(cross).toBeGreaterThanOrEqual(-1e-9);
       }
     }
@@ -211,20 +207,14 @@ describe("applyGraphChanges (warm-start)", () => {
     });
     const warmRun = runUntil(warm, 0.02, 500);
 
-    expect(warmRun.iterations).toBeLessThanOrEqual(
-      Math.max(1, Math.ceil(coldRun.iterations / 5)),
-    );
+    expect(warmRun.iterations).toBeLessThanOrEqual(Math.max(1, Math.ceil(coldRun.iterations / 5)));
     expect(warmRun.displacement).toBeLessThan(coldRun.displacement);
     expect(warmRun.state.maxRelativeError).toBeLessThan(0.02);
   });
 
   it("keeps existing sites nearly still when a node is added", () => {
     const nodes = syntheticNodes(40, 7);
-    const base = runUntil(
-      createCapacityLayout(nodes, rectClip, { seed: 7 }),
-      0.02,
-      500,
-    ).state;
+    const base = runUntil(createCapacityLayout(nodes, rectClip, { seed: 7 }), 0.02, 500).state;
 
     const withNew = applyGraphChanges(base, {
       upsert: [{ id: "fresh", weight: 5 }],
@@ -234,10 +224,7 @@ describe("applyGraphChanges (warm-start)", () => {
     let totalDrift = 0;
     for (const cell of base.cells) {
       const after = settled.cells.find((c) => c.id === cell.id)!;
-      totalDrift += Math.hypot(
-        after.site.x - cell.site.x,
-        after.site.y - cell.site.y,
-      );
+      totalDrift += Math.hypot(after.site.x - cell.site.x, after.site.y - cell.site.y);
     }
     const meanDrift = totalDrift / base.cells.length;
     expect(meanDrift).toBeLessThan(0.05);
@@ -246,11 +233,7 @@ describe("applyGraphChanges (warm-start)", () => {
 
   it("removes nodes and re-normalizes target areas", () => {
     const nodes = syntheticNodes(20, 9);
-    const base = runUntil(
-      createCapacityLayout(nodes, rectClip, { seed: 9 }),
-      0.02,
-      500,
-    ).state;
+    const base = runUntil(createCapacityLayout(nodes, rectClip, { seed: 9 }), 0.02, 500).state;
     const without = applyGraphChanges(base, { remove: ["n0", "n1"] });
     const settled = runUntil(without, 0.02, 500).state;
     expect(settled.cells).toHaveLength(18);
