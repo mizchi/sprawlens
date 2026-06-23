@@ -40,6 +40,24 @@ npx @sprawlens/cli render . -o - > map.svg             # stream to stdout
 `--layout` is `rings` or `treemap` (default), `--level` is `module` or `file`
 (default). The map is deterministic for a given `--seed` (default 1).
 
+## PR diff visualization (GitHub Actions)
+
+`render --diff` tints files changed vs a base ref and embeds a legend, so you can
+attach a structure-map of a PR's blast radius as an artifact:
+
+```yaml
+- run: git fetch origin ${{ github.base_ref }} --depth=1
+- run: npx sprawlens render . --diff origin/${{ github.base_ref }} -o sprawlens-diff.svg
+- uses: actions/upload-artifact@v4
+  with:
+    name: sprawlens-diff
+    path: sprawlens-diff.svg
+```
+
+- `--diff <base>` colors added files green and modified files orange against the base ref.
+- `--diff` with no base highlights uncommitted working-tree changes instead.
+- Removed files cannot appear on the map; they are reported as a count in the legend.
+
 ## Deep detail via LSP
 
 When a language server is installed, sprawlens wires it up automatically for
