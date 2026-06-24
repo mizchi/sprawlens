@@ -199,6 +199,16 @@ function adaptWeights(
   }
   const nearest = nearestNeighborSquared(xs, ys);
 
+  // Empty-cell recovery is Gauss-Seidel, not Jacobi: `cur` carries the weights
+  // raised so far in THIS sweep so a later empty cell sees the already-recovered
+  // weights of earlier ones. With many cells empty at once (tight clips, many
+  // equal weights) a pure simultaneous update — every empty jumping to its
+  // required weight from the same pre-update snapshot — has the empties overshoot
+  // each other, a different set goes empty next step, and maxRelativeError
+  // limit-cycles near 1.0 forever instead of converging. Only the empty branch
+  // writes back, so a sweep with <=1 empty cell is bit-identical to a plain
+  // simultaneous update.
+  const cur = sites.map((s) => s.weight);
   const weights = sites.map((site, i) => {
     const cell = cellById.get(site.id)!;
     if (cell.actualArea <= 0) {
@@ -211,11 +221,13 @@ function adaptWeights(
         if (j === i) continue;
         const other = sites[j]!;
         const d2 = (other.x - site.x) ** 2 + (other.y - site.y) ** 2;
-        const bound = other.weight - d2;
+        const bound = cur[j]! - d2;
         if (bound > required) required = bound;
       }
       const margin = Math.min(site.targetArea / Math.PI, 0.45 * nearest[i]!);
-      return required + margin;
+      const recovered = required + margin;
+      cur[i] = recovered;
+      return recovered;
     }
     const error = site.targetArea - cell.actualArea;
     // Diagonal Newton step: dArea/dWeight of cell i is the sum over its
