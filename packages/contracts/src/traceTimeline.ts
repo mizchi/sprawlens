@@ -34,3 +34,16 @@ export type TraceTimeline = {
   /** Per-plane wall-clock spans, so the player can mark the phase boundary. */
   planes: { plane: TracePlane; startUs: number; durationUs: number }[];
 };
+
+/** A recent capture's metadata — what the player's recent-picker lists without
+ * shipping the (potentially large) step stream. Served at GET /api/traces and
+ * announced over /api/traces/stream. */
+export type TraceMeta = {
+  id: string;
+  /** epoch ms when the capture was ingested */
+  capturedAt: number;
+  /** source label, e.g. the dropped profile's filename */
+  label: string;
+  stepCount: number;
+  planes: TraceTimeline["planes"];
+};

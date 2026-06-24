@@ -8,8 +8,10 @@ import type {
   TestCaseResult,
   TestRun,
   Trace,
+  TraceTimeline,
 } from "@sprawlens/schema";
 import { definitionPreview } from "./definitionPreview.ts";
+import { createTraceStore, ingestProfileInto, watchProfiles } from "./traceStore.ts";
 import {
   enrichWithLoc,
   isSafeRef,
@@ -61,6 +63,16 @@ export type AtlasServerOptions = {
   /** Enable experimental viz features (trace player, commit-log, test reporter);
    * served at GET /api/config. Set by the CLI `--experimental` flag. */
   experimental?: boolean;
+  /** Recent-traces source: a drop directory to watch for `.cpuprofile` files and
+   * a composition-root callback that resolves one into a timeline (the server
+   * stays out of snapshot/parsing concerns, mirroring `runTestCase`). Each new
+   * file is built and pushed to an in-memory ring buffer, served at
+   * GET /api/traces (list) / /api/traces/:id (one) and announced over
+   * /api/traces/stream (SSE). */
+  traceWatch?: {
+    dir: string;
+    ingest: (profilePath: string) => Promise<TraceTimeline | null>;
+  };
 };
 
 const MIME: Record<string, string> = {
@@ -87,6 +99,7 @@ export function createAtlasServer(opts: AtlasServerOptions): Server {
     testRun,
     runTestCase,
     experimental,
+    traceWatch,
   } = opts;
 
   // the test run shown at GET /api/test-run; materialized from the option on
@@ -224,6 +237,24 @@ export function createAtlasServer(opts: AtlasServerOptions): Server {
     });
   };
 
+  // Recent-traces store + SSE fan-out. When `traceWatch` is set, dropped
+  // `.cpuprofile` files are ingested into the ring buffer and each new capture is
+  // announced (its metadata) to subscribed viz clients so they refresh + follow.
+  const traceStore = createTraceStore();
+  const traceClients = new Set<ServerResponse>();
+  const traceHeartbeat = setInterval(() => {
+    for (const client of traceClients) client.write(":hb\n\n");
+  }, 25_000);
+  if (traceClients.size === 0) traceHeartbeat.unref?.();
+  const stopTraceWatch = traceWatch
+    ? watchProfiles(traceWatch.dir, (profilePath) => {
+        void ingestProfileInto(traceStore, traceWatch.ingest, profilePath, (meta) => {
+          const line = `data: ${JSON.stringify(meta)}\n\n`;
+          for (const client of traceClients) client.write(line);
+        });
+      })
+    : null;
+
   const onlyRepo = repos.size === 1 ? [...repos.keys()][0]! : null;
 
   const serveStatic = async (urlPath: string, res: ServerResponse) => {
@@ -250,7 +281,7 @@ export function createAtlasServer(opts: AtlasServerOptions): Server {
     }
   };
 
-  return createServer(async (req, res) => {
+  const server = createServer(async (req, res) => {
     res.setHeader("Access-Control-Allow-Origin", "*");
     res.setHeader("Access-Control-Allow-Headers", "content-type");
     if (req.method === "OPTIONS") {
@@ -309,6 +340,42 @@ export function createAtlasServer(opts: AtlasServerOptions): Server {
     if (req.method === "GET" && url.pathname === "/api/trace") {
       const value = trace ? (typeof trace === "function" ? await trace() : trace) : null;
       res.writeHead(200, { "content-type": "application/json" }).end(JSON.stringify(value));
+      return;
+    }
+
+    // GET /api/traces -> recent-trace metadata (newest first); empty without a watch
+    if (req.method === "GET" && url.pathname === "/api/traces") {
+      res
+        .writeHead(200, { "content-type": "application/json" })
+        .end(JSON.stringify(traceStore.list()));
+      return;
+    }
+
+    // GET /api/traces/stream -> SSE: one `data: <meta>` line per new capture
+    if (req.method === "GET" && url.pathname === "/api/traces/stream") {
+      traceClients.add(res);
+      res.writeHead(200, {
+        "content-type": "text/event-stream",
+        "cache-control": "no-cache",
+        connection: "keep-alive",
+        "x-accel-buffering": "no",
+      });
+      // prime the stream so the client (and any buffering proxy) flushes headers
+      // immediately rather than holding the first small chunk
+      res.write(":ok\n\n");
+      res.on("close", () => traceClients.delete(res));
+      return;
+    }
+
+    // GET /api/traces/:id -> one full timeline (404 when unknown / evicted)
+    if (req.method === "GET" && url.pathname.startsWith("/api/traces/")) {
+      const id = decodeURIComponent(url.pathname.slice("/api/traces/".length));
+      const tl = traceStore.get(id);
+      if (!tl) {
+        res.writeHead(404).end(JSON.stringify({ error: "unknown trace" }));
+        return;
+      }
+      res.writeHead(200, { "content-type": "application/json" }).end(JSON.stringify(tl));
       return;
     }
 
@@ -491,4 +558,9 @@ export function createAtlasServer(opts: AtlasServerOptions): Server {
     }
     res.writeHead(404).end();
   });
+  server.on("close", () => {
+    stopTraceWatch?.();
+    clearInterval(traceHeartbeat);
+  });
+  return server;
 }

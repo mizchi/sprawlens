@@ -212,7 +212,11 @@ browser plane can be merged when a captured run drives a page).
 
 ### Phasing (revised)
 
-- **v2a**: server trace store + endpoints + external-watch source; viz recent
-  picker + SSE follow. (Delivers "dynamic + recent" with any test runner.)
+- **v2a** (done, 2026-06-24): server trace store (`createTraceStore` ring buffer)
+  - endpoints (`/api/traces`, `/api/traces/:id`, `/api/traces/stream` SSE) +
+    external-watch source (`sprawlens serve --trace-watch [dir]`, the CLI builds a
+    timeline against the live snapshot and the server stores/serves it); viz recent
+    picker (`TraceRecentPicker`) + SSE auto-follow of the newest capture. Delivers
+    "dynamic + recent" with any test runner that drops a `.cpuprofile`.
 - **v2b**: click-to-run capture integration (#22) for in-app triggering.
 - **Phase 2** (unchanged): live CDP debugger driving the player.

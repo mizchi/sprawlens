@@ -21,8 +21,8 @@ const IN_RANGE = "#ea580c";
  * Vertical Git commit log (newest first): a graph lane of dots beside the
  * commit messages, like a Git client. Click a row to focus that commit — the
  * map shows its changes; shift-click selects a range and highlights everything
- * changed across the span. The horizontal counterpart is HistoryTimeline; both
- * are switchable so the layout can be compared.
+ * changed across the span. This is the settled history layout (the horizontal
+ * A/B counterpart was dropped).
  */
 export function CommitLog({ commits, index, range, onSelect, onRangeSelect }: Props) {
   const [hovered, setHovered] = useState<number | null>(null);

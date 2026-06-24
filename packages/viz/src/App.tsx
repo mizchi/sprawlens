@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from "preact/hooks";
+import { useCallback, useEffect, useMemo, useRef, useState } from "preact/hooks";
 import { useQueryStates } from "nuqs";
 import { makeUrlParamParsers } from "./urlParams.ts";
 import type { AtlasGraph, AtlasNode, SymbolKind } from "@sprawlens/schema";
@@ -57,6 +57,7 @@ import {
   type TestStatus,
   type TestTree,
   type Trace,
+  type TraceMeta,
   type TraceTimeline,
 } from "@sprawlens/schema";
 import { apply, layerTransform } from "@sprawlens/layout";
@@ -69,13 +70,20 @@ import type { FocusRequest, FocusView } from "./RingsMapSvg.tsx";
 import { createSyntheticGraph, synthesizeSymbolEdges, synthesizeSymbols } from "./synthetic.ts";
 import type { AtlasEdge } from "@sprawlens/schema";
 import { TracePlayer } from "./TracePlayer.tsx";
+import { TraceRecentPicker } from "./TraceRecentPicker.tsx";
+import { mergeTraceMeta } from "./traceRecent.ts";
 import { TestLogPanel } from "./TestLogPanel.tsx";
 import { TestReporterPanel } from "./TestReporterPanel.tsx";
 import { CommitLog } from "./CommitLog.tsx";
 import { useCommandBridge } from "./useCommandBridge.ts";
 import { buildVizCommands } from "./vizCommands.ts";
 import { HelpModal } from "./HelpModal.tsx";
-import { projectTimelineCursor, stepClockUs, timelineDurationUs } from "./tracePlayer.ts";
+import {
+  projectTimelineCursor,
+  stepClockUs,
+  timelineDurationUs,
+  timelineSpanUs,
+} from "./tracePlayer.ts";
 import {
   classGrouping,
   deriveModuleIdOf,
@@ -421,6 +429,24 @@ export function App() {
   const [timeline, setTimeline] = useState<TraceTimeline | null>(null);
   const [timelineCursor, setTimelineCursor] = useState(0);
   const [timelinePlaying, setTimelinePlaying] = useState(false);
+  // recent captures from the server's trace store (--trace-watch). Empty in
+  // dev/demo; the baked self-timeline then drives the player instead. The newest
+  // is auto-followed until the user pins an older entry in the picker.
+  const [traces, setTraces] = useState<TraceMeta[]>([]);
+  const [activeTraceId, setActiveTraceId] = useState<string | null>(null);
+  const [followLatest, setFollowLatest] = useState(true);
+  // load one stored capture into the player; autoplay when it arrived live (a
+  // fresh capture plays after the run), not on the initial restore.
+  const loadTimelineById = useCallback(async (id: string, autoplay: boolean) => {
+    const tl = (await fetch(`/api/traces/${id}`).then((r) =>
+      r.ok ? r.json() : null,
+    )) as TraceTimeline | null;
+    if (!tl?.steps?.length) return;
+    setTimeline(tl);
+    setActiveTraceId(id);
+    setTimelineCursor(0);
+    setTimelinePlaying(autoplay);
+  }, []);
   // experimental features (trace player, commit-log, test reporter) are off
   // unless the server was started with --experimental or the URL opts in.
   const [configExperimental, setConfigExperimental] = useState(false);
@@ -478,16 +504,28 @@ export function App() {
         setTrace(json);
       })
       .catch(() => {});
-    // an ordered execution timeline for the trace player. In dev it is the
-    // captured fixture served from public-atlas; under `sprawlens serve` it can
-    // come from /api/trace-timeline. Null when neither is present.
-    Promise.any([
-      fetch("/self-timeline.json").then((r) => (r.ok ? r.json() : Promise.reject())),
-      fetch("/api/trace-timeline").then((r) => (r.ok ? r.json() : Promise.reject())),
-    ])
-      .then((json: TraceTimeline) => {
-        if (cancelled || !json?.steps?.length) return;
-        setTimeline(json);
+    // the trace player's source: prefer the server's recent-capture store
+    // (--trace-watch) — list it, follow the newest. When the store is empty
+    // (dev/demo, no watch), fall back to the baked self-timeline fixture (or
+    // /api/trace-timeline) so the player still has something to scrub.
+    fetch("/api/traces")
+      .then((r) => (r.ok ? r.json() : []))
+      .then((list: TraceMeta[]) => {
+        if (cancelled) return;
+        if (list.length > 0) {
+          setTraces(list);
+          void loadTimelineById(list[0]!.id, false);
+          return;
+        }
+        Promise.any([
+          fetch("/self-timeline.json").then((r) => (r.ok ? r.json() : Promise.reject())),
+          fetch("/api/trace-timeline").then((r) => (r.ok ? r.json() : Promise.reject())),
+        ])
+          .then((json: TraceTimeline) => {
+            if (cancelled || !json?.steps?.length) return;
+            setTimeline(json);
+          })
+          .catch(() => {});
       })
       .catch(() => {});
     // a test run (--test-report) for the reporter overlay; null when none
@@ -1938,6 +1976,21 @@ export function App() {
     },
   });
 
+  // Recent-traces stream (--trace-watch): the server announces each new capture's
+  // metadata; we fold it into the picker list and, while following, load+play the
+  // newest so a fresh test-run trace plays once it completes.
+  useEventSource(experimentalOn ? "/api/traces/stream" : null, {
+    onMessage: (data) => {
+      try {
+        const meta = JSON.parse(data) as TraceMeta;
+        setTraces((list) => mergeTraceMeta(list, meta));
+        if (followLatest) void loadTimelineById(meta.id, true);
+      } catch (error) {
+        console.error("traces stream", error);
+      }
+    },
+  });
+
   const allCells: CellResult[] = ringsRef.current
     ? [...ringsRef.current.leafLayouts.values()].flatMap((l) => l.cells)
     : treemapRef.current
@@ -2125,12 +2178,14 @@ export function App() {
     return { traceEdges: edges, traceHeat: heat };
   }, [trace, timeline, timelineCursor]);
   // playback: advance the cursor by captured wall-clock so the whole trace plays
-  // in ~12s regardless of how long the real run took. Restarts from 0 if resumed
-  // at the end. Driven by rAF; re-armed only when the timeline or play state flips.
+  // in ~12s regardless of how long the real run took. Paces over the
+  // step-populated span (not the full plane duration) so the comet doesn't stall
+  // through the pre-roll / trailing-idle dead time. Restarts from 0 if resumed at
+  // the end. Driven by rAF; re-armed only when the timeline or play state flips.
   useEffect(() => {
     if (!timeline || !timelinePlaying) return;
-    const dur = timelineDurationUs(timeline);
-    const rate = dur / 12; // captured µs per real second
+    const span = timelineSpanUs(timeline) || timelineDurationUs(timeline);
+    const rate = span / 12; // captured µs per real second
     let cursor = timelineCursor >= timeline.steps.length - 1 ? 0 : timelineCursor;
     let posUs = stepClockUs(timeline, cursor);
     let last = performance.now();
@@ -2533,6 +2588,18 @@ export function App() {
             onSelect={(testId) => jumpTo(testId, 6)}
           />
         ) : null}
+        {experimentalOn ? (
+          <TraceRecentPicker
+            traces={traces}
+            activeId={activeTraceId}
+            following={followLatest}
+            onSelect={(id) => {
+              // picking the newest keeps live-follow; pinning an older one stops it
+              setFollowLatest(id === traces[0]?.id);
+              void loadTimelineById(id, false);
+            }}
+          />
+        ) : null}
         {experimentalOn && timeline ? (
           <TracePlayer
             timeline={timeline}
@@ -2690,7 +2757,14 @@ export function App() {
                       </button>
                     ) : null}
                     {experimentalOn && selectedTestResult ? (
-                      <TestLogPanel result={selectedTestResult} />
+                      <TestLogPanel
+                        result={selectedTestResult}
+                        onRerun={
+                          params.source === "synthetic" || params.source === "sprawlens-history"
+                            ? undefined
+                            : () => onRunTest(selectedTestResult.testId)
+                        }
+                      />
                     ) : null}
                     {params.source === "sprawlens-history" &&
                     activeId &&

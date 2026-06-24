@@ -9,6 +9,7 @@ import {
   rmSync,
   writeFileSync,
 } from "node:fs";
+import { mkdir, readFile } from "node:fs/promises";
 import { createRequire } from "node:module";
 import { tmpdir } from "node:os";
 import { basename, dirname, join, resolve } from "node:path";
@@ -33,10 +34,12 @@ import type {
   TestRun,
   TestTree,
   Trace,
+  TraceTimeline,
 } from "@sprawlens/schema";
 import {
   applyLayers,
   buildSymbolResolver,
+  buildTraceTimeline,
   computeGraphMetrics,
   layerManifest,
   matchResourceFiles,
@@ -94,6 +97,10 @@ program
     "--experimental",
     "enable experimental viz features (trace player, commit-log, test reporter)",
   )
+  .option(
+    "--trace-watch [dir]",
+    "watch a drop dir for .cpuprofile captures and feed the trace player (default .sprawlens/traces)",
+  )
   .action(
     async (
       repo: string,
@@ -105,6 +112,7 @@ program
         testReport?: string;
         testTraces?: string;
         experimental?: boolean;
+        traceWatch?: string | boolean;
       },
     ): Promise<void> => {
       const root = resolve(repo);
@@ -237,6 +245,42 @@ program
         : undefined;
       if (runTestCase) console.log(`  test command: ${config.test!.command}`);
 
+      // recent-traces watch: drop a .cpuprofile into the dir (e.g. `node
+      // --cpu-prof` of a test run) and the server builds an ordered timeline
+      // against this snapshot, pushing it to the player's recent list. The
+      // composition root owns parsing + resolution; the server only stores +
+      // serves (mirrors the runTestCase split).
+      const traceWatchDir =
+        options.traceWatch === true
+          ? join(root, ".sprawlens", "traces")
+          : typeof options.traceWatch === "string"
+            ? resolve(options.traceWatch)
+            : undefined;
+      let traceWatch:
+        | { dir: string; ingest: (profilePath: string) => Promise<TraceTimeline | null> }
+        | undefined;
+      if (traceWatchDir) {
+        await mkdir(traceWatchDir, { recursive: true });
+        traceWatch = {
+          dir: traceWatchDir,
+          ingest: async (profilePath) => {
+            try {
+              const raw = JSON.parse(await readFile(profilePath, "utf8"));
+              const timeline = buildTraceTimeline(raw, {
+                repoRoot: root,
+                snapshot,
+                plane: "server",
+              });
+              return timeline.steps.length > 0 ? timeline : null;
+            } catch {
+              // partial write / not a cpuprofile / unresolvable: skip this drop
+              return null;
+            }
+          },
+        };
+        console.log(`  trace watch: ${traceWatchDir} (drop .cpuprofile here)`);
+      }
+
       const server = createAtlasServer({
         repos: new Map([[name, root]]),
         snapshots: new Map([[name, snapshot]]),
@@ -249,6 +293,7 @@ program
         testRun,
         runTestCase,
         experimental: options.experimental ?? false,
+        traceWatch,
       });
       server.listen(options.port, "127.0.0.1", () => {
         const url = `http://127.0.0.1:${options.port}/`;

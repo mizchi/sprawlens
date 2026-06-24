@@ -84,11 +84,18 @@ export function TracePlayer({ timeline, cursor, playing, onCursor, onTogglePlay 
         max={last}
         value={Math.min(cursor, last)}
         onInput={(e) => onCursor(Number((e.target as HTMLInputElement).value))}
-        style={{ width: 320, accentColor: "#ff7a1a" }}
+        style={{ flex: "none", width: 320, accentColor: "#ff7a1a" }}
       />
       <span
         style={{
-          minWidth: 220,
+          // fixed width so a longer/shorter symbol label never resizes the bar
+          // (the player is center-anchored — a variable width would make the
+          // whole thing, scrubber included, jitter left/right as playback runs).
+          // minWidth:0 is required: without it a flex item's auto minimum is its
+          // min-content, so a long unbreakable symbol name overflows the 220px.
+          flex: "none",
+          width: 220,
+          minWidth: 0,
           whiteSpace: "nowrap",
           overflow: "hidden",
           textOverflow: "ellipsis",
@@ -97,7 +104,15 @@ export function TracePlayer({ timeline, cursor, playing, onCursor, onTogglePlay 
         <strong style={{ color: "#ff9d4d" }}>{name}</strong>
         {file && <span style={{ color: "#94a3b8" }}> · {file}</span>}
       </span>
-      <span style={{ color: "#64748b", flex: "none" }}>
+      <span
+        style={{
+          color: "#64748b",
+          flex: "none",
+          minWidth: 56,
+          textAlign: "right",
+          fontVariantNumeric: "tabular-nums",
+        }}
+      >
         {Math.min(cursor, last) + 1}/{timeline.steps.length}
       </span>
     </div>

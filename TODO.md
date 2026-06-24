@@ -6,25 +6,29 @@ All gated behind `sprawlens serve --experimental` (or `?experimental=1`); see th
 "exp on/off" chip in the viz. Each needs a decision + polish before it graduates.
 
 - **Trace player** (`docs/design/2026-06-22-entrypoint-trace-player.md`)
-  - Recorded replay proved low-value; the intended direction is dynamic capture
-    tied to test runs (v2: recent-traces store + external watch + click-to-run,
-    pick from recent N). v2a/v2b not built yet.
+  - v2a shipped: server recent-traces store (ring buffer) + `/api/traces`,
+    `/api/traces/:id`, `/api/traces/stream` (SSE); external-watch source via
+    `sprawlens serve --trace-watch [dir]` (drop a `.cpuprofile`); viz recent
+    picker + auto-follow the newest capture.
+  - v2b (in-app click-to-run capture, #22) not built yet — the player still
+    only sees externally-dropped profiles.
   - Browser-plane capture (Playwright CDP profile) + merge is still TODO; only
     the server plane is wired.
   - Comet visuals are thin (edge trail sparse, heat over-saturates large cells).
-  - Decide: build v2, or retire the player.
 
 - **Commit-log / history**
-  - Vertical (right) and horizontal (bottom) layouts both exist for A/B — pick
-    one as the default and drop the toggle.
+  - Decided: vertical (Git-client) layout is the default; the horizontal
+    HistoryTimeline and the A/B toggle were dropped (4898ae1).
   - The vertical "graph" column is a single lane; draw real branch lanes if the
     history fixture carries parents.
   - Confirm shift-range highlight reads well at module vs symbol granularity.
 
 - **Test reporter** (`docs/design/2026-06-21-test-reporter.md`)
   - Dot panel + selection log panel + failing-cell pulse are in.
-  - Click-to-run output capture works; surface a re-run button in the log panel.
-  - Decide whether the dot panel or the on-map tint is the primary preview.
+  - Click-to-run output capture works; a re-run button is in the log panel
+    (next to the double-click-the-cell gesture).
+  - Decided: the on-map tint is the primary preview (the map is the focus); the
+    dot panel stays as a secondary failures-first scan + jump.
 
 - **VLM render eval** (`docs/design/2026-06-21-rendering-test-harness.md`)
   - Already opt-in (`pnpm test:render:vlm`, token-gated); default judge

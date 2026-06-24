@@ -11,9 +11,16 @@ const STATUS_COLOR: Record<string, string> = {
  * Selection panel for a test case: a status badge + duration, the failure
  * message (assertion diff / stack), and the captured run output (stdout/stderr
  * from click-to-run), each in a terminal-style block. Shown when a test cell is
- * selected and a run result exists for it.
+ * selected and a run result exists for it. `onRerun` (when a runner is wired)
+ * surfaces an explicit re-run button next to the double-click-the-cell gesture.
  */
-export function TestLogPanel({ result }: { result: TestCaseResult }) {
+export function TestLogPanel({
+  result,
+  onRerun,
+}: {
+  result: TestCaseResult;
+  onRerun?: () => void;
+}) {
   const color = STATUS_COLOR[result.status] ?? "#94a3b8";
   return (
     <div style={{ marginTop: "8px", fontSize: "11px" }}>
@@ -33,6 +40,26 @@ export function TestLogPanel({ result }: { result: TestCaseResult }) {
         </span>
         {result.durationMs !== undefined ? (
           <span style={{ color: "#64748b" }}>{result.durationMs.toFixed(0)} ms</span>
+        ) : null}
+        {onRerun ? (
+          <button
+            type="button"
+            data-testid="test-rerun"
+            onClick={onRerun}
+            title="re-run this case and capture its output"
+            style={{
+              marginLeft: "auto",
+              padding: "2px 9px",
+              borderRadius: "6px",
+              border: "1px solid #334155",
+              background: "#1e293b",
+              color: "#e2e8f0",
+              cursor: "pointer",
+              font: "inherit",
+            }}
+          >
+            ↻ re-run
+          </button>
         ) : null}
       </div>
       {result.message ? <LogBlock title="failure" body={result.message} tint="#dc2626" /> : null}

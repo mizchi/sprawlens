@@ -1,6 +1,11 @@
 import { describe, expect, it } from "vitest";
 import type { TraceTimeline } from "@sprawlens/schema";
-import { projectTimelineCursor, stepClockUs, timelineDurationUs } from "./tracePlayer.ts";
+import {
+  projectTimelineCursor,
+  stepClockUs,
+  timelineDurationUs,
+  timelineSpanUs,
+} from "./tracePlayer.ts";
 
 const tl: TraceTimeline = {
   schemaVersion: 1,
@@ -50,5 +55,14 @@ describe("clock helpers", () => {
   });
   it("sums every plane's span", () => {
     expect(timelineDurationUs(tl)).toBe(350);
+  });
+  it("spans only the step-populated range (first step clock → last step clock)", () => {
+    // first server step at clock 0, last (browser) step at clock 300 → 300,
+    // excluding the trailing idle that pads timelineDurationUs to 350
+    expect(timelineSpanUs(tl)).toBe(300);
+  });
+  it("is 0 when there are fewer than two steps (nothing to pace over)", () => {
+    expect(timelineSpanUs({ ...tl, steps: [] })).toBe(0);
+    expect(timelineSpanUs({ ...tl, steps: [tl.steps[0]!] })).toBe(0);
   });
 });

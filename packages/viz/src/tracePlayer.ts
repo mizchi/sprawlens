@@ -63,3 +63,16 @@ export function stepClockUs(timeline: TraceTimeline, index: number): number {
 export function timelineDurationUs(timeline: TraceTimeline): number {
   return timeline.planes.reduce((sum, p) => sum + p.durationUs, 0);
 }
+
+/**
+ * The wall-clock span actually populated by steps: the first step's clock to the
+ * last step's clock. Unlike {@link timelineDurationUs} (the full plane duration,
+ * which includes the pre-roll before the first sample and any trailing idle with
+ * no steps), this is what playback should pace over — so the comet doesn't sit
+ * still through dead head/tail time. 0 for fewer than two steps.
+ */
+export function timelineSpanUs(timeline: TraceTimeline): number {
+  const n = timeline.steps.length;
+  if (n < 2) return 0;
+  return stepClockUs(timeline, n - 1) - stepClockUs(timeline, 0);
+}
