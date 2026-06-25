@@ -48,6 +48,14 @@ export type CapacityLayoutState = {
   cells: CellResult[];
   iteration: number;
   maxRelativeError: number;
+  /**
+   * Iteration at which the current solve began — 0 for a cold start, reset to
+   * the current iteration by every graph change (warm-start). Lloyd relaxation
+   * is annealed by the elapsed `iteration - annealBase` (see
+   * {@link lloydDamping}), so a fresh problem always gets full relaxation first
+   * and only a long-running, unsettled solve has its churn forced down.
+   */
+  annealBase: number;
   options: Required<CapacityOptions>;
 };
 
@@ -135,6 +143,7 @@ function buildState(
     cells,
     iteration,
     maxRelativeError,
+    annealBase: iteration,
     options,
   };
 }
@@ -266,6 +275,38 @@ function adaptWeights(
  */
 const FUSED_SWITCH = 0.5;
 
+/** Iterations of full-strength Lloyd before the anneal starts (the melt). */
+const ANNEAL_GRACE = 400;
+/** Iterations over which the anneal ramps from full strength down to its floor. */
+const ANNEAL_WIDTH = 800;
+/** Lower bound on the anneal factor — some relaxation always remains. */
+const ANNEAL_FLOOR = 0.08;
+
+/**
+ * Lloyd relaxation rate for a step, damped two ways:
+ *  - by area error (`min(1, 10*maxErr)`): near convergence we only need sites
+ *    near their cell centers, not an exact centroidal diagram.
+ *  - by elapsed iterations (annealing): geometry churn from the centroid move is
+ *    what keeps knocking cells empty in the tail; coupled with the empty-cell
+ *    weight recovery it can self-sustain a limit cycle — the oscillation keeps
+ *    maxErr high, which keeps the error-damping above at full strength, which
+ *    keeps the churn going. Without this anneal, dense maps with many equal
+ *    weights (and worse in thin clips) ring near maxErr≈1 for tens of thousands
+ *    of steps and visibly never settle. Annealing the rate down once a solve has
+ *    run a while breaks the loop: the early melt still gets full Lloyd to spread
+ *    sites (essential in thin clips, where sites must fan out along the long
+ *    axis), but an unsettled run has its churn forced down so the weights can
+ *    finally come to rest and the cycle decays to convergence. Measured from
+ *    `annealBase`, which resets on every graph change, so a cold start and each
+ *    warm-start get a fresh full-Lloyd melt and only a long-running, genuinely
+ *    stuck solve is damped. Floored so some relaxation always remains.
+ */
+function lloydDamping(state: CapacityLayoutState): number {
+  const t = (state.iteration - state.annealBase - ANNEAL_GRACE) / ANNEAL_WIDTH;
+  const anneal = Math.max(ANNEAL_FLOOR, Math.min(1, 1 - t));
+  return state.options.lloydRate * Math.min(1, 10 * state.maxRelativeError) * anneal;
+}
+
 export function capacityStep(state: CapacityLayoutState): CapacityLayoutState {
   // Far from convergence the stale-gradient single-diagram step makes the same
   // progress at half the power-diagram cost; only the precise tail needs the
@@ -273,11 +314,9 @@ export function capacityStep(state: CapacityLayoutState): CapacityLayoutState {
   if (state.maxRelativeError > FUSED_SWITCH) return capacityStepFused(state);
   const { options, clip, clipRing } = state;
 
-  // Phase 1: Lloyd relaxation on the current diagram. Damped as area errors
-  // shrink — capacity convergence is limited by geometry churn (classic CVT
-  // tails are O(1/k)) and we only need sites near their cell centers, not an
-  // exact centroidal diagram.
-  const lloydRate = options.lloydRate * Math.min(1, 10 * state.maxRelativeError);
+  // Phase 1: Lloyd relaxation on the current diagram, damped by area error and
+  // annealed once a solve runs long without settling (see lloydDamping).
+  const lloydRate = lloydDamping(state);
   const cellById = new Map(state.cells.map((c) => [c.id, c]));
   const rng = createRng(options.seed + state.iteration + 1);
   const moved = state.sites.map((site) => {
@@ -325,8 +364,9 @@ function capacityStepFused(state: CapacityLayoutState): CapacityLayoutState {
   // Weight update from the current diagram (positions still match state.cells).
   const adapted = adaptWeights(state.sites, state.cells, options.adaptationRate, state.clipArea);
 
-  // Lloyd move from the same current diagram, damped as area errors shrink.
-  const lloydRate = options.lloydRate * Math.min(1, 10 * state.maxRelativeError);
+  // Lloyd move from the same current diagram, damped by area error and annealed
+  // once a solve runs long without settling (see lloydDamping).
+  const lloydRate = lloydDamping(state);
   const cellById = new Map(state.cells.map((c) => [c.id, c]));
   const rng = createRng(options.seed + state.iteration + 1);
   const moved = adapted.map((site) => {
