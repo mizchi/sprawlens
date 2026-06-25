@@ -193,6 +193,53 @@ describe("capacityStep convergence", () => {
   });
 });
 
+describe("capacityStep convergence under many tied weights (regression)", () => {
+  // Real file trees have many equal-LOC files; packed into a tight clip a large
+  // fraction of cells go empty at once. The empty-cell weight recovery must not
+  // limit-cycle — it used to: every empty cell jumped to its required weight
+  // from the SAME pre-update snapshot (Jacobi), the jumps overshot each other,
+  // a different set went empty next step, and maxRelativeError oscillated near
+  // 1.0 forever (the map visibly jittered and never settled). Probabilistic in
+  // the seed, worse with more cells and thinner clips.
+  function tieHeavyNodes(count: number, seed: number): CellInputNode[] {
+    const rng = createRng(seed);
+    return Array.from({ length: count }, (_, i) => {
+      const u = rng();
+      return { id: `n${i}`, weight: u < 0.65 ? 1 : Math.max(1, Math.round(rng() ** 3 * 500)) };
+    });
+  }
+  function rectPoly(w: number, h: number): ClipRegion {
+    return {
+      kind: "polygon",
+      ring: [
+        { x: -w / 2, y: -h / 2 },
+        { x: w / 2, y: -h / 2 },
+        { x: w / 2, y: h / 2 },
+        { x: -w / 2, y: h / 2 },
+      ],
+    };
+  }
+  // (clip, n, seed) triples that limit-cycled near maxRelativeError≈1.0 forever
+  // before the Gauss-Seidel empty-cell fix (verified: tailMax 1.00 and 1.45).
+  const cases: { label: string; clip: ClipRegion; n: number; seed: number }[] = [
+    { label: "square 1:1", clip: rectPoly(100, 100), n: 250, seed: 1 },
+    { label: "sliver 12:1", clip: rectPoly(300, 25), n: 120, seed: 1 },
+  ];
+  for (const { label, clip, n, seed } of cases) {
+    it(`settles instead of limit-cycling (${label}, n=${n}, seed=${seed})`, () => {
+      let state = createCapacityLayout(tieHeavyNodes(n, seed), clip, { seed: 1 });
+      const iters = 1200;
+      let tailMax = 0;
+      for (let i = 0; i < iters; i++) {
+        state = capacityStep(state);
+        if (i >= iters - 100) tailMax = Math.max(tailMax, state.maxRelativeError);
+      }
+      // steady-state error must be at the convergence tolerance, not oscillating
+      expect(tailMax).toBeLessThan(0.02);
+    });
+  }
+});
+
 describe("applyGraphChanges (warm-start)", () => {
   it("re-converges much faster than cold start after a 10% weight change", () => {
     const nodes = syntheticNodes(50, 6);
