@@ -85,10 +85,26 @@ type SnapshotOptions = {
 
 /** Parse one file into its node + imports + symbol usages (the heavy step). */
 function parseFile(relativePath: string, content: string, size: number): ParsedFile {
-  const imports = extractImports(content, relativePath);
+  // One parse shared by every extractor below. Each used to call
+  // ts.createSourceFile itself with identical args, re-parsing the same file
+  // 3x (4x for test files) — the dominant cost of analysis.
+  const sourceFile = ts.createSourceFile(
+    relativePath,
+    content,
+    ts.ScriptTarget.Latest,
+    // setParentNodes=false: every extractor here reads positions via the
+    // sourceFile-argument form (getStart(sf) / getText(sf)), so parent pointers
+    // are never used — skipping them speeds up the parse.
+    false,
+    scriptKindFor(relativePath),
+  );
+  const imports = extractImports(sourceFile);
   const localNames = new Set(
     imports.flatMap((item) => item.bindings.map((binding) => binding.local)),
   );
+  // symbols and their imported-local usages share one pass over the top-level
+  // statements (one symbolsFromTopLevelStatement per statement, not two)
+  const { symbols, usageByLocal } = extractSymbolsAndUsages(sourceFile, relativePath, localNames);
   return {
     node: {
       id: fileId(relativePath),
@@ -97,10 +113,10 @@ function parseFile(relativePath: string, content: string, size: number): ParsedF
       ext: sourceExtension(relativePath),
       loc: countLoc(content),
       sizeBytes: size,
-      symbols: extractTopLevelSymbols(content, relativePath),
+      symbols,
     },
     imports,
-    usageByLocal: collectTopLevelSymbolUsages(content, relativePath, localNames),
+    usageByLocal,
     // only test files carry a case forest; keeps the case plane aligned with
     // the test layer and avoids false positives in source that defines `describe`
     tests:
@@ -413,14 +429,7 @@ function createImportEdges(
   return [...edges.values()].sort((a, b) => a.id.localeCompare(b.id));
 }
 
-function extractImports(content: string, fileName: string): ExtractedImport[] {
-  const sourceFile = ts.createSourceFile(
-    fileName,
-    content,
-    ts.ScriptTarget.Latest,
-    true,
-    scriptKindFor(fileName),
-  );
+function extractImports(sourceFile: ts.SourceFile): ExtractedImport[] {
   const imports: ExtractedImport[] = [];
 
   function visit(node: ts.Node) {
@@ -569,65 +578,49 @@ function resolveSymbolImports(
   return imports;
 }
 
-function collectTopLevelSymbolUsages(
-  content: string,
+/**
+ * One pass over the top-level statements producing both the file's symbols and,
+ * per symbol, which imported locals it references. These used to be two
+ * functions that each looped the statements and ran symbolsFromTopLevelStatement
+ * per statement; sharing the loop drops that duplicate symbol construction.
+ */
+function extractSymbolsAndUsages(
+  sourceFile: ts.SourceFile,
   fileName: string,
   localNames: Set<string>,
-): Map<string, CodeSymbol[]> {
-  const usages = new Map<string, CodeSymbol[]>();
-  if (localNames.size === 0 || (localNames.size === 1 && localNames.has("*"))) {
-    return usages;
-  }
-  const sourceFile = ts.createSourceFile(
-    fileName,
-    content,
-    ts.ScriptTarget.Latest,
-    true,
-    scriptKindFor(fileName),
-  );
+): { symbols: CodeSymbol[]; usageByLocal: Map<string, CodeSymbol[]> } {
+  const symbols: CodeSymbol[] = [];
+  const usageByLocal = new Map<string, CodeSymbol[]>();
+  const collectUsage = localNames.size > 0 && !(localNames.size === 1 && localNames.has("*"));
 
   for (const statement of sourceFile.statements) {
-    if (ts.isImportDeclaration(statement) || ts.isExportDeclaration(statement)) {
-      continue;
-    }
     const exported = hasExportModifier(statement);
-    const symbols = symbolsFromTopLevelStatement(statement, sourceFile, fileName, exported);
-    for (const symbol of symbols) {
-      const seenLocals = new Set<string>();
-      const visit = (node: ts.Node) => {
-        if (ts.isIdentifier(node) && localNames.has(node.text)) {
-          seenLocals.add(node.text);
+    const stmtSymbols = symbolsFromTopLevelStatement(statement, sourceFile, fileName, exported);
+    symbols.push(...stmtSymbols);
+
+    // import/export statements declare no referencing symbols — skip the usage
+    // walk (and the empty-localNames case skips it entirely)
+    if (collectUsage && !ts.isImportDeclaration(statement) && !ts.isExportDeclaration(statement)) {
+      for (const symbol of stmtSymbols) {
+        const seenLocals = new Set<string>();
+        const visit = (node: ts.Node) => {
+          if (ts.isIdentifier(node) && localNames.has(node.text)) {
+            seenLocals.add(node.text);
+          }
+          ts.forEachChild(node, visit);
+        };
+        visit(statement);
+        for (const local of seenLocals) {
+          const current = usageByLocal.get(local) ?? [];
+          current.push(symbol);
+          usageByLocal.set(local, current);
         }
-        ts.forEachChild(node, visit);
-      };
-      visit(statement);
-      for (const local of seenLocals) {
-        const current = usages.get(local) ?? [];
-        current.push(symbol);
-        usages.set(local, current);
       }
     }
   }
 
-  return usages;
-}
-
-function extractTopLevelSymbols(content: string, fileName: string): CodeSymbol[] {
-  const sourceFile = ts.createSourceFile(
-    fileName,
-    content,
-    ts.ScriptTarget.Latest,
-    true,
-    scriptKindFor(fileName),
-  );
-  const symbols: CodeSymbol[] = [];
-
-  for (const statement of sourceFile.statements) {
-    const exported = hasExportModifier(statement);
-    symbols.push(...symbolsFromTopLevelStatement(statement, sourceFile, fileName, exported));
-  }
-
-  return symbols.sort((a, b) => a.startLine - b.startLine || a.name.localeCompare(b.name));
+  symbols.sort((a, b) => a.startLine - b.startLine || a.name.localeCompare(b.name));
+  return { symbols, usageByLocal };
 }
 
 function symbolsFromTopLevelStatement(
