@@ -1,9 +1,9 @@
 import { defineConfig, devices } from "@playwright/test";
 
-// Perf scenarios for the atlas playground, measured with lightbringer.
-//   pnpm exec playwright test -c playwright.atlas.config.ts          # dev server
-//   ATLAS_BASE_URL=http://127.0.0.1:5174 ... # against a prod preview, e.g.
-//   pnpm build:atlas && pnpm exec vite preview -c vite.atlas.config.ts --port 5174
+// Per-step perf scenarios for the atlas playground, measured with lightbringer.
+//   pnpm perf:atlas                       # spins up `pnpm dev` (viz + API/SSE)
+//   PERF_MEM=1 pnpm perf:atlas            # retained-only memory (GC at span edges)
+//   ATLAS_BASE_URL=http://127.0.0.1:5179 pnpm perf:atlas   # reuse a running server
 const baseURL = process.env.ATLAS_BASE_URL ?? "http://127.0.0.1:5173";
 
 export default defineConfig({
@@ -20,9 +20,13 @@ export default defineConfig({
     ? {}
     : {
         webServer: {
-          command: "pnpm dev:atlas",
-          url: "http://127.0.0.1:5173/atlas.html",
+          // `pnpm dev` brings up the viz (vite, 5173) and the cli dev server
+          // (API + SSE, analysing this repo) together; the analysis pass on
+          // first boot needs headroom past Playwright's 60s webServer default.
+          command: "pnpm dev",
+          url: "http://127.0.0.1:5173/",
           reuseExistingServer: true,
+          timeout: 180_000,
         },
       }),
 });

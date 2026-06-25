@@ -14,7 +14,6 @@
   "dependencies": {
     "@sprawlens/layout": "workspace:*",
     "@sprawlens/schema": "workspace:*",
-    "nuqs": "^2.8.9",
     "preact": "^10.29.2",
     "preact-render-to-string": "^6.5.13"
   }

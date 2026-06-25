@@ -1,13 +1,21 @@
-// vendored lightbringer build (see e2e/vendor/README.md); importing the
-// sibling checkout directly pulled a second @playwright/test instance
-// from its node_modules, which playwright rejects
-// @ts-expect-error vendored module has no type declarations
-import { test, expect } from "./vendor/lightbringer.mjs";
+import { expect, test } from "lightbringer";
 import type { Page } from "@playwright/test";
 
-// Zoom-in/out scenario on the playwright-sized atlas map, measured per step
-// with lightbringer (network / cpu / render / INP). Used to chase the crash
-// reported during interactive zooming.
+// Zoom-in/out + pan scenario on the sprawlens atlas map, measured per step with
+// lightbringer (network / cpu / render / INP / memory). Originally chased the
+// crash reported during interactive zooming; the per-step memory gauges also
+// surface any heap/listener growth across a zoom session (run PERF_MEM=1).
+
+const READY_URL = "/?source=sprawlens&layout=treemap&seed=1";
+
+/** The rendering harness flips this once the capacity layout settles. */
+async function waitConverged(page: Page) {
+  await page.waitForFunction(
+    () => (window as unknown as { __sprawlensConverged?: boolean }).__sprawlensConverged === true,
+    null,
+    { timeout: 120_000 },
+  );
+}
 
 /** Trackpad-ish zoom gesture: N wheel ticks at the viewport center. */
 async function zoomGesture(page: Page, deltaY: number, ticks: number) {
@@ -22,7 +30,7 @@ async function zoomGesture(page: Page, deltaY: number, ticks: number) {
 const polygonCount = (page: Page) =>
   page.evaluate(() => document.querySelectorAll("polygon").length);
 
-test.describe("atlas zoom scenario (playwright fixture)", () => {
+test.describe("atlas zoom scenario", () => {
   test("zoom in / out cycles", async ({ page, perf }) => {
     let crashed: Error | null = null;
     page.on("crash", () => {
@@ -30,32 +38,9 @@ test.describe("atlas zoom scenario (playwright fixture)", () => {
     });
 
     await perf.measure("initial-load", async () => {
-      await page.goto("/atlas.html");
+      await page.goto(READY_URL);
       await expect(page.locator("svg polygon").first()).toBeVisible();
-    });
-
-    await perf.measure("load-playwright-data", async () => {
-      // the data <select> is the one offering the playwright option
-      const select = page
-        .locator("select", {
-          has: page.locator('option[value="playwright"]'),
-        })
-        .first();
-      await select.selectOption("playwright");
-      await page.waitForFunction(
-        () => document.querySelectorAll("polygon").length > 1000,
-        undefined,
-        { timeout: 60_000 },
-      );
-    });
-
-    await perf.measure("wait-converge", async () => {
-      // open the floating stats section and wait for the solver to settle
-      await page.locator("summary", { hasText: "ステータス" }).click();
-      await expect(page.locator("details", { hasText: "max relative error" })).toContainText(
-        "(converged)",
-        { timeout: 120_000 },
-      );
+      await waitConverged(page);
     });
 
     await perf.measure("zoom-in-deep", async () => {
@@ -77,7 +62,7 @@ test.describe("atlas zoom scenario (playwright fixture)", () => {
       expect(crashed, `cycle ${cycle}`).toBeNull();
     }
 
-    // pan around at mid zoom, another reported trigger
+    // pan around at mid zoom, another reported crash trigger
     await perf.measure("pan-at-mid-zoom", async () => {
       await zoomGesture(page, -300, 12);
       const box = (await page.locator("svg").first().boundingBox())!;

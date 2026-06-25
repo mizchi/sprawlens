@@ -22,6 +22,7 @@
     "test:render": "playwright test -c playwright.render.config.ts",
     "test:render:update": "UPDATE_SVG=1 playwright test -c playwright.render.config.ts",
     "test:render:vlm": "playwright test -c playwright.vlm.config.ts",
+    "perf:atlas": "playwright test -c playwright.atlas.config.ts",
     "trace:self": "tsx e2e/captureSelfTrace.mts",
     "preview:atlas": "tsx e2e/capturePreview.mts"
   },
@@ -38,6 +39,7 @@
     "@vitest/coverage-v8": "^4.1.9",
     "concurrently": "^10.0.3",
     "knip": "^6.18.0",
+    "lightbringer": "^0.3.1",
     "oxfmt": "^0.56.0",
     "oxlint": "^1.71.0",
     "playwright": "^1.61.0",
