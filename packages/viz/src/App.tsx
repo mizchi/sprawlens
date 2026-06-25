@@ -1,6 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "preact/hooks";
-import { useQueryStates } from "nuqs";
-import { makeUrlParamParsers } from "./urlParams.ts";
+import { makeUrlParamParsers, useUrlState } from "./urlParams.ts";
 import type { AtlasGraph, AtlasNode, SymbolKind } from "@sprawlens/schema";
 import {
   applyGraphChanges,
@@ -206,7 +205,7 @@ export function App() {
   // render-affecting settings mirrored to the URL (reproducible / shareable).
   // `params` stays the single interface the app + Controls use; this seeds its
   // synced fields from the URL on mount and an effect below writes them back.
-  const [urlParams, setUrlParams] = useQueryStates(
+  const [urlParams, setUrlParams] = useUrlState(
     useMemo(() => makeUrlParamParsers(systemPrefersDark), [systemPrefersDark]),
   );
   const seed = urlParams.seed;
@@ -243,8 +242,8 @@ export function App() {
       gap: 0.7,
     },
   }));
-  // mirror the synced settings back to the URL whenever they change. nuqs omits
-  // default-valued keys, so a no-change view keeps a clean URL.
+  // mirror the synced settings back to the URL whenever they change. the URL
+  // mirror omits default-valued keys, so a no-change view keeps a clean URL.
   useEffect(() => {
     void setUrlParams({
       source: params.source,
