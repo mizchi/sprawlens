@@ -85,7 +85,20 @@ type SnapshotOptions = {
 
 /** Parse one file into its node + imports + symbol usages (the heavy step). */
 function parseFile(relativePath: string, content: string, size: number): ParsedFile {
-  const imports = extractImports(content, relativePath);
+  // One parse shared by every extractor below. Each used to call
+  // ts.createSourceFile itself with identical args, re-parsing the same file
+  // 3x (4x for test files) — the dominant cost of analysis.
+  const sourceFile = ts.createSourceFile(
+    relativePath,
+    content,
+    ts.ScriptTarget.Latest,
+    // setParentNodes=false: every extractor here reads positions via the
+    // sourceFile-argument form (getStart(sf) / getText(sf)), so parent pointers
+    // are never used — skipping them speeds up the parse.
+    false,
+    scriptKindFor(relativePath),
+  );
+  const imports = extractImports(sourceFile);
   const localNames = new Set(
     imports.flatMap((item) => item.bindings.map((binding) => binding.local)),
   );
@@ -97,10 +110,10 @@ function parseFile(relativePath: string, content: string, size: number): ParsedF
       ext: sourceExtension(relativePath),
       loc: countLoc(content),
       sizeBytes: size,
-      symbols: extractTopLevelSymbols(content, relativePath),
+      symbols: extractTopLevelSymbols(sourceFile, relativePath),
     },
     imports,
-    usageByLocal: collectTopLevelSymbolUsages(content, relativePath, localNames),
+    usageByLocal: collectTopLevelSymbolUsages(sourceFile, relativePath, localNames),
     // only test files carry a case forest; keeps the case plane aligned with
     // the test layer and avoids false positives in source that defines `describe`
     tests:
@@ -413,14 +426,7 @@ function createImportEdges(
   return [...edges.values()].sort((a, b) => a.id.localeCompare(b.id));
 }
 
-function extractImports(content: string, fileName: string): ExtractedImport[] {
-  const sourceFile = ts.createSourceFile(
-    fileName,
-    content,
-    ts.ScriptTarget.Latest,
-    true,
-    scriptKindFor(fileName),
-  );
+function extractImports(sourceFile: ts.SourceFile): ExtractedImport[] {
   const imports: ExtractedImport[] = [];
 
   function visit(node: ts.Node) {
@@ -570,7 +576,7 @@ function resolveSymbolImports(
 }
 
 function collectTopLevelSymbolUsages(
-  content: string,
+  sourceFile: ts.SourceFile,
   fileName: string,
   localNames: Set<string>,
 ): Map<string, CodeSymbol[]> {
@@ -578,13 +584,6 @@ function collectTopLevelSymbolUsages(
   if (localNames.size === 0 || (localNames.size === 1 && localNames.has("*"))) {
     return usages;
   }
-  const sourceFile = ts.createSourceFile(
-    fileName,
-    content,
-    ts.ScriptTarget.Latest,
-    true,
-    scriptKindFor(fileName),
-  );
 
   for (const statement of sourceFile.statements) {
     if (ts.isImportDeclaration(statement) || ts.isExportDeclaration(statement)) {
@@ -612,14 +611,7 @@ function collectTopLevelSymbolUsages(
   return usages;
 }
 
-function extractTopLevelSymbols(content: string, fileName: string): CodeSymbol[] {
-  const sourceFile = ts.createSourceFile(
-    fileName,
-    content,
-    ts.ScriptTarget.Latest,
-    true,
-    scriptKindFor(fileName),
-  );
+function extractTopLevelSymbols(sourceFile: ts.SourceFile, fileName: string): CodeSymbol[] {
   const symbols: CodeSymbol[] = [];
 
   for (const statement of sourceFile.statements) {
