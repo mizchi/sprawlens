@@ -211,47 +211,49 @@ function useNamesOf(node: SyntaxNode): string[] {
   return [...names];
 }
 
-/** All identifier / type usages in the tree (skipping the `use` declarations
- * themselves), as {line, name} — the source side of symbol references. */
-function collectUsages(root: SyntaxNode): { line: number; name: string }[] {
-  const out: { line: number; name: string }[] = [];
-  const stack: SyntaxNode[] = [root];
-  while (stack.length) {
-    const n = stack.pop()!;
-    if (n.type === "use_declaration") continue; // its names are imports, not uses
-    if (n.type === "identifier" || n.type === "type_identifier") {
-      out.push({ line: n.startPosition.row + 1, name: n.text });
-    }
-    for (let i = 0; i < n.namedChildCount; i++) stack.push(n.namedChild(i)!);
-  }
-  return out;
-}
-
 /** A `::`-qualified reference (`crate::a::foo`, `Foo::new`) and its line. The
  * leading segments name a module path or a type; the last is the symbol used. */
 type ScopedRef = { line: number; segs: string[] };
 
-/** All `::`-qualified paths in the tree (outermost only, `use` decls excluded).
- * These are the references a plain identifier scan misses: associated calls
- * (`Foo::new()`) and fully-qualified calls with no `use` (`crate::a::foo()`). */
-function collectScopedRefs(root: SyntaxNode): ScopedRef[] {
-  const out: ScopedRef[] = [];
-  const stack: SyntaxNode[] = [root];
+/**
+ * One DFS collecting both plain identifier/type usages (the source side of
+ * symbol references) and outermost `::`-qualified paths (associated calls like
+ * `Foo::new()`, fully-qualified calls like `crate::a::foo()` that a plain
+ * identifier scan misses). `use` declarations are skipped — their names are
+ * imports, not uses. A scoped path is recorded only at its outermost node, but
+ * the DFS still descends into it so the identifiers inside still count as
+ * usages; `inScoped` carries that "don't re-record nested scoped" distinction.
+ * (Previously two separate full-tree walks — collectUsages + collectScopedRefs.)
+ */
+function collectRefs(root: SyntaxNode): {
+  usages: { line: number; name: string }[];
+  scoped: ScopedRef[];
+} {
+  const usages: { line: number; name: string }[] = [];
+  const scoped: ScopedRef[] = [];
+  const stack: { node: SyntaxNode; inScoped: boolean }[] = [{ node: root, inScoped: false }];
   while (stack.length) {
-    const n = stack.pop()!;
-    if (n.type === "use_declaration") continue;
-    if (n.type === "scoped_identifier" || n.type === "scoped_type_identifier") {
-      const segs = n.text
-        .replace(/<[^>]*>/g, "") // drop generic args / turbofish
-        .split("::")
-        .map((s) => s.trim())
-        .filter(Boolean);
-      if (segs.length >= 2) out.push({ line: n.startPosition.row + 1, segs });
-      continue; // its segments are this ref, not separate ones
+    const { node, inScoped } = stack.pop()!;
+    if (node.type === "use_declaration") continue;
+    let nextInScoped = inScoped;
+    if (node.type === "identifier" || node.type === "type_identifier") {
+      usages.push({ line: node.startPosition.row + 1, name: node.text });
+    } else if (node.type === "scoped_identifier" || node.type === "scoped_type_identifier") {
+      if (!inScoped) {
+        const segs = node.text
+          .replace(/<[^>]*>/g, "") // drop generic args / turbofish
+          .split("::")
+          .map((s) => s.trim())
+          .filter(Boolean);
+        if (segs.length >= 2) scoped.push({ line: node.startPosition.row + 1, segs });
+      }
+      nextInScoped = true; // outermost recorded; nested scoped are not re-recorded
     }
-    for (let i = 0; i < n.namedChildCount; i++) stack.push(n.namedChild(i)!);
+    for (let i = 0; i < node.namedChildCount; i++) {
+      stack.push({ node: node.namedChild(i)!, inScoped: nextInScoped });
+    }
   }
-  return out;
+  return { usages, scoped };
 }
 
 /** `src` if the crate root lives there, else `` (repo root). */
@@ -451,8 +453,7 @@ export async function snapshotRustWorkingTree(
     if (!tree) continue;
     const out: { symbols: CodeSymbol[]; uses: RustUse[] } = { symbols: [], uses: [] };
     walk(tree.rootNode, rel, out);
-    const usages = collectUsages(tree.rootNode);
-    const scoped = collectScopedRefs(tree.rootNode);
+    const { usages, scoped } = collectRefs(tree.rootNode);
     const loc = source.split("\n").length;
     totalLoc += loc;
     fileEntries.push({ rel, ...out, usages, scoped, loc, bytes: Buffer.byteLength(source) });
