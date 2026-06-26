@@ -609,9 +609,15 @@ export function ExitPreviewsLayer(props: {
   zoom: number;
   /** Active plane tilt; docked names stay upright on the plane. */
   tilt?: Affine;
+  /** Off-screen targets to spotlight (e.g. the hovered edge's endpoints): their
+   * docked names lead, the rest recede, so you can read where a hovered edge is
+   * heading even when its target is off-screen. */
+  highlightIds?: ReadonlySet<string>;
 }) {
   const { view, zoom, labelOf, onSelect } = props;
   const onFocus = props.onFocus;
+  const highlightIds = props.highlightIds;
+  const hasHighlight = (highlightIds?.size ?? 0) > 0;
   const x0 = view.x;
   const x1 = view.x + view.w;
   const y0 = view.y;
@@ -666,44 +672,55 @@ export function ExitPreviewsLayer(props: {
   }
   if (previews.length === 0) return null;
   const fontSize = 10.5 / zoom;
+  // render spotlighted names last so they sit on top of the docked pile
+  const ordered = hasHighlight
+    ? [...previews].sort(
+        (a, b) => (highlightIds!.has(a.id) ? 1 : 0) - (highlightIds!.has(b.id) ? 1 : 0),
+      )
+    : previews;
   return (
     <g style={{ userSelect: "none" }}>
-      {previews.map((preview) => (
-        <text
-          key={preview.id}
-          transform={uprightAt(props.tilt, {
-            x:
-              preview.side === "left"
-                ? preview.x + fontSize * 0.5
-                : preview.side === "right"
-                  ? preview.x - fontSize * 0.5
-                  : preview.x,
-            y:
-              preview.side === "top"
-                ? preview.y + fontSize * 1.3
-                : preview.side === "bottom"
-                  ? preview.y - fontSize * 0.5
-                  : preview.y + fontSize * 0.35,
-          })}
-          font-size={fontSize}
-          font-weight="600"
-          text-anchor={
-            preview.side === "left" ? "start" : preview.side === "right" ? "end" : "middle"
-          }
-          fill={props.color}
-          stroke="#f8fafc"
-          stroke-width={3 / zoom}
-          paint-order="stroke"
-          style={{ cursor: "pointer" }}
-          onClick={(event) => {
-            event.stopPropagation();
-            if (onFocus) onFocus(preview.id);
-            else onSelect(preview.id, event.shiftKey);
-          }}
-        >
-          {labelOf(preview.id)}
-        </text>
-      ))}
+      {ordered.map((preview) => {
+        const lit = highlightIds?.has(preview.id) ?? false;
+        const size = lit ? fontSize * 1.25 : fontSize;
+        return (
+          <text
+            key={preview.id}
+            opacity={hasHighlight && !lit ? 0.3 : 1}
+            transform={uprightAt(props.tilt, {
+              x:
+                preview.side === "left"
+                  ? preview.x + size * 0.5
+                  : preview.side === "right"
+                    ? preview.x - size * 0.5
+                    : preview.x,
+              y:
+                preview.side === "top"
+                  ? preview.y + size * 1.3
+                  : preview.side === "bottom"
+                    ? preview.y - size * 0.5
+                    : preview.y + size * 0.35,
+            })}
+            font-size={size}
+            font-weight={lit ? "700" : "600"}
+            text-anchor={
+              preview.side === "left" ? "start" : preview.side === "right" ? "end" : "middle"
+            }
+            fill={props.color}
+            stroke={MAP_BG}
+            stroke-width={(lit ? 3.5 : 3) / zoom}
+            paint-order="stroke"
+            style={{ cursor: "pointer" }}
+            onClick={(event) => {
+              event.stopPropagation();
+              if (onFocus) onFocus(preview.id);
+              else onSelect(preview.id, event.shiftKey);
+            }}
+          >
+            {labelOf(preview.id)}
+          </text>
+        );
+      })}
     </g>
   );
 }
@@ -1145,6 +1162,10 @@ export function RaisedEdgePath(props: {
  * control points per edge, textbook-strong β reads as wild S-curves;
  * a mild pull keeps the trunk grouping without the swerves. */
 export const BUNDLE_STRENGTH = 0.45;
+/** Stronger pull for the selection / focus / lsp reference fans: a node with
+ * many references groups its edges into trunks near the source instead of
+ * spraying dozens of near-parallel lines, so the lit set stays readable. */
+export const REFERENCE_BUNDLE_STRENGTH = 0.7;
 /** Detour ratio (route length / chord) where straightening kicks in. */
 const BUNDLE_MAX_DETOUR = 1.3;
 /** Chords shorter than this share of the map diagonal barely bundle —
@@ -1225,12 +1246,53 @@ export function makeEdgeBundler(options: {
   };
 }
 
+/** Per-edge stroke spec — `null` drops the edge (off-screen culling, sub-pixel
+ * overdraw). */
+export type EdgeStyle = { stroke: string; opacity: number; width: number; dash?: string };
+
 /**
- * One uniform group of bundled edges — a `<g>` with shared stroke / opacity /
- * dash, each edge a `<path>` of its bundled curve. Both renderers used to
- * inline this loop per edge kind (selection, focus, lsp, trace); they now share
- * it. `strokeWidth` may vary per edge (e.g. by weight). Returns null when empty
- * so the group disappears exactly as the inline guards did.
+ * The single edge-set renderer: a `<g>` of bundled `<path>`s, one per edge.
+ * `styleOf` decides each edge's stroke / opacity / width / dash, or returns
+ * null to skip it. Every edge layer in both maps — the ambient module mesh,
+ * the selection / lsp / focus reference fans, the runtime trace — routes
+ * through this, so styling and culling live in one place instead of a copy of
+ * the loop per kind per renderer. Returns null when nothing draws.
+ */
+export function EdgeLayer(props: {
+  edges: readonly AtlasEdge[];
+  bundleOf: (edge: AtlasEdge) => EdgeBundle | null;
+  styleOf: (edge: AtlasEdge, bundle: EdgeBundle) => EdgeStyle | null;
+  /** Disambiguates path keys when several layers share endpoints. */
+  keyPrefix: string;
+}): VNode | null {
+  if (props.edges.length === 0) return null;
+  const paths: VNode[] = [];
+  for (const edge of props.edges) {
+    const bundle = props.bundleOf(edge);
+    if (!bundle) continue;
+    const s = props.styleOf(edge, bundle);
+    if (!s) continue;
+    paths.push(
+      <path
+        key={`${props.keyPrefix}-${edge.source}-${edge.target}`}
+        d={bundle.d}
+        fill="none"
+        stroke={s.stroke}
+        stroke-opacity={s.opacity}
+        stroke-width={s.width}
+        stroke-dasharray={s.dash}
+        style={{ pointerEvents: "none" }}
+      />,
+    );
+  }
+  if (paths.length === 0) return null;
+  return <g>{paths}</g>;
+}
+
+/**
+ * A uniform edge layer: every edge shares one stroke / opacity / dash. Thin
+ * wrapper over {@link EdgeLayer} for the reference fans (selection, focus, lsp,
+ * trace); `strokeWidth` may still vary per edge (e.g. by weight).
  */
 export function BundledEdges(props: {
   edges: readonly AtlasEdge[];
@@ -1243,28 +1305,18 @@ export function BundledEdges(props: {
   /** Disambiguates path keys when several groups share endpoints. */
   keyPrefix: string;
 }): VNode | null {
-  if (props.edges.length === 0) return null;
+  const { stroke, strokeOpacity, strokeWidth, dash } = props;
   return (
-    <g
-      stroke={props.stroke}
-      stroke-opacity={props.strokeOpacity}
-      stroke-dasharray={props.dash}
-      fill="none"
-    >
-      {props.edges.map((edge) => {
-        const bundle = props.bundleOf(edge);
-        if (!bundle) return null;
-        const width =
-          typeof props.strokeWidth === "function" ? props.strokeWidth(edge) : props.strokeWidth;
-        return (
-          <path
-            key={`${props.keyPrefix}-${edge.source}-${edge.target}`}
-            d={bundle.d}
-            stroke-width={width}
-            style={{ pointerEvents: "none" }}
-          />
-        );
+    <EdgeLayer
+      edges={props.edges}
+      bundleOf={props.bundleOf}
+      keyPrefix={props.keyPrefix}
+      styleOf={(edge) => ({
+        stroke,
+        opacity: strokeOpacity,
+        width: typeof strokeWidth === "function" ? strokeWidth(edge) : strokeWidth,
+        dash,
       })}
-    </g>
+    />
   );
 }

@@ -28,6 +28,7 @@ import {
   LEAF_STROKE,
   LEAF_BORDER_MIN_PX,
   makeEdgeBundler,
+  REFERENCE_BUNDLE_STRENGTH,
   SYMBOL_DOMINANT_FRACTION,
   SYMBOL_KIND_COLORS,
   SYMBOL_STROKE,
@@ -54,7 +55,7 @@ import type { SolvedLayer } from "./layerModel.ts";
 import { symbolNameOf } from "./cfgClient.ts";
 import type { EdgePickCandidate } from "./edgePick.ts";
 import { resolveEdgeAtClient } from "./edgePickDom.ts";
-import { ambientEdgeVisual, selectionDash } from "./edgeStyle.ts";
+import { ambientEdgeVisual, REFERENCE_EDGE_BASE } from "./edgeStyle.ts";
 import { cellInView, segmentInView } from "./viewCulling.ts";
 import type { TreemapState } from "./treemapController.ts";
 import { useMapViewport, type FocusRequest, type FocusView } from "./useMapViewport.ts";
@@ -113,6 +114,9 @@ type Props = {
   selectedIds?: Set<string>;
   /** Picked dependency edges (proximity click); raised above the map. */
   selectedEdges?: { source: string; target: string }[];
+  /** Command-palette preview target: outlined (not selected) so the user sees
+   * which node the camera auto-focused. */
+  previewId?: string | null;
   onSelect: (id: string | null, additive?: boolean) => void;
   /** Pick the dependency edge nearest a background click; shift adds it to
    * the multi-selection. */
@@ -329,6 +333,20 @@ export function TreemapSvg(props: Props) {
       }),
     [state.parentOf, positionOf, bundleStrength, cfgAnchors, width, height],
   );
+  // the lit reference fans bundle harder than the ambient mesh so a node's
+  // many references group into trunks; rendering and proximity picking share
+  // this so a click still lands on the drawn curve (mirrors RingsMapSvg)
+  const referenceBundleOf = useMemo(
+    () =>
+      makeEdgeBundler({
+        parentOf: state.parentOf,
+        positionOf,
+        strength: REFERENCE_BUNDLE_STRENGTH,
+        span: Math.hypot(width, height),
+        cfgAnchors,
+      }),
+    [state.parentOf, positionOf, cfgAnchors, width, height],
+  );
 
   // viewport culling, shared with rings: at monorepo scale most of the
   // cost is cells and edges that sit entirely off-screen. The committed
@@ -364,22 +382,6 @@ export function TreemapSvg(props: Props) {
   // dependency edge, resolving overlaps by distance, not paint order (shared
   // with the rings layout via edgePick)
 
-  // extraction mode: only the focused paths render, in direction colors
-  const focusBundles = useMemo(() => {
-    if (!focus) return [];
-    return (
-      [
-        [focus.downstreamEdges, DOWNSTREAM_COLOR],
-        [focus.upstreamEdges, UPSTREAM_COLOR],
-      ] as const
-    ).flatMap(([edges, color]) =>
-      edges.flatMap((edge) => {
-        const b = bundleOf(edge);
-        return b ? [{ ...b, color }] : [];
-      }),
-    );
-  }, [focus, state, positionOf, bundleStrength, cfgAnchors]);
-
   const dim = focusDimOf(focus);
   const moduleOpacity = dim.module;
   const fileOpacity = dim.leaf;
@@ -402,24 +404,17 @@ export function TreemapSvg(props: Props) {
   // the cells beneath it.
   const candidates: EdgePickCandidate[] = useMemo(() => {
     const out: EdgePickCandidate[] = [];
-    if (focus) {
-      for (const fb of focusBundles) {
-        out.push({ source: fb.source, target: fb.target, points: fb.points });
-      }
-    } else {
-      for (const edge of [...directions.outgoing, ...directions.incoming]) {
-        const bundle = bundleOf(edge);
-        if (bundle) {
-          out.push({
-            source: edge.source,
-            target: edge.target,
-            points: bundle.points,
-          });
-        }
+    const litEdges = focus
+      ? [...focus.downstreamEdges, ...focus.upstreamEdges]
+      : [...directions.outgoing, ...directions.incoming];
+    for (const edge of litEdges) {
+      const bundle = referenceBundleOf(edge);
+      if (bundle) {
+        out.push({ source: edge.source, target: edge.target, points: bundle.points });
       }
     }
     return out;
-  }, [focus, focusBundles, directions, bundleOf]);
+  }, [focus, directions, referenceBundleOf]);
   const resolveEdgeAt = (
     clientX: number,
     clientY: number,
@@ -512,6 +507,12 @@ export function TreemapSvg(props: Props) {
   );
   const labelOf = (id: string): string =>
     props.labels?.get(id) ?? symbolNameOf(id) ?? id.split("/").pop() ?? id;
+
+  // a hovered edge spotlights its off-screen endpoints' docked names, so you
+  // can read where the edge under the cursor is heading
+  const exitHighlightIds = hoveredEdge
+    ? new Set([hoveredEdge.source, hoveredEdge.target])
+    : undefined;
 
   return (
     <svg
@@ -729,33 +730,26 @@ export function TreemapSvg(props: Props) {
           </g>
         ) : null}
         {/* selection references, colored by direction; independent of the
-          ambient-edge toggle */}
-        {!focus ? (
-          <g fill="none">
-            {(
+          ambient-edge toggle. A faint solid mesh (matching rings) rather than
+          the old bright dashed fan. */}
+        {!focus
+          ? (
               [
                 [directions.outgoing, DOWNSTREAM_COLOR],
                 [directions.incoming, UPSTREAM_COLOR],
               ] as const
-            ).flatMap(([edges, color]) =>
-              edges.map((edge) => {
-                const bundle = bundleOf(edge);
-                if (!bundle) return null;
-                return (
-                  <path
-                    key={`sel-${edge.source}-${edge.target}`}
-                    d={bundle.d}
-                    stroke={color}
-                    stroke-opacity={0.9}
-                    stroke-width={1.6}
-                    stroke-dasharray={selectionDash(zoom)}
-                    style={{ pointerEvents: "none" }}
-                  />
-                );
-              }),
-            )}
-          </g>
-        ) : null}
+            ).map(([edges, color]) => (
+              <BundledEdges
+                key={`sel-${color}`}
+                edges={edges}
+                bundleOf={referenceBundleOf}
+                stroke={color}
+                strokeOpacity={REFERENCE_EDGE_BASE.opacity}
+                strokeWidth={REFERENCE_EDGE_BASE.width}
+                keyPrefix="sel"
+              />
+            ))
+          : null}
         {/* runtime-trace overlay: the executed call path, always on when ingested */}
         <BundledEdges
           edges={traceEdges}
@@ -766,33 +760,79 @@ export function TreemapSvg(props: Props) {
           keyPrefix="trace"
         />
         {/* extracted dependency paths, colored by direction */}
-        {focus ? (
-          <g fill="none">
-            {focusBundles.map((edge) => (
-              <path
-                key={`focus-${edge.source} ${edge.target}`}
-                d={edge.d}
-                stroke={edge.color}
-                stroke-opacity={0.85}
-                stroke-width={1.8}
-                style={{ pointerEvents: "none" }}
+        {focus
+          ? (
+              [
+                [focus.downstreamEdges, DOWNSTREAM_COLOR],
+                [focus.upstreamEdges, UPSTREAM_COLOR],
+              ] as const
+            ).map(([edges, color]) => (
+              <BundledEdges
+                key={`focus-${color}`}
+                edges={edges}
+                bundleOf={referenceBundleOf}
+                stroke={color}
+                strokeOpacity={0.85}
+                strokeWidth={1.8}
+                keyPrefix="focus"
               />
-            ))}
-          </g>
-        ) : null}
+            ))
+          : null}
         {/* hover preview: a faint accent over the edge a click would pick */}
         {hoveredEdge && !isSelectedEdge(hoveredEdge.source, hoveredEdge.target)
           ? (() => {
-              const bundle = bundleOf({
+              const bundle = referenceBundleOf({
                 source: hoveredEdge.source,
                 target: hoveredEdge.target,
               });
+              // kept thin — only the hovered edge lifts, the mesh stays light
               return bundle ? (
                 <g style={{ pointerEvents: "none" }}>
-                  <RaisedEdgePath d={bundle.d} width={8} opacity={0.2} />
-                  <RaisedEdgePath d={bundle.d} width={2} opacity={0.85} />
+                  <RaisedEdgePath d={bundle.d} width={5} opacity={0.18} />
+                  <RaisedEdgePath d={bundle.d} width={1.5} opacity={0.9} />
                 </g>
               ) : null;
+            })()
+          : null}
+        {/* command-palette preview: outline the auto-focused (not yet selected)
+          node so it's clear which one the camera flew to */}
+        {props.previewId
+          ? (() => {
+              const id = props.previewId;
+              let poly = topCells.get(id)?.polygon ?? null;
+              if (!poly)
+                for (const c of innerCells)
+                  if (c.id === id) {
+                    poly = c.polygon;
+                    break;
+                  }
+              if (!poly)
+                for (const c of fileCells)
+                  if (c.id === id) {
+                    poly = c.polygon;
+                    break;
+                  }
+              if (!poly || poly.length < 3) return null;
+              const pts = poly.map((p) => `${p.x},${p.y}`).join(" ");
+              return (
+                <g style={{ pointerEvents: "none" }}>
+                  <polygon
+                    points={pts}
+                    fill="none"
+                    stroke={SELECT_STROKE}
+                    stroke-width={4 / zoom}
+                    stroke-opacity={0.25}
+                  />
+                  <polygon
+                    points={pts}
+                    fill="none"
+                    stroke={SELECT_STROKE}
+                    stroke-width={1.5 / zoom}
+                    stroke-opacity={0.95}
+                    stroke-dasharray={`${6 / zoom} ${4 / zoom}`}
+                  />
+                </g>
+              );
             })()
           : null}
         {/* picked edge, raised above the districts: bold accented stroke with
@@ -919,6 +959,7 @@ export function TreemapSvg(props: Props) {
             onFocus={props.onFocusId}
             zoom={zoom}
             tilt={tiltAffine}
+            highlightIds={exitHighlightIds}
           />
         ))}
       </g>

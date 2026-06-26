@@ -27,6 +27,9 @@ export type MapHandlers = {
   selectedIds: Set<string>;
   /** Picked dependency edges. */
   selectedEdges: { source: string; target: string }[];
+  /** Node the command palette is previewing (auto-focused but not selected);
+   * the renderer outlines it so it's clear which one the camera flew to. */
+  previewId?: string | null;
   /** Pending camera fly-to request (consumed by the renderer's viewport). */
   focusRequest: FocusRequest | null;
   onSelect: (id: string | null, additive?: boolean) => void;

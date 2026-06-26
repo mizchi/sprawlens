@@ -48,6 +48,7 @@ export function SvgRenderer({ scene, ...handlers }: { scene: MapScene } & MapHan
         selectedId={handlers.selectedId}
         selectedIds={handlers.selectedIds}
         selectedEdges={handlers.selectedEdges}
+        previewId={handlers.previewId}
         onSelect={handlers.onSelect}
         onSelectEdge={handlers.onSelectEdge}
         onFocusId={handlers.onFocusId}
@@ -88,6 +89,7 @@ export function SvgRenderer({ scene, ...handlers }: { scene: MapScene } & MapHan
       selectedId={handlers.selectedId}
       selectedIds={handlers.selectedIds}
       selectedEdges={handlers.selectedEdges}
+      previewId={handlers.previewId}
       onSelect={handlers.onSelect}
       onSelectEdge={handlers.onSelectEdge}
       onFocusId={handlers.onFocusId}
