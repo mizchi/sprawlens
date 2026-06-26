@@ -16,6 +16,7 @@ import type {
   WorkspacePackage,
 } from "@sprawlens/schema";
 import { extractMoonbitSymbols } from "./astExtract.ts";
+import { extractMoonbitSymbolsViaIde } from "./moonSymbols.ts";
 
 /**
  * MoonBit has no published tree-sitter grammar yet, so this is a heuristic,
@@ -250,14 +251,19 @@ export async function snapshotMoonbitWorkingTree(
     bytes: number;
     dir: string;
   }[] = [];
+  // Build-aware fast path: one `moon ide gen-symbols` pass gives precise symbols
+  // for the whole repo in a single spawn (~5x faster than per-file parsing).
+  // Null when the repo isn't built / `moon` is absent — then each file falls
+  // back to the vendored parser, and that to the regex heuristic.
+  const ideSymbols = await extractMoonbitSymbolsViaIde(repoPath);
   for (const rel of files) {
     const source = await readFile(posix.join(repoPath, rel), "utf8");
     const loc = source.split("\n").length;
     totalLoc += loc;
     const dir = rel.includes("/") ? rel.slice(0, rel.lastIndexOf("/")) : "";
-    // the real MoonBit parser gives precise symbols; fall back to the regex
-    // heuristic when it is unavailable or fails to parse the file
-    const astSymbols = await extractMoonbitSymbols(source, rel);
+    // precise symbols from the compiler (ide) or the vendored parser; the regex
+    // heuristic below is the last resort when both yield nothing
+    const astSymbols = ideSymbols?.get(rel) ?? (await extractMoonbitSymbols(source, rel));
     entries.push({
       rel,
       symbols: astSymbols && astSymbols.length > 0 ? astSymbols : symbolsOf(source, rel),
