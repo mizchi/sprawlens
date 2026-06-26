@@ -46,11 +46,13 @@ import {
   isWatermarkSized,
   leafFillOf,
   makeEdgeBundler,
+  REFERENCE_BUNDLE_STRENGTH,
   makeTopAncestorOf,
   RaisedEdgePath,
   selectionDirections,
   DEPS_INK,
   BundledEdges,
+  EdgeLayer,
   PlaneLayerView,
   propagateLinkTints,
   SELECT_STROKE,
@@ -63,7 +65,7 @@ import type { SolvedLayer } from "./layerModel.ts";
 import { symbolNameOf } from "./cfgClient.ts";
 import type { EdgePickCandidate } from "./edgePick.ts";
 import { resolveEdgeAtClient } from "./edgePickDom.ts";
-import { ambientEdgeVisual, lspDash, selectionDash } from "./edgeStyle.ts";
+import { ambientEdgeVisual, lspDash, REFERENCE_EDGE_BASE } from "./edgeStyle.ts";
 import { segmentInView } from "./viewCulling.ts";
 import { useMapViewport, type FocusRequest, type FocusView } from "./useMapViewport.ts";
 
@@ -135,6 +137,9 @@ type Props = {
   selectedIds?: Set<string>;
   /** Picked dependency edges (proximity click); raised above the map. */
   selectedEdges?: { source: string; target: string }[];
+  /** Command-palette preview target: outlined (not selected) so the user sees
+   * which node the camera auto-focused. */
+  previewId?: string | null;
   onSelect: (id: string | null, additive?: boolean) => void;
   /** Pick the dependency edge nearest a background click; shift adds it to
    * the multi-selection. */
@@ -453,6 +458,20 @@ export function RingsMapSvg(props: Props) {
       }),
     [bundleParentOf, positionOf, cfgAnchors, width, height],
   );
+  // the lit reference fans (selection / focus / lsp) bundle harder than the
+  // ambient mesh so a node's many references group into trunks; rendering and
+  // proximity picking share this so a click still lands on the drawn curve
+  const referenceBundleOf = useMemo(
+    () =>
+      makeEdgeBundler({
+        parentOf: bundleParentOf,
+        positionOf,
+        span: Math.hypot(width, height),
+        cfgAnchors,
+        strength: REFERENCE_BUNDLE_STRENGTH,
+      }),
+    [bundleParentOf, positionOf, cfgAnchors, width, height],
+  );
   const edgeEndpoints = makeEdgeEndpointResolver({
     positionOf: resolveSite,
     cfgAnchors,
@@ -629,7 +648,7 @@ export function RingsMapSvg(props: Props) {
     // they win ties over the ambient module mesh; the rest is shared.
     const lit: EdgePickCandidate[] = [];
     for (const edge of litEdges) {
-      const bundle = bundleOf(edge);
+      const bundle = referenceBundleOf(edge);
       if (bundle) {
         lit.push({
           source: edge.source,
@@ -984,65 +1003,48 @@ export function RingsMapSvg(props: Props) {
         ) : null}
         <CfgLayer entries={props.cfgEntries ?? []} zoom={zoom} view={committedView} />
         {showEdges && sourceVisible && !focus && !symbolMode ? (
-          <g fill="none">
-            {fileEdges.map((edge) => {
+          <EdgeLayer
+            edges={fileEdges}
+            bundleOf={bundleOf}
+            keyPrefix="ambient"
+            styleOf={(edge, bundle) => {
               const active =
                 isSelected(edge.source) ||
                 isSelected(edge.target) ||
                 isSelected(rings.parentOf.get(edge.source) ?? "") ||
                 isSelected(rings.parentOf.get(edge.target) ?? "");
-              // off-screen ambient edges are pure overdraw; the selection's
-              // own edges stay regardless so they read at any pan
+              // off-screen ambient edges are pure overdraw; the selection's own
+              // edges stay regardless so they read at any pan
               if (!active) {
                 const ends = edgeEndpoints(edge);
                 if (
                   !ends ||
-                  !segmentInView(ends[0], ends[1], committedView, committedView.w * 0.1)
+                  !segmentInView(ends[0], ends[1], committedView, committedView.w * 0.1) ||
+                  bundle.chord * zoom < MIN_EDGE_PX
                 ) {
                   return null;
                 }
               }
-              const bundle = bundleOf(edge);
-              if (!bundle) return null;
-              if (!active && bundle.chord * zoom < MIN_EDGE_PX) return null;
               const v = ambientEdgeVisual(active, !!selectedId, {
                 active: ACTIVE_EDGE,
                 ambient: UPSTREAM_COLOR,
               });
-              return (
-                <path
-                  key={`${edge.source}-${edge.target}`}
-                  d={bundle.d}
-                  stroke={v.stroke}
-                  stroke-opacity={v.opacity}
-                  stroke-width={v.width}
-                  style={{ pointerEvents: "none" }}
-                />
-              );
-            })}
-          </g>
+              return { stroke: v.stroke, opacity: v.opacity, width: v.width };
+            }}
+          />
         ) : null}
         {showEdges && !focus && symbolMode ? (
-          <g stroke={SYMBOL_EDGE} stroke-opacity={0.45} fill="none">
-            {symbolEdges.map((edge) => {
+          <EdgeLayer
+            edges={symbolEdges}
+            bundleOf={bundleOf}
+            keyPrefix="symbol"
+            styleOf={(edge) => {
               const ends = edgeEndpoints(edge);
-              if (!ends) return null;
               const slack = committedView.w * 0.1;
-              if (!inView(ends[0], slack) && !inView(ends[1], slack)) {
-                return null;
-              }
-              const bundle = bundleOf(edge);
-              if (!bundle) return null;
-              return (
-                <path
-                  key={`${edge.source}-${edge.target}`}
-                  d={bundle.d}
-                  stroke-width={0.6}
-                  style={{ pointerEvents: "none" }}
-                />
-              );
-            })}
-          </g>
+              if (!ends || (!inView(ends[0], slack) && !inView(ends[1], slack))) return null;
+              return { stroke: SYMBOL_EDGE, opacity: 0.45, width: 0.6 };
+            }}
+          />
         ) : null}
         {focus
           ? (
@@ -1054,7 +1056,7 @@ export function RingsMapSvg(props: Props) {
               <BundledEdges
                 key={color}
                 edges={edges}
-                bundleOf={bundleOf}
+                bundleOf={referenceBundleOf}
                 stroke={color}
                 strokeOpacity={0.85}
                 strokeWidth={(edge) =>
@@ -1064,6 +1066,9 @@ export function RingsMapSvg(props: Props) {
               />
             ))
           : null}
+        {/* selection reference fan: a faint solid mesh that recedes (the old
+          bright dashed lines sprayed into an unreadable fan at zoom). Hovering
+          a target node raises its trunk on top. */}
         {(
           [
             [selectedOutgoing, DOWNSTREAM_COLOR],
@@ -1073,11 +1078,10 @@ export function RingsMapSvg(props: Props) {
           <BundledEdges
             key={`sel-${color}`}
             edges={edges}
-            bundleOf={bundleOf}
+            bundleOf={referenceBundleOf}
             stroke={color}
-            strokeOpacity={0.9}
-            strokeWidth={1.6}
-            dash={selectionDash(zoom)}
+            strokeOpacity={REFERENCE_EDGE_BASE.opacity}
+            strokeWidth={REFERENCE_EDGE_BASE.width}
             keyPrefix="sel"
           />
         ))}
@@ -1090,10 +1094,10 @@ export function RingsMapSvg(props: Props) {
           <BundledEdges
             key={`lsp-${color}`}
             edges={edges}
-            bundleOf={bundleOf}
+            bundleOf={referenceBundleOf}
             stroke={color}
-            strokeOpacity={0.85}
-            strokeWidth={1.4}
+            strokeOpacity={REFERENCE_EDGE_BASE.opacity}
+            strokeWidth={REFERENCE_EDGE_BASE.width}
             dash={lspDash(zoom)}
             keyPrefix="lsp"
           />
@@ -1123,8 +1127,9 @@ export function RingsMapSvg(props: Props) {
                 const y1 = a.cy + uy * a.r;
                 const x2 = b.cx - ux * b.r;
                 const y2 = b.cy - uy * b.r;
-                // a wide translucent halo signals the fat grab zone, a crisp
-                // core says exactly which edge a click would take
+                // a translucent halo signals the grab zone, a thin crisp core
+                // says exactly which edge a click would take (kept thin — only
+                // the hovered edge lifts, the mesh stays light)
                 return (
                   <g style={{ pointerEvents: "none" }}>
                     <line
@@ -1133,8 +1138,8 @@ export function RingsMapSvg(props: Props) {
                       x2={x2}
                       y2={y2}
                       stroke={SELECT_STROKE}
-                      stroke-width={8}
-                      stroke-opacity={0.2}
+                      stroke-width={5}
+                      stroke-opacity={0.18}
                       stroke-linecap="round"
                     />
                     <line
@@ -1143,19 +1148,76 @@ export function RingsMapSvg(props: Props) {
                       x2={x2}
                       y2={y2}
                       stroke={SELECT_STROKE}
-                      stroke-width={2.5}
-                      stroke-opacity={0.85}
+                      stroke-width={1.5}
+                      stroke-opacity={0.9}
                     />
                   </g>
                 );
               }
-              const bundle = bundleOf(hoveredEdge);
+              const bundle = referenceBundleOf(hoveredEdge);
               return bundle ? (
                 <g style={{ pointerEvents: "none" }}>
-                  <RaisedEdgePath d={bundle.d} width={8} opacity={0.2} />
-                  <RaisedEdgePath d={bundle.d} width={2} opacity={0.85} />
+                  <RaisedEdgePath d={bundle.d} width={5} opacity={0.18} />
+                  <RaisedEdgePath d={bundle.d} width={1.5} opacity={0.9} />
                 </g>
               ) : null;
+            })()
+          : null}
+        {/* command-palette preview: outline the auto-focused (not yet selected)
+          node so it's clear which one the camera flew to */}
+        {props.previewId
+          ? (() => {
+              const id = props.previewId;
+              const circle = rings.circles.get(id);
+              if (circle) {
+                return (
+                  <circle
+                    cx={circle.cx}
+                    cy={circle.cy}
+                    r={circle.r}
+                    fill="none"
+                    stroke={SELECT_STROKE}
+                    stroke-width={2.5 / zoom}
+                    stroke-opacity={0.95}
+                    stroke-dasharray={`${6 / zoom} ${4 / zoom}`}
+                    style={{ pointerEvents: "none" }}
+                  />
+                );
+              }
+              let poly: Vec2[] | null = null;
+              for (const c of innerCells)
+                if (c.id === id) {
+                  poly = c.polygon;
+                  break;
+                }
+              if (!poly)
+                outer: for (const layout of rings.leafLayouts.values())
+                  for (const c of layout.cells)
+                    if (c.id === id) {
+                      poly = c.polygon;
+                      break outer;
+                    }
+              if (!poly || poly.length < 3) return null;
+              const pts = poly.map((p) => `${p.x},${p.y}`).join(" ");
+              return (
+                <g style={{ pointerEvents: "none" }}>
+                  <polygon
+                    points={pts}
+                    fill="none"
+                    stroke={SELECT_STROKE}
+                    stroke-width={4 / zoom}
+                    stroke-opacity={0.25}
+                  />
+                  <polygon
+                    points={pts}
+                    fill="none"
+                    stroke={SELECT_STROKE}
+                    stroke-width={1.5 / zoom}
+                    stroke-opacity={0.95}
+                    stroke-dasharray={`${6 / zoom} ${4 / zoom}`}
+                  />
+                </g>
+              );
             })()
           : null}
         {/* picked edge, raised above unrelated modules: bold, arrowed, with its

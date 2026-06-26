@@ -8,10 +8,13 @@
 export type EdgeVisual = { stroke: string; opacity: number; width: number };
 
 /**
- * Ambient dependency-edge styling. An edge touching the selection leads
- * (bright, thick, opaque); the rest recede, and recede further when a selection
- * is active so the lit ones stand out. Theme colors are passed in (they live in
- * mapShared and flip with dark mode) to keep this pure and unit-testable.
+ * Ambient dependency-edge styling. An edge touching the selection takes the
+ * active tint and reads at the normal mesh prominence; the rest recede further
+ * so the lit ones stand out. Crucially every ambient edge stays THIN — only the
+ * one edge under the cursor lifts (the hover preview, drawn separately). A
+ * selection no longer fattens its whole neighbourhood into a bold fan. Theme
+ * colors are passed in (they live in mapShared and flip with dark mode) to keep
+ * this pure and unit-testable.
  */
 export function ambientEdgeVisual(
   active: boolean,
@@ -19,13 +22,20 @@ export function ambientEdgeVisual(
   colors: { active: string; ambient: string },
 ): EdgeVisual {
   return active
-    ? { stroke: colors.active, opacity: 0.9, width: 1.8 }
+    ? { stroke: colors.active, opacity: 0.22, width: 1 }
     : { stroke: colors.ambient, opacity: hasSelection ? 0.08 : 0.22, width: 1 };
 }
 
-/** Selection-reference dash, scaled so the gap reads at any zoom. */
-export const selectionDash = (zoom: number): string => `${5 / zoom} ${4 / zoom}`;
+/**
+ * Base styling for the selection reference fan. A node with dozens of
+ * references used to draw dozens of bright dashed lines that overlapped into
+ * an unreadable spray at zoom; instead the fan reads as a faint solid mesh
+ * that recedes — no louder than the ambient module mesh — and stays thin until
+ * the cursor hovers an individual edge, which raises only that one (drawn on
+ * top, separately).
+ */
+export const REFERENCE_EDGE_BASE = { opacity: 0.28, width: 1 } as const;
 
-/** LSP call-hierarchy dash — longer than the selection dash so the two
- * reference overlays stay distinguishable. */
+/** LSP call-hierarchy dash, scaled so the gap reads at any zoom — the dashed
+ * detail overlay stays distinct from the solid selection reference mesh. */
 export const lspDash = (zoom: number): string => `${8 / zoom} ${5 / zoom}`;
