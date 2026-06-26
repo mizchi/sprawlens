@@ -53,13 +53,59 @@ function lineOf(content: string, pos: number): number {
   return line;
 }
 
+// the unstable tsgo API publishes no usable types; these narrow the shapes used
+type FileChanges =
+  | { changed?: string[]; created?: string[]; deleted?: string[] }
+  | { invalidateAll: true };
+type SnapshotHandle = { getProjects(): readonly Project[] };
+type ApiHandle = {
+  updateSnapshot(params: { openProject: string } | { fileChanges: FileChanges }): SnapshotHandle;
+  close?(): void;
+};
+type Resident = {
+  api: ApiHandle;
+  snapshot: SnapshotHandle;
+  configs: Set<string>;
+  idleTimer?: ReturnType<typeof setTimeout>;
+};
+
+/** Paths (absolute) that changed since the previous analysis of a repo. */
+export type ReexportFileChanges = { changed?: string[]; created?: string[]; deleted?: string[] };
+
+// One resident tsgo process per repo, reused across analyses so the ~90ms cold
+// spawn is paid only once; warm re-analysis pushes only the changed files (~1ms)
+// instead of re-spawning. The process is idle-closed and dies with the parent.
+const residents = new Map<string, Resident>();
+const IDLE_CLOSE_MS = 5 * 60_000;
+
+function closeResident(repoRoot: string): void {
+  const resident = residents.get(repoRoot);
+  if (!resident) return;
+  if (resident.idleTimer) clearTimeout(resident.idleTimer);
+  try {
+    resident.api.close?.();
+  } catch {
+    // process already gone
+  }
+  residents.delete(repoRoot);
+}
+
+// The resident procs also die with the parent; this just closes them a bit
+// sooner on a clean exit, and keeps closeResident wired to a lifecycle.
+function closeAllResidents(): void {
+  for (const repoRoot of residents.keys()) closeResident(repoRoot);
+}
+if (typeof process !== "undefined") process.once("exit", closeAllResidents);
+
 export async function resolveBarrelReexports(
   repoRoot: string,
   barrelAbsPaths: string[],
   tsconfigAbsPaths: string[],
+  changes?: ReexportFileChanges,
 ): Promise<Map<string, Map<string, ReexportTarget>> | null> {
   if (tsconfigAbsPaths.length === 0 || barrelAbsPaths.length === 0) return null;
 
+  // read fresh each call so a changed file reports its new line numbers
   const fileCache = new Map<string, string>();
   const readFile = (file: string): string => {
     let content = fileCache.get(file);
@@ -86,16 +132,47 @@ export async function resolveBarrelReexports(
     return posix;
   };
 
-  // the unstable tsgo API publishes no usable types for these project/snapshot
-  // handles, so they are described inline and used through narrow shapes
-  let api: { updateSnapshot(p: { openProject: string }): unknown; close?(): void } | undefined;
   try {
-    api = new API({ cwd: repoRoot }) as typeof api;
-    let snapshot: unknown;
-    for (const config of tsconfigAbsPaths) snapshot = api!.updateSnapshot({ openProject: config });
-    const projects = (snapshot as { getProjects(): Project[] }).getProjects();
-    if (projects.length === 0) return null;
+    let resident = residents.get(repoRoot);
+    if (!resident) {
+      // first analysis for this repo: spawn once, open each package project
+      const api = new API({ cwd: repoRoot }) as unknown as ApiHandle;
+      let snapshot: SnapshotHandle | undefined;
+      for (const config of tsconfigAbsPaths) snapshot = api.updateSnapshot({ openProject: config });
+      if (!snapshot) {
+        api.close?.();
+        return null;
+      }
+      resident = { api, snapshot, configs: new Set(tsconfigAbsPaths) };
+      residents.set(repoRoot, resident);
+    } else {
+      // warm reuse: open any newly-seen package, then push the file changes —
+      // no respawn. `openProject` replaces in place by config path (no leak).
+      for (const config of tsconfigAbsPaths) {
+        if (!resident.configs.has(config)) {
+          resident.snapshot = resident.api.updateSnapshot({ openProject: config });
+          resident.configs.add(config);
+        }
+      }
+      const touched =
+        (changes?.changed?.length ?? 0) +
+        (changes?.created?.length ?? 0) +
+        (changes?.deleted?.length ?? 0);
+      if (!changes) {
+        // no diff info — re-evaluate everything (still no spawn)
+        resident.snapshot = resident.api.updateSnapshot({ fileChanges: { invalidateAll: true } });
+      } else if (touched > 0) {
+        resident.snapshot = resident.api.updateSnapshot({ fileChanges: changes });
+      }
+    }
 
+    // idle-close the process; unref so the timer never keeps the loop alive
+    if (resident.idleTimer) clearTimeout(resident.idleTimer);
+    resident.idleTimer = setTimeout(() => closeResident(repoRoot), IDLE_CLOSE_MS);
+    resident.idleTimer.unref?.();
+
+    const projects = resident.snapshot.getProjects();
+    if (projects.length === 0) return null;
     const result = new Map<string, Map<string, ReexportTarget>>();
     for (const barrel of barrelAbsPaths) {
       const project = projects.find((p) => p.program.getSourceFile(barrel));
@@ -105,9 +182,8 @@ export async function resolveBarrelReexports(
     }
     return result;
   } catch {
-    return null; // tsgo missing / not built / API shape changed → syntactic fallback
-  } finally {
-    api?.close?.();
+    closeResident(repoRoot); // broken state → drop the resident and fall back
+    return null;
   }
 }
 

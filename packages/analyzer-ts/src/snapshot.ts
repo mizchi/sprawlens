@@ -23,7 +23,11 @@ import type {
   WorkspacePackage,
 } from "@sprawlens/schema";
 import { tsTestAdapter } from "./testExtract.ts";
-import { type ReexportTarget, resolveBarrelReexports } from "./tsgoReexports.ts";
+import {
+  type ReexportFileChanges,
+  type ReexportTarget,
+  resolveBarrelReexports,
+} from "./tsgoReexports.ts";
 
 /** A detected npm/pnpm workspace: member packages + each one's entry source. */
 type WorkspaceInfo = {
@@ -148,6 +152,10 @@ export async function createSnapshotFromWorkingTree(
   const cache = options.cache;
   const parsedByPath = new Map<string, ParsedFile>();
   const fileNodes: FileNode[] = [];
+  // absolute paths re-parsed this run (cache miss), split into changed vs new,
+  // so warm re-analysis can push just the diff to the resident tsgo process
+  const changedAbs: string[] = [];
+  const createdAbs: string[] = [];
 
   for (const relativePath of files.map(normalizePath)) {
     const absolutePath = path.join(root, relativePath);
@@ -159,11 +167,16 @@ export async function createSnapshotFromWorkingTree(
     } else {
       const content = await readFile(absolutePath, "utf8");
       parsed = parseFile(relativePath, content, fileStat.size);
+      if (cache) (hit ? changedAbs : createdAbs).push(absolutePath);
       cache?.set(relativePath, { mtimeMs: fileStat.mtimeMs, size: fileStat.size, parsed });
     }
     parsedByPath.set(relativePath, parsed);
     fileNodes.push(parsed.node);
   }
+  // collect deletions before pruning the cache (the resident tsgo needs them)
+  const deletedAbs = cache
+    ? [...cache.keys()].filter((key) => !fileSet.has(key)).map((key) => path.join(root, key))
+    : [];
   // drop deleted files from the cache so it tracks the working tree
   if (cache) for (const key of [...cache.keys()]) if (!fileSet.has(key)) cache.delete(key);
 
@@ -175,7 +188,12 @@ export async function createSnapshotFromWorkingTree(
   ];
 
   const workspace = await detectWorkspacePackages(root);
-  const reexportByBarrel = await resolveBarrels(root, parsedByPath);
+  // only a warm run (cache present) knows the diff; a cold run passes undefined
+  // and the resolver opens the projects fresh
+  const changes: ReexportFileChanges | undefined = cache
+    ? { changed: changedAbs, created: createdAbs, deleted: deletedAbs }
+    : undefined;
+  const reexportByBarrel = await resolveBarrels(root, parsedByPath, changes);
   const edges = [
     ...createContainsEdges(
       dirPaths,
@@ -365,6 +383,7 @@ async function detectWorkspacePackages(root: string): Promise<WorkspaceInfo> {
 async function resolveBarrels(
   root: string,
   parsedByPath: Map<string, ParsedFile>,
+  changes?: ReexportFileChanges,
 ): Promise<Map<string, Map<string, ReexportTarget>> | undefined> {
   const barrelRels = [...parsedByPath]
     .filter(([, parsed]) =>
@@ -386,6 +405,7 @@ async function resolveBarrels(
     root,
     barrelRels.map((rel) => path.join(root, rel)),
     tsconfigs.map((cfg) => path.join(root, cfg)),
+    changes,
   );
   return resolved ?? undefined;
 }
