@@ -23,6 +23,7 @@ import type {
   WorkspacePackage,
 } from "@sprawlens/schema";
 import { tsTestAdapter } from "./testExtract.ts";
+import { type ReexportTarget, resolveBarrelReexports } from "./tsgoReexports.ts";
 
 /** A detected npm/pnpm workspace: member packages + each one's entry source. */
 type WorkspaceInfo = {
@@ -174,12 +175,13 @@ export async function createSnapshotFromWorkingTree(
   ];
 
   const workspace = await detectWorkspacePackages(root);
+  const reexportByBarrel = await resolveBarrels(root, parsedByPath);
   const edges = [
     ...createContainsEdges(
       dirPaths,
       fileNodes.map((node) => node.path),
     ),
-    ...createImportEdges(root, parsedByPath, fileSet, fileNodes, workspace),
+    ...createImportEdges(root, parsedByPath, fileSet, fileNodes, workspace, reexportByBarrel),
   ];
   const { metrics } = computeGraphMetrics(nodes, edges);
   const tests = buildTestTree(
@@ -352,15 +354,65 @@ async function detectWorkspacePackages(root: string): Promise<WorkspaceInfo> {
   return { packages, entryByName };
 }
 
+/**
+ * tsgo-precise re-export resolution for every barrel file (one that re-exports
+ * from other modules). The syntactic resolver only follows one hop and skips
+ * `export *`, so barrels — and the cross-package imports routed through them —
+ * lose their symbol links. When the repo builds into tsconfig projects, tsgo
+ * resolves each barrel's exports to their original declaration; otherwise this
+ * returns undefined and resolveSymbolImports keeps its syntactic behaviour.
+ */
+async function resolveBarrels(
+  root: string,
+  parsedByPath: Map<string, ParsedFile>,
+): Promise<Map<string, Map<string, ReexportTarget>> | undefined> {
+  const barrelRels = [...parsedByPath]
+    .filter(([, parsed]) =>
+      parsed.imports.some((item) =>
+        item.bindings.some(
+          (binding) => binding.kind === "reexport-all" || binding.kind === "reexport-named",
+        ),
+      ),
+    )
+    .map(([rel]) => rel);
+  if (barrelRels.length === 0) return undefined;
+  const tsconfigs = await fg("**/tsconfig.json", {
+    cwd: root,
+    onlyFiles: true,
+    ignore: DEFAULT_IGNORES,
+  });
+  if (tsconfigs.length === 0) return undefined;
+  const resolved = await resolveBarrelReexports(
+    root,
+    barrelRels.map((rel) => path.join(root, rel)),
+    tsconfigs.map((cfg) => path.join(root, cfg)),
+  );
+  return resolved ?? undefined;
+}
+
 function createImportEdges(
   root: string,
   parsedByPath: Map<string, ParsedFile>,
   fileSet: Set<string>,
   fileNodes: FileNode[],
   workspace: WorkspaceInfo,
+  reexportByBarrel?: Map<string, Map<string, ReexportTarget>>,
 ): CodeEdge[] {
   const edges = new Map<string, CodeEdge>();
   const fileByPath = new Map(fileNodes.map((file) => [file.path, file]));
+  // tsgo-resolved re-exports for barrel targets: locate the original symbol in
+  // the origin file by name (+ line to disambiguate), else the first by name
+  const symbolAt = (file: string, name: string, line: number): CodeSymbol | undefined => {
+    const symbols = fileByPath.get(file)?.symbols ?? [];
+    return (
+      symbols.find((s) => s.name === name && s.startLine === line) ??
+      symbols.find((s) => s.name === name)
+    );
+  };
+  const reexportFor = (toPath: string): ReexportLookup | undefined => {
+    const exports = reexportByBarrel?.get(toPath);
+    return exports ? { exports, symbolAt } : undefined;
+  };
 
   for (const [fromPath, parsed] of parsedByPath) {
     const imports = parsed.imports;
@@ -376,7 +428,12 @@ function createImportEdges(
         if (entry && fileSet.has(entry)) {
           const to = fileId(entry);
           const id = importId(from, to, specifier);
-          const symbolImports = resolveSymbolImports(bindings, usageByLocal, fileByPath.get(entry));
+          const symbolImports = resolveSymbolImports(
+            bindings,
+            usageByLocal,
+            fileByPath.get(entry),
+            reexportFor(entry),
+          );
           edges.set(id, {
             id,
             type: "imports",
@@ -410,7 +467,12 @@ function createImportEdges(
       const to = resolvedPath ? fileId(resolvedPath) : unresolvedId(fromPath, specifier);
       const id = importId(from, to, specifier);
       const symbolImports = resolvedPath
-        ? resolveSymbolImports(bindings, usageByLocal, fileByPath.get(resolvedPath))
+        ? resolveSymbolImports(
+            bindings,
+            usageByLocal,
+            fileByPath.get(resolvedPath),
+            reexportFor(resolvedPath),
+          )
         : [];
       edges.set(id, {
         id,
@@ -527,10 +589,17 @@ function bindingsFromExportDeclaration(node: ts.ExportDeclaration): CodeImportBi
   }));
 }
 
+/** A barrel's tsgo-resolved exports plus a lookup into the original file's symbols. */
+type ReexportLookup = {
+  exports: Map<string, ReexportTarget>;
+  symbolAt(file: string, name: string, line: number): CodeSymbol | undefined;
+};
+
 function resolveSymbolImports(
   bindings: CodeImportBinding[],
   usageByLocal: Map<string, CodeSymbol[]>,
   targetFile?: FileNode,
+  reexport?: ReexportLookup,
 ): CodeSymbolImport[] {
   if (!targetFile) {
     return [];
@@ -551,7 +620,20 @@ function resolveSymbolImports(
     ) {
       continue;
     }
-    const target = exportedSymbols.get(binding.imported);
+    // direct export of the target, or — when the target is a barrel — the
+    // original declaration the tsgo checker resolved the re-export to (this is
+    // what the syntactic pass misses: `export *` and transitive re-export chains)
+    let target = exportedSymbols.get(binding.imported);
+    if (!target && reexport) {
+      const origin = reexport.exports.get(binding.imported);
+      if (origin) {
+        target = reexport.symbolAt(
+          origin.file,
+          origin.renamedFrom ?? binding.imported,
+          origin.line,
+        );
+      }
+    }
     if (!target) {
       continue;
     }
