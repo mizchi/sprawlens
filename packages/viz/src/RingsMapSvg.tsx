@@ -761,6 +761,12 @@ export function RingsMapSvg(props: Props) {
   /** Screen-constant radius in world units. */
   const screenRadius = (px: number) => px / zoom;
 
+  // a hovered edge spotlights its off-screen endpoints' docked names, so you
+  // can read where the edge under the cursor is heading
+  const exitHighlightIds = hoveredEdge
+    ? new Set([hoveredEdge.source, hoveredEdge.target])
+    : undefined;
+
   return (
     <svg
       {...svgProps}
@@ -1326,6 +1332,7 @@ export function RingsMapSvg(props: Props) {
             onFocus={props.onFocusId}
             zoom={zoom}
             tilt={tiltAffine}
+            highlightIds={exitHighlightIds}
           />
         ))}
         {/* symbol sites are conceptual edge waypoints only — no dots */}

@@ -508,6 +508,12 @@ export function TreemapSvg(props: Props) {
   const labelOf = (id: string): string =>
     props.labels?.get(id) ?? symbolNameOf(id) ?? id.split("/").pop() ?? id;
 
+  // a hovered edge spotlights its off-screen endpoints' docked names, so you
+  // can read where the edge under the cursor is heading
+  const exitHighlightIds = hoveredEdge
+    ? new Set([hoveredEdge.source, hoveredEdge.target])
+    : undefined;
+
   return (
     <svg
       {...svgProps}
@@ -953,6 +959,7 @@ export function TreemapSvg(props: Props) {
             onFocus={props.onFocusId}
             zoom={zoom}
             tilt={tiltAffine}
+            highlightIds={exitHighlightIds}
           />
         ))}
       </g>

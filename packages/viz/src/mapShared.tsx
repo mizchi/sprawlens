@@ -609,9 +609,15 @@ export function ExitPreviewsLayer(props: {
   zoom: number;
   /** Active plane tilt; docked names stay upright on the plane. */
   tilt?: Affine;
+  /** Off-screen targets to spotlight (e.g. the hovered edge's endpoints): their
+   * docked names lead, the rest recede, so you can read where a hovered edge is
+   * heading even when its target is off-screen. */
+  highlightIds?: ReadonlySet<string>;
 }) {
   const { view, zoom, labelOf, onSelect } = props;
   const onFocus = props.onFocus;
+  const highlightIds = props.highlightIds;
+  const hasHighlight = (highlightIds?.size ?? 0) > 0;
   const x0 = view.x;
   const x1 = view.x + view.w;
   const y0 = view.y;
@@ -666,34 +672,43 @@ export function ExitPreviewsLayer(props: {
   }
   if (previews.length === 0) return null;
   const fontSize = 10.5 / zoom;
+  // render spotlighted names last so they sit on top of the docked pile
+  const ordered = hasHighlight
+    ? [...previews].sort(
+        (a, b) => (highlightIds!.has(a.id) ? 1 : 0) - (highlightIds!.has(b.id) ? 1 : 0),
+      )
+    : previews;
   return (
     <g style={{ userSelect: "none" }}>
-      {previews.map((preview) => {
+      {ordered.map((preview) => {
+        const lit = highlightIds?.has(preview.id) ?? false;
+        const size = lit ? fontSize * 1.25 : fontSize;
         return (
           <text
             key={preview.id}
+            opacity={hasHighlight && !lit ? 0.3 : 1}
             transform={uprightAt(props.tilt, {
               x:
                 preview.side === "left"
-                  ? preview.x + fontSize * 0.5
+                  ? preview.x + size * 0.5
                   : preview.side === "right"
-                    ? preview.x - fontSize * 0.5
+                    ? preview.x - size * 0.5
                     : preview.x,
               y:
                 preview.side === "top"
-                  ? preview.y + fontSize * 1.3
+                  ? preview.y + size * 1.3
                   : preview.side === "bottom"
-                    ? preview.y - fontSize * 0.5
-                    : preview.y + fontSize * 0.35,
+                    ? preview.y - size * 0.5
+                    : preview.y + size * 0.35,
             })}
-            font-size={fontSize}
-            font-weight="600"
+            font-size={size}
+            font-weight={lit ? "700" : "600"}
             text-anchor={
               preview.side === "left" ? "start" : preview.side === "right" ? "end" : "middle"
             }
             fill={props.color}
             stroke={MAP_BG}
-            stroke-width={3 / zoom}
+            stroke-width={(lit ? 3.5 : 3) / zoom}
             paint-order="stroke"
             style={{ cursor: "pointer" }}
             onClick={(event) => {
