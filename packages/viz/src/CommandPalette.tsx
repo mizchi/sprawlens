@@ -143,6 +143,12 @@ export function CommandPalette(props: {
           ref={inputRef}
           value={query}
           placeholder="Jump to module / file / symbol…"
+          // suppress the browser's autofill / autocomplete dropdown, which
+          // otherwise floats a suggestion chip over the result list
+          autocomplete="off"
+          autocorrect="off"
+          autocapitalize="off"
+          spellcheck={false}
           onInput={(e) => {
             setQuery((e.target as HTMLInputElement).value);
             setActive(0);
