@@ -38,9 +38,19 @@ export function useCamera(extent: { width: number; height: number }) {
     }));
   };
 
+  /** Fly to an explicit center + world view width (no bbox). Used to restore a
+   * snapshotted view, e.g. when the command palette cancels its zoom preview. */
+  const restoreView = (center: Vec2, viewW: number) =>
+    setFocusRequest((prev) => ({
+      cx: center.x,
+      cy: center.y,
+      viewW,
+      token: (prev?.token ?? 0) + 1,
+    }));
+
   /** Record where a view settled (LOD commit); world center + zoom. */
   const onViewSettle = (center: Vec2, zoom: number) =>
     setViewInfo({ x: center.x, y: center.y, zoom });
 
-  return { focusRequest, viewInfo, viewInfoRef, focusBounds, onViewSettle };
+  return { focusRequest, viewInfo, viewInfoRef, focusBounds, restoreView, onViewSettle };
 }

@@ -15,7 +15,7 @@ import { createRng, type Rng } from "@sprawlens/layout";
 import { Controls, type PlaygroundParams } from "./Controls.tsx";
 import { CameraPanel, LayersMenu } from "./OverlayPanels.tsx";
 import { SvgRenderer } from "./renderer/SvgRenderer.tsx";
-import { fetchHover } from "./cfgClient.ts";
+import { fetchHover, symbolNameOf } from "./cfgClient.ts";
 import { HIGHLIGHT_THEME, parseHoverMarkdown, tokenizeCode } from "./highlightCode.ts";
 import type { MapHandlers } from "./renderer/contract.ts";
 import { buildScene } from "./engine/buildScene.ts";
@@ -74,6 +74,8 @@ import { CommitLog } from "./CommitLog.tsx";
 import { useCommandBridge } from "./useCommandBridge.ts";
 import { buildVizCommands } from "./vizCommands.ts";
 import { HelpModal } from "./HelpModal.tsx";
+import { CommandPalette } from "./CommandPalette.tsx";
+import type { SearchNode } from "./nodeSearch.ts";
 import { projectTimelineCursor, stepClockUs, timelineDurationUs } from "./tracePlayer.ts";
 import {
   classGrouping,
@@ -285,10 +287,12 @@ export function App() {
     selectEdgeState,
   } = useSelection();
   // camera: pending fly-to + settled view; focusBounds frames a world bbox
-  const { focusRequest, viewInfo, focusBounds, onViewSettle } = useCamera({
-    width: WIDTH,
-    height: HEIGHT,
-  });
+  const { focusRequest, viewInfo, viewInfoRef, focusBounds, restoreView, onViewSettle } = useCamera(
+    {
+      width: WIDTH,
+      height: HEIGHT,
+    },
+  );
   const [, setFrame] = useState(0);
 
   // LSP hover tooltip: hovering a symbol cell fetches textDocument/hover from
@@ -426,6 +430,19 @@ export function App() {
   const experimentalOn = urlParams.experimental || configExperimental;
   // keyboard cheat-sheet modal (toggled with `?`)
   const [helpOpen, setHelpOpen] = useState(false);
+  // raycast-style command palette (Cmd/Ctrl+F): fuzzy-jump to any node
+  const [paletteOpen, setPaletteOpen] = useState(false);
+  // node the palette is previewing (auto-focused, not yet selected) — outlined
+  // on the map so it's clear which one the camera flew to
+  const [previewId, setPreviewId] = useState<string | null>(null);
+  // mirror in a ref so the once-bound Cmd-F listener sees the live open state
+  const paletteOpenRef = useRef(false);
+  paletteOpenRef.current = paletteOpen;
+  /** Node universe to search, snapshotted when the palette opens (stable for
+   * the session, so per-keystroke search doesn't rebuild it). */
+  const paletteNodesRef = useRef<SearchNode[]>([]);
+  /** View to fly back to if the palette is cancelled (center + world width). */
+  const paletteViewRef = useRef<{ x: number; y: number; viewW: number } | null>(null);
   // a test run ingested by the CLI (--test-report); tints the test plane cells
   // pass/fail/skip. Null in dev/demo and when no report was passed.
   const [testRun, setTestRun] = useState<TestRun | null>(null);
@@ -1400,6 +1417,79 @@ export function App() {
     focusOnIds([id], padding);
   };
 
+  // ---- command palette (Cmd/Ctrl+F) -----------------------------------------
+  /** Frame closeness for palette preview/commit: tighter than the default jump
+   * so a hit reads as "zoom into this", with a little surrounding context. */
+  const PALETTE_PADDING = 4;
+  const isSymbolId = (id: string) => id.startsWith("symbol:") || id.includes("#");
+  /** Build the searchable node universe from what's actually navigable: the
+   * top-level circles (modules), the laid-out leaf + inner cells (files or
+   * symbols, by granularity), and the file graph (searchable even when a file
+   * isn't currently a cell — its jump falls back to the enclosing module). */
+  const buildSearchNodes = (): SearchNode[] => {
+    const out: SearchNode[] = [];
+    const seen = new Set<string>();
+    const add = (id: string, label: string, kind: SearchNode["kind"]) => {
+      if (seen.has(id) || !label) return;
+      seen.add(id);
+      out.push({ id, label, kind });
+    };
+    const symLabel = (id: string) => symbolNameOf(id) ?? labelOf(id);
+    const circles = ringsRef.current?.circles ?? treemapRef.current?.levels[0]?.cells;
+    if (circles) for (const id of circles.keys()) add(id, labelOf(id), "module");
+    const layouts = ringsRef.current?.leafLayouts ?? treemapRef.current?.leafLayouts;
+    if (layouts) {
+      for (const layout of layouts.values()) {
+        for (const cell of layout.cells) {
+          if (isSymbolId(cell.id)) add(cell.id, symLabel(cell.id), "symbol");
+          else add(cell.id, labelOf(cell.id), "file");
+        }
+      }
+    }
+    for (const cell of innerCellsRef.current) add(cell.id, symLabel(cell.id), "symbol");
+    for (const node of graphRef.current.nodes) add(node.id, node.label, node.kind);
+    return out;
+  };
+  /** Bounds to frame for a jump: the node itself, else the file it lives in,
+   * else its module — so files/symbols without a current cell still fly to the
+   * nearest visible ancestor (and reveal as you zoom). */
+  const focusBoundsForId = (id: string): Bounds | null => {
+    const direct = geometryBoundsOf(id);
+    if (direct) return direct;
+    const file = parentFileOf(id);
+    const viaFile = file !== id ? geometryBoundsOf(file) : null;
+    return viaFile ?? geometryBoundsOf(moduleOfId(id));
+  };
+  const flyToNode = (id: string) => {
+    const bounds = focusBoundsForId(id);
+    if (bounds) focusBounds(bounds, PALETTE_PADDING);
+  };
+  const openPalette = () => {
+    paletteNodesRef.current = buildSearchNodes();
+    const v = viewInfoRef.current;
+    paletteViewRef.current = { x: v.x, y: v.y, viewW: WIDTH / v.zoom };
+    setPreviewId(null);
+    setPaletteOpen(true);
+  };
+  const closePalette = () => {
+    setPaletteOpen(false);
+    setPreviewId(null);
+    const v = paletteViewRef.current;
+    if (v) restoreView({ x: v.x, y: v.y }, v.viewW);
+  };
+  // intercept Cmd/Ctrl+F (suppress the browser's native find) to open the palette
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if ((e.metaKey || e.ctrlKey) && !e.altKey && e.key.toLowerCase() === "f") {
+        e.preventDefault();
+        if (!paletteOpenRef.current) openPalette();
+      }
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   // single registry of view operations → WebMCP tools (LLM-drivable) + keybinds
   // + the help modal. Rebuilt each render so the tools/keys act on current state.
   const vizCommands = buildVizCommands({
@@ -2189,6 +2279,7 @@ export function App() {
     selectedId: activeId,
     selectedIds: selectedIdSet,
     selectedEdges,
+    previewId,
     focusRequest,
     onSelect: selectNode,
     onSelectEdge: selectEdge,
@@ -2525,6 +2616,21 @@ export function App() {
           exp {experimentalOn ? "on" : "off"}
         </button>
         <HelpModal commands={vizCommands} open={helpOpen} onClose={() => setHelpOpen(false)} />
+        <CommandPalette
+          open={paletteOpen}
+          nodes={paletteNodesRef.current}
+          onPreview={(id) => {
+            setPreviewId(id);
+            flyToNode(id);
+          }}
+          onCommit={(id) => {
+            setPaletteOpen(false);
+            setPreviewId(null);
+            setSelectedId(id);
+            flyToNode(id);
+          }}
+          onClose={closePalette}
+        />
         {experimentalOn && testRun ? (
           <TestReporterPanel
             results={testRun.results}
