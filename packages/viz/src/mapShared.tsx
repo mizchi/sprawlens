@@ -359,6 +359,9 @@ export function InnerLevelsLayer(props: {
   visibleLevels?: ReadonlySet<string>;
   /** Active plane tilt; district labels stay upright on the plane. */
   tilt?: Affine;
+  /** Elevation lift (by module) so sub-module districts ride their module's
+   * lifted disc instead of staying pinned at sea level. Keyed via topAncestorOf. */
+  liftOf?: (id: string) => Vec2;
   /** Slider-tunable label sizing: 9px baseline factor + font multiplier. */
   labelMinPx?: number;
   labelScale?: number;
@@ -391,10 +394,11 @@ export function InnerLevelsLayer(props: {
               return null;
             }
             const top = topAncestorOf(cell.id) ?? "";
+            const off = props.liftOf?.(top) ?? { x: 0, y: 0 };
             return (
               <polygon
                 key={cell.id}
-                points={cell.polygon.map((p) => `${p.x},${p.y}`).join(" ")}
+                points={cell.polygon.map((p) => `${p.x + off.x},${p.y + off.y}`).join(" ")}
                 fill="none"
                 stroke={
                   isSelected(cell.id)
@@ -431,6 +435,7 @@ export function InnerLevelsLayer(props: {
             const labelGate = (isClassGroup ? CLASS_BORDER_MIN_PX : 80) * labelFactor;
             if (px < labelGate && !isSelected(cell.id)) return null;
             const top = topAncestorOf(cell.id) ?? "";
+            const off = props.liftOf?.(top) ?? { x: 0, y: 0 };
             const fontSize =
               Math.min(Math.sqrt(cell.actualArea) * 0.12, 16 / zoom + 4) * labelScale;
             // honour the user's minimum drawn size: drop labels smaller than it
@@ -443,7 +448,10 @@ export function InnerLevelsLayer(props: {
             return (
               <text
                 key={cell.id}
-                transform={uprightAt(props.tilt, cell.site)}
+                transform={uprightAt(props.tilt, {
+                  x: cell.site.x + off.x,
+                  y: cell.site.y + off.y,
+                })}
                 font-size={fontSize}
                 font-weight="600"
                 fill={isClassGroup ? CLASS_BOUNDARY : innerDistrictLabelFill(top)}
@@ -474,6 +482,9 @@ export function WatermarkLabelsLayer(props: {
   view?: { x: number; y: number; w: number; h: number };
   /** Active plane tilt; watermarks stay upright on the plane. */
   tilt?: Affine;
+  /** Per-cell elevation offset (world units) so a name rides its lifted disc in
+   * the elevation view; identity when absent. */
+  liftOf?: (id: string) => Vec2;
 }) {
   const { cells, zoom, labelOf, dim, view } = props;
   return (
@@ -491,6 +502,11 @@ export function WatermarkLabelsLayer(props: {
         // screen entirely — cap the size to the viewport and clamp the
         // anchor into the visible part of the cell
         const fontSize = view ? Math.min(natural, view.w * 0.09) : natural;
+        // elevation lift (zero when flat); the label is drawn at anchor + off,
+        // so the viewport clamp below works in the *unlifted* anchor frame by
+        // shifting the viewport bounds by -off — otherwise a giant label the
+        // clamp pinned on-screen would be pushed back out by the lift.
+        const off = props.liftOf?.(cell.id) ?? { x: 0, y: 0 };
         let x = cell.site.x;
         let y = cell.site.y + fontSize * 0.35;
         if (view) {
@@ -508,17 +524,17 @@ export function WatermarkLabelsLayer(props: {
           const padY = fontSize;
           const lo = (a: number, b: number) => Math.max(a, b);
           const hi = (a: number, b: number) => Math.min(a, b);
-          const x0 = lo(minX + padX, view.x + padX);
-          const x1 = hi(maxX - padX, view.x + view.w - padX);
-          const y0 = lo(minY + padY, view.y + padY);
-          const y1 = hi(maxY - padY, view.y + view.h - padY);
+          const x0 = lo(minX + padX, view.x - off.x + padX);
+          const x1 = hi(maxX - padX, view.x - off.x + view.w - padX);
+          const y0 = lo(minY + padY, view.y - off.y + padY);
+          const y1 = hi(maxY - padY, view.y - off.y + view.h - padY);
           if (x0 <= x1) x = Math.min(Math.max(x, x0), x1);
           if (y0 <= y1) y = Math.min(Math.max(y, y0), y1);
         }
         return (
           <text
             key={cell.id}
-            transform={uprightAt(props.tilt, { x, y })}
+            transform={uprightAt(props.tilt, { x: x + off.x, y: y + off.y })}
             font-size={fontSize}
             font-weight="600"
             fill={WATERMARK_INK}
@@ -1197,8 +1213,14 @@ export function makeEdgeBundler(options: {
   /** Map diagonal; short edges (relative to it) stay near-straight. */
   span?: number;
   cfgAnchors?: ReadonlyMap<string, CfgAnchor>;
+  /** When false, keep full bundling even on far-detouring routes instead of
+   * straightening them. The elevation view sets this for inter-module trunks:
+   * the climb up to a lifted disc and back down *is* the intended route, so the
+   * detour straightener must not undo it. */
+  straightenDetours?: boolean;
 }): (edge: AtlasEdge) => EdgeBundle | null {
   const strength = options.strength ?? BUNDLE_STRENGTH;
+  const straightenDetours = options.straightenDetours ?? true;
   return (edge) => {
     let path = hierarchyControlPoints(
       edge.source,
@@ -1233,8 +1255,10 @@ export function makeEdgeBundler(options: {
     }
     const detour = chord > 1e-6 ? route / chord : 1;
     const lengthRamp = options.span ? Math.min(1, chord / (options.span * BUNDLE_FULL_AT)) : 1;
-    const effective =
-      strength * lengthRamp * Math.min(1, BUNDLE_MAX_DETOUR / Math.max(detour, 1e-6));
+    const detourClamp = straightenDetours
+      ? Math.min(1, BUNDLE_MAX_DETOUR / Math.max(detour, 1e-6))
+      : 1;
+    const effective = strength * lengthRamp * detourClamp;
     const bundled = bundlePath(path, effective);
     return {
       source: edge.source,

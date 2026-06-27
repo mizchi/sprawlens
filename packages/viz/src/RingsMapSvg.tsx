@@ -12,7 +12,8 @@ import {
   type Affine,
 } from "@sprawlens/layout";
 import type { RingsState } from "./ringsController.ts";
-import { anyPlaneShown, type TiltParams } from "./Controls.tsx";
+import { type TiltParams } from "./Controls.tsx";
+import { elevationUnitLift, mapTiltAffine, tiltStrengthOf } from "./tiltElevation.ts";
 
 import { CfgLayer, cfgAnchorsOf, type CfgEntry } from "./CfgLayer.tsx";
 import { makeEdgeEndpointResolver } from "./edgeEndpoints.ts";
@@ -140,6 +141,9 @@ type Props = {
   /** Command-palette preview target: outlined (not selected) so the user sees
    * which node the camera auto-focused. */
   previewId?: string | null;
+  /** Topological elevation per node id (file / module), [0,1] with the entry at
+   * 1. Lifts each node by its height in the tilted view; absent = flat. */
+  elevation?: Map<string, number>;
   onSelect: (id: string | null, additive?: boolean) => void;
   /** Pick the dependency edge nearest a background click; shift adds it to
    * the multi-selection. */
@@ -251,8 +255,6 @@ export function RingsMapSvg(props: Props) {
   // affine that lays the plane flat (pitch squash) and spins it (rotate); the
   // content group carries it so all geometry and edges inherit one transform.
   // labels read `tiltAffine` to stay upright on top.
-  const tiltActive =
-    !!tilt?.enabled && (tilt.theta !== 0 || tilt.pitch !== 0 || anyPlaneShown(tilt));
   const tiltOpts = tilt
     ? {
         theta: tilt.theta,
@@ -260,9 +262,48 @@ export function RingsMapSvg(props: Props) {
         center: { x: width / 2, y: height / 2 },
       }
     : null;
-  const tiltAffine: Affine | undefined =
-    tiltActive && tiltOpts ? layerTransform({ ...tiltOpts, gap: 0, index: 0 }) : undefined;
+  // the content group's affine — single source shared with App's breadcrumb
+  // hit-test (mapTiltAffine), so renderer and breadcrumb can never disagree.
+  const tiltAffine: Affine | undefined = mapTiltAffine(tilt, width, height);
   const tiltMatrix = tiltAffine ? toMatrixString(tiltAffine) : undefined;
+  // id → its top module (defined before the elevation helpers that resolve a
+  // node's height through its module)
+  const topAncestorOf = makeTopAncestorOf(rings.parentOf, (id) => rings.circles.has(id));
+  // topological elevation: lift each node toward the viewer in the tilted view
+  // (main = summit). The lift is a pure screen-vertical shift, so we bake the
+  // pre-tilt world displacement that becomes (0, -height) after tiltAffine, and
+  // scale it by each node's [0,1] elevation. Only engages once pitched, so the
+  // top-down view stays flat. Symbols inherit their file's height.
+  const elevation = props.elevation;
+  const tiltStrength = tiltStrengthOf(tilt);
+  const elevationOn = !!elevation && elevation.size > 0 && !!tiltAffine && tiltStrength > 0.01;
+  const unitLift: Vec2 = elevationOn
+    ? elevationUnitLift(tiltAffine, height, tiltStrength)
+    : { x: 0, y: 0 };
+  // elevation is a per-module height; every node rides its module's disc, so a
+  // package stays intact (no cells detaching from their circle). The host keys
+  // the map by module + every node + its file, so a symbol resolves through its
+  // file even when it has no layout parent (reference-anchored endpoints).
+  const elevOf = (id: string): number => {
+    if (!elevationOn) return 0;
+    return elevation!.get(id) ?? elevation!.get(parentFileOf(id)) ?? 0;
+  };
+  const liftXY = (p: Vec2, id: string): Vec2 => {
+    const e = elevOf(id);
+    return e ? { x: p.x + unitLift.x * e, y: p.y + unitLift.y * e } : p;
+  };
+  const liftOffsetOf = (id: string): Vec2 => {
+    const e = elevOf(id);
+    return { x: unitLift.x * e, y: unitLift.y * e };
+  };
+  // a module circle at its lifted position (same shape, so straight-line edge /
+  // hover overlays that read cx/cy/r follow the disc in the elevation view)
+  const liftedCircleOf = (id: string) => {
+    const c = rings.circles.get(id);
+    if (!c) return undefined;
+    const p = liftXY({ x: c.cx, y: c.cy }, id);
+    return { cx: p.x, cy: p.y, r: c.r };
+  };
   // every satellite plane is the same tilt dropped `planeIndex` gaps down
   const layers = props.layers ?? [];
   const satellitesOn = !!tilt?.enabled && layers.length > 0 && !!tiltOpts;
@@ -448,37 +489,88 @@ export function RingsMapSvg(props: Props) {
     // it's left out of the deps to keep this off the per-render path
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [rings, fileCells, innerCells, portNodes, symbolEdges, traceEdges]);
-  const bundleOf = useMemo(
+  // in the elevation view, the bundlers read lifted positions so every edge
+  // connects the raised discs — packages stack as a dependency layer diagram.
+  // Rebuilt only while tilted (unitLift is zero otherwise → identity).
+  const bundlePositionOf = useMemo(() => {
+    if (!elevationOn) return positionOf;
+    const lifted = new Map<string, Vec2>();
+    for (const [id, p] of positionOf) lifted.set(id, liftXY(p, id));
+    return lifted;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [positionOf, elevationOn, unitLift.x, unitLift.y]);
+  const ambientBundleOf = useMemo(
     () =>
       makeEdgeBundler({
         parentOf: bundleParentOf,
-        positionOf,
+        positionOf: bundlePositionOf,
         span: Math.hypot(width, height),
         cfgAnchors,
       }),
-    [bundleParentOf, positionOf, cfgAnchors, width, height],
+    [bundleParentOf, bundlePositionOf, cfgAnchors, width, height],
   );
   // the lit reference fans (selection / focus / lsp) bundle harder than the
   // ambient mesh so a node's many references group into trunks; rendering and
   // proximity picking share this so a click still lands on the drawn curve
-  const referenceBundleOf = useMemo(
+  const referenceFanOf = useMemo(
     () =>
       makeEdgeBundler({
         parentOf: bundleParentOf,
-        positionOf,
+        positionOf: bundlePositionOf,
         span: Math.hypot(width, height),
         cfgAnchors,
         strength: REFERENCE_BUNDLE_STRENGTH,
       }),
-    [bundleParentOf, positionOf, cfgAnchors, width, height],
+    [bundleParentOf, bundlePositionOf, cfgAnchors, width, height],
+  );
+  // in the elevation view, an inter-module edge climbs to its source disc
+  // (lifted) and descends to the target disc — bundle those hard into trunks
+  // and don't let the detour straightener flatten the intended climb. intra-
+  // module edges keep the normal bundling (same disc, same height).
+  const trunkBundleOf = useMemo(
+    () =>
+      makeEdgeBundler({
+        parentOf: bundleParentOf,
+        positionOf: bundlePositionOf,
+        span: Math.hypot(width, height),
+        cfgAnchors,
+        strength: 0.92,
+        straightenDetours: false,
+      }),
+    [bundleParentOf, bundlePositionOf, cfgAnchors, width, height],
+  );
+  // an edge whose endpoints sit in different module discs — only these climb
+  // between elevation layers and want the trunk treatment.
+  const crossModule = (edge: AtlasEdge): boolean => {
+    const a = topAncestorOf(edge.source);
+    const b = topAncestorOf(edge.target);
+    return !!a && !!b && a !== b;
+  };
+  const bundleOf = useMemo(
+    () =>
+      elevationOn
+        ? (edge: AtlasEdge) => (crossModule(edge) ? trunkBundleOf(edge) : ambientBundleOf(edge))
+        : ambientBundleOf,
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [elevationOn, ambientBundleOf, trunkBundleOf],
+  );
+  const referenceBundleOf = useMemo(
+    () =>
+      elevationOn
+        ? (edge: AtlasEdge) => (crossModule(edge) ? trunkBundleOf(edge) : referenceFanOf(edge))
+        : referenceFanOf,
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [elevationOn, referenceFanOf, trunkBundleOf],
   );
   const edgeEndpoints = makeEdgeEndpointResolver({
-    positionOf: resolveSite,
+    positionOf: (id) => {
+      const p = resolveSite(id);
+      return p && elevationOn ? liftXY(p, id) : p;
+    },
     cfgAnchors,
     symbolNameOf,
   });
   const moduleList = useMemo(() => [...rings.circles.entries()], [rings]);
-  const topAncestorOf = makeTopAncestorOf(rings.parentOf, (id) => rings.circles.has(id));
 
   const sourceVisible = !hiddenLayers.has("source");
   const showInner = sourceVisible && zoom > 0.8;
@@ -491,7 +583,15 @@ export function RingsMapSvg(props: Props) {
     p.x <= committedView.x + committedView.w + slack &&
     p.y >= committedView.y - slack &&
     p.y <= committedView.y + committedView.h + slack;
-  const cellVisible = (cell: CellResult) => inView(cell.site, Math.sqrt(cell.actualArea) * 1.5);
+  // committedView is the viewBox in the map's *outer* (post-tilt) space, so cull
+  // against where a cell is actually drawn — lifted, then tilted — not its
+  // sea-level site. Without this, zooming into a module far from the tilt center
+  // wrongly culls on-screen cells (the site/draw offset grows with distance and
+  // dwarfs the shrinking viewBox). Identity when flat.
+  const toOuter = (p: Vec2): Vec2 => (tiltAffine ? apply(tiltAffine, p) : p);
+  const drawnPos = (p: Vec2, id: string): Vec2 => toOuter(liftXY(p, id));
+  const cellVisible = (cell: CellResult) =>
+    inView(drawnPos(cell.site, cell.id), Math.sqrt(cell.actualArea) * 1.5);
 
   // proximity edge picking: a click (or hover) resolves to the nearest
   // *prominent* edge by distance, not paint order. Only the macro module
@@ -504,8 +604,8 @@ export function RingsMapSvg(props: Props) {
     const out: EdgePickCandidate[] = [];
     if (!focus) {
       for (const edge of rings.topEdges) {
-        const a = rings.circles.get(edge.source);
-        const b = rings.circles.get(edge.target);
+        const a = liftedCircleOf(edge.source);
+        const b = liftedCircleOf(edge.target);
         if (!a || !b) continue;
         const dx = b.cx - a.cx;
         const dy = b.cy - a.cy;
@@ -524,7 +624,9 @@ export function RingsMapSvg(props: Props) {
       }
     }
     return out;
-  }, [rings, focus]);
+    // liftedCircleOf tracks the live tilt via unitLift; re-pick when it shifts
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [rings, focus, elevationOn, unitLift.x, unitLift.y]);
 
   // Dynamic nested-symbol LOD: instead of fixed zoom thresholds, budget the
   // on-screen element count. Visible file cells get their internals in
@@ -568,7 +670,21 @@ export function RingsMapSvg(props: Props) {
   // polygon point strings survive across re-renders as long as the cell
   // objects do (zoom/pan commits re-render unchanged geometry)
   const pointsCache = useRef(new WeakMap<CellResult, string>()).current;
+  // lifted cells cache by the live offset too, so a settled tilted view reuses
+  // strings across hover/selection re-renders and only rebuilds when tilt moves
+  const liftedPointsCache = useRef(
+    new WeakMap<CellResult, { key: string; points: string }>(),
+  ).current;
   const pointsOf = (cell: CellResult): string => {
+    const off = liftOffsetOf(cell.id);
+    if (off.x || off.y) {
+      const key = `${off.x},${off.y}`;
+      const hit = liftedPointsCache.get(cell);
+      if (hit && hit.key === key) return hit.points;
+      const points = cell.polygon.map((p) => `${p.x + off.x},${p.y + off.y}`).join(" ");
+      liftedPointsCache.set(cell, { key, points });
+      return points;
+    }
     let points = pointsCache.get(cell);
     if (!points) {
       points = cell.polygon.map((p) => `${p.x},${p.y}`).join(" ");
@@ -691,8 +807,14 @@ export function RingsMapSvg(props: Props) {
       const world = clientToWorld(clientX, clientY);
       let sym: string | null = null;
       if (world) {
-        const hits = (cell: CellResult): boolean =>
-          cell.polygon.length >= 3 && containsPoint(cell.polygon, world);
+        // cells render lifted (polygon + liftOffsetOf); undo that on the query
+        // so a tilted elevation view hit-tests where the cell is drawn, not its
+        // sea-level polygon. liftOffsetOf is {0,0} when flat, so this is a no-op.
+        const hits = (cell: CellResult): boolean => {
+          if (cell.polygon.length < 3) return false;
+          const off = liftOffsetOf(cell.id);
+          return containsPoint(cell.polygon, { x: world.x - off.x, y: world.y - off.y });
+        };
         for (const cell of innerCells) {
           if (hits(cell)) {
             sym = cell.id;
@@ -792,8 +914,8 @@ export function RingsMapSvg(props: Props) {
         {!focus ? (
           <g stroke={MACRO_EDGE} fill="none">
             {rings.topEdges.map((edge) => {
-              const a = rings.circles.get(edge.source);
-              const b = rings.circles.get(edge.target);
+              const a = liftedCircleOf(edge.source);
+              const b = liftedCircleOf(edge.target);
               if (!a || !b) return null;
               const dx = b.cx - a.cx;
               const dy = b.cy - a.cy;
@@ -816,7 +938,7 @@ export function RingsMapSvg(props: Props) {
                 refs.length > 0 &&
                 zoom > MACRO_LABEL_MIN_ZOOM &&
                 len * zoom > MACRO_LABEL_MIN_PX &&
-                inView({ x: mx, y: my }, 0);
+                inView(toOuter({ x: mx, y: my }), 0);
               const shown = refs.slice(0, MACRO_REF_MAX);
               const extra = refs.length - shown.length;
               const fs = MACRO_LABEL_PX / zoom;
@@ -868,30 +990,33 @@ export function RingsMapSvg(props: Props) {
               : "none",
           }}
         >
-          {moduleList.map(([id, circle]) => (
-            <circle
-              key={id}
-              cx={circle.cx}
-              cy={circle.cy}
-              r={circle.r}
-              fill={
-                dependencyIds.has(id)
-                  ? DOWNSTREAM_FILL
-                  : dependentIds.has(id)
-                    ? UPSTREAM_FILL
-                    : cyclicModuleIds.has(id)
-                      ? CIRCLE_CYCLE_FILL
-                      : CIRCLE_FILL
-              }
-              stroke={isSelected(id) ? SELECT_STROKE : CIRCLE_STROKE}
-              stroke-width={isSelected(id) ? 2.4 : 1.2}
-              opacity={moduleOpacity(id)}
-              onClick={(event) => {
-                event.stopPropagation();
-                onSelect(id, event.shiftKey);
-              }}
-            />
-          ))}
+          {moduleList.map(([id, circle]) => {
+            const c = liftXY({ x: circle.cx, y: circle.cy }, id);
+            return (
+              <circle
+                key={id}
+                cx={c.x}
+                cy={c.y}
+                r={circle.r}
+                fill={
+                  dependencyIds.has(id)
+                    ? DOWNSTREAM_FILL
+                    : dependentIds.has(id)
+                      ? UPSTREAM_FILL
+                      : cyclicModuleIds.has(id)
+                        ? CIRCLE_CYCLE_FILL
+                        : CIRCLE_FILL
+                }
+                stroke={isSelected(id) ? SELECT_STROKE : CIRCLE_STROKE}
+                stroke-width={isSelected(id) ? 2.4 : 1.2}
+                opacity={moduleOpacity(id)}
+                onClick={(event) => {
+                  event.stopPropagation();
+                  onSelect(id, event.shiftKey);
+                }}
+              />
+            );
+          })}
         </g>
         {/* intermediate boundary districts (shared with treemap) */}
         <InnerLevelsLayer
@@ -904,6 +1029,7 @@ export function RingsMapSvg(props: Props) {
           labels={labels}
           visibleLevels={props.visibleLevels}
           tilt={tiltAffine}
+          liftOf={elevationOn ? liftOffsetOf : undefined}
           labelMinPx={props.labelMinPx}
           labelScale={props.labelScale}
         />
@@ -1047,7 +1173,8 @@ export function RingsMapSvg(props: Props) {
             styleOf={(edge) => {
               const ends = edgeEndpoints(edge);
               const slack = committedView.w * 0.1;
-              if (!ends || (!inView(ends[0], slack) && !inView(ends[1], slack))) return null;
+              if (!ends || (!inView(toOuter(ends[0]), slack) && !inView(toOuter(ends[1]), slack)))
+                return null;
               return { stroke: SYMBOL_EDGE, opacity: 0.45, width: 0.6 };
             }}
           />
@@ -1121,8 +1248,8 @@ export function RingsMapSvg(props: Props) {
         {/* hover preview: a faint accent over the edge a click would pick */}
         {hoveredEdge && !isSelectedEdge(hoveredEdge.source, hoveredEdge.target)
           ? (() => {
-              const a = rings.circles.get(hoveredEdge.source);
-              const b = rings.circles.get(hoveredEdge.target);
+              const a = liftedCircleOf(hoveredEdge.source);
+              const b = liftedCircleOf(hoveredEdge.target);
               if (a && b) {
                 const dx = b.cx - a.cx;
                 const dy = b.cy - a.cy;
@@ -1174,7 +1301,9 @@ export function RingsMapSvg(props: Props) {
         {props.previewId
           ? (() => {
               const id = props.previewId;
-              const circle = rings.circles.get(id);
+              // outline rides the lifted disc/cell so it marks where the camera
+              // actually flew, not the sea-level position.
+              const circle = liftedCircleOf(id);
               if (circle) {
                 return (
                   <circle
@@ -1204,7 +1333,8 @@ export function RingsMapSvg(props: Props) {
                       break outer;
                     }
               if (!poly || poly.length < 3) return null;
-              const pts = poly.map((p) => `${p.x},${p.y}`).join(" ");
+              const off = liftOffsetOf(id);
+              const pts = poly.map((p) => `${p.x + off.x},${p.y + off.y}`).join(" ");
               return (
                 <g style={{ pointerEvents: "none" }}>
                   <polygon
@@ -1232,8 +1362,8 @@ export function RingsMapSvg(props: Props) {
         {selectedEdges.map((selectedEdge) => {
           const key = `${selectedEdge.source}->${selectedEdge.target}`;
           return (() => {
-            const a = rings.circles.get(selectedEdge.source);
-            const b = rings.circles.get(selectedEdge.target);
+            const a = liftedCircleOf(selectedEdge.source);
+            const b = liftedCircleOf(selectedEdge.target);
             if (a && b) {
               const dx = b.cx - a.cx;
               const dy = b.cy - a.cy;
@@ -1263,7 +1393,7 @@ export function RingsMapSvg(props: Props) {
                     x2={b.cx}
                     y2={b.cy}
                     stroke={SELECT_STROKE}
-                    stroke-width={1.5 + Math.log2(1 + (top?.weight ?? 1))}
+                    stroke-width={1.25 + 0.5 * Math.log2(1 + (top?.weight ?? 1))}
                     stroke-opacity={0.95}
                   />
                   <polygon
@@ -1284,6 +1414,8 @@ export function RingsMapSvg(props: Props) {
                   {lines.length > 0 ? (
                     <text
                       transform={uprightAt(tiltAffine, {
+                        // a/b are already elevation-lifted (liftedCircleOf), so
+                        // their midpoint is too — don't lift it a second time.
                         x: (a.cx + b.cx) / 2,
                         y: (a.cy + b.cy) / 2,
                       })}
@@ -1340,7 +1472,10 @@ export function RingsMapSvg(props: Props) {
         {portNodes.length > 0 ? (
           <g>
             {portNodes.map((port) => {
-              if (!inView({ x: port.x, y: port.y }, 20)) return null;
+              // ride the module's lifted rim: dot and label draw at the lifted
+              // position; cull against its drawn (also tilted) position.
+              const pos = liftXY({ x: port.x, y: port.y }, port.id);
+              if (!inView(toOuter(pos), 20)) return null;
               const opacity = focus
                 ? focus.fileIds.has(port.id) || focus.symbolIds.has(port.id)
                   ? 1
@@ -1349,8 +1484,8 @@ export function RingsMapSvg(props: Props) {
               return (
                 <g key={port.id} opacity={opacity}>
                   <circle
-                    cx={port.x}
-                    cy={port.y}
+                    cx={pos.x}
+                    cy={pos.y}
                     r={screenRadius(isSelected(port.id) ? 5 : 3.6)}
                     fill={PORT_FILL}
                     stroke={isSelected(port.id) ? SELECT_STROKE : EXPORTED_DOT}
@@ -1361,10 +1496,7 @@ export function RingsMapSvg(props: Props) {
                     }}
                   />
                   <text
-                    transform={uprightAt(tiltAffine, {
-                      x: port.x,
-                      y: port.y - screenRadius(7),
-                    })}
+                    transform={uprightAt(tiltAffine, { x: pos.x, y: pos.y - screenRadius(7) })}
                     font-size={11 / zoom}
                     text-anchor="middle"
                     font-weight="600"
@@ -1403,10 +1535,20 @@ export function RingsMapSvg(props: Props) {
               return (
                 <text
                   key={id}
-                  transform={uprightAt(tiltAffine, {
-                    x: circle.cx,
-                    y: circle.cy - circle.r - fontSize * 0.4 - (segments.length - 1) * lineHeight,
-                  })}
+                  transform={uprightAt(
+                    tiltAffine,
+                    liftXY(
+                      {
+                        x: circle.cx,
+                        y:
+                          circle.cy -
+                          circle.r -
+                          fontSize * 0.4 -
+                          (segments.length - 1) * lineHeight,
+                      },
+                      id,
+                    ),
+                  )}
                   font-size={fontSize}
                   font-weight="600"
                   fill={MODULE_LABEL_INK}
@@ -1423,10 +1565,10 @@ export function RingsMapSvg(props: Props) {
             return (
               <text
                 key={id}
-                transform={uprightAt(tiltAffine, {
-                  x: circle.cx,
-                  y: circle.cy - circle.r - fontSize * 0.4,
-                })}
+                transform={uprightAt(
+                  tiltAffine,
+                  liftXY({ x: circle.cx, y: circle.cy - circle.r - fontSize * 0.4 }, id),
+                )}
                 font-size={fontSize}
                 font-weight="600"
                 fill={MODULE_LABEL_INK}
@@ -1453,10 +1595,10 @@ export function RingsMapSvg(props: Props) {
                 return (
                   <text
                     key={cell.id}
-                    transform={uprightAt(tiltAffine, {
-                      x: cell.site.x,
-                      y: cell.site.y + fontSize * 0.35,
-                    })}
+                    transform={uprightAt(
+                      tiltAffine,
+                      liftXY({ x: cell.site.x, y: cell.site.y + fontSize * 0.35 }, cell.id),
+                    )}
                     font-size={fontSize}
                     fill={testFileIds.has(cell.id) ? TEST_LABEL_INK : FILE_LABEL_INK}
                     opacity={fileOpacity(cell.id)}
@@ -1508,11 +1650,12 @@ export function RingsMapSvg(props: Props) {
                     fileSelected ||
                     ((linked || dominant || roomy) && fits);
                 if (!passes) return null;
+                const tagAt = liftXY({ x: cell.site.x, y: cell.site.y - screenRadius(4) }, cell.id);
                 return (
                   <SymbolTag
                     key={cell.id}
-                    cx={cell.site.x}
-                    cy={cell.site.y - screenRadius(4)}
+                    cx={tagAt.x}
+                    cy={tagAt.y}
                     name={name}
                     glyph={glyph}
                     static={isStaticKind(kind)}
@@ -1543,6 +1686,7 @@ export function RingsMapSvg(props: Props) {
             dim={dim}
             view={committedView}
             tilt={tiltAffine}
+            liftOf={elevationOn ? liftOffsetOf : undefined}
           />
         ) : null}
       </g>

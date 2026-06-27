@@ -30,6 +30,10 @@ export type MapHandlers = {
   /** Node the command palette is previewing (auto-focused but not selected);
    * the renderer outlines it so it's clear which one the camera flew to. */
   previewId?: string | null;
+  /** Topological elevation per node id (file / module), normalized to [0,1]
+   * with the entry point at 1. The renderer lifts each node by its height in
+   * the tilted view; absent/empty = no elevation. */
+  elevation?: Map<string, number>;
   /** Pending camera fly-to request (consumed by the renderer's viewport). */
   focusRequest: FocusRequest | null;
   onSelect: (id: string | null, additive?: boolean) => void;

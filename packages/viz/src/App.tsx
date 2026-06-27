@@ -59,10 +59,12 @@ import {
   type TraceTimeline,
 } from "@sprawlens/schema";
 import { apply, layerTransform } from "@sprawlens/layout";
+import { elevationUnitLift, mapTiltAffine, tiltStrengthOf } from "./tiltElevation.ts";
 import { sprawlensSnapshot } from "./fixtures/sprawlens.ts";
 import { applyRingsChanges, createRingsState, type RingsState } from "./ringsController.ts";
 import { applyTreemapChanges, createTreemapState, type TreemapState } from "./treemapController.ts";
 import { reachSubgraph } from "@sprawlens/layout";
+import { elevationFromEntry } from "@sprawlens/layout";
 import { cyclicComponents } from "@sprawlens/layout";
 import type { FocusRequest, FocusView } from "./RingsMapSvg.tsx";
 import { createSyntheticGraph, synthesizeSymbolEdges, synthesizeSymbols } from "./synthetic.ts";
@@ -1357,21 +1359,120 @@ export function App() {
     return null;
   };
 
-  /** World-space bounding box of any visible element, across layout kinds. */
-  const geometryBoundsOf = (
-    id: string,
-  ): { x0: number; x1: number; y0: number; y1: number } | null => {
+  // topological elevation at the MODULE level — the architecturally meaningful
+  // layer: the apps (packages nothing else depends on, e.g. the one holding
+  // main) sit at the summit, foundations (contracts / layout / schema) at sea
+  // level. The renderer lifts each module's whole disc — cells, labels, edges —
+  // by its height when tilted, so packages stack as a dependency layer-cake.
+  // Keyed by module id; cells resolve to their module in the renderer. Cached
+  // by the layout-state identity.
+  const elevationCacheRef = useRef<{ key: unknown; map: Map<string, number> } | null>(null);
+  const currentElevation = (): Map<string, number> => {
+    const graph = displayGraphRef.current;
+    if (elevationCacheRef.current?.key === graph) return elevationCacheRef.current.map;
+    // derive the package → package dependency graph by folding the import edges
+    // up to their modules (rings.topEdges doesn't carry cross-module deps)
+    const moduleOf = currentModuleIdOf();
+    const seen = new Set<string>();
+    const moduleEdges: { source: string; target: string }[] = [];
+    for (const e of graph.edges) {
+      const s = moduleOf(contractParentFileOf(e.source));
+      const t = moduleOf(contractParentFileOf(e.target));
+      if (s === t) continue;
+      const key = `${s}>${t}`;
+      if (seen.has(key)) continue;
+      seen.add(key);
+      moduleEdges.push({ source: s, target: t });
+    }
+    const moduleIds = new Set<string>();
+    for (const e of moduleEdges) {
+      moduleIds.add(e.source);
+      moduleIds.add(e.target);
+    }
+    // entry modules = packages nothing depends on (the apps at the top of the
+    // stack); fall back to every module if there is no clear root
+    const targets = new Set(moduleEdges.map((e) => e.target));
+    let entries = [...moduleIds].filter((id) => !targets.has(id));
+    if (entries.length === 0) entries = [...moduleIds];
+    const map = new Map<string, number>();
+    if (moduleEdges.length > 0 && entries.length > 0) {
+      const raw = elevationFromEntry(entries, moduleEdges);
+      let max = 0;
+      for (const v of raw.values()) max = Math.max(max, v);
+      if (max > 0) {
+        for (const [id, v] of raw) map.set(id, v / max);
+        // expand to every displayed node (and its file), keyed to its module's
+        // height, so the renderer resolves any cell / symbol / reference-anchored
+        // endpoint consistently — otherwise lit effects detach from their disc
+        for (const node of graph.nodes) {
+          const ev = map.get(moduleOf(contractParentFileOf(node.id)));
+          if (ev === undefined) continue;
+          map.set(node.id, ev);
+          const file = contractParentFileOf(node.id);
+          if (!map.has(file)) map.set(file, ev);
+        }
+      }
+    }
+    elevationCacheRef.current = { key: graph, map };
+    return map;
+  };
+  /** World displacement a node's disc is drawn at in the tilted elevation view
+   * (zero when flat) — the single off-renderer source of the lift, so the
+   * crosshair hit-test and the camera framing both agree with what's drawn. */
+  const elevationOffsetOf = (id: string): Vec2 => {
+    const tiltStrength = tiltStrengthOf(params.tilt);
+    if (!params.tilt.enabled || tiltStrength <= 0.01 || !ringsRef.current) return { x: 0, y: 0 };
+    const tiltAffine = mapTiltAffine(params.tilt, WIDTH, HEIGHT);
+    if (!tiltAffine) return { x: 0, y: 0 };
+    const elev = currentElevation();
+    const e = elev.get(id) ?? elev.get(moduleOfId(id)) ?? 0;
+    if (!e) return { x: 0, y: 0 };
+    const unitLift = elevationUnitLift(tiltAffine, HEIGHT, tiltStrength);
+    return { x: unitLift.x * e, y: unitLift.y * e };
+  };
+
+  /** Frame an element's sea-level bbox where it is actually *drawn*: lift it to
+   * its disc height and apply the content tilt, because the camera's viewBox
+   * lives in that post-tilt space (the flight sets cx/cy there). Flat view →
+   * tiltAffine is identity and the lift is zero, so the bbox is unchanged. */
+  const framedBounds = (id: string, x0: number, y0: number, x1: number, y1: number): Bounds => {
+    const off = elevationOffsetOf(id);
+    const tiltAffine = params.tilt.enabled ? mapTiltAffine(params.tilt, WIDTH, HEIGHT) : undefined;
+    const corners = [
+      { x: x0 + off.x, y: y0 + off.y },
+      { x: x1 + off.x, y: y0 + off.y },
+      { x: x1 + off.x, y: y1 + off.y },
+      { x: x0 + off.x, y: y1 + off.y },
+    ];
+    const pts = tiltAffine ? corners.map((c) => apply(tiltAffine, c)) : corners;
+    let bx0 = Infinity;
+    let bx1 = -Infinity;
+    let by0 = Infinity;
+    let by1 = -Infinity;
+    for (const p of pts) {
+      bx0 = Math.min(bx0, p.x);
+      bx1 = Math.max(bx1, p.x);
+      by0 = Math.min(by0, p.y);
+      by1 = Math.max(by1, p.y);
+    }
+    return { x0: bx0, x1: bx1, y0: by0, y1: by1 };
+  };
+
+  /** Bounding box of any visible element (across layout kinds) in the camera's
+   * framing space — see framedBounds for the tilt/elevation mapping. */
+  const geometryBoundsOf = (id: string): Bounds | null => {
     const circle = ringsRef.current?.circles.get(id);
     if (circle) {
-      return {
-        x0: circle.cx - circle.r,
-        x1: circle.cx + circle.r,
-        y0: circle.cy - circle.r,
-        y1: circle.cy + circle.r,
-      };
+      return framedBounds(
+        id,
+        circle.cx - circle.r,
+        circle.cy - circle.r,
+        circle.cx + circle.r,
+        circle.cy + circle.r,
+      );
     }
     const port = portNodesRef.current.find((p) => p.id === id);
-    if (port) return { x0: port.x, x1: port.x, y0: port.y, y1: port.y };
+    if (port) return framedBounds(id, port.x, port.y, port.x, port.y);
     const cell = innerCellsRef.current.find((c) => c.id === id) ?? outerCellOf(id);
     if (!cell || cell.polygon.length < 3) return null;
     let x0 = Infinity;
@@ -1384,7 +1485,13 @@ export function App() {
       y0 = Math.min(y0, p.y);
       y1 = Math.max(y1, p.y);
     }
-    return { x0, x1, y0, y1 };
+    // center on the cell's site (its label + edge anchor — what the user reads as
+    // "this symbol"), keeping the polygon's bbox size for zoom. A Voronoi seed
+    // sits well off its cell's bbox midpoint, so centering the bbox would leave
+    // the focused symbol noticeably off-center.
+    const hw = (x1 - x0) / 2;
+    const hh = (y1 - y0) / 2;
+    return framedBounds(id, cell.site.x - hw, cell.site.y - hh, cell.site.x + hw, cell.site.y + hh);
   };
 
   /** Union bbox of several elements' geometry; null if none resolve. */
@@ -1421,6 +1528,10 @@ export function App() {
   /** Frame closeness for palette preview/commit: tighter than the default jump
    * so a hit reads as "zoom into this", with a little surrounding context. */
   const PALETTE_PADDING = 4;
+  /** A whole module fills far more of the view than a file/symbol, so it frames
+   * much tighter — the disc nearly fills the viewport so even the larger modules
+   * clear the inner-cell reveal zoom instead of landing as an empty circle. */
+  const MODULE_PADDING = 1.2;
   const isSymbolId = (id: string) => id.startsWith("symbol:") || id.includes("#");
   /** Build the searchable node universe from what's actually navigable: the
    * top-level circles (modules), the laid-out leaf + inner cells (files or
@@ -1452,17 +1563,25 @@ export function App() {
   };
   /** Bounds to frame for a jump: the node itself, else the file it lives in,
    * else its module — so files/symbols without a current cell still fly to the
-   * nearest visible ancestor (and reveal as you zoom). */
-  const focusBoundsForId = (id: string): Bounds | null => {
+   * nearest visible ancestor (and reveal as you zoom). `module` flags a whole-
+   * module frame (the target is a module, or fell back to one) so the caller
+   * can zoom in tighter — a module is so much bigger than a file/symbol that the
+   * default palette padding lands it below the inner-reveal zoom (empty disc). */
+  const focusBoundsForId = (id: string): { bounds: Bounds; module: boolean } | null => {
+    const isModuleId =
+      (ringsRef.current?.circles.has(id) ?? false) ||
+      (treemapRef.current?.levels[0]?.cells.has(id) ?? false);
     const direct = geometryBoundsOf(id);
-    if (direct) return direct;
+    if (direct) return { bounds: direct, module: isModuleId };
     const file = parentFileOf(id);
     const viaFile = file !== id ? geometryBoundsOf(file) : null;
-    return viaFile ?? geometryBoundsOf(moduleOfId(id));
+    if (viaFile) return { bounds: viaFile, module: false };
+    const mod = geometryBoundsOf(moduleOfId(id));
+    return mod ? { bounds: mod, module: true } : null;
   };
   const flyToNode = (id: string) => {
-    const bounds = focusBoundsForId(id);
-    if (bounds) focusBounds(bounds, PALETTE_PADDING);
+    const f = focusBoundsForId(id);
+    if (f) focusBounds(f.bounds, f.module ? MODULE_PADDING : PALETTE_PADDING);
   };
   const openPalette = () => {
     paletteNodesRef.current = buildSearchNodes();
@@ -1857,13 +1976,23 @@ export function App() {
       }
       return parts;
     }
-    // crosshair hit-test at the settled view center
-    const p = { x: viewInfo.x, y: viewInfo.y };
+    // crosshair hit-test at the settled view center. `viewInfo` is already a
+    // pre-tilt world point — useMapViewport.commitView inverts the content
+    // group's CTM (tilt included) before reporting it — so the only correction
+    // left is elevation: the discs are drawn lifted, so subtract each module's
+    // lift (elevationOffsetOf, zero when flat) to recover the sea-level polygon
+    // the layout stores. all of a module's descendants share its height, so once
+    // the module is found `p` is fixed for every deeper hit.
+    const center = { x: viewInfo.x, y: viewInfo.y };
+    let p = center;
     let moduleId: string | null = null;
     if (rings) {
       for (const [id, circle] of rings.circles) {
-        if (Math.hypot(p.x - circle.cx, p.y - circle.cy) <= circle.r) {
+        const off = elevationOffsetOf(id);
+        const q = { x: center.x - off.x, y: center.y - off.y };
+        if (Math.hypot(q.x - circle.cx, q.y - circle.cy) <= circle.r) {
           moduleId = id;
+          p = q;
           break;
         }
       }
@@ -2280,6 +2409,9 @@ export function App() {
     selectedIds: selectedIdSet,
     selectedEdges,
     previewId,
+    // only the tilted view lifts discs; skip the module-graph BFS/topoRank when
+    // flat (it would be recomputed on every live snapshot and thrown away)
+    elevation: params.tilt.enabled ? currentElevation() : undefined,
     focusRequest,
     onSelect: selectNode,
     onSelectEdge: selectEdge,
