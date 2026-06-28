@@ -5,6 +5,7 @@ import { bundlePath, hierarchyControlPoints } from "@sprawlens/layout";
 import type { CellResult } from "@sprawlens/layout";
 import type { Vec2 } from "@sprawlens/layout";
 import { apply, toMatrixString, uprightAt, type Affine } from "@sprawlens/layout";
+import { wedgeColor, type WedgeProfile } from "./hierarchyColor.ts";
 import type { PlacedNode } from "./planeLayers.ts";
 import { symbolNameOf } from "./cfgClient.ts";
 import type { CfgAnchor } from "./CfgLayer.tsx";
@@ -101,22 +102,29 @@ export let PANEL_BG = "rgba(248, 250, 252, 0.92)";
 export let PANEL_BORDER = "#cbd5e1";
 export let INK = "#0f172a";
 export let MUTED_INK = "#64748b";
-/** District hue lightness profile (top fill/stroke, inner stroke, labels,
- * leaf tint), switched together with the rest of the theme. */
+/** District hue lightness profile (top fill/stroke, inner stroke, labels),
+ * switched together with the rest of the theme. */
 let hueProfile = {
   topFill: "30% 97%",
   topStroke: "45% 55%",
   topLabel: "50% 32%",
   innerStroke: "35% 62%",
   innerLabel: "40% 42%",
-  leafTint: "25% 94%",
 };
+/** OKLCh wedge each module's leaves scatter through, around the module hue —
+ * light pastel tints by default, dark shades under the dark theme. Adopted from
+ * arXiv:2407.14742 so sibling files stay discriminable within their module. */
+let leafWedge: WedgeProfile = { l: [0.86, 0.95], c: [0.035, 0.09], hueSpread: 24 };
 export const districtFill = (id: string) => `hsl(${moduleHue(id)} ${hueProfile.topFill})`;
 export const districtStroke = (id: string) => `hsl(${moduleHue(id)} ${hueProfile.topStroke})`;
 export const districtLabelFill = (id: string) => `hsl(${moduleHue(id)} ${hueProfile.topLabel})`;
 const innerDistrictStroke = (id: string) => `hsl(${moduleHue(id)} ${hueProfile.innerStroke})`;
 const innerDistrictLabelFill = (id: string) => `hsl(${moduleHue(id)} ${hueProfile.innerLabel})`;
-const leafTint = (id: string) => `hsl(${moduleHue(id)} ${hueProfile.leafTint})`;
+/** A leaf's fill: scattered through its module's OKLCh wedge so siblings read
+ * apart while the module's hue identity holds. `moduleId` sets the base hue,
+ * `leafId` the position within the wedge. */
+const leafTint = (moduleId: string, leafId: string) =>
+  wedgeColor(moduleHue(moduleId), hashKey(leafId), leafWedge);
 
 export function setMapTheme(dark: boolean): void {
   if (dark) {
@@ -179,8 +187,8 @@ export function setMapTheme(dark: boolean): void {
       topLabel: "55% 70%",
       innerStroke: "40% 50%",
       innerLabel: "45% 65%",
-      leafTint: "30% 16%",
     };
+    leafWedge = { l: [0.2, 0.32], c: [0.045, 0.11], hueSpread: 24 };
   } else {
     MODIFIED_FILL = "hsl(8 85% 78%)";
     ADDED_FILL = "hsl(150 55% 80%)";
@@ -241,8 +249,8 @@ export function setMapTheme(dark: boolean): void {
       topLabel: "50% 32%",
       innerStroke: "35% 62%",
       innerLabel: "40% 42%",
-      leafTint: "25% 94%",
     };
+    leafWedge = { l: [0.86, 0.95], c: [0.035, 0.09], hueSpread: 24 };
   }
 }
 
@@ -278,6 +286,16 @@ function moduleHue(moduleId: string): number {
     h = (h * 31 + moduleId.charCodeAt(i)) % 360;
   }
   return h;
+}
+
+/** Stable uint32 hash of a leaf id (FNV-1a), fed to the wedge as its scatter
+ * key so the same file always lands on the same color. */
+function hashKey(id: string): number {
+  let h = 2166136261;
+  for (let i = 0; i < id.length; i++) {
+    h = Math.imul(h ^ id.charCodeAt(i), 16777619);
+  }
+  return h >>> 0;
 }
 
 /* ------------------------------------------------------------- hierarchy */
@@ -343,7 +361,7 @@ export function leafFillOf(id: string, ctx: LeafFillContext): string {
   if (changed === "modified") return MODIFIED_FILL;
   if (ctx.cyclicIds?.has(id)) return CYCLE_FILL;
   if (ctx.testFileIds?.has(id)) return TEST_FILL;
-  return leafTint(ctx.topAncestorOf(id) ?? "");
+  return leafTint(ctx.topAncestorOf(id) ?? "", id);
 }
 
 /* -------------------------------------------------- intermediate levels */
