@@ -58,7 +58,7 @@ import {
   type Trace,
   type TraceTimeline,
 } from "@sprawlens/schema";
-import { apply, layerTransform } from "@sprawlens/layout";
+import { apply, layerTransform, scale } from "@sprawlens/layout";
 import { elevationUnitLift, mapTiltAffine, tiltStrengthOf } from "./tiltElevation.ts";
 import { sprawlensSnapshot } from "./fixtures/sprawlens.ts";
 import { applyRingsChanges, createRingsState, type RingsState } from "./ringsController.ts";
@@ -1416,19 +1416,27 @@ export function App() {
     elevationCacheRef.current = { key: graph, map };
     return map;
   };
+  // resolved once per render and shared by the crosshair hit-test and camera
+  // framing, so they agree with what's drawn without recomputing the affine /
+  // invert per id. The content tilt affine (undefined = flat top-down) drives
+  // framing; the elevation lift (null unless a meaningful pitch lifts discs)
+  // drives the per-disc displacement.
+  const tiltAffine = mapTiltAffine(params.tilt, WIDTH, HEIGHT);
+  const elevationLift = (() => {
+    const strength = tiltStrengthOf(params.tilt);
+    if (!tiltAffine || strength <= 0.01 || !ringsRef.current) return null;
+    const elev = currentElevation();
+    return elev.size > 0
+      ? { unitLift: elevationUnitLift(tiltAffine, HEIGHT, strength), elev }
+      : null;
+  })();
   /** World displacement a node's disc is drawn at in the tilted elevation view
    * (zero when flat) — the single off-renderer source of the lift, so the
    * crosshair hit-test and the camera framing both agree with what's drawn. */
   const elevationOffsetOf = (id: string): Vec2 => {
-    const tiltStrength = tiltStrengthOf(params.tilt);
-    if (!params.tilt.enabled || tiltStrength <= 0.01 || !ringsRef.current) return { x: 0, y: 0 };
-    const tiltAffine = mapTiltAffine(params.tilt, WIDTH, HEIGHT);
-    if (!tiltAffine) return { x: 0, y: 0 };
-    const elev = currentElevation();
-    const e = elev.get(id) ?? elev.get(moduleOfId(id)) ?? 0;
-    if (!e) return { x: 0, y: 0 };
-    const unitLift = elevationUnitLift(tiltAffine, HEIGHT, tiltStrength);
-    return { x: unitLift.x * e, y: unitLift.y * e };
+    if (!elevationLift) return { x: 0, y: 0 };
+    const e = elevationLift.elev.get(id) ?? elevationLift.elev.get(moduleOfId(id)) ?? 0;
+    return e ? scale(elevationLift.unitLift, e) : { x: 0, y: 0 };
   };
 
   /** Frame an element's sea-level bbox where it is actually *drawn*: lift it to
@@ -1437,7 +1445,6 @@ export function App() {
    * tiltAffine is identity and the lift is zero, so the bbox is unchanged. */
   const framedBounds = (id: string, x0: number, y0: number, x1: number, y1: number): Bounds => {
     const off = elevationOffsetOf(id);
-    const tiltAffine = params.tilt.enabled ? mapTiltAffine(params.tilt, WIDTH, HEIGHT) : undefined;
     const corners = [
       { x: x0 + off.x, y: y0 + off.y },
       { x: x1 + off.x, y: y0 + off.y },

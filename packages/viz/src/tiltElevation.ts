@@ -1,4 +1,4 @@
-import { apply, invert, layerTransform, type Affine, type Vec2 } from "@sprawlens/layout";
+import { apply, invert, layerTransform, sub, type Affine, type Vec2 } from "@sprawlens/layout";
 import { anyPlaneShown, type TiltParams } from "./Controls.tsx";
 
 /**
@@ -56,5 +56,5 @@ export function elevationUnitLift(
   const inv = invert(tiltAffine);
   const origin = apply(inv, { x: 0, y: 0 });
   const up = apply(inv, { x: 0, y: -height * ELEV_SPAN_FRAC * tiltStrength });
-  return { x: up.x - origin.x, y: up.y - origin.y };
+  return sub(up, origin);
 }

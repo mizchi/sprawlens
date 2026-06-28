@@ -47,6 +47,7 @@ import {
   isWatermarkSized,
   leafFillOf,
   makeEdgeBundler,
+  type EdgeBundle,
   REFERENCE_BUNDLE_STRENGTH,
   makeTopAncestorOf,
   RaisedEdgePath,
@@ -540,26 +541,25 @@ export function RingsMapSvg(props: Props) {
     [bundleParentOf, bundlePositionOf, cfgAnchors, width, height],
   );
   // an edge whose endpoints sit in different module discs — only these climb
-  // between elevation layers and want the trunk treatment.
-  const crossModule = (edge: AtlasEdge): boolean => {
-    const a = topAncestorOf(edge.source);
-    const b = topAncestorOf(edge.target);
-    return !!a && !!b && a !== b;
+  // between elevation layers and want the trunk treatment. In the elevation view
+  // route cross-module edges through the trunk bundler, intra-module ones
+  // through the given base bundler; flat just uses the base.
+  const withTrunks = (base: (edge: AtlasEdge) => EdgeBundle | null) => {
+    if (!elevationOn) return base;
+    return (edge: AtlasEdge) => {
+      const a = topAncestorOf(edge.source);
+      const b = topAncestorOf(edge.target);
+      return a && b && a !== b ? trunkBundleOf(edge) : base(edge);
+    };
   };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   const bundleOf = useMemo(
-    () =>
-      elevationOn
-        ? (edge: AtlasEdge) => (crossModule(edge) ? trunkBundleOf(edge) : ambientBundleOf(edge))
-        : ambientBundleOf,
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    () => withTrunks(ambientBundleOf),
     [elevationOn, ambientBundleOf, trunkBundleOf],
   );
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   const referenceBundleOf = useMemo(
-    () =>
-      elevationOn
-        ? (edge: AtlasEdge) => (crossModule(edge) ? trunkBundleOf(edge) : referenceFanOf(edge))
-        : referenceFanOf,
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    () => withTrunks(referenceFanOf),
     [elevationOn, referenceFanOf, trunkBundleOf],
   );
   const edgeEndpoints = makeEdgeEndpointResolver({

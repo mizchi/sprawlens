@@ -369,6 +369,7 @@ export function InnerLevelsLayer(props: {
   const labelFactor = (props.labelMinPx ?? 9) / 9;
   const labelScale = props.labelScale ?? 1;
   const { levels, topAncestorOf, isSelected, onSelect, dim, zoom } = props;
+  const liftAt = (id: string): Vec2 => props.liftOf?.(id) ?? { x: 0, y: 0 };
   const visible = (kind: string) => props.visibleLevels?.has(kind) ?? true;
   return (
     <>
@@ -394,7 +395,7 @@ export function InnerLevelsLayer(props: {
               return null;
             }
             const top = topAncestorOf(cell.id) ?? "";
-            const off = props.liftOf?.(top) ?? { x: 0, y: 0 };
+            const off = liftAt(top);
             return (
               <polygon
                 key={cell.id}
@@ -435,7 +436,7 @@ export function InnerLevelsLayer(props: {
             const labelGate = (isClassGroup ? CLASS_BORDER_MIN_PX : 80) * labelFactor;
             if (px < labelGate && !isSelected(cell.id)) return null;
             const top = topAncestorOf(cell.id) ?? "";
-            const off = props.liftOf?.(top) ?? { x: 0, y: 0 };
+            const off = liftAt(top);
             const fontSize =
               Math.min(Math.sqrt(cell.actualArea) * 0.12, 16 / zoom + 4) * labelScale;
             // honour the user's minimum drawn size: drop labels smaller than it
