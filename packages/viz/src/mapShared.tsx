@@ -5,6 +5,7 @@ import { bundlePath, hierarchyControlPoints } from "@sprawlens/layout";
 import type { CellResult } from "@sprawlens/layout";
 import type { Vec2 } from "@sprawlens/layout";
 import { apply, toMatrixString, uprightAt, type Affine } from "@sprawlens/layout";
+import { hashKey, moduleHue, wedgeColor, type WedgeProfile } from "@sprawlens/layout";
 import type { PlacedNode } from "./planeLayers.ts";
 import { symbolNameOf } from "./cfgClient.ts";
 import type { CfgAnchor } from "./CfgLayer.tsx";
@@ -101,22 +102,29 @@ export let PANEL_BG = "rgba(248, 250, 252, 0.92)";
 export let PANEL_BORDER = "#cbd5e1";
 export let INK = "#0f172a";
 export let MUTED_INK = "#64748b";
-/** District hue lightness profile (top fill/stroke, inner stroke, labels,
- * leaf tint), switched together with the rest of the theme. */
+/** District hue lightness profile (top fill/stroke, inner stroke, labels),
+ * switched together with the rest of the theme. */
 let hueProfile = {
   topFill: "30% 97%",
   topStroke: "45% 55%",
   topLabel: "50% 32%",
   innerStroke: "35% 62%",
   innerLabel: "40% 42%",
-  leafTint: "25% 94%",
 };
+/** OKLCh wedge each module's leaves scatter through, around the module hue —
+ * light pastel tints by default, dark shades under the dark theme. Adopted from
+ * arXiv:2407.14742 so sibling files stay discriminable within their module. */
+let leafWedge: WedgeProfile = { l: [0.86, 0.95], c: [0.035, 0.09], hueSpread: 24 };
 export const districtFill = (id: string) => `hsl(${moduleHue(id)} ${hueProfile.topFill})`;
 export const districtStroke = (id: string) => `hsl(${moduleHue(id)} ${hueProfile.topStroke})`;
 export const districtLabelFill = (id: string) => `hsl(${moduleHue(id)} ${hueProfile.topLabel})`;
 const innerDistrictStroke = (id: string) => `hsl(${moduleHue(id)} ${hueProfile.innerStroke})`;
 const innerDistrictLabelFill = (id: string) => `hsl(${moduleHue(id)} ${hueProfile.innerLabel})`;
-const leafTint = (id: string) => `hsl(${moduleHue(id)} ${hueProfile.leafTint})`;
+/** A leaf's fill: scattered through its module's OKLCh wedge so siblings read
+ * apart while the module's hue identity holds. `moduleId` sets the base hue,
+ * `leafId` the position within the wedge. */
+const leafTint = (moduleId: string, leafId: string) =>
+  wedgeColor(moduleHue(moduleId), hashKey(leafId), leafWedge);
 
 export function setMapTheme(dark: boolean): void {
   if (dark) {
@@ -179,8 +187,8 @@ export function setMapTheme(dark: boolean): void {
       topLabel: "55% 70%",
       innerStroke: "40% 50%",
       innerLabel: "45% 65%",
-      leafTint: "30% 16%",
     };
+    leafWedge = { l: [0.2, 0.32], c: [0.045, 0.11], hueSpread: 24 };
   } else {
     MODIFIED_FILL = "hsl(8 85% 78%)";
     ADDED_FILL = "hsl(150 55% 80%)";
@@ -241,8 +249,8 @@ export function setMapTheme(dark: boolean): void {
       topLabel: "50% 32%",
       innerStroke: "35% 62%",
       innerLabel: "40% 42%",
-      leafTint: "25% 94%",
     };
+    leafWedge = { l: [0.86, 0.95], c: [0.035, 0.09], hueSpread: 24 };
   }
 }
 
@@ -270,15 +278,6 @@ export const SYMBOL_DOMINANT_FRACTION = 0.35;
 /** Exported-symbol label color vs internal symbols. */
 export let EXPORTED_LABEL = "#047857";
 export let INTERNAL_LABEL = "#5b21b6";
-
-/** Stable pastel per top-level group so the borders read as districts. */
-function moduleHue(moduleId: string): number {
-  let h = 0;
-  for (let i = 0; i < moduleId.length; i++) {
-    h = (h * 31 + moduleId.charCodeAt(i)) % 360;
-  }
-  return h;
-}
 
 /* ------------------------------------------------------------- hierarchy */
 
@@ -343,7 +342,7 @@ export function leafFillOf(id: string, ctx: LeafFillContext): string {
   if (changed === "modified") return MODIFIED_FILL;
   if (ctx.cyclicIds?.has(id)) return CYCLE_FILL;
   if (ctx.testFileIds?.has(id)) return TEST_FILL;
-  return leafTint(ctx.topAncestorOf(id) ?? "");
+  return leafTint(ctx.topAncestorOf(id) ?? "", id);
 }
 
 /* -------------------------------------------------- intermediate levels */
@@ -369,6 +368,7 @@ export function InnerLevelsLayer(props: {
   const labelFactor = (props.labelMinPx ?? 9) / 9;
   const labelScale = props.labelScale ?? 1;
   const { levels, topAncestorOf, isSelected, onSelect, dim, zoom } = props;
+  const liftAt = (id: string): Vec2 => props.liftOf?.(id) ?? { x: 0, y: 0 };
   const visible = (kind: string) => props.visibleLevels?.has(kind) ?? true;
   return (
     <>
@@ -394,7 +394,7 @@ export function InnerLevelsLayer(props: {
               return null;
             }
             const top = topAncestorOf(cell.id) ?? "";
-            const off = props.liftOf?.(top) ?? { x: 0, y: 0 };
+            const off = liftAt(top);
             return (
               <polygon
                 key={cell.id}
@@ -435,7 +435,7 @@ export function InnerLevelsLayer(props: {
             const labelGate = (isClassGroup ? CLASS_BORDER_MIN_PX : 80) * labelFactor;
             if (px < labelGate && !isSelected(cell.id)) return null;
             const top = topAncestorOf(cell.id) ?? "";
-            const off = props.liftOf?.(top) ?? { x: 0, y: 0 };
+            const off = liftAt(top);
             const fontSize =
               Math.min(Math.sqrt(cell.actualArea) * 0.12, 16 / zoom + 4) * labelScale;
             // honour the user's minimum drawn size: drop labels smaller than it

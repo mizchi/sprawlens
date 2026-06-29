@@ -1,3 +1,4 @@
+import { config as loadEnv } from "@dotenvx/dotenvx";
 import { existsSync } from "node:fs";
 import { resolve } from "node:path";
 import { tsDetail, tsProvider } from "@sprawlens/analyzer-ts";
@@ -5,6 +6,15 @@ import { applyLayers, layerManifest } from "@sprawlens/schema";
 import type { LayerManifestEntry, Snapshot } from "@sprawlens/schema";
 import { createAtlasServer } from "@sprawlens/server";
 import { readSprawlensConfig } from "./config.ts";
+
+// decrypt the repo-root .env so the chat endpoint can read OPENROUTER_API_KEY.
+// Resolve it from this file (dev:server runs with cwd=packages/cli, where there
+// is no .env), no-op if absent.
+loadEnv({
+  path: resolve(import.meta.dirname, "../../../.env"),
+  quiet: true,
+  ignore: ["MISSING_ENV_FILE"],
+});
 
 // Dev composition for the viz dev server: analyze each named repo with the
 // TypeScript provider and serve it the same way the CLI does — an initial

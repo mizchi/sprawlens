@@ -12,6 +12,7 @@
     "preview": "vite preview --host 127.0.0.1 --port 5179 --strictPort"
   },
   "dependencies": {
+    "@sprawlens/agent": "workspace:*",
     "@sprawlens/layout": "workspace:*",
     "@sprawlens/schema": "workspace:*",
     "preact": "^10.29.2",

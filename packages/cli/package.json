@@ -60,6 +60,7 @@
     "web-tree-sitter": "^0.22.6"
   },
   "devDependencies": {
+    "@dotenvx/dotenvx": "^1.51.4",
     "@sprawlens/analyzer-terraform": "workspace:*",
     "@sprawlens/analyzer-ts": "workspace:*",
     "@sprawlens/layout": "workspace:^",

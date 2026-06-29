@@ -1,5 +1,5 @@
 {
-  "name": "@sprawlens/server",
+  "name": "@sprawlens/agent",
   "version": "0.0.0",
   "private": true,
   "type": "module",
@@ -9,7 +9,7 @@
     ".": "./src/index.ts"
   },
   "dependencies": {
-    "@sprawlens/agent": "workspace:*",
+    "@sprawlens/layout": "workspace:*",
     "@sprawlens/schema": "workspace:*"
   }
 }

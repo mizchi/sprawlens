@@ -58,7 +58,7 @@ import {
   type Trace,
   type TraceTimeline,
 } from "@sprawlens/schema";
-import { apply, layerTransform } from "@sprawlens/layout";
+import { apply, layerTransform, scale } from "@sprawlens/layout";
 import { elevationUnitLift, mapTiltAffine, tiltStrengthOf } from "./tiltElevation.ts";
 import { sprawlensSnapshot } from "./fixtures/sprawlens.ts";
 import { applyRingsChanges, createRingsState, type RingsState } from "./ringsController.ts";
@@ -77,6 +77,8 @@ import { useCommandBridge } from "./useCommandBridge.ts";
 import { buildVizCommands } from "./vizCommands.ts";
 import { HelpModal } from "./HelpModal.tsx";
 import { CommandPalette } from "./CommandPalette.tsx";
+import { ChatDock } from "./ChatDock.tsx";
+import type { ViewState as AgentViewState } from "@sprawlens/agent";
 import type { SearchNode } from "./nodeSearch.ts";
 import { projectTimelineCursor, stepClockUs, timelineDurationUs } from "./tracePlayer.ts";
 import {
@@ -1416,19 +1418,27 @@ export function App() {
     elevationCacheRef.current = { key: graph, map };
     return map;
   };
+  // resolved once per render and shared by the crosshair hit-test and camera
+  // framing, so they agree with what's drawn without recomputing the affine /
+  // invert per id. The content tilt affine (undefined = flat top-down) drives
+  // framing; the elevation lift (null unless a meaningful pitch lifts discs)
+  // drives the per-disc displacement.
+  const tiltAffine = mapTiltAffine(params.tilt, WIDTH, HEIGHT);
+  const elevationLift = (() => {
+    const strength = tiltStrengthOf(params.tilt);
+    if (!tiltAffine || strength <= 0.01 || !ringsRef.current) return null;
+    const elev = currentElevation();
+    return elev.size > 0
+      ? { unitLift: elevationUnitLift(tiltAffine, HEIGHT, strength), elev }
+      : null;
+  })();
   /** World displacement a node's disc is drawn at in the tilted elevation view
    * (zero when flat) — the single off-renderer source of the lift, so the
    * crosshair hit-test and the camera framing both agree with what's drawn. */
   const elevationOffsetOf = (id: string): Vec2 => {
-    const tiltStrength = tiltStrengthOf(params.tilt);
-    if (!params.tilt.enabled || tiltStrength <= 0.01 || !ringsRef.current) return { x: 0, y: 0 };
-    const tiltAffine = mapTiltAffine(params.tilt, WIDTH, HEIGHT);
-    if (!tiltAffine) return { x: 0, y: 0 };
-    const elev = currentElevation();
-    const e = elev.get(id) ?? elev.get(moduleOfId(id)) ?? 0;
-    if (!e) return { x: 0, y: 0 };
-    const unitLift = elevationUnitLift(tiltAffine, HEIGHT, tiltStrength);
-    return { x: unitLift.x * e, y: unitLift.y * e };
+    if (!elevationLift) return { x: 0, y: 0 };
+    const e = elevationLift.elev.get(id) ?? elevationLift.elev.get(moduleOfId(id)) ?? 0;
+    return e ? scale(elevationLift.unitLift, e) : { x: 0, y: 0 };
   };
 
   /** Frame an element's sea-level bbox where it is actually *drawn*: lift it to
@@ -1437,7 +1447,6 @@ export function App() {
    * tiltAffine is identity and the lift is zero, so the bbox is unchanged. */
   const framedBounds = (id: string, x0: number, y0: number, x1: number, y1: number): Bounds => {
     const off = elevationOffsetOf(id);
-    const tiltAffine = params.tilt.enabled ? mapTiltAffine(params.tilt, WIDTH, HEIGHT) : undefined;
     const corners = [
       { x: x0 + off.x, y: y0 + off.y },
       { x: x1 + off.x, y: y0 + off.y },
@@ -1582,6 +1591,32 @@ export function App() {
   const flyToNode = (id: string) => {
     const f = focusBoundsForId(id);
     if (f) focusBounds(f.bounds, f.module ? MODULE_PADDING : PALETTE_PADDING);
+  };
+  // ---- chat dock: bridge the live view <-> the agent's headless ViewState ----
+  const chatViewState = (): AgentViewState => {
+    const p = paramsRef.current;
+    return {
+      layout: p.layout as AgentViewState["layout"],
+      granularity: granularityOf(p.boundaries, p.displayLevels),
+      selection: selectedId ? [selectedId] : [],
+      camera: { target: selectedId },
+      hiddenLayers: [],
+      showDiff: false,
+      tilt: { enabled: p.tilt.enabled, theta: p.tilt.theta, pitch: p.tilt.pitch },
+    };
+  };
+  const applyChatView = (v: AgentViewState) => {
+    const p = paramsRef.current;
+    if (v.layout !== p.layout || v.tilt.enabled !== p.tilt.enabled) {
+      onControlsChange({
+        ...p,
+        layout: v.layout as PlaygroundParams["layout"],
+        tilt: { ...p.tilt, enabled: v.tilt.enabled, theta: v.tilt.theta, pitch: v.tilt.pitch },
+      });
+    }
+    const target = v.camera.target ?? v.selection[0] ?? null;
+    setSelectedId(target);
+    if (target) flyToNode(target);
   };
   const openPalette = () => {
     paletteNodesRef.current = buildSearchNodes();
@@ -2725,6 +2760,7 @@ export function App() {
           />
         </LayersMenu>
         <CameraPanel params={params} onChange={onControlsChange} />
+        <ChatDock view={chatViewState} onApplyView={applyChatView} />
         {/* dev toggle for experimental features (the --experimental flag forces
             them on regardless; this only flips the URL opt-in) */}
         <button

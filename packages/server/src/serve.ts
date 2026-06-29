@@ -9,7 +9,10 @@ import type {
   TestRun,
   Trace,
 } from "@sprawlens/schema";
+import { snapshotToAtlasGraph } from "@sprawlens/schema";
+import { indexGraph, initialView, runChatTurn, type ViewState } from "@sprawlens/agent";
 import { definitionPreview } from "./definitionPreview.ts";
+import { openRouterClient } from "./openrouterChat.ts";
 import {
   enrichWithLoc,
   isSafeRef,
@@ -283,6 +286,53 @@ export function createAtlasServer(opts: AtlasServerOptions): Server {
       }
       const snap = typeof producer === "function" ? await producer() : producer;
       res.writeHead(200, { "content-type": "application/json" }).end(JSON.stringify(snap));
+      return;
+    }
+
+    // GET /api/chat -> capability probe (no LLM call): the viz only shows its
+    // chat dock when the key is configured, so it stays hidden on the static
+    // Pages build or when OPENROUTER_API_KEY is unset.
+    if (req.method === "GET" && url.pathname === "/api/chat") {
+      res
+        .writeHead(200, { "content-type": "application/json" })
+        .end(JSON.stringify({ available: !!process.env.OPENROUTER_API_KEY }));
+      return;
+    }
+
+    // POST /api/chat -> ask the LLM to query/steer the map. Body: { message,
+    // view?, repo? }. Returns { reply, view, steps }; the viz applies `view`.
+    if (req.method === "POST" && url.pathname === "/api/chat") {
+      try {
+        const chunks: Buffer[] = [];
+        for await (const chunk of req) chunks.push(chunk as Buffer);
+        const body = JSON.parse(Buffer.concat(chunks).toString("utf8")) as {
+          message?: string;
+          view?: ViewState;
+          repo?: string;
+        };
+        const producer = snapshots?.get(repoOf(body.repo ?? null));
+        if (producer === undefined) {
+          res.writeHead(404).end(JSON.stringify({ error: "no snapshot" }));
+          return;
+        }
+        const snap = typeof producer === "function" ? await producer() : producer;
+        const idx = indexGraph(
+          snapshotToAtlasGraph(snap as Parameters<typeof snapshotToAtlasGraph>[0]),
+        );
+        // run the agent loop BEFORE writing headers so a failure is a clean 500
+        const result = await runChatTurn(
+          idx,
+          body.view ?? initialView,
+          body.message ?? "",
+          openRouterClient(),
+        );
+        res.writeHead(200, { "content-type": "application/json" }).end(JSON.stringify(result));
+      } catch (error) {
+        console.error(error);
+        res
+          .writeHead(500)
+          .end(JSON.stringify({ error: error instanceof Error ? error.message : "chat failed" }));
+      }
       return;
     }
 
