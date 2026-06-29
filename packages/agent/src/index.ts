@@ -9,3 +9,5 @@ export * from "./intent.ts";
 export * from "./graphQuery.ts";
 export * from "./applyIntent.ts";
 export * from "./renderView.ts";
+export * from "./toolSpecs.ts";
+export * from "./chat.ts";

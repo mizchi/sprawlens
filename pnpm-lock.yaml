@@ -244,6 +244,9 @@ importers:
 
   packages/server:
     dependencies:
+      '@sprawlens/agent':
+        specifier: workspace:*
+        version: link:../agent
       '@sprawlens/schema':
         specifier: workspace:*
         version: link:../schema
