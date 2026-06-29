@@ -17,6 +17,9 @@ const ALLOWED = {
   // L1 domain
   "@sprawlens/schema": ["@sprawlens/contracts"],
   "@sprawlens/layout": ["@sprawlens/contracts"],
+  // L2 headless agent: pure graph queries / intents / SVG render over the
+  // domain — no analyzer, no browser. Both apps (server, viz, mcp) ride on it.
+  "@sprawlens/agent": ["@sprawlens/contracts", "@sprawlens/schema", "@sprawlens/layout"],
   // L2 capability (language providers + their registry)
   "@sprawlens/analyzer-ts": ["@sprawlens/contracts", "@sprawlens/schema"],
   "@sprawlens/analyzer-go": ["@sprawlens/contracts", "@sprawlens/schema"],
@@ -33,8 +36,21 @@ const ALLOWED = {
     "@sprawlens/analyzer-moonbit",
   ],
   // L3 application — neutral: must NOT depend on any analyzer or the registry
-  "@sprawlens/server": ["@sprawlens/contracts", "@sprawlens/schema"],
-  "@sprawlens/viz": ["@sprawlens/contracts", "@sprawlens/schema", "@sprawlens/layout"],
+  "@sprawlens/server": ["@sprawlens/contracts", "@sprawlens/schema", "@sprawlens/agent"],
+  "@sprawlens/viz": [
+    "@sprawlens/contracts",
+    "@sprawlens/schema",
+    "@sprawlens/layout",
+    "@sprawlens/agent",
+  ],
+  // standalone MCP app: a composition root like the cli — may know a concrete
+  // analyzer (analyzer-ts) to build the graph it serves the agent tools over.
+  "@sprawlens/mcp": [
+    "@sprawlens/contracts",
+    "@sprawlens/schema",
+    "@sprawlens/agent",
+    "@sprawlens/analyzer-ts",
+  ],
   // L4 composition root — the only place allowed to know concrete analyzers
   "@sprawlens/cli": [
     "@sprawlens/contracts",
