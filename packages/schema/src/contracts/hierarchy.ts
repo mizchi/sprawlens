@@ -247,6 +247,39 @@ export function parentFileOf(id: string): string {
   return hash >= 0 ? id.slice(0, hash) : id;
 }
 
+/**
+ * Project symbol-level reference edges onto the files that contain their
+ * endpoints. A symbol's containment chain equals its file's, so a symbol→symbol
+ * reference folds up exactly like a file→file edge between those files — but it
+ * captures *real usage* (resolved through re-exports), which a barrel import
+ * edge misses. Intra-file references drop out; cross-file pairs dedupe with
+ * summed weight and unioned refs. Feed these alongside the file import edges so
+ * the lifted directory/module networks and focus reach reflect actual links.
+ */
+export function projectEdgesToFiles(edges: readonly AtlasEdge[]): AtlasEdge[] {
+  const byPair = new Map<string, AtlasEdge & { refs?: string[] }>();
+  for (const edge of edges) {
+    const source = parentFileOf(edge.source);
+    const target = parentFileOf(edge.target);
+    if (source === target) continue;
+    const key = `${source} ${target}`;
+    const existing = byPair.get(key);
+    if (existing) {
+      existing.weight = (existing.weight ?? 1) + (edge.weight ?? 1);
+      if (edge.refs?.length) existing.refs = [...new Set([...(existing.refs ?? []), ...edge.refs])];
+    } else {
+      byPair.set(key, {
+        source,
+        target,
+        weight: edge.weight ?? 1,
+        ...(edge.kind ? { kind: edge.kind } : {}),
+        ...(edge.refs?.length ? { refs: [...new Set(edge.refs)] } : {}),
+      });
+    }
+  }
+  return [...byPair.values()];
+}
+
 /** Module boundary via the path heuristic (or a workspace-aware mapper). */
 export function moduleGrouping(moduleIdOf: ModuleIdOf = defaultModuleIdOf): Grouping {
   return { kind: "module", groupOf: (id) => moduleIdOf(parentFileOf(id)) };

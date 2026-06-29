@@ -87,6 +87,7 @@ import {
   directoryGrouping,
   moduleGrouping,
   parentFileOf as contractParentFileOf,
+  projectEdgesToFiles,
   serviceGrouping,
   type Grouping,
   type ModuleIdOf,
@@ -808,6 +809,17 @@ export function App() {
     if (p.weight === "complexity") {
       graph = reweightByTransitiveComplexity(graph);
     }
+    // fold symbol references onto their files and add the pairs the file-import
+    // edges miss (real usage resolved through re-exports, which an import points
+    // at the barrel for). The lifted directory/module networks and focus reach
+    // then reflect actual nested links/back-links, not just imports.
+    const nodeIds = new Set(graph.nodes.map((n) => n.id));
+    const present = new Set(graph.edges.map((e) => `${e.source} ${e.target}`));
+    const extra = projectEdgesToFiles(symbolEdgesRef.current).filter(
+      (e) =>
+        nodeIds.has(e.source) && nodeIds.has(e.target) && !present.has(`${e.source} ${e.target}`),
+    );
+    if (extra.length > 0) graph = { nodes: graph.nodes, edges: [...graph.edges, ...extra] };
     displayGraphRef.current = graph;
     return graph;
   };
