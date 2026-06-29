@@ -1,4 +1,4 @@
-import { useRef, useState } from "preact/hooks";
+import { useEffect, useRef, useState } from "preact/hooks";
 import type { ViewState } from "@sprawlens/agent";
 import { INK, MUTED_INK, PANEL_BG, PANEL_BORDER, SELECT_STROKE } from "./mapShared.tsx";
 
@@ -17,11 +17,27 @@ export function ChatDock(props: {
   /** Apply the agent's returned view to the live map. */
   onApplyView: (view: ViewState) => void;
 }): preact.JSX.Element {
+  const [available, setAvailable] = useState(false);
   const [open, setOpen] = useState(false);
   const [input, setInput] = useState("");
   const [messages, setMessages] = useState<Msg[]>([]);
   const [busy, setBusy] = useState(false);
   const listRef = useRef<HTMLDivElement>(null);
+
+  // only show the dock when the chat endpoint is live and keyed (so it stays
+  // hidden on the static build or when OPENROUTER_API_KEY is unset).
+  useEffect(() => {
+    let alive = true;
+    fetch("/api/chat")
+      .then((r) => (r.ok ? r.json() : null))
+      .then((d: { available?: boolean } | null) => {
+        if (alive) setAvailable(!!d?.available);
+      })
+      .catch(() => {});
+    return () => {
+      alive = false;
+    };
+  }, []);
 
   const scrollDown = () =>
     requestAnimationFrame(() => {
@@ -55,6 +71,8 @@ export function ChatDock(props: {
       scrollDown();
     }
   };
+
+  if (!available) return <></>;
 
   return (
     <div

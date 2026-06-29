@@ -289,6 +289,16 @@ export function createAtlasServer(opts: AtlasServerOptions): Server {
       return;
     }
 
+    // GET /api/chat -> capability probe (no LLM call): the viz only shows its
+    // chat dock when the key is configured, so it stays hidden on the static
+    // Pages build or when OPENROUTER_API_KEY is unset.
+    if (req.method === "GET" && url.pathname === "/api/chat") {
+      res
+        .writeHead(200, { "content-type": "application/json" })
+        .end(JSON.stringify({ available: !!process.env.OPENROUTER_API_KEY }));
+      return;
+    }
+
     // POST /api/chat -> ask the LLM to query/steer the map. Body: { message,
     // view?, repo? }. Returns { reply, view, steps }; the viz applies `view`.
     if (req.method === "POST" && url.pathname === "/api/chat") {
