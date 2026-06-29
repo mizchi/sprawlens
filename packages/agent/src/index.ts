@@ -8,3 +8,4 @@ export * from "./viewState.ts";
 export * from "./intent.ts";
 export * from "./graphQuery.ts";
 export * from "./applyIntent.ts";
+export * from "./renderView.ts";

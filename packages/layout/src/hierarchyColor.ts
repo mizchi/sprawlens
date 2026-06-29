@@ -85,3 +85,19 @@ export function wedgeColor(baseHue: number, key: number, p: WedgeProfile): strin
   const { r, g, b } = oklchToRgb(l, c, h);
   return `rgb(${r} ${g} ${b})`;
 }
+
+/** A module's base hue (degrees), hashed from its id so the same module always
+ * gets the same color family. Shared by the live map and the headless renderer. */
+export function moduleHue(moduleId: string): number {
+  let h = 0;
+  for (let i = 0; i < moduleId.length; i++) h = (h * 31 + moduleId.charCodeAt(i)) % 360;
+  return h;
+}
+
+/** Stable uint32 hash of a leaf id (FNV-1a), used as the wedge scatter key so a
+ * file always lands on the same color. */
+export function hashKey(id: string): number {
+  let h = 2166136261;
+  for (let i = 0; i < id.length; i++) h = Math.imul(h ^ id.charCodeAt(i), 16777619);
+  return h >>> 0;
+}

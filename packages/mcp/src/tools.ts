@@ -6,7 +6,7 @@
  * descriptors into the MCP SDK.
  */
 import type { GraphIndex, Intent, IntentResult, ViewState } from "@sprawlens/agent";
-import { applyIntent, initialView } from "@sprawlens/agent";
+import { applyIntent, initialView, renderView } from "@sprawlens/agent";
 
 type JsonSchema = {
   type: "object";
@@ -112,10 +112,18 @@ const GET_VIEW: ToolDescriptor = {
   inputSchema: obj({}),
 };
 
+const RENDER: ToolDescriptor = {
+  name: "render",
+  description:
+    "Render the current view to an SVG map image: modules as colored districts, files as hierarchical-wedge cells, the selection outlined, a focused node's dependencies/dependents tinted, cropped to the focused module.",
+  inputSchema: obj({ theme: str('"light" (default) or "dark"') }),
+};
+
 /** Everything advertised to the MCP client. */
 export const TOOLS: ToolDescriptor[] = [
   ...TOOL_SPECS.map(({ name, description, inputSchema }) => ({ name, description, inputSchema })),
   GET_VIEW,
+  RENDER,
 ];
 
 /** One client connection: the graph it queries plus the view it's navigating. */
@@ -131,6 +139,12 @@ export class Session {
         data: v,
         summary: `${v.layout} / ${v.granularity}, ${v.selection.length} selected, camera ${v.camera.target ?? "(all)"}`,
       };
+    }
+    if (name === RENDER.name) {
+      const svg = renderView(this.idx, this.view, {
+        theme: args.theme === "dark" ? "dark" : "light",
+      });
+      return { kind: "data", data: svg, summary: `Rendered SVG map (${svg.length} bytes)` };
     }
     const spec = TOOL_SPECS.find((s) => s.name === name);
     if (!spec) return { kind: "error", message: `unknown tool: ${name}` };

@@ -5,7 +5,7 @@ import { bundlePath, hierarchyControlPoints } from "@sprawlens/layout";
 import type { CellResult } from "@sprawlens/layout";
 import type { Vec2 } from "@sprawlens/layout";
 import { apply, toMatrixString, uprightAt, type Affine } from "@sprawlens/layout";
-import { wedgeColor, type WedgeProfile } from "./hierarchyColor.ts";
+import { hashKey, moduleHue, wedgeColor, type WedgeProfile } from "@sprawlens/layout";
 import type { PlacedNode } from "./planeLayers.ts";
 import { symbolNameOf } from "./cfgClient.ts";
 import type { CfgAnchor } from "./CfgLayer.tsx";
@@ -278,25 +278,6 @@ export const SYMBOL_DOMINANT_FRACTION = 0.35;
 /** Exported-symbol label color vs internal symbols. */
 export let EXPORTED_LABEL = "#047857";
 export let INTERNAL_LABEL = "#5b21b6";
-
-/** Stable pastel per top-level group so the borders read as districts. */
-function moduleHue(moduleId: string): number {
-  let h = 0;
-  for (let i = 0; i < moduleId.length; i++) {
-    h = (h * 31 + moduleId.charCodeAt(i)) % 360;
-  }
-  return h;
-}
-
-/** Stable uint32 hash of a leaf id (FNV-1a), fed to the wedge as its scatter
- * key so the same file always lands on the same color. */
-function hashKey(id: string): number {
-  let h = 2166136261;
-  for (let i = 0; i < id.length; i++) {
-    h = Math.imul(h ^ id.charCodeAt(i), 16777619);
-  }
-  return h >>> 0;
-}
 
 /* ------------------------------------------------------------- hierarchy */
 

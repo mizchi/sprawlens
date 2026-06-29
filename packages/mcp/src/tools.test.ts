@@ -56,6 +56,15 @@ describe("Session", () => {
     expect((r.data as { selection: string[] }).selection).toEqual(["src/app/main.ts"]);
   });
 
+  it("render returns an SVG document for the current view", () => {
+    const s = new Session(idx);
+    s.call("focus", { target: "src/core/lib.ts" });
+    const r = s.call("render");
+    if (r.kind !== "data") throw new Error("expected data");
+    expect(typeof r.data).toBe("string");
+    expect(r.data as string).toContain("<svg");
+  });
+
   it("reports an error for an unknown tool", () => {
     expect(new Session(idx).call("nope").kind).toBe("error");
   });

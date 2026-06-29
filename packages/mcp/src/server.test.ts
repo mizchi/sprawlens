@@ -19,7 +19,10 @@ const graph: AtlasGraph = {
   ],
 };
 
-type ToolCallResult = { content?: { type: string; text?: string }[]; isError?: boolean };
+type ToolCallResult = {
+  content?: { type: string; text?: string; data?: string; mimeType?: string }[];
+  isError?: boolean;
+};
 
 async function connect() {
   const [clientTransport, serverTransport] = InMemoryTransport.createLinkedPair();
@@ -60,5 +63,13 @@ describe("MCP server (in-memory roundtrip)", () => {
     const res = await call("describe", { target: "ghost" });
     expect(res.isError).toBe(true);
     expect(textOf(res)).toContain("unknown target");
+  });
+
+  it("render returns an SVG image content block", async () => {
+    const { call } = await connect();
+    const res = await call("render", {});
+    const image = res.content?.find((c) => c.type === "image");
+    expect(image?.mimeType).toBe("image/svg+xml");
+    expect(Buffer.from(image?.data ?? "", "base64").toString()).toContain("<svg");
   });
 });

@@ -26,6 +26,24 @@ export function createServer(idx: GraphIndex): Server {
     if (result.kind === "error") {
       return { content: [{ type: "text", text: `Error: ${result.message}` }], isError: true };
     }
+    // SVG renders come back as an image block (plus the summary) so clients can
+    // display the map; other data is summary + JSON text.
+    if (
+      result.kind === "data" &&
+      typeof result.data === "string" &&
+      result.data.startsWith("<svg")
+    ) {
+      return {
+        content: [
+          { type: "text", text: result.summary },
+          {
+            type: "image",
+            data: Buffer.from(result.data).toString("base64"),
+            mimeType: "image/svg+xml",
+          },
+        ],
+      };
+    }
     const text =
       result.kind === "data"
         ? `${result.summary}\n\n${JSON.stringify(result.data, null, 2)}`

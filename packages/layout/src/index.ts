@@ -10,6 +10,7 @@ export * from "./embed.ts";
 export * from "./elevation.ts";
 export * from "./forceLayout.ts";
 export * from "./geojson.ts";
+export * from "./hierarchyColor.ts";
 export * from "./index.ts";
 export * from "./louvain.ts";
 export * from "./neighborhood.ts";
