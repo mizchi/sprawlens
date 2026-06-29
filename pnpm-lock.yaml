@@ -163,6 +163,9 @@ importers:
         specifier: ^0.22.6
         version: 0.22.6
     devDependencies:
+      '@dotenvx/dotenvx':
+        specifier: ^1.51.4
+        version: 1.75.1
       '@sprawlens/analyzer-terraform':
         specifier: workspace:*
         version: link:../analyzer-terraform
