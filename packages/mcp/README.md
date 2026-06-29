@@ -13,7 +13,7 @@ serves tools over stdio:
 
 All tools run through the same `applyIntent` the in-app chat will use, so the
 agent's answers match what the map shows. Edge convention: `source → target`
-means *source depends on target*.
+means _source depends on target_.
 
 ## Run
 
@@ -31,9 +31,9 @@ tsx packages/mcp/src/bin.ts /path/to/repo
   "mcpServers": {
     "sprawlens": {
       "command": "tsx",
-      "args": ["/abs/path/to/sprawlens/packages/mcp/src/bin.ts", "/path/to/your/repo"]
-    }
-  }
+      "args": ["/abs/path/to/sprawlens/packages/mcp/src/bin.ts", "/path/to/your/repo"],
+    },
+  },
 }
 ```
 
