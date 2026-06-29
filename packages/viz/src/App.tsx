@@ -77,6 +77,8 @@ import { useCommandBridge } from "./useCommandBridge.ts";
 import { buildVizCommands } from "./vizCommands.ts";
 import { HelpModal } from "./HelpModal.tsx";
 import { CommandPalette } from "./CommandPalette.tsx";
+import { ChatDock } from "./ChatDock.tsx";
+import type { ViewState as AgentViewState } from "@sprawlens/agent";
 import type { SearchNode } from "./nodeSearch.ts";
 import { projectTimelineCursor, stepClockUs, timelineDurationUs } from "./tracePlayer.ts";
 import {
@@ -1590,6 +1592,32 @@ export function App() {
     const f = focusBoundsForId(id);
     if (f) focusBounds(f.bounds, f.module ? MODULE_PADDING : PALETTE_PADDING);
   };
+  // ---- chat dock: bridge the live view <-> the agent's headless ViewState ----
+  const chatViewState = (): AgentViewState => {
+    const p = paramsRef.current;
+    return {
+      layout: p.layout as AgentViewState["layout"],
+      granularity: granularityOf(p.boundaries, p.displayLevels),
+      selection: selectedId ? [selectedId] : [],
+      camera: { target: selectedId },
+      hiddenLayers: [],
+      showDiff: false,
+      tilt: { enabled: p.tilt.enabled, theta: p.tilt.theta, pitch: p.tilt.pitch },
+    };
+  };
+  const applyChatView = (v: AgentViewState) => {
+    const p = paramsRef.current;
+    if (v.layout !== p.layout || v.tilt.enabled !== p.tilt.enabled) {
+      onControlsChange({
+        ...p,
+        layout: v.layout as PlaygroundParams["layout"],
+        tilt: { ...p.tilt, enabled: v.tilt.enabled, theta: v.tilt.theta, pitch: v.tilt.pitch },
+      });
+    }
+    const target = v.camera.target ?? v.selection[0] ?? null;
+    setSelectedId(target);
+    if (target) flyToNode(target);
+  };
   const openPalette = () => {
     paletteNodesRef.current = buildSearchNodes();
     const v = viewInfoRef.current;
@@ -2732,6 +2760,7 @@ export function App() {
           />
         </LayersMenu>
         <CameraPanel params={params} onChange={onControlsChange} />
+        <ChatDock view={chatViewState} onApplyView={applyChatView} />
         {/* dev toggle for experimental features (the --experimental flag forces
             them on regardless; this only flips the URL opt-in) */}
         <button

@@ -259,6 +259,9 @@ importers:
 
   packages/viz:
     dependencies:
+      '@sprawlens/agent':
+        specifier: workspace:*
+        version: link:../agent
       '@sprawlens/layout':
         specifier: workspace:*
         version: link:../layout
