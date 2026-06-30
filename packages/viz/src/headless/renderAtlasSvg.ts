@@ -170,7 +170,6 @@ export function renderAtlasSvg(graph: AtlasGraph, options: AtlasSvgOptions = {})
     granularity: level,
     innerCells: [],
     displayEdges: graph.edges,
-    graphEdges: graph.edges,
     symbolEdges: [],
     detailEdges: [],
     traceEdges: [],
