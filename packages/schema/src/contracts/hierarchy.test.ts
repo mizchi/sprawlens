@@ -9,6 +9,7 @@ import {
   fileGrouping,
   moduleGrouping,
   parentFileOf,
+  projectEdgesToFiles,
   serviceGrouping,
 } from "./hierarchy.ts";
 
@@ -309,5 +310,41 @@ describe("classIdOf", () => {
   it("returns null for a loose symbol or non-symbol id", () => {
     expect(classIdOf("symbol:src/a.ts:function:helper:1")).toBeNull();
     expect(classIdOf("src/a.ts")).toBeNull();
+  });
+});
+
+describe("projectEdgesToFiles", () => {
+  const sym = (file: string, name: string) => `symbol:${file}:function:${name}:1`;
+
+  it("folds symbol references onto their files", () => {
+    const out = projectEdgesToFiles([
+      { source: sym("a.ts", "f"), target: sym("b.ts", "g"), weight: 1, refs: ["g"] },
+    ]);
+    expect(out).toEqual([{ source: "a.ts", target: "b.ts", weight: 1, refs: ["g"] }]);
+  });
+
+  it("drops intra-file references (no self link)", () => {
+    expect(projectEdgesToFiles([{ source: sym("a.ts", "f"), target: sym("a.ts", "g") }])).toEqual(
+      [],
+    );
+  });
+
+  it("dedupes a file pair, summing weight and unioning refs", () => {
+    const out = projectEdgesToFiles([
+      { source: sym("a.ts", "f"), target: sym("b.ts", "g"), weight: 2, refs: ["g"] },
+      { source: sym("a.ts", "h"), target: sym("b.ts", "k"), weight: 3, refs: ["k", "g"] },
+    ]);
+    expect(out).toHaveLength(1);
+    expect(out[0]).toMatchObject({ source: "a.ts", target: "b.ts", weight: 5 });
+    expect(out[0]!.refs!.sort()).toEqual(["g", "k"]);
+  });
+
+  it("captures the real def file a barrel import would hide", () => {
+    // a.ts uses a symbol re-exported through index.ts but defined in impl.ts;
+    // the symbol edge resolves to impl.ts, surfacing a link the import misses
+    const out = projectEdgesToFiles([
+      { source: sym("a.ts", "use"), target: sym("impl.ts", "real"), refs: ["real"] },
+    ]);
+    expect(out.map((e) => `${e.source}->${e.target}`)).toEqual(["a.ts->impl.ts"]);
   });
 });

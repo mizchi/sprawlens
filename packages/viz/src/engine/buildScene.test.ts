@@ -7,7 +7,6 @@ const base: SceneInput = {
   granularity: "file",
   innerCells: [{ id: "c" } as never],
   displayEdges: [{ source: "a", target: "b" }],
-  graphEdges: [{ source: "x", target: "y" }],
   symbolEdges: [{ source: "s", target: "t" }],
   detailEdges: [],
   traceEdges: [],
@@ -42,11 +41,11 @@ describe("buildScene", () => {
     expect(buildScene(base)).toBeNull();
   });
 
-  it("builds a rings scene with the fixed canvas and base edges at file granularity", () => {
+  it("builds a rings scene with the fixed canvas and display edges at file granularity", () => {
     const scene = buildScene({ ...base, rings: {} as never });
     expect(scene?.kind).toBe("rings");
     expect(scene?.width).toBe(960);
-    expect(scene?.edges.file).toBe(base.graphEdges);
+    expect(scene?.edges.file).toBe(base.displayEdges);
     expect(scene?.edges.symbol).toBe(base.symbolEdges);
     expect(scene?.showEdges).toBe(false); // file granularity, showEdges off
   });

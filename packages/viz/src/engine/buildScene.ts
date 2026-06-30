@@ -20,9 +20,8 @@ export type SceneInput = {
   treemap: TreemapState | null;
   granularity: Granularity;
   innerCells: CellResult[];
-  /** Edges of the display graph (symbol granularity) and the base graph. */
+  /** Edges of the display graph used by the visible file/symbol overlays. */
   displayEdges: AtlasEdge[];
-  graphEdges: AtlasEdge[];
   symbolEdges: AtlasEdge[];
   detailEdges: AtlasEdge[];
   /** Runtime-trace overlay (symbol→symbol call path) + per-symbol heat [0,1]. */
@@ -65,7 +64,7 @@ export function buildScene(i: SceneInput): MapScene | null {
     innerCells: i.granularity === "file" ? i.innerCells : [],
     // every edge kind in one model; the granularity picks the file/symbol set
     edges: {
-      file: i.granularity === "symbol" ? i.displayEdges : i.graphEdges,
+      file: i.displayEdges,
       symbol: i.granularity === "symbol" ? i.displayEdges : i.symbolEdges,
       detail: i.detailEdges,
       trace: i.traceEdges,
