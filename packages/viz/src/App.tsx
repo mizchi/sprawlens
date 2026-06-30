@@ -2474,7 +2474,6 @@ export function App() {
     granularity,
     innerCells,
     displayEdges: displayGraphRef.current.edges,
-    graphEdges: graphRef.current.edges,
     symbolEdges: symbolEdgesRef.current,
     detailEdges: detailOverlayEdges,
     traceEdges,
