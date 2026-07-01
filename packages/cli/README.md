@@ -40,6 +40,24 @@ npx @sprawlens/cli render . -o - > map.svg             # stream to stdout
 `--layout` is `rings` or `treemap` (default), `--level` is `module` or `file`
 (default). The map is deterministic for a given `--seed` (default 1).
 
+### Targeted Agent Lens
+
+`--format lens` renders a compact SeeRepo-style SVG around one target: upstream
+dependents on the left, the target in the center, and downstream dependencies on
+the right. It is useful when an agent or reviewer needs local context instead of
+the whole map.
+
+```bash
+npx sprawlens render . --format lens --target src/core/lib.ts -o lens.svg
+npx sprawlens render . --format lens --target packages/cli --direction dependents --depth 2
+npx sprawlens render . --format lens --target src/core/lib.ts --diff origin/main -o lens-diff.svg
+```
+
+- `--format lens` requires `--target <id>`.
+- `--direction` is `dependencies`, `dependents`, or `both` (default).
+- `--diff` can be combined with `lens`; changed target-neighborhood files get
+  marked in the lens.
+
 ## PR diff visualization (GitHub Actions)
 
 `render --diff` tints files changed vs a base ref and embeds a legend, so you can

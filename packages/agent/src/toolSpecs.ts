@@ -96,6 +96,27 @@ const QUERY_TOOLS: IntentToolSpec[] = [
     inputSchema: obj({ target: str("node or module id") }, ["target"]),
     toIntent: (a) => ({ type: "describe", target: a.target as string }),
   },
+  {
+    name: "lens",
+    description:
+      "Return a Query/Agent Lens: a depth-bounded subgraph around a target with dependency/dependent roles.",
+    inputSchema: obj(
+      {
+        target: str("node or module id"),
+        direction: str('"dependencies", "dependents", or "both" (default)'),
+        depth: numb("hops, default 1"),
+        maxNodes: numb("maximum nodes, default 48"),
+      },
+      ["target"],
+    ),
+    toIntent: (a) => ({
+      type: "lens",
+      target: a.target as string,
+      direction: a.direction as "dependencies" | "dependents" | "both" | undefined,
+      depth: a.depth as number | undefined,
+      maxNodes: a.maxNodes as number | undefined,
+    }),
+  },
 ];
 
 /** Navigation tools — advance the view (what the map shows). */

@@ -78,7 +78,14 @@ import { buildVizCommands } from "./vizCommands.ts";
 import { HelpModal } from "./HelpModal.tsx";
 import { CommandPalette } from "./CommandPalette.tsx";
 import { ChatDock } from "./ChatDock.tsx";
-import type { ViewState as AgentViewState } from "@sprawlens/agent";
+import {
+  indexGraph,
+  lens as buildAgentLens,
+  type LensResult,
+  type LensTestSignal,
+  type ViewState as AgentViewState,
+} from "@sprawlens/agent";
+import { AgentLensPanel } from "./AgentLensPanel.tsx";
 import type { SearchNode } from "./nodeSearch.ts";
 import { projectTimelineCursor, stepClockUs, timelineDurationUs } from "./tracePlayer.ts";
 import {
@@ -304,8 +311,6 @@ export function App() {
   // the server's detail provider (TS today; tree-sitter-only languages have
   // none, so it just stays hidden) and shows it at the cursor. Cached per
   // symbol and debounced so map panning doesn't spam the server.
-  // pinned top-right (below the header), not at the cursor, so it never sits
-  // under the mouse you're pointing with
   const [hoverTip, setHoverTip] = useState<string | null>(null);
   // the upper "service" layer (terraform): a standalone force-directed plane,
   // toggled over the code map. Independent of the hierarchy engine for now.
@@ -324,9 +329,15 @@ export function App() {
     // have no server, so skip those (a failed fetch resolves to null anyway,
     // but this avoids a request per hover on the static deploy)
     const src = paramsRef.current.source;
-    if (src === "synthetic" || src === "sprawlens-history") return;
+    if (src === "synthetic" || src === "sprawlens-history") {
+      setHoverTip(null);
+      return;
+    }
     const parts = id.split(":"); // symbol:<path>:<kind>:<name>:<line>
-    if (parts[0] !== "symbol" || !parts[1] || !parts[3]) return;
+    if (parts[0] !== "symbol" || !parts[1] || !parts[3]) {
+      setHoverTip(null);
+      return;
+    }
     const [file, name] = [parts[1], parts[3]];
     const line = Number(parts[parts.length - 1]) || 0;
     const cached = hoverCacheRef.current.get(id);
@@ -334,6 +345,7 @@ export function App() {
       setHoverTip(cached ?? null);
       return;
     }
+    setHoverTip(null);
     hoverTimerRef.current = window.setTimeout(() => {
       void fetchHover(paramsRef.current.source, file, name, line).then((md) => {
         hoverCacheRef.current.set(id, md);
@@ -2427,6 +2439,57 @@ export function App() {
       testDuration: new Map<string, number>(Object.entries(overlay.durationOf)),
     };
   }, [testRun]);
+
+  const selectedLens: LensResult | null = useMemo(() => {
+    if (!activeId) return null;
+    const target =
+      selectedTestResult?.covers?.find((ref) => ref.symbolId)?.symbolId ??
+      selectedTestResult?.covers?.[0]?.file ??
+      activeId;
+    const byId = new Map<string, AtlasNode>();
+    for (const node of graphRef.current.nodes) byId.set(node.id, node);
+    for (const nodes of symbolsRef.current?.values() ?? []) {
+      for (const node of nodes) byId.set(node.id, node);
+    }
+    const nodeIds = new Set(byId.keys());
+    const edges = [
+      ...graphRef.current.edges,
+      ...symbolEdgesRef.current,
+      ...detailEdgesOf(target),
+      ...traceEdges,
+    ].filter((edge) => nodeIds.has(edge.source) && nodeIds.has(edge.target));
+    const changed = new Map<string, "added" | "modified">([
+      ...changedFilesRef.current,
+      ...changedSymbolsRef.current,
+    ]);
+    const testSignals = new Map<string, LensTestSignal[]>();
+    for (const result of testRun?.results ?? []) {
+      for (const cover of result.covers ?? []) {
+        if (!cover.symbolId) continue;
+        const list = testSignals.get(cover.symbolId) ?? [];
+        list.push({
+          id: result.testId,
+          status: result.status,
+          ...(result.durationMs !== undefined ? { durationMs: result.durationMs } : {}),
+        });
+        testSignals.set(cover.symbolId, list);
+      }
+    }
+    return buildAgentLens(
+      indexGraph({ nodes: [...byId.values()], edges }, currentModuleIdOf()),
+      target,
+      {
+        direction: "both",
+        depth: 1,
+        maxNodes: 24,
+        changed,
+        traceHeat,
+        testSignals,
+      },
+    );
+    // graphRef/symbol refs are refreshed by rebuild; leafGraph tracks that identity.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeId, selectedTestResult, leafGraph, hierarchyVersion, traceEdges, traceHeat, testRun]);
   /** Alt+drag on the map: horizontal rotates the plane, vertical pitches it.
    * Auto-enables tilt so the gesture is self-explanatory. */
   const onTiltDrag = (dxPx: number, dyPx: number) => {
@@ -2447,7 +2510,6 @@ export function App() {
     if (id.startsWith("symbol:")) return id.split(":")[1]!.split("/").pop()!;
     return "";
   };
-
   // The renderer boundary: assemble the renderer-agnostic scene + interaction
   // handlers, then hand them to a renderer (SVG today). Fields identical across
   // layouts live in `common`; each layout adds its own geometry + affordances.
@@ -2561,8 +2623,7 @@ export function App() {
             {servicesMode ? "● services" : "○ services"}
           </button>
         ) : null}
-        {/* LSP hover tooltip, pinned top-right below the header so it never
-            sits under the cursor; code fences syntax-highlighted, prose kept */}
+        {/* LSP hover tooltip, pinned top-right below the header. */}
         {hoverTip ? (
           <div
             style={{
@@ -2873,133 +2934,198 @@ export function App() {
           </div>
         </div>
       ) : null}
-      {/* selected nodes: closeable cards stacking up from the bottom-right */}
-      {selectedIds.length > 0 ? (
+      {/* Agent Lens dock: keep it out of the top-right hover/LSP popup lane.
+          It grows only to its content, capped to the lower part of the map. */}
+      {selectedLens || selectedIds.length > 0 ? (
         <div
           style={{
             position: "absolute",
             right: "8px",
             bottom: "8px",
-            width: "300px",
+            width: "340px",
             maxWidth: "calc(100vw - 16px)",
-            maxHeight: "calc(100vh - 60px)",
+            maxHeight: "min(52vh, 520px)",
             display: "flex",
             flexDirection: "column",
             gap: "8px",
-            overflowY: "auto",
             fontSize: "12px",
+            overflow: "hidden",
+            pointerEvents: "none",
+            zIndex: 20,
           }}
         >
-          {selectedIds.map((id) => {
-            const isActive = id === activeId;
-            return (
-              <div
-                key={id}
-                style={{
-                  flex: "none",
-                  background: PANEL_BG,
-                  border: `1px solid ${id === selectedId ? SELECT_STROKE : PANEL_BORDER}`,
-                  borderRadius: "10px",
-                  padding: "8px 10px",
-                  color: INK,
-                }}
-              >
-                <div style={{ display: "flex", alignItems: "flex-start", gap: "8px" }}>
-                  <button
-                    onClick={() => promoteToPrimary(id)}
-                    style={{
-                      flex: "1",
-                      minWidth: "0",
-                      textAlign: "left",
-                      background: "none",
-                      border: "none",
-                      color: INK,
-                      cursor: "pointer",
-                      fontWeight: "600",
-                      wordBreak: "break-all",
-                      padding: "0",
-                    }}
-                  >
-                    {labelOf(id)}
-                    {isActive ? (
-                      <span style={{ color: MUTED_INK, fontWeight: "400" }}>
-                        {selectedPort
-                          ? " (port)"
-                          : selectedIsSymbol
-                            ? " (symbol)"
-                            : selectedIsModule
-                              ? " (module)"
-                              : selectedGroupKind
-                                ? ` (${selectedGroupKind})`
-                                : selectedTest
-                                  ? " (test)"
-                                  : ""}
-                      </span>
-                    ) : null}
-                  </button>
-                  <button
-                    title="close"
-                    onClick={() => deselect(id)}
+          {selectedLens ? (
+            <div
+              style={{
+                flex: "0 1 auto",
+                maxHeight: selectedIds.length > 0 ? "36vh" : "48vh",
+                overflowY: "auto",
+                background: PANEL_BG,
+                border: `1px solid ${PANEL_BORDER}`,
+                borderRadius: "10px",
+                padding: "8px 10px",
+                color: INK,
+                pointerEvents: "auto",
+              }}
+            >
+              <AgentLensPanel result={selectedLens} onFocus={jumpTo} />
+            </div>
+          ) : null}
+          {selectedIds.length > 0 ? (
+            <div
+              style={{
+                flex: "0 1 auto",
+                marginTop: selectedLens ? 0 : "auto",
+                width: "100%",
+                maxHeight: selectedLens ? "16vh" : "min(42vh, 420px)",
+                display: "flex",
+                flexDirection: "column",
+                gap: "8px",
+                overflowY: "auto",
+                fontSize: "12px",
+                pointerEvents: "auto",
+              }}
+            >
+              {selectedIds.map((id) => {
+                const isActive = id === activeId;
+                return (
+                  <div
+                    key={id}
                     style={{
                       flex: "none",
-                      background: "none",
-                      border: "none",
-                      color: MUTED_INK,
-                      cursor: "pointer",
-                      fontSize: "15px",
-                      lineHeight: "1",
-                      padding: "0 2px",
+                      background: PANEL_BG,
+                      border: `1px solid ${id === selectedId ? SELECT_STROKE : PANEL_BORDER}`,
+                      borderRadius: "10px",
+                      padding: "8px 10px",
+                      color: INK,
                     }}
                   >
-                    ×
-                  </button>
-                </div>
-                {isActive ? (
-                  <div style={{ maxHeight: "42vh", overflowY: "auto", marginTop: "6px" }}>
-                    {selectedTest && testTargets.get(selectedTest.id) ? (
+                    <div style={{ display: "flex", alignItems: "flex-start", gap: "8px" }}>
                       <button
-                        onClick={() => jumpTo(testTargets.get(selectedTest.id)!)}
+                        onClick={() => promoteToPrimary(id)}
                         style={{
-                          marginTop: "4px",
-                          padding: "2px 4px",
-                          fontSize: "11px",
-                          cursor: "pointer",
+                          flex: "1",
+                          minWidth: "0",
+                          textAlign: "left",
                           background: "none",
                           border: "none",
-                          color: "#0891b2",
-                          textAlign: "left",
+                          color: INK,
+                          cursor: "pointer",
+                          fontWeight: "600",
+                          wordBreak: "break-all",
+                          padding: "0",
                         }}
                       >
-                        covers: {labelOf(testTargets.get(selectedTest.id)!)}
+                        {labelOf(id)}
+                        {isActive ? (
+                          <span style={{ color: MUTED_INK, fontWeight: "400" }}>
+                            {selectedPort
+                              ? " (port)"
+                              : selectedIsSymbol
+                                ? " (symbol)"
+                                : selectedIsModule
+                                  ? " (module)"
+                                  : selectedGroupKind
+                                    ? ` (${selectedGroupKind})`
+                                    : selectedTest
+                                      ? " (test)"
+                                      : ""}
+                          </span>
+                        ) : null}
                       </button>
-                    ) : null}
-                    {experimentalOn && selectedTestResult ? (
-                      <TestLogPanel result={selectedTestResult} />
-                    ) : null}
-                    {params.source === "sprawlens-history" &&
-                    activeId &&
-                    historyIndexRef.current?.nodeHistory.has(activeId) ? (
-                      <div style={{ marginTop: "6px" }}>
-                        <div style={{ fontWeight: "600" }}>
-                          Change history (
-                          {historyIndexRef.current.nodeHistory.get(activeId)!.length})
-                        </div>
-                        {[...historyIndexRef.current.nodeHistory.get(activeId)!]
-                          .reverse()
-                          .map((change) => {
-                            const commit = commitsRef.current?.[change.index];
-                            if (!commit) return null;
-                            const marker =
-                              change.kind === "added"
-                                ? ["＋", "#059669"]
-                                : change.kind === "modified"
-                                  ? ["～", "#d97706"]
-                                  : ["－", "#dc2626"];
-                            const current = change.index === commitIndexRef.current;
-                            return (
+                      <button
+                        title="close"
+                        onClick={() => deselect(id)}
+                        style={{
+                          flex: "none",
+                          background: "none",
+                          border: "none",
+                          color: MUTED_INK,
+                          cursor: "pointer",
+                          fontSize: "15px",
+                          lineHeight: "1",
+                          padding: "0 2px",
+                        }}
+                      >
+                        ×
+                      </button>
+                    </div>
+                    {isActive ? (
+                      <div style={{ maxHeight: "22vh", overflowY: "auto", marginTop: "6px" }}>
+                        {selectedTest && testTargets.get(selectedTest.id) ? (
+                          <button
+                            onClick={() => jumpTo(testTargets.get(selectedTest.id)!)}
+                            style={{
+                              marginTop: "4px",
+                              padding: "2px 4px",
+                              fontSize: "11px",
+                              cursor: "pointer",
+                              background: "none",
+                              border: "none",
+                              color: "#0891b2",
+                              textAlign: "left",
+                            }}
+                          >
+                            covers: {labelOf(testTargets.get(selectedTest.id)!)}
+                          </button>
+                        ) : null}
+                        {experimentalOn && selectedTestResult ? (
+                          <TestLogPanel result={selectedTestResult} />
+                        ) : null}
+                        {params.source === "sprawlens-history" &&
+                        activeId &&
+                        historyIndexRef.current?.nodeHistory.has(activeId) ? (
+                          <div style={{ marginTop: "6px" }}>
+                            <div style={{ fontWeight: "600" }}>
+                              Change history (
+                              {historyIndexRef.current.nodeHistory.get(activeId)!.length})
+                            </div>
+                            {[...historyIndexRef.current.nodeHistory.get(activeId)!]
+                              .reverse()
+                              .map((change) => {
+                                const commit = commitsRef.current?.[change.index];
+                                if (!commit) return null;
+                                const marker =
+                                  change.kind === "added"
+                                    ? ["＋", "#059669"]
+                                    : change.kind === "modified"
+                                      ? ["～", "#d97706"]
+                                      : ["－", "#dc2626"];
+                                const current = change.index === commitIndexRef.current;
+                                return (
+                                  <button
+                                    key={`${change.index}-${change.kind}`}
+                                    onClick={() => goToCommit(change.index)}
+                                    style={{
+                                      display: "block",
+                                      width: "100%",
+                                      textAlign: "left",
+                                      padding: "2px 4px",
+                                      fontSize: "11px",
+                                      cursor: "pointer",
+                                      background: current ? "#e0e7ff" : "none",
+                                      border: "none",
+                                      color: "#0f172a",
+                                      fontWeight: current ? "600" : "400",
+                                    }}
+                                  >
+                                    <span style={{ color: marker[1] }}>{marker[0]}</span>{" "}
+                                    <span style={{ color: MUTED_INK }}>{commit.shortHash}</span>{" "}
+                                    {commit.message.split("\n")[0]}
+                                  </button>
+                                );
+                              })}
+                          </div>
+                        ) : null}
+                        {!selectedLens && selectedRefs.incoming.length > 0 ? (
+                          <div style={{ marginTop: "6px" }}>
+                            <div style={{ fontWeight: "600" }}>
+                              referenced by ({selectedRefs.incoming.length})
+                            </div>
+                            {selectedRefs.incoming.slice(0, 12).map((id) => (
                               <button
-                                key={`${change.index}-${change.kind}`}
-                                onClick={() => goToCommit(change.index)}
+                                key={id}
+                                onClick={() => jumpTo(id)}
                                 style={{
                                   display: "block",
                                   width: "100%",
@@ -3007,102 +3133,76 @@ export function App() {
                                   padding: "2px 4px",
                                   fontSize: "11px",
                                   cursor: "pointer",
-                                  background: current ? "#e0e7ff" : "none",
+                                  background: "none",
                                   border: "none",
-                                  color: "#0f172a",
-                                  fontWeight: current ? "600" : "400",
+                                  color: "#0891b2",
                                 }}
                               >
-                                <span style={{ color: marker[1] }}>{marker[0]}</span>{" "}
-                                <span style={{ color: MUTED_INK }}>{commit.shortHash}</span>{" "}
-                                {commit.message.split("\n")[0]}
+                                ← {labelOf(id)}
+                                {granularity !== "symbol" && fileOf(id) ? (
+                                  <span style={{ color: "#94a3b8" }}> · {fileOf(id)}</span>
+                                ) : null}
                               </button>
-                            );
-                          })}
-                      </div>
-                    ) : null}
-                    {selectedRefs.incoming.length > 0 ? (
-                      <div style={{ marginTop: "6px" }}>
-                        <div style={{ fontWeight: "600" }}>
-                          referenced by ({selectedRefs.incoming.length})
-                        </div>
-                        {selectedRefs.incoming.slice(0, 12).map((id) => (
-                          <button
-                            key={id}
-                            onClick={() => jumpTo(id)}
-                            style={{
-                              display: "block",
-                              width: "100%",
-                              textAlign: "left",
-                              padding: "2px 4px",
-                              fontSize: "11px",
-                              cursor: "pointer",
-                              background: "none",
-                              border: "none",
-                              color: "#0891b2",
-                            }}
-                          >
-                            ← {labelOf(id)}
-                            {granularity !== "symbol" && fileOf(id) ? (
-                              <span style={{ color: "#94a3b8" }}> · {fileOf(id)}</span>
-                            ) : null}
-                          </button>
-                        ))}
-                      </div>
-                    ) : null}
-                    {selectedRefs.outgoing.length > 0 ? (
-                      <div style={{ marginTop: "6px" }}>
-                        <div style={{ fontWeight: "600" }}>
-                          references ({selectedRefs.outgoing.length})
-                        </div>
-                        {selectedRefs.outgoing.slice(0, 12).map((id) => (
-                          <button
-                            key={id}
-                            onClick={() => jumpTo(id)}
-                            style={{
-                              display: "block",
-                              width: "100%",
-                              textAlign: "left",
-                              padding: "2px 4px",
-                              fontSize: "11px",
-                              cursor: "pointer",
-                              background: "none",
-                              border: "none",
-                              color: "#ea580c",
-                            }}
-                          >
-                            → {labelOf(id)}
-                            {granularity !== "symbol" && fileOf(id) ? (
-                              <span style={{ color: "#94a3b8" }}> · {fileOf(id)}</span>
-                            ) : null}
-                          </button>
-                        ))}
+                            ))}
+                          </div>
+                        ) : null}
+                        {!selectedLens && selectedRefs.outgoing.length > 0 ? (
+                          <div style={{ marginTop: "6px" }}>
+                            <div style={{ fontWeight: "600" }}>
+                              references ({selectedRefs.outgoing.length})
+                            </div>
+                            {selectedRefs.outgoing.slice(0, 12).map((id) => (
+                              <button
+                                key={id}
+                                onClick={() => jumpTo(id)}
+                                style={{
+                                  display: "block",
+                                  width: "100%",
+                                  textAlign: "left",
+                                  padding: "2px 4px",
+                                  fontSize: "11px",
+                                  cursor: "pointer",
+                                  background: "none",
+                                  border: "none",
+                                  color: "#ea580c",
+                                }}
+                              >
+                                → {labelOf(id)}
+                                {granularity !== "symbol" && fileOf(id) ? (
+                                  <span style={{ color: "#94a3b8" }}> · {fileOf(id)}</span>
+                                ) : null}
+                              </button>
+                            ))}
+                          </div>
+                        ) : null}
                       </div>
                     ) : null}
                   </div>
-                ) : null}
+                );
+              })}
+              {/* one action for the whole selected stack: focus merges every
+                  selected node's dependency paths (see focusRoots) */}
+              <div style={{ display: "flex", flex: "none" }}>
+                <button
+                  onClick={() => setFocusId(focusId ? null : activeId)}
+                  style={{
+                    flex: "1",
+                    padding: "6px 8px",
+                    fontSize: "12px",
+                    cursor: "pointer",
+                    background: PANEL_BG,
+                    color: INK,
+                    border: `1px solid ${PANEL_BORDER}`,
+                    borderRadius: "8px",
+                  }}
+                >
+                  {focusId
+                    ? "Back to full view"
+                    : `Extract dependency paths (${selectedIds.length})`}
+                </button>
               </div>
-            );
-          })}
-          {/* one action for the whole selected stack: focus merges every
-              selected node's dependency paths (see focusRoots) */}
-          <div style={{ display: "flex", flex: "none" }}>
-            <button
-              onClick={() => setFocusId(focusId ? null : activeId)}
-              style={{
-                flex: "1",
-                padding: "6px 8px",
-                fontSize: "12px",
-                cursor: "pointer",
-                background: PANEL_BG,
-                color: INK,
-                border: `1px solid ${PANEL_BORDER}`,
-                borderRadius: "8px",
-              }}
-            >
-              {focusId ? "Back to full view" : `Extract dependency paths (${selectedIds.length})`}
-            </button>
-          </div>
+            </div>
+          ) : null}
         </div>
       ) : null}
     </div>

@@ -3,18 +3,21 @@ import { renderToString } from "preact-render-to-string";
 import type { AtlasGraph, SymbolKind } from "@sprawlens/schema";
 import { fileGrouping, moduleGrouping } from "@sprawlens/schema";
 import { cyclicComponents } from "@sprawlens/layout";
+import "./preactClassicJsxRuntime.ts";
 import { buildScene } from "../engine/buildScene.ts";
 import { SvgRenderer } from "../renderer/SvgRenderer.tsx";
 import { createRingsState, stepRingsState, type RingsState } from "../ringsController.ts";
 import { createTreemapState, stepTreemapState, type TreemapState } from "../treemapController.ts";
 import {
   ADDED_FILL,
+  DOWNSTREAM_FILL,
   INK,
   MAP_BG,
   MODIFIED_FILL,
   PANEL_BG,
   PANEL_BORDER,
   setMapTheme,
+  UPSTREAM_FILL,
 } from "../mapShared.tsx";
 import type { TiltParams } from "../Controls.tsx";
 import type { Granularity } from "../viewConfig.ts";
@@ -48,6 +51,17 @@ export type AtlasSvgOptions = {
   changed?: Map<string, "added" | "modified">;
   /** Counts for the diff legend; when present and non-zero, a legend is drawn. */
   diffSummary?: { added: number; modified: number; removed: number };
+  /** Semantic change overlay: touched files plus dependency blast radius. */
+  changeSpectrum?: ChangeSpectrum;
+};
+
+export type ChangeSpectrum = {
+  added: number;
+  modified: number;
+  removed: number;
+  touched: number;
+  upstream: number;
+  downstream: number;
 };
 
 // the app's fixed rings canvas and its default treemap extent
@@ -214,8 +228,55 @@ export function renderAtlasSvg(graph: AtlasGraph, options: AtlasSvgOptions = {})
       onViewSettle: NOOP,
     }),
   );
-  const legend = options.diffSummary ? buildDiffLegend(options.diffSummary, height) : "";
+  const legend = options.changeSpectrum
+    ? buildChangeSpectrumOverlay(options.changeSpectrum, height)
+    : options.diffSummary
+      ? buildDiffLegend(options.diffSummary, height)
+      : "";
   return finalize(body, width, height, legend);
+}
+
+function buildChangeSpectrumOverlay(summary: ChangeSpectrum, height: number): string {
+  const rows: Array<{ label: string; count: number; fill: string; open?: boolean }> = [];
+  if (summary.added > 0) rows.push({ label: "added", count: summary.added, fill: ADDED_FILL });
+  if (summary.modified > 0)
+    rows.push({ label: "modified", count: summary.modified, fill: MODIFIED_FILL });
+  if (summary.removed > 0)
+    rows.push({ label: "removed", count: summary.removed, fill: "none", open: true });
+  if (summary.upstream > 0)
+    rows.push({ label: "impact", count: summary.upstream, fill: UPSTREAM_FILL });
+  if (summary.downstream > 0)
+    rows.push({ label: "deps", count: summary.downstream, fill: DOWNSTREAM_FILL });
+  if (rows.length === 0) return "";
+
+  const rowH = 20;
+  const padX = 10;
+  const padY = 8;
+  const titleH = 20;
+  const boxW = 172;
+  const boxH = padY * 2 + titleH + rows.length * rowH;
+  const x = 16;
+  const y = height - boxH - 16;
+
+  const items = rows
+    .map((r, i) => {
+      const top = padY + titleH + i * rowH;
+      const swatch = r.open
+        ? `<rect x="${padX}" y="${top + 2}" width="12" height="12" rx="2" fill="none" stroke="${INK}" stroke-width="1.5"/>`
+        : `<rect x="${padX}" y="${top + 2}" width="12" height="12" rx="2" fill="${r.fill}" stroke="${INK}" stroke-opacity="0.25"/>`;
+      const text = `<text x="${padX + 18}" y="${top + 12}" font-family="ui-sans-serif, system-ui, sans-serif" font-size="11" fill="${INK}">${r.label} ${r.count}</text>`;
+      return swatch + text;
+    })
+    .join("");
+
+  return (
+    `<g transform="translate(${x} ${y})">` +
+    `<rect x="0" y="0" width="${boxW}" height="${boxH}" rx="6" fill="${PANEL_BG}" stroke="${PANEL_BORDER}"/>` +
+    `<text x="${padX}" y="${padY + 12}" font-family="ui-sans-serif, system-ui, sans-serif" font-size="11" font-weight="700" fill="${INK}">Change Spectrum</text>` +
+    `<text x="${boxW - padX}" y="${padY + 12}" text-anchor="end" font-family="ui-sans-serif, system-ui, sans-serif" font-size="10" fill="${INK}">touched ${summary.touched}</text>` +
+    items +
+    `</g>`
+  );
 }
 
 function buildDiffLegend(

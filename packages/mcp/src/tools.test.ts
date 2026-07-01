@@ -22,7 +22,15 @@ describe("TOOLS listing", () => {
   it("advertises the query tools plus get_view, each with an object schema", () => {
     const names = TOOLS.map((t) => t.name);
     expect(names).toEqual(
-      expect.arrayContaining(["dependencies", "impact", "find", "describe", "focus", "get_view"]),
+      expect.arrayContaining([
+        "dependencies",
+        "impact",
+        "find",
+        "describe",
+        "lens",
+        "focus",
+        "get_view",
+      ]),
     );
     for (const t of TOOLS) expect(t.inputSchema.type).toBe("object");
   });
@@ -67,6 +75,15 @@ describe("Session", () => {
 
   it("reports an error for an unknown tool", () => {
     expect(new Session(idx).call("nope").kind).toBe("error");
+  });
+
+  it("see_repo renders a focused lens SVG without changing the carried view", () => {
+    const s = new Session(idx);
+    const r = s.call("see_repo", { target: "src/core/lib.ts", direction: "both" });
+    if (r.kind !== "data") throw new Error("expected data");
+    expect(r.data as string).toContain("<svg");
+    expect(r.data as string).toContain("Agent Lens");
+    expect(s.view.selection).toEqual([]);
   });
 
   it("surfaces an unresolvable target as an error result", () => {

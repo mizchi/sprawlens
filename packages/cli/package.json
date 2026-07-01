@@ -61,6 +61,7 @@
   },
   "devDependencies": {
     "@dotenvx/dotenvx": "^1.51.4",
+    "@sprawlens/agent": "workspace:*",
     "@sprawlens/analyzer-terraform": "workspace:*",
     "@sprawlens/analyzer-ts": "workspace:*",
     "@sprawlens/layout": "workspace:^",

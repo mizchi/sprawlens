@@ -4,7 +4,7 @@
  * without changing the view. `applyIntent` is the single executor.
  */
 import type { Granularity, Layout, Tilt } from "./viewState.ts";
-import type { Level } from "./graphQuery.ts";
+import type { LensDirection, Level } from "./graphQuery.ts";
 
 type NavigationIntent =
   /** Frame `target` and select it. */
@@ -27,7 +27,14 @@ type QueryIntent =
   | { type: "find"; query: string; limit?: number }
   | { type: "cycles"; level?: Level }
   | { type: "path"; from: string; to: string }
-  | { type: "describe"; target: string };
+  | { type: "describe"; target: string }
+  | {
+      type: "lens";
+      target: string;
+      direction?: LensDirection;
+      depth?: number;
+      maxNodes?: number;
+    };
 
 export type Intent = NavigationIntent | QueryIntent;
 

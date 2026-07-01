@@ -31,7 +31,7 @@ const SYSTEM_PROMPT = `You operate a code-structure map ("sprawlens"). Use the t
 
 Node ids: a file is its path (e.g. "src/app/main.ts"); a symbol is "symbol:<path>:<kind>:<name>:<line>"; a module is a package/dir id (e.g. "packages/cli"). Edge direction: source depends on (imports) target — "dependencies" go forward, "dependents" backward.
 
-Resolve a name to an id with find() before querying it. When the user wants to look at or go to something, also call a navigation tool (focus / set_layout / set_granularity / home) so the map follows along.`;
+Resolve a name to an id with find() before querying it. Use lens() before broad explanations of ownership, impact, or local dependency context; it returns the target, upstream dependents, downstream dependencies, and the internal edges among them. When the user wants to look at or go to something, also call a navigation tool (focus / set_layout / set_granularity / home) so the map follows along.`;
 
 const viewSummary = (v: ViewState): string =>
   `layout=${v.layout}, granularity=${v.granularity}, selection=[${v.selection.join(", ")}], camera=${v.camera.target ?? "(all)"}`;

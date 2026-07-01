@@ -1,3 +1,6 @@
+import { execFileSync } from "node:child_process";
+import { dirname, resolve } from "node:path";
+import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
 import type { AtlasGraph } from "@sprawlens/schema";
 import { renderAtlasSvg } from "./renderAtlasSvg.ts";
@@ -16,6 +19,9 @@ const GRAPH: AtlasGraph = {
     { source: "src/b/qux.ts", target: "src/b/baz.ts" },
   ],
 };
+
+const REPO_ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "../../../..");
+const CLI_DIR = resolve(REPO_ROOT, "packages/cli");
 
 describe("renderAtlasSvg", () => {
   it("renders a standalone treemap SVG with capacity cells", () => {
@@ -77,6 +83,24 @@ describe("renderAtlasSvg", () => {
     expect(svg).toContain("removed 3");
   });
 
+  it("embeds a change spectrum overlay with impact and dependency counts", () => {
+    const svg = renderAtlasSvg(GRAPH, {
+      layout: "treemap",
+      seed: 1,
+      changeSpectrum: {
+        added: 1,
+        modified: 2,
+        removed: 3,
+        touched: 6,
+        upstream: 4,
+        downstream: 5,
+      },
+    });
+    expect(svg).toContain("Change Spectrum");
+    expect(svg).toContain("impact 4");
+    expect(svg).toContain("deps 5");
+  });
+
   it("omits zero-count rows from the legend and draws none when all zero", () => {
     const someZero = renderAtlasSvg(GRAPH, {
       layout: "treemap",
@@ -93,5 +117,26 @@ describe("renderAtlasSvg", () => {
       diffSummary: { added: 0, modified: 0, removed: 0 },
     });
     expect(allZero).not.toContain("added 0");
+  });
+
+  it("renders through the tsx CLI runtime without a React global", () => {
+    const script = `
+      import { renderAtlasSvg } from "@sprawlens/viz/headless";
+      const graph = {
+        nodes: [
+          { id: "src/a/foo.ts", kind: "file", label: "foo.ts", metrics: { loc: 10 } },
+          { id: "src/b/bar.ts", kind: "file", label: "bar.ts", metrics: { loc: 8 } }
+        ],
+        edges: [{ source: "src/a/foo.ts", target: "src/b/bar.ts" }]
+      };
+      const svg = renderAtlasSvg(graph, { layout: "treemap", level: "module", seed: 1 });
+      if (!svg.startsWith("<svg")) throw new Error("expected SVG output");
+    `;
+    expect(() =>
+      execFileSync(process.execPath, ["--import", "tsx", "-e", script], {
+        cwd: CLI_DIR,
+        encoding: "utf8",
+      }),
+    ).not.toThrow();
   });
 });

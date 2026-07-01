@@ -10,6 +10,7 @@ import { workingDiff } from "@sprawlens/server";
 import { tsProvider } from "@sprawlens/analyzer-ts";
 import { snapshotToAtlasGraph } from "@sprawlens/schema";
 import { renderAtlasSvg } from "@sprawlens/viz/headless";
+import type { AtlasGraph } from "@sprawlens/schema";
 
 const exec = promisify(execFile);
 const git = (cwd: string, args: string[]) => exec("git", args, { cwd });
@@ -38,6 +39,30 @@ describe("toDiffOverlay", () => {
     expect(changed.size).toBe(0);
     expect(diffSummary).toEqual({ added: 0, modified: 0, removed: 0 });
   });
+
+  it("computes a change spectrum from graph adjacency", () => {
+    const graph: AtlasGraph = {
+      nodes: [
+        { id: "src/app/main.ts", kind: "file", label: "main.ts", metrics: { loc: 10 } },
+        { id: "src/core/lib.ts", kind: "file", label: "lib.ts", metrics: { loc: 10 } },
+        { id: "src/db/store.ts", kind: "file", label: "store.ts", metrics: { loc: 10 } },
+      ],
+      edges: [
+        { source: "src/app/main.ts", target: "src/core/lib.ts" },
+        { source: "src/core/lib.ts", target: "src/db/store.ts" },
+      ],
+    };
+    const diff: WorkingDiff = { changed: { "src/core/lib.ts": "modified" }, removed: [] };
+    const { changeSpectrum } = toDiffOverlay(diff, graph);
+    expect(changeSpectrum).toMatchObject({
+      added: 0,
+      modified: 1,
+      removed: 0,
+      touched: 1,
+      upstream: 1,
+      downstream: 1,
+    });
+  });
 });
 
 describe("diff render end-to-end", () => {
@@ -62,16 +87,23 @@ describe("diff render end-to-end", () => {
       await git(root, ["commit", "-m", "change"]);
 
       const diff = await workingDiff(root, base);
-      const { changed, diffSummary } = toDiffOverlay(diff);
-      expect(diffSummary).toEqual({ added: 1, modified: 1, removed: 1 });
-
       const snapshot = await tsProvider.analyze(root);
       const graph = snapshotToAtlasGraph(snapshot as Parameters<typeof snapshotToAtlasGraph>[0]);
-      const svg = renderAtlasSvg(graph, { layout: "treemap", seed: 1, changed, diffSummary });
+      const { changed, diffSummary, changeSpectrum } = toDiffOverlay(diff, graph);
+      expect(diffSummary).toEqual({ added: 1, modified: 1, removed: 1 });
+
+      const svg = renderAtlasSvg(graph, {
+        layout: "treemap",
+        seed: 1,
+        changed,
+        diffSummary,
+        changeSpectrum,
+      });
 
       expect(svg).toContain("hsl(150 55% 80%)"); // ADDED_FILL — b.ts
       expect(svg).toContain("hsl(8 85% 78%)"); // MODIFIED_FILL — a.ts
       expect(svg).toContain("removed 1");
+      expect(svg).toContain("Change Spectrum");
     } finally {
       await rm(root, { recursive: true, force: true });
     }

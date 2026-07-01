@@ -96,4 +96,18 @@ describe("applyIntent — queries leave the view unchanged", () => {
     if (result.kind !== "data") throw new Error("expected data");
     expect((result.data as { id: string }[])[0]?.id).toBe("src/core/lib.ts");
   });
+
+  it("lens returns a focused subgraph without navigating", () => {
+    const { view, result } = applyIntent(idx, initialView, {
+      type: "lens",
+      target: "src/core/lib.ts",
+      direction: "both",
+    });
+    expect(view).toBe(initialView);
+    if (result.kind !== "data") throw new Error("expected data");
+    expect((result.data as { nodes: { id: string }[] }).nodes.map((n) => n.id)).toContain(
+      "src/app/main.ts",
+    );
+    expect(result.summary).toContain("Lens");
+  });
 });

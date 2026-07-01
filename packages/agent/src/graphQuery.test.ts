@@ -8,6 +8,7 @@ import {
   find,
   impact,
   indexGraph,
+  lens,
   path,
   resolve,
   structure,
@@ -36,12 +37,22 @@ const graph: AtlasGraph = {
     file("src/core/lib.ts"),
     file("src/db/store.ts"),
     sym("symbol:src/app/main.ts:function:run:1", "run"),
+    sym("symbol:src/core/lib.ts:function:load:1", "load"),
+    sym("symbol:src/db/store.ts:function:read:1", "read"),
   ],
   edges: [
     { source: "src/app/main.ts", target: "src/app/util.ts", kind: "import" },
     { source: "src/app/main.ts", target: "src/core/lib.ts" },
     { source: "src/app/util.ts", target: "src/core/lib.ts" },
     { source: "src/core/lib.ts", target: "src/db/store.ts" },
+    {
+      source: "symbol:src/app/main.ts:function:run:1",
+      target: "symbol:src/core/lib.ts:function:load:1",
+    },
+    {
+      source: "symbol:src/core/lib.ts:function:load:1",
+      target: "symbol:src/db/store.ts:function:read:1",
+    },
   ],
 };
 
@@ -52,12 +63,12 @@ describe("indexGraph + resolve", () => {
     expect([...idx.moduleIds].sort()).toEqual(["src/app", "src/core", "src/db"]);
   });
 
-  it("resolves a module id to module level and a symbol to its file", () => {
+  it("resolves a module id to module level and a symbol to symbol level", () => {
     expect(resolve(idx, "src/app")).toEqual({ level: "module", key: "src/app" });
     expect(resolve(idx, "src/app/util.ts")).toEqual({ level: "file", key: "src/app/util.ts" });
     expect(resolve(idx, "symbol:src/app/main.ts:function:run:1")).toEqual({
-      level: "file",
-      key: "src/app/main.ts",
+      level: "symbol",
+      key: "symbol:src/app/main.ts:function:run:1",
     });
     expect(resolve(idx, "nope")).toBeNull();
   });
@@ -99,6 +110,80 @@ describe("impact", () => {
       "src/app/util.ts",
       "src/core/lib.ts",
     ]);
+  });
+});
+
+describe("lens", () => {
+  it("returns a query-focused subgraph with dependencies, dependents, and signals", () => {
+    const r = lens(idx, "src/core/lib.ts", {
+      direction: "both",
+      depth: 1,
+      changed: new Map([["src/app/main.ts", "modified"]]),
+    });
+    expect(r?.target).toBe("src/core/lib.ts");
+    expect(r?.nodes.map((n) => n.id)).toEqual([
+      "src/core/lib.ts",
+      "src/app/main.ts",
+      "src/app/util.ts",
+      "src/db/store.ts",
+    ]);
+    expect(r?.nodes.find((n) => n.id === "src/core/lib.ts")?.role).toBe("target");
+    expect(r?.nodes.find((n) => n.id === "src/db/store.ts")?.role).toBe("dependency");
+    expect(r?.nodes.find((n) => n.id === "src/app/main.ts")?.role).toBe("dependent");
+    expect(r?.nodes.find((n) => n.id === "src/app/main.ts")?.changed).toBe("modified");
+    expect(r?.edges.map((e) => `${e.source}->${e.target}`).sort()).toEqual([
+      "src/app/main.ts->src/app/util.ts",
+      "src/app/main.ts->src/core/lib.ts",
+      "src/app/util.ts->src/core/lib.ts",
+      "src/core/lib.ts->src/db/store.ts",
+    ]);
+    expect(r?.summary).toMatchObject({ dependencies: 1, dependents: 2, changed: 1 });
+  });
+
+  it("folds changed file signals to module lenses", () => {
+    const r = lens(idx, "src/core", {
+      direction: "dependents",
+      changed: new Map([["src/app/main.ts", "added"]]),
+    });
+    expect(r?.level).toBe("module");
+    expect(r?.nodes.find((n) => n.id === "src/app")?.changed).toBe("added");
+  });
+
+  it("runs at symbol level and carries trace/test evidence", () => {
+    const r = lens(idx, "symbol:src/core/lib.ts:function:load:1", {
+      traceHeat: new Map([["symbol:src/core/lib.ts:function:load:1", 0.8]]),
+      testSignals: new Map([
+        [
+          "symbol:src/core/lib.ts:function:load:1",
+          [{ id: "test:src/core/lib.test.ts:3:loads", status: "fail", durationMs: 12 }],
+        ],
+      ]),
+    });
+    expect(r?.level).toBe("symbol");
+    expect(r?.nodes.map((n) => n.id)).toEqual([
+      "symbol:src/core/lib.ts:function:load:1",
+      "symbol:src/app/main.ts:function:run:1",
+      "symbol:src/db/store.ts:function:read:1",
+    ]);
+    const target = r?.nodes.find((n) => n.role === "target");
+    expect(target?.traceHeat).toBe(0.8);
+    expect(target?.tests?.[0]).toMatchObject({ status: "fail" });
+    expect(r?.summary).toMatchObject({ traced: 1, tests: { fail: 1, total: 1 } });
+  });
+
+  it("keeps symbol and parent-file change signals on symbol lenses", () => {
+    const r = lens(idx, "symbol:src/core/lib.ts:function:load:1", {
+      changed: new Map([
+        ["symbol:src/core/lib.ts:function:load:1", "modified"],
+        ["src/db/store.ts", "added"],
+      ]),
+    });
+    expect(r?.nodes.find((n) => n.id === "symbol:src/core/lib.ts:function:load:1")?.changed).toBe(
+      "modified",
+    );
+    expect(r?.nodes.find((n) => n.id === "symbol:src/db/store.ts:function:read:1")?.changed).toBe(
+      "added",
+    );
   });
 });
 

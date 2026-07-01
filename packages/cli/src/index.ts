@@ -50,6 +50,7 @@ import {
   snapshotToAtlasGraph,
 } from "@sprawlens/schema";
 import { renderAtlasSvg } from "@sprawlens/viz/headless";
+import { indexGraph, lens, renderLens } from "@sprawlens/agent";
 import { analyzeTerraform, hasTerraform } from "@sprawlens/analyzer-terraform";
 import { PROVIDERS, detectProviders } from "@sprawlens/providers";
 import { createAtlasServer, watchDir, workingDiff } from "@sprawlens/server";
@@ -367,11 +368,19 @@ program
   .addOption(
     new Option(
       "--format <kind>",
-      "svg, or mermaid (a PR-comment-ready diff graph; requires --diff)",
+      "svg, mermaid (PR-comment-ready diff graph; requires --diff), or lens (targeted Agent Lens; requires --target)",
     )
-      .choices(["svg", "mermaid"])
+      .choices(["svg", "mermaid", "lens"])
       .default("svg"),
   )
+  .option("--target <id>", "target id for --format lens")
+  .addOption(
+    new Option("--direction <kind>", "lens direction")
+      .choices(["dependencies", "dependents", "both"])
+      .default("both"),
+  )
+  .option("--depth <n>", "lens hop depth", parsePositiveInteger, 1)
+  .option("--max-nodes <n>", "lens node cap", parsePositiveInteger, 48)
   .option("--width <n>", "canvas width override", parsePositiveInteger)
   .option("--height <n>", "canvas height override", parsePositiveInteger)
   .option("-o, --output <path>", "output file, or '-' for stdout (default: <repo>-<layout>.svg)")
@@ -386,7 +395,11 @@ program
         edges?: boolean;
         dark?: boolean;
         diff?: string | boolean;
-        format: "svg" | "mermaid";
+        format: "svg" | "mermaid" | "lens";
+        target?: string;
+        direction: "dependencies" | "dependents" | "both";
+        depth: number;
+        maxNodes: number;
         width?: number;
         height?: number;
         output?: string;
@@ -394,6 +407,11 @@ program
     ): Promise<void> => {
       if (options.format === "mermaid" && options.diff === undefined) {
         console.error("--format mermaid requires --diff (it renders the changed subgraph)");
+        process.exitCode = 1;
+        return;
+      }
+      if (options.format === "lens" && !options.target) {
+        console.error("--format lens requires --target <id>");
         process.exitCode = 1;
         return;
       }
@@ -407,7 +425,7 @@ program
       if (options.diff !== undefined) {
         // commander yields `true` for a bare --diff (no base), a string for --diff <base>
         const base = typeof options.diff === "string" ? options.diff : undefined;
-        overlay = toDiffOverlay(await workingDiff(root, base));
+        overlay = toDiffOverlay(await workingDiff(root, base), graph);
       }
 
       if (options.format === "mermaid") {
@@ -429,6 +447,31 @@ program
         return;
       }
 
+      if (options.format === "lens") {
+        const result = lens(indexGraph(graph), options.target!, {
+          direction: options.direction,
+          depth: options.depth,
+          maxNodes: options.maxNodes,
+          changed: overlay?.changed,
+        });
+        if (!result) {
+          console.error(`unknown lens target: ${options.target}`);
+          process.exitCode = 1;
+          return;
+        }
+        const svg = renderLens(result, {
+          theme: options.dark ? "dark" : "light",
+          ...(options.width ? { width: options.width } : {}),
+          ...(options.height ? { height: options.height } : {}),
+        });
+        const defaultPath = `${basename(root)}-lens.svg`;
+        emit(svg, resolveOutputTarget(options.output, defaultPath), () => {
+          const note = overlay ? `, diff ${formatDiffNote(overlay.diffSummary)}` : "";
+          return `lens, ${result.level}, ${result.nodes.length} nodes, depth ${result.depth}${note}`;
+        });
+        return;
+      }
+
       const svg = renderAtlasSvg(graph, {
         layout: options.layout,
         level: options.level,
@@ -437,7 +480,13 @@ program
         dark: options.dark ?? false,
         ...(options.width ? { width: options.width } : {}),
         ...(options.height ? { height: options.height } : {}),
-        ...(overlay ? { changed: overlay.changed, diffSummary: overlay.diffSummary } : {}),
+        ...(overlay
+          ? {
+              changed: overlay.changed,
+              diffSummary: overlay.diffSummary,
+              changeSpectrum: overlay.changeSpectrum,
+            }
+          : {}),
       });
       const defaultPath = `${basename(root)}-${options.layout}.svg`;
       emit(svg, resolveOutputTarget(options.output, defaultPath), () => {

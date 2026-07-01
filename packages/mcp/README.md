@@ -7,9 +7,10 @@ It analyzes the target repo's current working tree, builds the AtlasGraph, and
 serves tools over stdio:
 
 - **Queries** (read the graph): `structure`, `dependencies`, `dependents`,
-  `impact`, `find`, `cycles`, `path`, `describe`.
-- **Navigation** (advance a headless view, for a later rendered image):
-  `focus`, `get_view`.
+  `impact`, `lens`, `find`, `cycles`, `path`, `describe`.
+- **Render** (return SVG images): `render` for the current headless view, and
+  `see_repo` for a compact Agent Lens around one target.
+- **Navigation** (advance a headless view): `focus`, `get_view`.
 
 All tools run through the same `applyIntent` the in-app chat will use, so the
 agent's answers match what the map shows. Edge convention: `source → target`

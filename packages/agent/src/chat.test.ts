@@ -75,7 +75,7 @@ describe("runChatTurn", () => {
     await runChatTurn(idx, initialView, "hello", llm);
     const names = llm.calls[0]!.tools.map((t) => t.name);
     expect(names).toEqual(
-      expect.arrayContaining(["dependencies", "impact", "find", "focus", "set_layout"]),
+      expect.arrayContaining(["dependencies", "impact", "lens", "find", "focus", "set_layout"]),
     );
   });
 

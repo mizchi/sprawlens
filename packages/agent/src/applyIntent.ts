@@ -12,6 +12,7 @@ import {
   describe,
   find,
   impact,
+  lens,
   path,
   resolve,
   structure,
@@ -134,6 +135,19 @@ export function applyIntent(idx: GraphIndex, view: ViewState, intent: Intent): A
       const d = describe(idx, intent.target);
       if (!d) return err(view, `unknown target: ${intent.target}`);
       return data(view, d, describeBrief(idx, intent.target));
+    }
+    case "lens": {
+      const r = lens(idx, intent.target, {
+        direction: intent.direction,
+        depth: intent.depth,
+        maxNodes: intent.maxNodes,
+      });
+      if (!r) return err(view, `unknown target: ${intent.target}`);
+      return data(
+        view,
+        r,
+        `Lens ${r.target}: ${r.nodes.length} ${r.level}(s), ${r.edges.length} edge(s), ${r.summary.dependents} upstream / ${r.summary.dependencies} downstream`,
+      );
     }
   }
 }
