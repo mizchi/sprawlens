@@ -25,7 +25,8 @@ import type { FocusView } from "./useMapViewport.ts";
  * the whole palette in place while every import site keeps its name. */
 
 export const DIM = 0.1;
-/** Diff layer: changed files read from fill, not outline. */
+/** Legacy diff fills kept for exported/headless surfaces; the interactive map
+ * uses foreground outlines so structural color still reads. */
 export let MODIFIED_FILL = "hsl(8 85% 78%)";
 export let ADDED_FILL = "hsl(150 55% 80%)";
 /** Cells of nodes caught in a dependency cycle: the tangles to break. */
@@ -39,6 +40,7 @@ export let DOWNSTREAM_FILL = "hsl(21 90% 86%)";
 export let UPSTREAM_FILL = "hsl(193 70% 86%)";
 /** Selection outline everywhere. */
 export let SELECT_STROKE = "#1d4ed8";
+export let SELECT_HALO_STROKE = "#ffffff";
 /** Outline for nodes referenced by a (cross-layer) edge — warm, so it reads
  * apart from the blue selection. */
 export let LINKED_STROKE = "#d97706";
@@ -126,6 +128,19 @@ const innerDistrictLabelFill = (id: string) => `hsl(${moduleHue(id)} ${hueProfil
 const leafTint = (moduleId: string, leafId: string) =>
   wedgeColor(moduleHue(moduleId), hashKey(leafId), leafWedge);
 
+export function focusNodeOutlineVisual(
+  zoom: number,
+  dashed = false,
+): { haloWidth: number; coreWidth: number; dasharray?: string } {
+  const scale = 1 / Math.max(0.001, zoom);
+  const visual = {
+    haloWidth: 6 * scale,
+    coreWidth: 2.2 * scale,
+  };
+  if (!dashed) return visual;
+  return { ...visual, dasharray: `${6 * scale} ${4 * scale}` };
+}
+
 export function setMapTheme(dark: boolean): void {
   if (dark) {
     MODIFIED_FILL = "hsl(8 65% 32%)";
@@ -137,6 +152,7 @@ export function setMapTheme(dark: boolean): void {
     DOWNSTREAM_FILL = "hsl(21 65% 28%)";
     UPSTREAM_FILL = "hsl(193 55% 26%)";
     SELECT_STROKE = "#60a5fa";
+    SELECT_HALO_STROKE = "#e0f2fe";
     LINKED_STROKE = "#fbbf24";
     LEAF_STROKE = "#475569";
     SYMBOL_STROKE = "#64748b";
@@ -199,6 +215,7 @@ export function setMapTheme(dark: boolean): void {
     DOWNSTREAM_FILL = "hsl(21 90% 86%)";
     UPSTREAM_FILL = "hsl(193 70% 86%)";
     SELECT_STROKE = "#1d4ed8";
+    SELECT_HALO_STROKE = "#ffffff";
     LINKED_STROKE = "#d97706";
     LEAF_STROKE = "#64748b";
     SYMBOL_STROKE = "#475569";
@@ -322,8 +339,6 @@ export function focusDimOf(focus: FocusView | null): FocusDim {
 /* ------------------------------------------------------------ leaf fill */
 
 export type LeafFillContext = {
-  /** Diff kind for this leaf (file or symbol), resolving symbol→file inherit. */
-  changedOf?: (id: string) => "added" | "modified" | undefined;
   cyclicIds?: ReadonlySet<string>;
   testFileIds?: ReadonlySet<string>;
   /** Direction tints of the current selection's reference targets. */
@@ -332,20 +347,40 @@ export type LeafFillContext = {
   topAncestorOf: (id: string) => string | null;
 };
 
-/** One fill priority for every map: direction tints > diff > cycles >
- * test layer > the top-level group's pastel tint. */
+/** One fill priority for every map: direction tints > cycles > test layer >
+ * the top-level group's pastel tint. Change density lives in an overlay, not
+ * the base fill, so macro color stays structurally meaningful. */
 export function leafFillOf(id: string, ctx: LeafFillContext): string {
   if (ctx.dependencyIds?.has(id)) return DOWNSTREAM_FILL;
   if (ctx.dependentIds?.has(id)) return UPSTREAM_FILL;
-  const changed = ctx.changedOf?.(id);
-  if (changed === "added") return ADDED_FILL;
-  if (changed === "modified") return MODIFIED_FILL;
   if (ctx.cyclicIds?.has(id)) return CYCLE_FILL;
   if (ctx.testFileIds?.has(id)) return TEST_FILL;
   return leafTint(ctx.topAncestorOf(id) ?? "", id);
 }
 
 /* -------------------------------------------------- intermediate levels */
+
+export function intermediateBoundaryVisual(args: {
+  selected: boolean;
+  classBoundary: boolean;
+  dim: number;
+  subdued?: boolean;
+}): { strokeOpacity: number; strokeWidth: number; dasharray?: string; neutral?: boolean } {
+  if (args.selected) return { strokeOpacity: 1, strokeWidth: 2.5 };
+  if (args.classBoundary) {
+    return {
+      strokeOpacity: args.subdued ? Math.max(0.45, args.dim * 0.6) : Math.max(0.9, args.dim),
+      strokeWidth: args.subdued ? 1.6 : 3,
+      neutral: args.subdued,
+    };
+  }
+  return {
+    strokeOpacity: args.dim * (args.subdued ? 0.4 : 1),
+    strokeWidth: args.subdued ? 0.65 : 1,
+    dasharray: "5 3",
+    neutral: args.subdued,
+  };
+}
 
 export function InnerLevelsLayer(props: {
   levels: readonly SubdivisionLevel[];
@@ -364,6 +399,8 @@ export function InnerLevelsLayer(props: {
   /** Slider-tunable label sizing: 9px baseline factor + font multiplier. */
   labelMinPx?: number;
   labelScale?: number;
+  /** A focus/extract preview is active: keep structure readable but secondary. */
+  subdued?: boolean;
 }) {
   const labelFactor = (props.labelMinPx ?? 9) / 9;
   const labelScale = props.labelScale ?? 1;
@@ -395,6 +432,12 @@ export function InnerLevelsLayer(props: {
             }
             const top = topAncestorOf(cell.id) ?? "";
             const off = liftAt(top);
+            const visual = intermediateBoundaryVisual({
+              selected: isSelected(cell.id),
+              classBoundary: isClass,
+              dim: dim.group(cell.id, top),
+              subdued: props.subdued,
+            });
             return (
               <polygon
                 key={cell.id}
@@ -403,15 +446,15 @@ export function InnerLevelsLayer(props: {
                 stroke={
                   isSelected(cell.id)
                     ? SELECT_STROKE
-                    : isClass
-                      ? CLASS_BOUNDARY
-                      : innerDistrictStroke(top)
+                    : visual.neutral
+                      ? LEAF_STROKE
+                      : isClass
+                        ? CLASS_BOUNDARY
+                        : innerDistrictStroke(top)
                 }
-                stroke-opacity={
-                  isClass ? Math.max(0.9, dim.group(cell.id, top)) : dim.group(cell.id, top)
-                }
-                stroke-width={isSelected(cell.id) ? 2.5 : isClass ? 3 : 1}
-                stroke-dasharray={isSelected(cell.id) || isClass ? undefined : "5 3"}
+                stroke-opacity={visual.strokeOpacity}
+                stroke-width={visual.strokeWidth}
+                stroke-dasharray={visual.dasharray}
                 onClick={(event) => {
                   event.stopPropagation();
                   onSelect(cell.id, event.shiftKey);
@@ -455,7 +498,7 @@ export function InnerLevelsLayer(props: {
                 font-size={fontSize}
                 font-weight="600"
                 fill={isClassGroup ? CLASS_BOUNDARY : innerDistrictLabelFill(top)}
-                fill-opacity={0.7 * dim.group(cell.id, top)}
+                fill-opacity={(props.subdued ? 0.42 : 0.7) * dim.group(cell.id, top)}
               >
                 {label}
               </text>

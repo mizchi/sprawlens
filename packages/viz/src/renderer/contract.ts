@@ -5,6 +5,7 @@ import type { TiltParams } from "../Controls.tsx";
 import type { SolvedLayer } from "../layerModel.ts";
 import type { RingsState } from "../ringsController.ts";
 import type { TreemapState } from "../treemapController.ts";
+import type { NodeDiffStat } from "../diffStats.ts";
 import type { FocusRequest, FocusView } from "../useMapViewport.ts";
 
 /**
@@ -85,6 +86,7 @@ type SceneCommon = {
   altEdges: boolean;
   parentFileOf: (id: string) => string;
   changedOf: (id: string) => "added" | "modified" | undefined;
+  diffStatOf: (id: string) => NodeDiffStat | undefined;
   /** Test reporter overlay: test-case id → status, tinting the test-plane cells
    * pass/fail/skip. Empty when no test run was ingested. Shared across layouts. */
   testStatus: Map<string, TestStatus>;

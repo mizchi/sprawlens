@@ -55,6 +55,8 @@ export type PlaygroundParams = {
   weight: WeightKind;
   /** Fly the camera to files as their working-tree changes appear. */
   followChanges: boolean;
+  /** Extract-style dimming preview for changed files/symbols. */
+  changedPreview: boolean;
   /** Diff comparison base (no UI yet; git tooling will own this). */
   diffBase: string;
   showEdges: boolean;
@@ -76,6 +78,7 @@ type Props = {
   availableScopes: string[];
   /** Experiment helpers (graph mutation buttons) show only when set. */
   debug?: boolean;
+  changedCount?: number;
   onChange: (params: PlaygroundParams) => void;
   onRegenerate: () => void;
   onMutateWeight: () => void;
@@ -179,6 +182,17 @@ export function Controls(props: Props) {
           type="checkbox"
           checked={params.followChanges}
           onInput={(e) => set("followChanges", (e.target as HTMLInputElement).checked)}
+        />
+      </label>
+      <label style={row}>
+        <span style={{ width: "110px" }}>
+          changed preview{props.changedCount ? ` ${props.changedCount}` : ""}
+        </span>
+        <input
+          type="checkbox"
+          checked={params.changedPreview}
+          disabled={(props.changedCount ?? 0) === 0}
+          onInput={(e) => set("changedPreview", (e.target as HTMLInputElement).checked)}
         />
       </label>
       <label style={row}>

@@ -15,6 +15,21 @@ export type WorkingDiff = {
   changed: Record<string, "added" | "modified">;
   removed: string[];
   loc?: Record<string, number>;
+  stats?: Record<string, DiffLineStat>;
+  hunks?: Record<string, DiffHunk[]>;
+};
+
+export type DiffLineStat = {
+  added: number;
+  deleted: number;
+  touched: number;
+};
+
+export type DiffHunk = {
+  oldStart: number;
+  oldLines: number;
+  newStart: number;
+  newLines: number;
 };
 
 /** Line count of a file's content (a trailing newline does not add one). */
@@ -30,7 +45,11 @@ export function countLines(content: string): number {
  * unreadable) is simply omitted from `loc`, and the cell keeps its prior
  * area. Removed files are not read.
  */
-export async function enrichWithLoc(root: string, diff: WorkingDiff): Promise<WorkingDiff> {
+export async function enrichWithLoc(
+  root: string,
+  diff: WorkingDiff,
+  base?: string,
+): Promise<WorkingDiff> {
   const loc: Record<string, number> = {};
   await Promise.all(
     Object.keys(diff.changed).map(async (path) => {
@@ -41,7 +60,8 @@ export async function enrichWithLoc(root: string, diff: WorkingDiff): Promise<Wo
       }
     }),
   );
-  return { ...diff, loc };
+  const { stats, hunks } = await diffDetails(root, diff, loc, base);
+  return { ...diff, loc, stats, hunks };
 }
 
 export function parseGitStatus(porcelain: string): WorkingDiff {
@@ -94,6 +114,61 @@ export function parseNameStatus(output: string): WorkingDiff {
   return { changed, removed };
 }
 
+export function parseNumstat(output: string): Record<string, { added: number; deleted: number }> {
+  const stats: Record<string, { added: number; deleted: number }> = {};
+  for (const line of output.split("\n")) {
+    if (!line) continue;
+    const [addedText, deletedText, ...pathParts] = line.split("\t");
+    const added = Number.parseInt(addedText ?? "", 10);
+    const deleted = Number.parseInt(deletedText ?? "", 10);
+    if (!Number.isFinite(added) || !Number.isFinite(deleted)) continue;
+    const path = normalizeDiffPath(pathParts.join("\t"));
+    if (path) stats[path] = { added, deleted };
+  }
+  return stats;
+}
+
+export function parseUnifiedDiffHunks(output: string): Record<string, DiffHunk[]> {
+  const hunks: Record<string, DiffHunk[]> = {};
+  let currentPath: string | null = null;
+  for (const line of output.split("\n")) {
+    if (line.startsWith("+++ ")) {
+      currentPath = normalizePatchPath(line.slice(4));
+      continue;
+    }
+    if (!currentPath) continue;
+    const match = /^@@ -(\d+)(?:,(\d+))? \+(\d+)(?:,(\d+))? @@/.exec(line);
+    if (!match) continue;
+    (hunks[currentPath] ??= []).push({
+      oldStart: Number.parseInt(match[1]!, 10),
+      oldLines: match[2] === undefined ? 1 : Number.parseInt(match[2], 10),
+      newStart: Number.parseInt(match[3]!, 10),
+      newLines: match[4] === undefined ? 1 : Number.parseInt(match[4], 10),
+    });
+  }
+  return hunks;
+}
+
+export function touchCountFromHunks(hunks: readonly DiffHunk[] | undefined): number {
+  if (!hunks?.length) return 0;
+  return hunks.reduce((sum, hunk) => sum + (hunk.newLines > 0 ? hunk.newLines : hunk.oldLines), 0);
+}
+
+function normalizePatchPath(path: string): string | null {
+  const clean = path.split("\t")[0]!.trim();
+  if (clean === "/dev/null") return null;
+  return normalizeDiffPath(clean.startsWith("b/") ? clean.slice(2) : clean);
+}
+
+function normalizeDiffPath(path: string): string {
+  const clean = path.trim();
+  const braced = /^(.*)\{(.+?) => (.+?)\}(.*)$/.exec(clean);
+  if (braced) return `${braced[1]}${braced[3]}${braced[4]}`;
+  const plain = /^(.+?) => (.+)$/.exec(clean);
+  if (plain) return plain[2]!;
+  return clean;
+}
+
 /** Refs travel into git argv: never empty, never option-shaped. */
 export function isSafeRef(ref: string): boolean {
   return /^[A-Za-z0-9][A-Za-z0-9_./~^@{}-]*$/.test(ref);
@@ -101,6 +176,51 @@ export function isSafeRef(ref: string): boolean {
 
 const exec = promisify(execFile);
 const GIT_OPTS = { maxBuffer: 10 * 1024 * 1024 };
+
+async function diffDetails(
+  root: string,
+  diff: WorkingDiff,
+  loc: Record<string, number>,
+  base?: string,
+): Promise<Pick<WorkingDiff, "stats" | "hunks">> {
+  const stats: Record<string, DiffLineStat> = {};
+  let hunks: Record<string, DiffHunk[]> = {};
+  const ref = base || "HEAD";
+  if (isSafeRef(ref)) {
+    try {
+      const [{ stdout: numstat }, { stdout: patch }] = await Promise.all([
+        exec("git", ["diff", "--numstat", ref, "--"], { cwd: root, ...GIT_OPTS }),
+        exec("git", ["diff", "--unified=0", ref, "--"], { cwd: root, ...GIT_OPTS }),
+      ]);
+      const parsedHunks = parseUnifiedDiffHunks(patch);
+      for (const [path, stat] of Object.entries(parseNumstat(numstat))) {
+        if (!diff.changed[path]) continue;
+        stats[path] = {
+          added: stat.added,
+          deleted: stat.deleted,
+          touched: touchCountFromHunks(parsedHunks[path]) || stat.added + stat.deleted,
+        };
+      }
+      hunks = Object.fromEntries(
+        Object.entries(parsedHunks).filter(([path]) => diff.changed[path]),
+      );
+    } catch {
+      // Git can be transiently unavailable during rebases or initial repos.
+      // The caller still gets loc and the binary changed/removed shape.
+    }
+  }
+  for (const [path, kind] of Object.entries(diff.changed)) {
+    if (stats[path]) continue;
+    const lines = loc[path] ?? 0;
+    if (kind === "added") {
+      stats[path] = { added: lines, deleted: 0, touched: lines };
+      if (lines > 0 && !hunks[path]) {
+        hunks[path] = [{ oldStart: 0, oldLines: 0, newStart: 1, newLines: lines }];
+      }
+    }
+  }
+  return { stats, hunks };
+}
 
 /**
  * Changes in the working tree. Without `base`: uncommitted changes vs
@@ -161,8 +281,9 @@ export function watchDir(root: string, onChange: () => void, debounceMs = 300): 
 /**
  * Watches the working tree and pushes a fresh diff whenever it actually
  * changes: fs events are batched through a trailing debounce, then one
- * `git status` runs and the listener fires only when the result differs
- * from the last push. Returns a stop function.
+ * `git status` runs. Clean no-op bursts are suppressed, but a dirty tree is
+ * re-emitted even when the changed-file set is stable because LOC and hunk
+ * density can change inside the same files. Returns a stop function.
  */
 export function watchWorkingDiff(
   root: string,
@@ -178,7 +299,8 @@ export function watchWorkingDiff(
       try {
         const diff = await workingDiff(root, base);
         const json = JSON.stringify(diff);
-        if (stopped || json === lastJson) return;
+        const dirty = Object.keys(diff.changed).length > 0 || diff.removed.length > 0;
+        if (stopped || (json === lastJson && !dirty)) return;
         lastJson = json;
         listener(diff);
       } catch {

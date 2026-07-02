@@ -89,6 +89,7 @@ export function makeUrlParamParsers(darkDefault: boolean) {
     boundaries: literalArray(BOUNDARIES, ["module", "class"]),
     displayLevels: literalArray(DISPLAY_LEVELS, ["module", "class", "symbol"]),
     weight: literal(WEIGHTS, "loc"),
+    changedPreview: boolean(true),
     showEdges: boolean(false),
     groupByService: boolean(false),
     dark: boolean(darkDefault),

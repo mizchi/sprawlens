@@ -126,7 +126,7 @@ export function createAtlasServer(opts: AtlasServerOptions): Server {
       created.stop = watchWorkingDiff(
         root,
         (diff) => {
-          void enrichWithLoc(root, diff).then((enriched) => {
+          void enrichWithLoc(root, diff, base || undefined).then((enriched) => {
             created.last = JSON.stringify(enriched);
             for (const client of created.clients) client.write(`data: ${created.last}\n\n`);
           });
@@ -424,7 +424,8 @@ export function createAtlasServer(opts: AtlasServerOptions): Server {
       }
       try {
         const diff = await workingDiff(root, base || undefined);
-        res.writeHead(200, { "content-type": "application/json" }).end(JSON.stringify(diff));
+        const enriched = await enrichWithLoc(root, diff, base || undefined);
+        res.writeHead(200, { "content-type": "application/json" }).end(JSON.stringify(enriched));
       } catch (error) {
         console.error(error);
         res.writeHead(500).end(JSON.stringify({ error: "git status failed" }));

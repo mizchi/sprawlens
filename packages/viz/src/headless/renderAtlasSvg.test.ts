@@ -61,15 +61,15 @@ describe("renderAtlasSvg", () => {
     expect(svg).toContain("</svg>");
   });
 
-  it("tints added/modified files when a changed map is supplied", () => {
+  it("outlines changed files without replacing their base fill", () => {
     const changed = new Map<string, "added" | "modified">([
       ["src/a/foo.ts", "modified"],
       ["src/b/qux.ts", "added"],
     ]);
     const svg = renderAtlasSvg(GRAPH, { layout: "treemap", level: "file", seed: 1, changed });
-    // ADDED_FILL = hsl(150 55% 80%), MODIFIED_FILL = hsl(8 85% 78%) in the light theme
-    expect(svg).toContain("hsl(150 55% 80%)");
-    expect(svg).toContain("hsl(8 85% 78%)");
+    expect(svg).toContain("hsl(29 96% 58%)");
+    expect(svg).not.toContain("hsl(150 55% 80%)");
+    expect(svg).not.toContain("hsl(8 85% 78%)");
   });
 
   it("embeds a diff legend with per-kind counts", () => {

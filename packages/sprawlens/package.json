@@ -1,6 +1,6 @@
 {
   "name": "sprawlens",
-  "version": "0.2.3",
+  "version": "0.3.0",
   "description": "Visualize the structure of any TypeScript, Go, Rust or MoonBit repository (thin wrapper around @sprawlens/cli)",
   "keywords": [
     "code-visualization",

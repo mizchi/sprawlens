@@ -35,6 +35,7 @@ import {
   SYMBOL_ZOOM,
   selectionDirections,
   focusDimOf,
+  focusNodeOutlineVisual,
   InnerLevelsLayer,
   isWatermarkSized,
   leafFillOf,
@@ -45,6 +46,7 @@ import {
   propagateLinkTints,
   RaisedEdgePath,
   SELECT_STROKE,
+  SELECT_HALO_STROKE,
   LINKED_STROKE,
   TEST_LABEL_INK,
   TEST_STATUS_FILL,
@@ -59,6 +61,13 @@ import { ambientEdgeVisual, REFERENCE_EDGE_BASE } from "./edgeStyle.ts";
 import { cellInView, segmentInView } from "./viewCulling.ts";
 import type { TreemapState } from "./treemapController.ts";
 import { useMapViewport, type FocusRequest, type FocusView } from "./useMapViewport.ts";
+import {
+  diffForegroundStrokeWidth,
+  diffOutlineOpacity,
+  diffStrokeWidth,
+  formatDiffPercent,
+  type NodeDiffStat,
+} from "./diffStats.ts";
 
 type Props = {
   state: TreemapState;
@@ -70,6 +79,8 @@ type Props = {
   /** Diff kind for a leaf (file or symbol); symbols inherit / refine the file
    * change so the diff shows at symbol granularity too. */
   changedOf?: (id: string) => "added" | "modified" | undefined;
+  /** Diff density for a leaf, used as outline weight and optional label text. */
+  diffStatOf?: (id: string) => NodeDiffStat | undefined;
   cyclicIds?: Set<string>;
   /** File ids on the test layer; rendered with the shared muted fill. */
   testFileIds?: Set<string>;
@@ -134,6 +145,7 @@ type Props = {
 
 /** Cells smaller than this on screen are not worth a polygon. */
 const MIN_CELL_PX = 2.5;
+const DIFF_DENSITY_STROKE = "hsl(29 96% 58%)";
 /** Edges shorter than this on screen are sub-pixel noise. */
 const MIN_EDGE_PX = 6;
 /** Symbol cells at least this big on screen show their classification tag. */
@@ -385,6 +397,7 @@ export function TreemapSvg(props: Props) {
   const dim = focusDimOf(focus);
   const moduleOpacity = dim.module;
   const fileOpacity = dim.leaf;
+  const structureOpacity = focus ? 0.5 : 1;
 
   // selection split: what the selection depends on vs what depends on it,
   // drawn regardless of the ambient-edges toggle (same as rings)
@@ -489,7 +502,6 @@ export function TreemapSvg(props: Props) {
   const fillOf = (cell: CellResult): string =>
     traceFillOf(cell.id) ??
     leafFillOf(cell.id, {
-      changedOf: props.changedOf,
       cyclicIds,
       testFileIds: props.testFileIds,
       dependencyIds: directions.dependencyIds,
@@ -507,6 +519,19 @@ export function TreemapSvg(props: Props) {
   );
   const labelOf = (id: string): string =>
     props.labels?.get(id) ?? symbolNameOf(id) ?? id.split("/").pop() ?? id;
+  const diffLabel = (id: string, name: string, screenPx: number, force = false): string => {
+    const stat = props.diffStatOf?.(id);
+    if (!stat || (!force && (zoom < 1.35 || screenPx < 72))) return name;
+    const percent = formatDiffPercent(stat);
+    return percent ? `${name} ${percent}` : name;
+  };
+  const selectedOutlineIds = (() => {
+    const ids: string[] = [];
+    if (selectedId) ids.push(selectedId);
+    for (const id of multiSelected) if (id !== selectedId) ids.push(id);
+    return ids;
+  })();
+  const selectedOutline = focusNodeOutlineVisual(zoom);
 
   // a hovered edge spotlights its off-screen endpoints' docked names, so you
   // can read where the edge under the cursor is heading
@@ -541,7 +566,9 @@ export function TreemapSvg(props: Props) {
                 fill={districtFill(cell.id)}
                 fill-opacity={moduleOpacity(cell.id)}
                 stroke={isSelected(cell.id) ? SELECT_STROKE : districtStroke(cell.id)}
-                stroke-opacity={moduleOpacity(cell.id)}
+                stroke-opacity={
+                  moduleOpacity(cell.id) * (isSelected(cell.id) ? 1 : structureOpacity)
+                }
                 stroke-width={isSelected(cell.id) ? 3 : 1.6}
                 onClick={(event) => {
                   event.stopPropagation();
@@ -562,6 +589,7 @@ export function TreemapSvg(props: Props) {
           labels={props.labels}
           visibleLevels={props.visibleLevels}
           tilt={tiltAffine}
+          subdued={focus !== null}
         />
         {/* file cells */}
         <g style={{ display: leafVisible ? "" : "none" }}>
@@ -573,6 +601,7 @@ export function TreemapSvg(props: Props) {
             const linked = !isSelected(cell.id) && !hasActiveLinks && linkedCell(cell.id);
             const dimmed =
               hasActiveLinks && !isSelected(cell.id) && !activeLinkTint.has(fileIdOf(cell.id));
+            const diffStat = props.diffStatOf?.(cell.id);
             return (
               <polygon
                 key={cell.id}
@@ -584,12 +613,22 @@ export function TreemapSvg(props: Props) {
                     ? SELECT_STROKE
                     : linked
                       ? LINKED_STROKE
-                      : border
-                        ? LEAF_STROKE
-                        : "none"
+                      : diffStat
+                        ? DIFF_DENSITY_STROKE
+                        : border
+                          ? LEAF_STROKE
+                          : "none"
                 }
-                stroke-opacity={(linked ? 0.95 : fileOpacity(cell.id)) * (dimmed ? 0.35 : 1)}
-                stroke-width={isSelected(cell.id) ? 2.5 : linked ? 1.4 : 0.9}
+                stroke-opacity={
+                  (linked
+                    ? 0.95
+                    : diffStat
+                      ? 0.62 + 0.34 * Math.sqrt(diffStat.ratio)
+                      : fileOpacity(cell.id)) * (dimmed ? 0.35 : 1)
+                }
+                stroke-width={
+                  isSelected(cell.id) ? 2.5 : linked ? 1.4 : diffStrokeWidth(diffStat, 0.9)
+                }
                 onMouseEnter={satellitesOn ? () => setLinkHover(fileIdOf(cell.id)) : undefined}
                 onMouseLeave={satellitesOn ? () => setLinkHover(null) : undefined}
                 onClick={(event) => {
@@ -632,22 +671,64 @@ export function TreemapSvg(props: Props) {
         {/* nested symbols inside file cells (same rules as rings) */}
         {showInner ? (
           <g stroke={SYMBOL_STROKE} stroke-width={0.4} stroke-opacity={0.8}>
-            {visibleInnerCells.map((cell) =>
-              cell.id.endsWith("#rest") ? null : (
+            {visibleInnerCells.map((cell) => {
+              const diffStat = props.diffStatOf?.(cell.id);
+              return cell.id.endsWith("#rest") ? null : (
                 <polygon
                   key={cell.id}
                   points={cell.polygon.map((p) => `${p.x},${p.y}`).join(" ")}
                   fill="transparent"
-                  stroke={isSelected(cell.id) ? SELECT_STROKE : undefined}
-                  stroke-width={isSelected(cell.id) ? 1.6 : undefined}
+                  stroke={
+                    isSelected(cell.id) ? SELECT_STROKE : diffStat ? DIFF_DENSITY_STROKE : undefined
+                  }
+                  stroke-width={isSelected(cell.id) ? 1.6 : diffStrokeWidth(diffStat, 0.4)}
+                  stroke-opacity={diffStat ? 0.65 + 0.3 * Math.sqrt(diffStat.ratio) : undefined}
                   opacity={dim.symbol(cell.id)}
                   onClick={(event) => {
                     event.stopPropagation();
                     onSelect(cell.id, event.shiftKey);
                   }}
                 />
-              ),
-            )}
+              );
+            })}
+          </g>
+        ) : null}
+        {leafVisible ? (
+          <g style={{ pointerEvents: "none" }}>
+            {visibleFileCells.map((cell) => {
+              const stat = props.diffStatOf?.(cell.id);
+              if (!stat || isSelected(cell.id)) return null;
+              const pts = cell.polygon.map((p) => `${p.x},${p.y}`).join(" ");
+              return (
+                <polygon
+                  key={`diff-file:${cell.id}`}
+                  points={pts}
+                  fill="none"
+                  stroke={DIFF_DENSITY_STROKE}
+                  stroke-opacity={diffOutlineOpacity(stat)}
+                  stroke-width={diffForegroundStrokeWidth(stat, 0.9)}
+                  stroke-linejoin="round"
+                />
+              );
+            })}
+            {showInner
+              ? visibleInnerCells.map((cell) => {
+                  const stat = props.diffStatOf?.(cell.id);
+                  if (!stat || isSelected(cell.id) || cell.id.endsWith("#rest")) return null;
+                  const pts = cell.polygon.map((p) => `${p.x},${p.y}`).join(" ");
+                  return (
+                    <polygon
+                      key={`diff-symbol:${cell.id}`}
+                      points={pts}
+                      fill="none"
+                      stroke={DIFF_DENSITY_STROKE}
+                      stroke-opacity={diffOutlineOpacity(stat)}
+                      stroke-width={diffForegroundStrokeWidth(stat, 0.4)}
+                      stroke-linejoin="round"
+                    />
+                  );
+                })
+              : null}
           </g>
         ) : null}
         {showInner ? (
@@ -658,12 +739,20 @@ export function TreemapSvg(props: Props) {
               const dominant =
                 Math.sqrt(cell.actualArea) * zoom >=
                 Math.min(width, height) * SYMBOL_DOMINANT_FRACTION;
-              const name = labelOf(cell.id);
+              const rawName = labelOf(cell.id);
               const kind = props.symbolKindOf?.(cell.id);
-              const glyph = symbolGlyphOf(kind, name);
+              const glyph = symbolGlyphOf(kind, rawName);
               // members stay collapsed until a deep zoom enlarges their cell
               const isMember = glyph === "method" || glyph === "property";
               const onScreen = Math.sqrt(cell.actualArea) * zoom;
+              const changed = props.diffStatOf?.(cell.id) !== undefined;
+              const changedReadable = changed && onScreen >= 28 * labelFactor;
+              const name = diffLabel(
+                cell.id,
+                rawName,
+                onScreen,
+                isSelected(cell.id) || fileSelected || changedReadable,
+              );
               const roomy =
                 zoom >= SYMBOL_ZOOM &&
                 onScreen >= (isMember ? MEMBER_TAG_MIN_PX : SYMBOL_ICON_MIN_PX) * labelFactor;
@@ -673,8 +762,10 @@ export function TreemapSvg(props: Props) {
               const labelPx = name.length * fontSize * zoom * 0.5;
               const fits = onScreen * 1.25 >= labelPx;
               const passes = isMember
-                ? roomy || isSelected(cell.id)
-                : isSelected(cell.id) || fileSelected || ((dominant || roomy) && fits);
+                ? roomy || isSelected(cell.id) || changedReadable
+                : isSelected(cell.id) ||
+                  fileSelected ||
+                  ((dominant || roomy || changedReadable) && fits);
               if (!passes) return null;
               return (
                 <SymbolTag
@@ -794,11 +885,53 @@ export function TreemapSvg(props: Props) {
               ) : null;
             })()
           : null}
+        {selectedOutlineIds.length > 0 ? (
+          <g style={{ pointerEvents: "none" }}>
+            {selectedOutlineIds.map((id) => {
+              let poly = topCells.get(id)?.polygon ?? null;
+              if (!poly)
+                for (const c of innerCells)
+                  if (c.id === id) {
+                    poly = c.polygon;
+                    break;
+                  }
+              if (!poly)
+                for (const c of fileCells)
+                  if (c.id === id) {
+                    poly = c.polygon;
+                    break;
+                  }
+              if (!poly || poly.length < 3) return null;
+              const pts = poly.map((p) => `${p.x},${p.y}`).join(" ");
+              return (
+                <g key={`selected-outline:${id}`}>
+                  <polygon
+                    points={pts}
+                    fill="none"
+                    stroke={SELECT_HALO_STROKE}
+                    stroke-width={selectedOutline.haloWidth}
+                    stroke-opacity={0.85}
+                    stroke-linejoin="round"
+                  />
+                  <polygon
+                    points={pts}
+                    fill="none"
+                    stroke={SELECT_STROKE}
+                    stroke-width={selectedOutline.coreWidth}
+                    stroke-opacity={1}
+                    stroke-linejoin="round"
+                  />
+                </g>
+              );
+            })}
+          </g>
+        ) : null}
         {/* command-palette preview: outline the auto-focused (not yet selected)
           node so it's clear which one the camera flew to */}
         {props.previewId
           ? (() => {
               const id = props.previewId;
+              const previewOutline = focusNodeOutlineVisual(zoom, true);
               let poly = topCells.get(id)?.polygon ?? null;
               if (!poly)
                 for (const c of innerCells)
@@ -819,17 +952,19 @@ export function TreemapSvg(props: Props) {
                   <polygon
                     points={pts}
                     fill="none"
-                    stroke={SELECT_STROKE}
-                    stroke-width={4 / zoom}
-                    stroke-opacity={0.25}
+                    stroke={SELECT_HALO_STROKE}
+                    stroke-width={previewOutline.haloWidth}
+                    stroke-opacity={0.7}
+                    stroke-linejoin="round"
                   />
                   <polygon
                     points={pts}
                     fill="none"
                     stroke={SELECT_STROKE}
-                    stroke-width={1.5 / zoom}
+                    stroke-width={previewOutline.coreWidth}
                     stroke-opacity={0.95}
-                    stroke-dasharray={`${6 / zoom} ${4 / zoom}`}
+                    stroke-dasharray={previewOutline.dasharray}
+                    stroke-linejoin="round"
                   />
                 </g>
               );
@@ -906,7 +1041,9 @@ export function TreemapSvg(props: Props) {
           {visibleFileCells.map((cell) => {
             if (isWatermarkSized(cell, zoom)) return null;
             const px = Math.sqrt(cell.actualArea) * zoom;
-            const name = labelOf(cell.id);
+            const rawName = labelOf(cell.id);
+            const changed = props.diffStatOf?.(cell.id) !== undefined;
+            const changedReadable = changed && px >= 28 * labelFactor;
             // symbol leaves get their kind icon + matching ink; files stay plain
             const kind = props.leafKind === "symbol" ? props.symbolKindOf?.(cell.id) : undefined;
             // members stay collapsed until their cell is large on screen
@@ -915,13 +1052,18 @@ export function TreemapSvg(props: Props) {
               kind === "property" ||
               kind === "static-method" ||
               kind === "static-property";
-            if (px < (isMember ? MEMBER_TAG_MIN_PX : 28) * labelFactor && !isSelected(cell.id)) {
+            if (
+              px < (isMember ? MEMBER_TAG_MIN_PX : 28) * labelFactor &&
+              !isSelected(cell.id) &&
+              !changedReadable
+            ) {
               return null;
             }
             // screen-px cap (like rings): the name stays modest while
             // zooming until the watermark copy takes over
             const fontSize = labelFont(Math.sqrt(cell.actualArea) * 0.14, 18, zoom);
-            const glyph = symbolGlyphOf(kind, name);
+            const glyph = symbolGlyphOf(kind, rawName);
+            const name = diffLabel(cell.id, rawName, px, isSelected(cell.id) || changedReadable);
             return (
               <SymbolTag
                 key={cell.id}

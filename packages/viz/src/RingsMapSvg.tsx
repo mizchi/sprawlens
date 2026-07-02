@@ -30,6 +30,7 @@ import {
   EXPORTED_LABEL,
   FILE_LABEL_INK,
   focusDimOf,
+  focusNodeOutlineVisual,
   INTERNAL_LABEL,
   LEAF_STROKE,
   LEAF_BORDER_MIN_PX,
@@ -58,6 +59,7 @@ import {
   PlaneLayerView,
   propagateLinkTints,
   SELECT_STROKE,
+  SELECT_HALO_STROKE,
   LINKED_STROKE,
   UPSTREAM_COLOR,
   UPSTREAM_FILL,
@@ -70,6 +72,13 @@ import { resolveEdgeAtClient } from "./edgePickDom.ts";
 import { ambientEdgeVisual, lspDash, REFERENCE_EDGE_BASE } from "./edgeStyle.ts";
 import { segmentInView } from "./viewCulling.ts";
 import { useMapViewport, type FocusRequest, type FocusView } from "./useMapViewport.ts";
+import {
+  diffForegroundStrokeWidth,
+  diffOutlineOpacity,
+  diffStrokeWidth,
+  formatDiffPercent,
+  type NodeDiffStat,
+} from "./diffStats.ts";
 
 export type { FocusRequest, FocusView } from "./useMapViewport.ts";
 
@@ -105,6 +114,8 @@ type Props = {
   /** Diff kind for a leaf (file or symbol); symbols inherit / refine the file
    * change so the diff shows at symbol granularity too. */
   changedOf: (id: string) => "added" | "modified" | undefined;
+  /** Diff density for a leaf, used as outline weight and optional label text. */
+  diffStatOf?: (id: string) => NodeDiffStat | undefined;
   /** API view: adapter ports sitting on the module rim. */
   portNodes: { id: string; label: string; x: number; y: number }[];
   /** Module granularity hides the file subdivision entirely. */
@@ -173,6 +184,7 @@ function fallbackLabel(id: string): string {
 /** Cells smaller than this on screen render as nothing — the module
  * circle's fill carries the texture; zooming in reveals them. */
 const MIN_CELL_PX = 2.5;
+const DIFF_DENSITY_STROKE = "hsl(29 96% 58%)";
 /** Edges shorter than this on screen are sub-pixel noise. */
 const MIN_EDGE_PX = 6;
 /** Symbol cells smaller than this on screen don't get a classification icon
@@ -847,6 +859,13 @@ export function RingsMapSvg(props: Props) {
   const moduleOpacity = dim.module;
   const fileOpacity = dim.leaf;
   const symbolOpacity = dim.symbol;
+  const structureOpacity = focus ? 0.5 : 1;
+  const diffLabel = (id: string, name: string, screenPx: number, force = false): string => {
+    const stat = props.diffStatOf?.(id);
+    if (!stat || (!force && (zoom < 1.35 || screenPx < 72))) return name;
+    const percent = formatDiffPercent(stat);
+    return percent ? `${name} ${percent}` : name;
+  };
 
   /**
    * Screen-space label sizing: a label's natural size (world * zoom) must
@@ -882,6 +901,13 @@ export function RingsMapSvg(props: Props) {
   };
   /** Screen-constant radius in world units. */
   const screenRadius = (px: number) => px / zoom;
+  const selectedOutlineIds = (() => {
+    const ids: string[] = [];
+    if (selectedId) ids.push(selectedId);
+    for (const id of multiSelected) if (id !== selectedId) ids.push(id);
+    return ids;
+  })();
+  const selectedOutline = focusNodeOutlineVisual(zoom);
 
   // a hovered edge spotlights its off-screen endpoints' docked names, so you
   // can read where the edge under the cursor is heading
@@ -1009,7 +1035,7 @@ export function RingsMapSvg(props: Props) {
                 }
                 stroke={isSelected(id) ? SELECT_STROKE : CIRCLE_STROKE}
                 stroke-width={isSelected(id) ? 2.4 : 1.2}
-                opacity={moduleOpacity(id)}
+                opacity={moduleOpacity(id) * (isSelected(id) ? 1 : structureOpacity)}
                 onClick={(event) => {
                   event.stopPropagation();
                   onSelect(id, event.shiftKey);
@@ -1032,6 +1058,7 @@ export function RingsMapSvg(props: Props) {
           liftOf={elevationOn ? liftOffsetOf : undefined}
           labelMinPx={props.labelMinPx}
           labelScale={props.labelScale}
+          subdued={focus !== null}
         />
         <g style={{ display: sourceVisible ? "" : "none" }}>
           {visibleFileCells.map((cell) => {
@@ -1051,6 +1078,7 @@ export function RingsMapSvg(props: Props) {
             // dim cells the active highlight doesn't touch, so the tinted ones pop
             const dimmed =
               hasActiveLinks && !isSelected(cell.id) && !activeLinkTint.has(parentFileOf(cell.id));
+            const diffStat = props.diffStatOf?.(cell.id);
             return (
               <polygon
                 key={cell.id}
@@ -1058,7 +1086,6 @@ export function RingsMapSvg(props: Props) {
                 fill={
                   traceFillOf(cell.id) ??
                   leafFillOf(cell.id, {
-                    changedOf,
                     cyclicIds,
                     testFileIds,
                     dependencyIds,
@@ -1071,12 +1098,18 @@ export function RingsMapSvg(props: Props) {
                     ? SELECT_STROKE
                     : linked
                       ? LINKED_STROKE
-                      : border
-                        ? LEAF_STROKE
-                        : "none"
+                      : diffStat
+                        ? DIFF_DENSITY_STROKE
+                        : border
+                          ? LEAF_STROKE
+                          : "none"
                 }
-                stroke-width={isSelected(cell.id) ? 2 : linked ? 1.4 : 0.8}
-                stroke-opacity={linked ? 0.95 : undefined}
+                stroke-width={
+                  isSelected(cell.id) ? 2 : linked ? 1.4 : diffStrokeWidth(diffStat, 0.8)
+                }
+                stroke-opacity={
+                  linked ? 0.95 : diffStat ? 0.62 + 0.34 * Math.sqrt(diffStat.ratio) : undefined
+                }
                 opacity={fileOpacity(cell.id) * (dimmed ? 0.35 : 1)}
                 onMouseEnter={satellitesOn ? () => setLinkHover(parentFileOf(cell.id)) : undefined}
                 onMouseLeave={satellitesOn ? () => setLinkHover(null) : undefined}
@@ -1109,8 +1142,9 @@ export function RingsMapSvg(props: Props) {
         ) : null}
         {showInner ? (
           <g stroke={SYMBOL_STROKE} stroke-width={0.4} stroke-opacity={0.8}>
-            {visibleInnerCells.map((cell) =>
-              true ? (
+            {visibleInnerCells.map((cell) => {
+              const diffStat = props.diffStatOf?.(cell.id);
+              return (
                 <polygon
                   key={cell.id}
                   points={pointsOf(cell)}
@@ -1121,16 +1155,55 @@ export function RingsMapSvg(props: Props) {
                         ? UPSTREAM_FILL
                         : (traceFillOf(cell.id) ?? "transparent")
                   }
-                  stroke={isSelected(cell.id) ? SELECT_STROKE : undefined}
-                  stroke-width={isSelected(cell.id) ? 1.6 : undefined}
+                  stroke={
+                    isSelected(cell.id) ? SELECT_STROKE : diffStat ? DIFF_DENSITY_STROKE : undefined
+                  }
+                  stroke-width={isSelected(cell.id) ? 1.6 : diffStrokeWidth(diffStat, 0.4)}
+                  stroke-opacity={diffStat ? 0.65 + 0.3 * Math.sqrt(diffStat.ratio) : undefined}
                   opacity={symbolOpacity(cell.id)}
                   onClick={(event) => {
                     event.stopPropagation();
                     onSelect(cell.id, event.shiftKey);
                   }}
                 />
-              ) : null,
-            )}
+              );
+            })}
+          </g>
+        ) : null}
+        {sourceVisible ? (
+          <g style={{ pointerEvents: "none" }}>
+            {visibleFileCells.map((cell) => {
+              const stat = props.diffStatOf?.(cell.id);
+              if (!stat || isSelected(cell.id)) return null;
+              return (
+                <polygon
+                  key={`diff-file:${cell.id}`}
+                  points={pointsOf(cell)}
+                  fill="none"
+                  stroke={DIFF_DENSITY_STROKE}
+                  stroke-opacity={diffOutlineOpacity(stat)}
+                  stroke-width={diffForegroundStrokeWidth(stat, 0.8)}
+                  stroke-linejoin="round"
+                />
+              );
+            })}
+            {showInner
+              ? visibleInnerCells.map((cell) => {
+                  const stat = props.diffStatOf?.(cell.id);
+                  if (!stat || isSelected(cell.id)) return null;
+                  return (
+                    <polygon
+                      key={`diff-symbol:${cell.id}`}
+                      points={pointsOf(cell)}
+                      fill="none"
+                      stroke={DIFF_DENSITY_STROKE}
+                      stroke-opacity={diffOutlineOpacity(stat)}
+                      stroke-width={diffForegroundStrokeWidth(stat, 0.4)}
+                      stroke-linejoin="round"
+                    />
+                  );
+                })
+              : null}
           </g>
         ) : null}
         <CfgLayer entries={props.cfgEntries ?? []} zoom={zoom} view={committedView} />
@@ -1296,27 +1369,103 @@ export function RingsMapSvg(props: Props) {
               ) : null;
             })()
           : null}
+        {selectedOutlineIds.length > 0 ? (
+          <g style={{ pointerEvents: "none" }}>
+            {selectedOutlineIds.map((id) => {
+              const circle = liftedCircleOf(id);
+              if (circle) {
+                return (
+                  <g key={`selected-outline:${id}`}>
+                    <circle
+                      cx={circle.cx}
+                      cy={circle.cy}
+                      r={circle.r}
+                      fill="none"
+                      stroke={SELECT_HALO_STROKE}
+                      stroke-width={selectedOutline.haloWidth}
+                      stroke-opacity={0.85}
+                    />
+                    <circle
+                      cx={circle.cx}
+                      cy={circle.cy}
+                      r={circle.r}
+                      fill="none"
+                      stroke={SELECT_STROKE}
+                      stroke-width={selectedOutline.coreWidth}
+                      stroke-opacity={1}
+                    />
+                  </g>
+                );
+              }
+              let cell: CellResult | null = null;
+              for (const c of visibleInnerCells)
+                if (c.id === id) {
+                  cell = c;
+                  break;
+                }
+              if (!cell)
+                for (const c of visibleFileCells)
+                  if (c.id === id) {
+                    cell = c;
+                    break;
+                  }
+              if (!cell) return null;
+              const pts = pointsOf(cell);
+              return (
+                <g key={`selected-outline:${id}`}>
+                  <polygon
+                    points={pts}
+                    fill="none"
+                    stroke={SELECT_HALO_STROKE}
+                    stroke-width={selectedOutline.haloWidth}
+                    stroke-opacity={0.85}
+                    stroke-linejoin="round"
+                  />
+                  <polygon
+                    points={pts}
+                    fill="none"
+                    stroke={SELECT_STROKE}
+                    stroke-width={selectedOutline.coreWidth}
+                    stroke-opacity={1}
+                    stroke-linejoin="round"
+                  />
+                </g>
+              );
+            })}
+          </g>
+        ) : null}
         {/* command-palette preview: outline the auto-focused (not yet selected)
           node so it's clear which one the camera flew to */}
         {props.previewId
           ? (() => {
               const id = props.previewId;
+              const previewOutline = focusNodeOutlineVisual(zoom, true);
               // outline rides the lifted disc/cell so it marks where the camera
               // actually flew, not the sea-level position.
               const circle = liftedCircleOf(id);
               if (circle) {
                 return (
-                  <circle
-                    cx={circle.cx}
-                    cy={circle.cy}
-                    r={circle.r}
-                    fill="none"
-                    stroke={SELECT_STROKE}
-                    stroke-width={2.5 / zoom}
-                    stroke-opacity={0.95}
-                    stroke-dasharray={`${6 / zoom} ${4 / zoom}`}
-                    style={{ pointerEvents: "none" }}
-                  />
+                  <g style={{ pointerEvents: "none" }}>
+                    <circle
+                      cx={circle.cx}
+                      cy={circle.cy}
+                      r={circle.r}
+                      fill="none"
+                      stroke={SELECT_HALO_STROKE}
+                      stroke-width={previewOutline.haloWidth}
+                      stroke-opacity={0.7}
+                    />
+                    <circle
+                      cx={circle.cx}
+                      cy={circle.cy}
+                      r={circle.r}
+                      fill="none"
+                      stroke={SELECT_STROKE}
+                      stroke-width={previewOutline.coreWidth}
+                      stroke-opacity={0.95}
+                      stroke-dasharray={previewOutline.dasharray}
+                    />
+                  </g>
                 );
               }
               let poly: Vec2[] | null = null;
@@ -1340,17 +1489,19 @@ export function RingsMapSvg(props: Props) {
                   <polygon
                     points={pts}
                     fill="none"
-                    stroke={SELECT_STROKE}
-                    stroke-width={4 / zoom}
-                    stroke-opacity={0.25}
+                    stroke={SELECT_HALO_STROKE}
+                    stroke-width={previewOutline.haloWidth}
+                    stroke-opacity={0.7}
+                    stroke-linejoin="round"
                   />
                   <polygon
                     points={pts}
                     fill="none"
                     stroke={SELECT_STROKE}
-                    stroke-width={1.5 / zoom}
+                    stroke-width={previewOutline.coreWidth}
                     stroke-opacity={0.95}
-                    stroke-dasharray={`${6 / zoom} ${4 / zoom}`}
+                    stroke-dasharray={previewOutline.dasharray}
+                    stroke-linejoin="round"
                   />
                 </g>
               );
@@ -1584,14 +1735,23 @@ export function RingsMapSvg(props: Props) {
                 if (isWatermarkSized(cell, zoom)) return null;
                 // a labeled symbol owns the spot — no stacked file name
                 if (labeledSymbolFiles.has(cell.id)) return null;
+                const changed = props.diffStatOf?.(cell.id) !== undefined;
+                const forceLabel = cell.id === selectedId || changed;
                 const fontSize = screenFont(
                   Math.sqrt(cell.actualArea) * 0.18,
                   9,
                   15,
-                  cell.id === selectedId,
+                  forceLabel,
                   Infinity, // the watermark gate above already capped it
                 );
                 if (fontSize === null) return null;
+                const onScreen = Math.sqrt(cell.actualArea) * zoom;
+                const name = diffLabel(
+                  cell.id,
+                  labels.get(cell.id) ?? fallbackLabel(cell.id),
+                  onScreen,
+                  forceLabel,
+                );
                 return (
                   <text
                     key={cell.id}
@@ -1600,10 +1760,11 @@ export function RingsMapSvg(props: Props) {
                       liftXY({ x: cell.site.x, y: cell.site.y + fontSize * 0.35 }, cell.id),
                     )}
                     font-size={fontSize}
+                    font-weight={changed ? 700 : undefined}
                     fill={testFileIds.has(cell.id) ? TEST_LABEL_INK : FILE_LABEL_INK}
                     opacity={fileOpacity(cell.id)}
                   >
-                    {labels.get(cell.id) ?? fallbackLabel(cell.id)}
+                    {name}
                   </text>
                 );
               })
@@ -1622,13 +1783,21 @@ export function RingsMapSvg(props: Props) {
                 const dominant =
                   Math.sqrt(cell.actualArea) * zoom >=
                   Math.min(width, height) * SYMBOL_DOMINANT_FRACTION * labelFactor;
-                const name = labels.get(cell.id) ?? fallbackLabel(cell.id);
+                const rawName = labels.get(cell.id) ?? fallbackLabel(cell.id);
                 const kind = props.symbolKindOf?.(cell.id);
-                const glyph = symbolGlyphOf(kind, name);
+                const glyph = symbolGlyphOf(kind, rawName);
                 // class members are detail: keep them hidden until a deep zoom
                 // makes their cell large, so the overview shows classes/functions
                 const isMember = glyph === "method" || glyph === "property";
                 const onScreen = Math.sqrt(cell.actualArea) * zoom;
+                const changed = props.diffStatOf?.(cell.id) !== undefined;
+                const changedReadable = changed && onScreen >= 28 * labelFactor;
+                const name = diffLabel(
+                  cell.id,
+                  rawName,
+                  onScreen,
+                  isSelected(cell.id) || fileSelected || changedReadable,
+                );
                 const roomy =
                   symbolMode &&
                   onScreen >= (isMember ? MEMBER_TAG_MIN_PX : SYMBOL_ICON_MIN_PX) * labelFactor;
@@ -1636,7 +1805,7 @@ export function RingsMapSvg(props: Props) {
                   Math.sqrt(cell.actualArea) * 0.3,
                   exported ? 7 : 13,
                   12,
-                  isSelected(cell.id) || fileSelected || dominant || linked,
+                  isSelected(cell.id) || fileSelected || dominant || linked || changedReadable,
                   200,
                 );
                 if (fontSize === null) return null;
@@ -1645,10 +1814,10 @@ export function RingsMapSvg(props: Props) {
                 const fits = onScreen * 1.25 >= name.length * fontSize * zoom * 0.5;
                 // members never ride the dominant/linked shortcut — only room
                 const passes = isMember
-                  ? roomy || cell.id === selectedId
+                  ? roomy || cell.id === selectedId || changedReadable
                   : cell.id === selectedId ||
                     fileSelected ||
-                    ((linked || dominant || roomy) && fits);
+                    ((linked || dominant || roomy || changedReadable) && fits);
                 if (!passes) return null;
                 const tagAt = liftXY({ x: cell.site.x, y: cell.site.y - screenRadius(4) }, cell.id);
                 return (

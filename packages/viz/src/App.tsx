@@ -108,6 +108,15 @@ import {
   showsSymbolLevels,
 } from "./viewConfig.ts";
 import { diffGraphs, isEmptyDelta } from "@sprawlens/schema";
+import { buildChangedPreviewFocus } from "./changedPreview.ts";
+import {
+  buildSymbolDiffStats,
+  fallbackChangedDiffStat,
+  normalizeFileDiffStats,
+  type DiffHunk,
+  type NodeDiffStat,
+  type RawDiffLineStat,
+} from "./diffStats.ts";
 import { buildHistoryIndex, type HistoryEntry, type HistoryIndex } from "./history.ts";
 
 const WIDTH = 960;
@@ -233,6 +242,7 @@ export function App() {
     omitModules: [],
     weight: urlParams.weight,
     followChanges: true,
+    changedPreview: urlParams.changedPreview,
     diffBase: "",
     // ambient edges add noise; macro module deps are opt-in via this toggle
     showEdges: urlParams.showEdges,
@@ -265,6 +275,7 @@ export function App() {
       boundaries: params.boundaries,
       displayLevels: params.displayLevels,
       weight: params.weight,
+      changedPreview: params.changedPreview,
       showEdges: params.showEdges,
       groupByService: params.groupByService,
       dark: params.dark,
@@ -277,6 +288,7 @@ export function App() {
     params.boundaries,
     params.displayLevels,
     params.weight,
+    params.changedPreview,
     params.showEdges,
     params.groupByService,
     params.dark,
@@ -546,6 +558,10 @@ export function App() {
   const changedFilesRef = useRef(new Map<string, "added" | "modified">());
   /** Per-symbol diff for the displayed history commit (empty otherwise). */
   const changedSymbolsRef = useRef(new Map<string, "added" | "modified">());
+  /** Working-tree diff density for changed files and symbols. History diffs
+   * only know changed/added, so they leave this empty. */
+  const diffStatsRef = useRef(new Map<string, NodeDiffStat>());
+  const diffStatsSigRef = useRef("");
   /** Files a satellite layer's edges point at; each keeps a budgeted cell so it
    * surfaces to be linked + highlighted. Empty when no planes are shown. */
   const referencedFilesRef = useRef<Set<string>>(new Set());
@@ -583,6 +599,11 @@ export function App() {
     testTargetsRef.current = matchTestTargets(graph);
     const labels = labelsRef.current;
     for (const node of graph.nodes) labels.set(node.id, node.label);
+  };
+
+  const clearDiffStats = () => {
+    diffStatsRef.current = new Map();
+    diffStatsSigRef.current = "";
   };
 
   // Module grouping derived from the actual directory tree (containers vs
@@ -912,6 +933,7 @@ export function App() {
 
   /** Highlight what the displayed commit itself changed (vs its parent). */
   const applyCommitDiff = (index: number) => {
+    clearDiffStats();
     const diff = historyIndexRef.current?.diffs[index];
     if (!diff) {
       changedFilesRef.current = new Map();
@@ -935,6 +957,7 @@ export function App() {
    * highlights everything that changed anywhere in the selected span (not just
    * the last commit). The end commit b's snapshot is what's displayed. */
   const applyRangeDiff = (a: number, b: number) => {
+    clearDiffStats();
     const lo = Math.max(0, Math.min(a, b));
     const hi = Math.max(a, b);
     const files = new Map<string, "added" | "modified">();
@@ -963,6 +986,7 @@ export function App() {
     // only the history source carries a per-symbol diff; clear it for the rest
     // (the history branch recomputes it via applyCommitDiff below)
     changedSymbolsRef.current = new Map();
+    if (p.source !== "sprawlens" && p.source !== "served") clearDiffStats();
     if (p.source === "sprawlens") {
       graph = snapshotToAtlasGraph(sprawlensSnapshot);
       symbolsRef.current = snapshotSymbols(sprawlensSnapshot);
@@ -1199,11 +1223,36 @@ export function App() {
    * re-derived here (file-level scaffold); the diff contract drives both
    * the inner-layout invalidation and the warm re-flow.
    */
-  const applyWorkingTreeDiff = (diff: {
+  type WorkingDiffPayload = {
     changed: Record<string, "added" | "modified">;
     removed: string[];
     loc?: Record<string, number>;
-  }) => {
+    stats?: Record<string, RawDiffLineStat>;
+    hunks?: Record<string, DiffHunk[]>;
+  };
+
+  const applyWorkingDiffStats = (
+    diff: WorkingDiffPayload,
+    changed: ReadonlyMap<string, "added" | "modified">,
+  ): boolean => {
+    const nextStats = normalizeFileDiffStats(diff.stats, diff.loc, locOfRef.current, changed);
+    for (const [file, hunks] of Object.entries(diff.hunks ?? {})) {
+      const symbols = symbolsRef.current?.get(file);
+      if (!symbols) continue;
+      for (const [id, stat] of buildSymbolDiffStats(symbols, hunks)) {
+        nextStats.set(id, stat);
+      }
+    }
+    const signature = JSON.stringify(
+      [...nextStats.entries()].sort(([a], [b]) => a.localeCompare(b)),
+    );
+    if (signature === diffStatsSigRef.current) return false;
+    diffStatsRef.current = nextStats;
+    diffStatsSigRef.current = signature;
+    return true;
+  };
+
+  const applyWorkingTreeDiff = (diff: WorkingDiffPayload) => {
     const prev = graphRef.current;
     const byId = new Map(prev.nodes.map((n) => [n.id, n]));
     const loc = diff.loc ?? {};
@@ -1976,6 +2025,23 @@ export function App() {
   const parentFileOf = (id: string) =>
     symbolMetaRef.current.get(id)?.fileId ??
     (id.startsWith("symbol:") ? (id.split(":")[1] ?? id) : id.split("#")[0]!);
+  const changedSignalIds = new Set<string>([
+    ...changedFilesRef.current.keys(),
+    ...changedSymbolsRef.current.keys(),
+    ...[...diffStatsRef.current.keys()].filter((id) => id.startsWith("symbol:")),
+  ]);
+  const changedPreviewView =
+    params.changedPreview && changedSignalIds.size > 0
+      ? buildChangedPreviewFocus({
+          changedFiles: changedFilesRef.current,
+          changedSymbols: changedSymbolsRef.current,
+          diffStats: diffStatsRef.current,
+          moduleOfId,
+          parentFileOf,
+          symbolsByFile: symbolsRef.current,
+        })
+      : null;
+  const mapFocusView = focusView ?? changedPreviewView;
   /** Diff kind for any leaf, file or symbol. A file matches directly; a symbol
    * inherits its file's change so the diff stays visible at symbol granularity,
    * with its own precise change (history) taking priority when present. */
@@ -1985,6 +2051,23 @@ export function App() {
     const file = parentFileOf(id);
     if (file === id) return undefined;
     return changedSymbolsRef.current.get(id) ?? changedFilesRef.current.get(file);
+  };
+  const diffStatOf = (id: string): NodeDiffStat | undefined => {
+    const direct = diffStatsRef.current.get(id);
+    if (direct) return direct;
+    const file = parentFileOf(id);
+    const inherited = file === id ? undefined : diffStatsRef.current.get(file);
+    if (inherited) return inherited;
+    const changed = changedOf(id);
+    if (!changed) return undefined;
+    const symbolLoc =
+      file !== id
+        ? symbolsRef.current?.get(file)?.find((symbol) => symbol.id === id)?.metrics.loc
+        : undefined;
+    return fallbackChangedDiffStat(
+      changed,
+      symbolLoc ?? locOfRef.current.get(id) ?? locOfRef.current.get(file),
+    );
   };
 
   // --- dependency-flow analysis: cycles and the edges that sustain them ---
@@ -2150,15 +2233,14 @@ export function App() {
         // drop any stale diff carried over from a previous source (e.g. history)
         if (changedFilesRef.current.size > 0) {
           changedFilesRef.current = new Map();
+          clearDiffStats();
           setFrame((f) => f + 1);
+        } else {
+          clearDiffStats();
         }
       },
       onMessage: (data) => {
-        const diff = JSON.parse(data) as {
-          changed: Record<string, "added" | "modified">;
-          removed: string[];
-          loc?: Record<string, number>;
-        };
+        const diff = JSON.parse(data) as WorkingDiffPayload;
         // incremental recompute: turn the working-tree diff into a graph delta
         // and warm-apply it so edited files re-flow in place. Gated by
         // followChanges — off keeps the highlight-only behavior.
@@ -2167,6 +2249,7 @@ export function App() {
         }
         const known = new Set(graphRef.current.nodes.map((n) => n.id));
         const next = new Map(Object.entries(diff.changed).filter(([id]) => known.has(id)));
+        const statsDirty = applyWorkingDiffStats(diff, next);
         const seen = seenChangesRef.current;
         const fresh = [...next.keys()].filter((id) => !seen.has(id));
         seen.clear();
@@ -2174,14 +2257,15 @@ export function App() {
         const previous = changedFilesRef.current;
         const dirty =
           previous.size !== next.size || [...next].some(([id, kind]) => previous.get(id) !== kind);
-        if (dirty) {
-          changedFilesRef.current = next;
+        if (dirty || statsDirty) {
+          if (dirty) changedFilesRef.current = next;
           // at symbol granularity a warm reflow leaves the changed (esp. private)
           // symbols folded, so the diff never shows; a cold rebuild lays them out
           // with the keep/priority boost. file granularity recolors in place.
           if (
+            dirty &&
             granularityOf(paramsRef.current.boundaries, paramsRef.current.displayLevels) ===
-            "symbol"
+              "symbol"
           ) {
             rebuild(paramsRef.current);
           }
@@ -2549,12 +2633,13 @@ export function App() {
     labels,
     exportedIds,
     symbolKindOf,
-    focus: focusView,
+    focus: mapFocusView,
     testFileIds,
     layers: satelliteLayers,
     altEdges,
     parentFileOf,
     changedOf,
+    diffStatOf,
     portNodes,
     hiddenLayers: new Set(hiddenLayersOf(params.omit)),
     showEdges: params.showEdges,
@@ -2824,6 +2909,7 @@ export function App() {
             params={params}
             availableScopes={availableScopes}
             debug={DEBUG}
+            changedCount={changedSignalIds.size}
             onChange={onControlsChange}
             onRegenerate={() => rebuild(paramsRef.current)}
             onMutateWeight={mutateWeight}
@@ -2893,14 +2979,15 @@ export function App() {
       </div>
       {/* detail / history overlay: floats over the right of the full-screen
           map, only when there is a selection or recent change to show */}
-      {/* working-tree change log: small overlay, bottom-left */}
-      {recentChangesRef.current.length > 0 ? (
+      {/* working-tree change preview + log: bottom-left, near the user's
+          temporal workflow controls instead of the top-left navigation lane. */}
+      {changedSignalIds.size > 0 || recentChangesRef.current.length > 0 ? (
         <div
           style={{
             position: "absolute",
             left: "8px",
             bottom: "8px",
-            width: "260px",
+            width: "290px",
             maxHeight: "40vh",
             overflowY: "auto",
             background: PANEL_BG,
@@ -2911,27 +2998,68 @@ export function App() {
             color: INK,
           }}
         >
-          <div style={{ fontWeight: "600", marginBottom: "4px" }}>Change history</div>
-          <div style={{ display: "flex", flexDirection: "column", gap: "2px" }}>
-            {recentChangesRef.current.map((entry) => (
-              <button
-                key={entry.id}
-                onClick={() => jumpTo(entry.id, 6)}
-                style={{
-                  padding: "3px 4px",
-                  fontSize: "11px",
-                  cursor: "pointer",
-                  background: "none",
-                  border: "none",
-                  color: entry.kind === "added" ? "#34d399" : "#fbbf24",
-                  textAlign: "left",
-                  wordBreak: "break-all",
-                }}
-              >
-                {new Date(entry.at).toLocaleTimeString()} {labelOf(entry.id)}
-              </button>
-            ))}
-          </div>
+          <button
+            onClick={() =>
+              onControlsChange({ ...paramsRef.current, changedPreview: !params.changedPreview })
+            }
+            disabled={changedSignalIds.size === 0}
+            title={
+              params.changedPreview
+                ? "show the full map without extracting changed nodes"
+                : "extract changed files and symbols"
+            }
+            style={{
+              width: "100%",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "space-between",
+              gap: "8px",
+              padding: "6px 8px",
+              cursor: changedSignalIds.size === 0 ? "default" : "pointer",
+              background: params.changedPreview ? "rgba(154,52,18,0.9)" : "rgba(15,23,42,0.72)",
+              color: INK,
+              border: `1px solid ${params.changedPreview ? "#f97316" : PANEL_BORDER}`,
+              borderRadius: "8px",
+              fontFamily: "Monaco, ui-monospace, Menlo, monospace",
+              fontSize: "11px",
+            }}
+          >
+            <span>Changed preview</span>
+            <span style={{ color: params.changedPreview ? "#fed7aa" : MUTED_INK }}>
+              {params.changedPreview ? "on" : "off"} · {changedSignalIds.size}
+            </span>
+          </button>
+          {recentChangesRef.current.length > 0 ? (
+            <>
+              <div style={{ fontWeight: "600", marginTop: "8px", marginBottom: "4px" }}>
+                Change history
+              </div>
+              <div style={{ display: "flex", flexDirection: "column", gap: "2px" }}>
+                {recentChangesRef.current.map((entry) => (
+                  <button
+                    key={entry.id}
+                    onClick={() => jumpTo(entry.id, 6)}
+                    style={{
+                      padding: "3px 4px",
+                      fontSize: "11px",
+                      cursor: "pointer",
+                      background: "none",
+                      border: "none",
+                      color: entry.kind === "added" ? "#34d399" : "#fbbf24",
+                      textAlign: "left",
+                      wordBreak: "break-all",
+                    }}
+                  >
+                    {new Date(entry.at).toLocaleTimeString()} {labelOf(entry.id)}
+                  </button>
+                ))}
+              </div>
+            </>
+          ) : (
+            <div style={{ marginTop: "6px", fontSize: "11px", color: MUTED_INK }}>
+              Working tree changes are highlighted on the map.
+            </div>
+          )}
         </div>
       ) : null}
       {/* Agent Lens dock: keep it out of the top-right hover/LSP popup lane.

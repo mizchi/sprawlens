@@ -5,6 +5,9 @@ import {
   isSafeRef,
   parseGitStatus,
   parseNameStatus,
+  parseNumstat,
+  parseUnifiedDiffHunks,
+  touchCountFromHunks,
 } from "./workingDiff.ts";
 
 describe("countLines", () => {
@@ -73,6 +76,59 @@ describe("parseNameStatus", () => {
       "src/core/link.ts": "modified",
     });
     expect(out.removed.sort()).toEqual(["src/before.ts", "src/gone/old.ts"]);
+  });
+});
+
+describe("parseNumstat", () => {
+  it("maps added and deleted line counts by path", () => {
+    expect(
+      parseNumstat(["12\t3\tsrc/a.ts", "0\t8\tsrc/b.ts", "-\t-\tassets/logo.png", ""].join("\n")),
+    ).toEqual({
+      "src/a.ts": { added: 12, deleted: 3 },
+      "src/b.ts": { added: 0, deleted: 8 },
+    });
+  });
+});
+
+describe("parseUnifiedDiffHunks", () => {
+  it("keeps zero-context hunk ranges under their new path", () => {
+    const hunks = parseUnifiedDiffHunks(
+      [
+        "diff --git a/src/a.ts b/src/a.ts",
+        "index 111..222 100644",
+        "--- a/src/a.ts",
+        "+++ b/src/a.ts",
+        "@@ -10,2 +10,4 @@ function a()",
+        "@@ -30 +32,0 @@ function gone()",
+        "diff --git a/src/old.ts b/src/new.ts",
+        "similarity index 80%",
+        "rename from src/old.ts",
+        "rename to src/new.ts",
+        "--- a/src/old.ts",
+        "+++ b/src/new.ts",
+        "@@ -1 +1 @@",
+        "",
+      ].join("\n"),
+    );
+    expect(hunks).toEqual({
+      "src/a.ts": [
+        { oldStart: 10, oldLines: 2, newStart: 10, newLines: 4 },
+        { oldStart: 30, oldLines: 1, newStart: 32, newLines: 0 },
+      ],
+      "src/new.ts": [{ oldStart: 1, oldLines: 1, newStart: 1, newLines: 1 }],
+    });
+  });
+});
+
+describe("touchCountFromHunks", () => {
+  it("counts replacement hunks once and deletion hunks by removed lines", () => {
+    expect(
+      touchCountFromHunks([
+        { oldStart: 10, oldLines: 1, newStart: 10, newLines: 1 },
+        { oldStart: 20, oldLines: 2, newStart: 20, newLines: 0 },
+        { oldStart: 30, oldLines: 0, newStart: 28, newLines: 4 },
+      ]),
+    ).toBe(7);
   });
 });
 

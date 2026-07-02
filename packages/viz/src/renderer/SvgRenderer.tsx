@@ -38,6 +38,7 @@ export function SvgRenderer({ scene, ...handlers }: { scene: MapScene } & MapHan
         hiddenLayers={scene.hiddenLayers}
         parentFileOf={scene.parentFileOf}
         changedOf={scene.changedOf}
+        diffStatOf={scene.diffStatOf}
         portNodes={scene.portNodes}
         width={scene.width}
         height={scene.height}
@@ -76,6 +77,7 @@ export function SvgRenderer({ scene, ...handlers }: { scene: MapScene } & MapHan
       leafKind={scene.leafKind}
       labels={scene.labels}
       changedOf={scene.changedOf}
+      diffStatOf={scene.diffStatOf}
       cyclicIds={scene.cyclicIds}
       testFileIds={scene.testFileIds}
       layers={scene.layers}

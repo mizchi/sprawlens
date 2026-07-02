@@ -5,6 +5,7 @@ import { fileGrouping, moduleGrouping } from "@sprawlens/schema";
 import { cyclicComponents } from "@sprawlens/layout";
 import "./preactClassicJsxRuntime.ts";
 import { buildScene } from "../engine/buildScene.ts";
+import { fallbackChangedDiffStat } from "../diffStats.ts";
 import { SvgRenderer } from "../renderer/SvgRenderer.tsx";
 import { createRingsState, stepRingsState, type RingsState } from "../ringsController.ts";
 import { createTreemapState, stepTreemapState, type TreemapState } from "../treemapController.ts";
@@ -47,7 +48,7 @@ export type AtlasSvgOptions = {
   height?: number;
   /** Solver iteration cap (safety bound around the convergence loop). */
   maxSteps?: number;
-  /** Map of node id → change kind; tints added/modified leaf cells. */
+  /** Map of node id → change kind; overlays changed leaf cells with change heat. */
   changed?: Map<string, "added" | "modified">;
   /** Counts for the diff legend; when present and non-zero, a legend is drawn. */
   diffSummary?: { added: number; modified: number; removed: number };
@@ -160,6 +161,7 @@ export function renderAtlasSvg(graph: AtlasGraph, options: AtlasSvgOptions = {})
   const treemap = layout === "treemap" ? solveTreemap(graph, { solver, maxSteps }) : null;
 
   const labels = new Map(graph.nodes.map((n) => [n.id, n.label]));
+  const locOf = new Map(graph.nodes.map((n) => [n.id, n.metrics.loc]));
   const exportedIds = new Set(graph.nodes.filter((n) => n.exported).map((n) => n.id));
   const cyclicIds = new Set(
     cyclicComponents(
@@ -203,6 +205,10 @@ export function renderAtlasSvg(graph: AtlasGraph, options: AtlasSvgOptions = {})
     altEdges: false,
     parentFileOf,
     changedOf: (id) => options.changed?.get(id),
+    diffStatOf: (id) => {
+      const kind = options.changed?.get(id);
+      return kind ? fallbackChangedDiffStat(kind, locOf.get(id)) : undefined;
+    },
     portNodes: [],
     hiddenLayers: new Set(),
     showEdges: options.showEdges ?? false,

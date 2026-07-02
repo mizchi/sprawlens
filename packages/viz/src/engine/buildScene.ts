@@ -8,6 +8,7 @@ import type { TreemapState } from "../treemapController.ts";
 import type { Granularity } from "../viewConfig.ts";
 import type { FocusView } from "../useMapViewport.ts";
 import type { MapScene } from "../renderer/contract.ts";
+import type { NodeDiffStat } from "../diffStats.ts";
 
 /**
  * Raw engine state the scene is derived from. Deliberately renderer-agnostic:
@@ -43,6 +44,7 @@ export type SceneInput = {
   altEdges: boolean;
   parentFileOf: (id: string) => string;
   changedOf: (id: string) => "added" | "modified" | undefined;
+  diffStatOf?: (id: string) => NodeDiffStat | undefined;
   portNodes: { id: string; label: string; x: number; y: number }[];
   hiddenLayers: Set<string>;
   /** `params.showEdges` toggle (symbol granularity forces edges on for rings). */
@@ -82,6 +84,7 @@ export function buildScene(i: SceneInput): MapScene | null {
     altEdges: i.altEdges,
     parentFileOf: i.parentFileOf,
     changedOf: i.changedOf,
+    diffStatOf: i.diffStatOf ?? (() => undefined),
     testStatus: i.testStatus,
     testDuration: i.testDuration,
     tilt: i.tilt,
