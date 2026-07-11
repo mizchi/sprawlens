@@ -1,14 +1,13 @@
 /**
- * `@sprawlens/agent` — the headless command core that wraps the visualizer for
- * AI agents. A pure intent layer over the AtlasGraph: `applyIntent(index, view,
- * intent)` advances a ViewState (navigation) or answers a graph query, with no
- * browser. The MCP server and the in-app chat both ride on this.
+ * `@sprawlens/agent` — the renderer-independent command core for AI agents. A
+ * pure intent layer over AtlasGraph: `applyIntent(index, view, intent)` advances
+ * the versioned ViewState or answers a graph query. Composition roots render
+ * that state through `@sprawlens/viz/headless`, the same scene path as the app.
  */
 export * from "./viewState.ts";
 export * from "./intent.ts";
 export * from "./graphQuery.ts";
 export * from "./applyIntent.ts";
-export * from "./renderView.ts";
 export * from "./renderLens.ts";
 export * from "./toolSpecs.ts";
 export * from "./chat.ts";

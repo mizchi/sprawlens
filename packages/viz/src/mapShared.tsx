@@ -131,14 +131,32 @@ const leafTint = (moduleId: string, leafId: string) =>
 export function focusNodeOutlineVisual(
   zoom: number,
   dashed = false,
-): { haloWidth: number; coreWidth: number; dasharray?: string } {
+): {
+  haloWidth: number;
+  coreWidth: number;
+  haloOpacity: number;
+  coreOpacity: number;
+  dasharray?: string;
+} {
   const scale = 1 / Math.max(0.001, zoom);
   const visual = {
-    haloWidth: 6 * scale,
-    coreWidth: 2.2 * scale,
+    haloWidth: 2.8 * scale,
+    coreWidth: 1 * scale,
+    haloOpacity: dashed ? 0.22 : 0.28,
+    coreOpacity: dashed ? 0.68 : 0.78,
   };
   if (!dashed) return visual;
   return { ...visual, dasharray: `${6 * scale} ${4 * scale}` };
+}
+
+export function topStructureVisual(
+  focusActive: boolean,
+  selected: boolean,
+): { fillOpacity: number; strokeOpacity: number; labelOpacity: number } {
+  if (!focusActive || selected) {
+    return { fillOpacity: 1, strokeOpacity: 1, labelOpacity: 1 };
+  }
+  return { fillOpacity: 0.055, strokeOpacity: 0.09, labelOpacity: 0.18 };
 }
 
 export function setMapTheme(dark: boolean): void {
@@ -365,21 +383,61 @@ export function intermediateBoundaryVisual(args: {
   classBoundary: boolean;
   dim: number;
   subdued?: boolean;
+  changePreview?: boolean;
+  changed?: boolean;
 }): { strokeOpacity: number; strokeWidth: number; dasharray?: string; neutral?: boolean } {
   if (args.selected) return { strokeOpacity: 1, strokeWidth: 2.5 };
+  if (args.changePreview) {
+    if (args.changed) {
+      return args.classBoundary
+        ? { strokeOpacity: Math.max(0.55, args.dim * 0.65), strokeWidth: 1.6 }
+        : { strokeOpacity: Math.max(0.32, args.dim * 0.45), strokeWidth: 1.1 };
+    }
+    return args.classBoundary
+      ? {
+          strokeOpacity: Math.max(0.035, args.dim * 0.045),
+          strokeWidth: 0.3,
+          neutral: true,
+        }
+      : {
+          strokeOpacity: args.dim * 0.025,
+          strokeWidth: 0.18,
+          dasharray: "5 3",
+          neutral: true,
+        };
+  }
   if (args.classBoundary) {
     return {
-      strokeOpacity: args.subdued ? Math.max(0.45, args.dim * 0.6) : Math.max(0.9, args.dim),
-      strokeWidth: args.subdued ? 1.6 : 3,
+      strokeOpacity: args.subdued ? Math.max(0.08, args.dim * 0.12) : Math.max(0.9, args.dim),
+      strokeWidth: args.subdued ? 0.6 : 3,
       neutral: args.subdued,
     };
   }
   return {
-    strokeOpacity: args.dim * (args.subdued ? 0.4 : 1),
-    strokeWidth: args.subdued ? 0.65 : 1,
+    strokeOpacity: args.dim * (args.subdued ? 0.08 : 1),
+    strokeWidth: args.subdued ? 0.28 : 1,
     dasharray: "5 3",
     neutral: args.subdued,
   };
+}
+
+export function changedBoundaryAncestors(
+  leafIds: Iterable<string>,
+  parentOf: ReadonlyMap<string, string | null>,
+  isChanged: (id: string) => boolean,
+): Set<string> {
+  const out = new Set<string>();
+  for (const leafId of leafIds) {
+    if (!isChanged(leafId)) continue;
+    const seen = new Set<string>();
+    let current = parentOf.get(leafId) ?? null;
+    while (current !== null && !seen.has(current)) {
+      out.add(current);
+      seen.add(current);
+      current = parentOf.get(current) ?? null;
+    }
+  }
+  return out;
 }
 
 export function InnerLevelsLayer(props: {
@@ -401,6 +459,8 @@ export function InnerLevelsLayer(props: {
   labelScale?: number;
   /** A focus/extract preview is active: keep structure readable but secondary. */
   subdued?: boolean;
+  /** Changed Preview: boundary ids that contain at least one changed leaf. */
+  changedBoundaryIds?: ReadonlySet<string>;
 }) {
   const labelFactor = (props.labelMinPx ?? 9) / 9;
   const labelScale = props.labelScale ?? 1;
@@ -437,6 +497,8 @@ export function InnerLevelsLayer(props: {
               classBoundary: isClass,
               dim: dim.group(cell.id, top),
               subdued: props.subdued,
+              changePreview: props.changedBoundaryIds !== undefined,
+              changed: props.changedBoundaryIds?.has(cell.id) ?? false,
             });
             return (
               <polygon
@@ -498,7 +560,7 @@ export function InnerLevelsLayer(props: {
                 font-size={fontSize}
                 font-weight="600"
                 fill={isClassGroup ? CLASS_BOUNDARY : innerDistrictLabelFill(top)}
-                fill-opacity={(props.subdued ? 0.42 : 0.7) * dim.group(cell.id, top)}
+                fill-opacity={(props.subdued ? 0.14 : 0.7) * dim.group(cell.id, top)}
               >
                 {label}
               </text>

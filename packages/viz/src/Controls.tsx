@@ -8,6 +8,7 @@ import {
   type ViewConfig,
   type WeightKind,
 } from "./viewConfig.ts";
+import type { LeafUpdateSummary } from "./incrementalLayout.ts";
 
 type DataSource =
   | "synthetic"
@@ -53,10 +54,14 @@ export type PlaygroundParams = {
   /** Top-level scopes excluded from the map ((root), src, e2e, ...). */
   omitModules: string[];
   weight: WeightKind;
+  /** Use the bounded stable-NPVT strategy for changed leaf groups. */
+  stableLayout: boolean;
   /** Fly the camera to files as their working-tree changes appear. */
   followChanges: boolean;
   /** Extract-style dimming preview for changed files/symbols. */
   changedPreview: boolean;
+  /** Extract-style dimming preview for runtime trace symbols. */
+  traceExtract: boolean;
   /** Diff comparison base (no UI yet; git tooling will own this). */
   diffBase: string;
   showEdges: boolean;
@@ -79,6 +84,7 @@ type Props = {
   /** Experiment helpers (graph mutation buttons) show only when set. */
   debug?: boolean;
   changedCount?: number;
+  leafUpdateSummary?: LeafUpdateSummary;
   onChange: (params: PlaygroundParams) => void;
   onRegenerate: () => void;
   onMutateWeight: () => void;
@@ -175,6 +181,23 @@ export function Controls(props: Props) {
           <option value="loc">LOC</option>
           <option value="complexity">complexity (deps)</option>
         </select>
+      </label>
+      <label
+        style={row}
+        title="preserve NPVT adjacency while minimizing changed-layout displacement"
+      >
+        <span style={{ width: "110px" }}>stable delta</span>
+        <input
+          type="checkbox"
+          checked={params.stableLayout}
+          onInput={(e) => set("stableLayout", (e.target as HTMLInputElement).checked)}
+        />
+        {props.leafUpdateSummary ? (
+          <small style={{ color: "#94a3b8" }}>
+            S{props.leafUpdateSummary.stableNeighborhood} W{props.leafUpdateSummary.warm} C
+            {props.leafUpdateSummary.cold}
+          </small>
+        ) : null}
       </label>
       <label style={row}>
         <span style={{ width: "110px" }}>follow changes</span>

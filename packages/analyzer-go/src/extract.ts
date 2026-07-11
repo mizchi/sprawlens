@@ -1,5 +1,4 @@
 import { createRequire } from "node:module";
-import { existsSync } from "node:fs";
 import { readFile } from "node:fs/promises";
 import { extname, posix } from "node:path";
 import fg from "fast-glob";
@@ -99,6 +98,42 @@ function goRequires(goMod: string): string[] {
   }
   // longest module first, so prefix matching picks the most specific
   return [...new Set(mods)].sort((a, b) => b.length - a.length);
+}
+
+/** The `module` path declared by a go.mod, else null. */
+function goModulePath(goMod: string): string | null {
+  const m = goMod.match(/^\s*module\s+(\S+)/m);
+  return m ? m[1]! : null;
+}
+
+/** Discover every go.mod module rooted inside the repo. A Go workspace often
+ * has no root go.mod: sibling modules are tied together by go.work/replace, and
+ * imports between them should still resolve as local project edges. */
+async function detectGoModules(
+  repoPath: string,
+): Promise<{ packages: WorkspacePackage[]; requires: string[] }> {
+  const manifests = await fg("**/go.mod", {
+    cwd: repoPath,
+    ignore: ["**/vendor/**", "**/node_modules/**", "**/testdata/**"],
+    onlyFiles: true,
+    unique: true,
+    suppressErrors: true,
+  });
+  const packages: WorkspacePackage[] = [];
+  const requires: string[] = [];
+  for (const rel of manifests.sort()) {
+    const goMod = await readFile(posix.join(repoPath, rel), "utf8");
+    const name = goModulePath(goMod);
+    if (name) {
+      const dir = posix.dirname(rel);
+      packages.push({ name, sourceRoot: dir === "." ? "" : dir });
+    }
+    requires.push(...goRequires(goMod));
+  }
+  return {
+    packages,
+    requires: [...new Set(requires)].sort((a, b) => b.length - a.length),
+  };
 }
 
 /**
@@ -236,16 +271,9 @@ export async function snapshotGoWorkingTree(
   });
   files.sort();
 
-  // go.mod gives the module path (for local resolution) and the require list
-  // (the project's third-party dependencies, for grouping external imports)
-  let modulePath = "";
-  let requires: string[] = [];
-  if (existsSync(posix.join(repoPath, "go.mod"))) {
-    const goMod = await readFile(posix.join(repoPath, "go.mod"), "utf8");
-    const m = goMod.match(/^\s*module\s+(\S+)/m);
-    if (m) modulePath = m[1]!;
-    requires = goRequires(goMod);
-  }
+  // go.mod files give local module paths (for workspace resolution) and the
+  // require list (for grouping external imports at go.mod module granularity).
+  const { packages: workspace, requires } = await detectGoModules(repoPath);
 
   const nodes: CodeNode[] = [{ id: "repo", type: "repo", name: repoName }];
   const edges: CodeEdge[] = [];
@@ -282,10 +310,9 @@ export async function snapshotGoWorkingTree(
     }
   }
 
-  // The go.mod module is a one-package workspace rooted at the repo: any import
-  // under the module path resolves to a local package dir (matchWorkspacePackage
-  // generalizes this to N named roots; Go just has one).
-  const workspace: WorkspacePackage[] = modulePath ? [{ name: modulePath, sourceRoot: "" }] : [];
+  // Each go.mod module is a workspace package: any import under its module path
+  // resolves to a local package dir. This handles both one-module repos and
+  // go.work / nested-go.mod monorepos.
   /** Local package dir for an import path under the module, else null. */
   const localDirOf = (spec: string): string | null => {
     const m = matchWorkspacePackage(workspace, spec);

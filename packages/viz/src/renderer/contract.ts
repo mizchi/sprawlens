@@ -81,12 +81,18 @@ type SceneCommon = {
   exportedIds: Set<string>;
   symbolKindOf: (id: string) => SymbolKind | undefined;
   focus: FocusView | null;
+  /** True only when the active focus comes from the Changed Preview toggle,
+   * not from manual selection or Trace Extract. */
+  changedPreviewActive: boolean;
   testFileIds: Set<string>;
   layers: SolvedLayer[];
   altEdges: boolean;
   parentFileOf: (id: string) => string;
   changedOf: (id: string) => "added" | "modified" | undefined;
   diffStatOf: (id: string) => NodeDiffStat | undefined;
+  /** Exact changed node emphasis. During Changed Preview this excludes
+   * inherited file-level context so only the real diff locations pop. */
+  emphasisDiffStatOf: (id: string) => NodeDiffStat | undefined;
   /** Test reporter overlay: test-case id → status, tinting the test-plane cells
    * pass/fail/skip. Empty when no test run was ingested. Shared across layouts. */
   testStatus: Map<string, TestStatus>;

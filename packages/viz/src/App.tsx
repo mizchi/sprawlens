@@ -13,6 +13,7 @@ import {
 import { centroid, containsPoint, type Ring, type Vec2 } from "@sprawlens/layout";
 import { createRng, type Rng } from "@sprawlens/layout";
 import { Controls, type PlaygroundParams } from "./Controls.tsx";
+import { summarizeLeafUpdateStrategies } from "./incrementalLayout.ts";
 import { CameraPanel, LayersMenu } from "./OverlayPanels.tsx";
 import { SvgRenderer } from "./renderer/SvgRenderer.tsx";
 import { fetchHover, symbolNameOf } from "./cfgClient.ts";
@@ -64,9 +65,8 @@ import { sprawlensSnapshot } from "./fixtures/sprawlens.ts";
 import { applyRingsChanges, createRingsState, type RingsState } from "./ringsController.ts";
 import { applyTreemapChanges, createTreemapState, type TreemapState } from "./treemapController.ts";
 import { reachSubgraph } from "@sprawlens/layout";
-import { elevationFromEntry } from "@sprawlens/layout";
 import { cyclicComponents } from "@sprawlens/layout";
-import type { FocusRequest, FocusView } from "./RingsMapSvg.tsx";
+import type { FocusView } from "./RingsMapSvg.tsx";
 import { createSyntheticGraph, synthesizeSymbolEdges, synthesizeSymbols } from "./synthetic.ts";
 import type { AtlasEdge } from "@sprawlens/schema";
 import { TracePlayer } from "./TracePlayer.tsx";
@@ -78,6 +78,8 @@ import { buildVizCommands } from "./vizCommands.ts";
 import { HelpModal } from "./HelpModal.tsx";
 import { CommandPalette } from "./CommandPalette.tsx";
 import { ChatDock } from "./ChatDock.tsx";
+import { snapshotLoadingUi, type SnapshotLoadState } from "./loadingProgress.ts";
+import { moduleDependencyElevation } from "./moduleElevation.ts";
 import {
   indexGraph,
   lens as buildAgentLens,
@@ -88,12 +90,14 @@ import {
 import { AgentLensPanel } from "./AgentLensPanel.tsx";
 import type { SearchNode } from "./nodeSearch.ts";
 import { projectTimelineCursor, stepClockUs, timelineDurationUs } from "./tracePlayer.ts";
+import { buildTraceExtractFocus } from "./traceExtract.ts";
 import {
   classGrouping,
   deriveModuleIdOf,
   directoryGrouping,
   moduleGrouping,
   parentFileOf as contractParentFileOf,
+  projectAtlasEvidence,
   projectEdgesToFiles,
   serviceGrouping,
   type Grouping,
@@ -118,6 +122,11 @@ import {
   type RawDiffLineStat,
 } from "./diffStats.ts";
 import { buildHistoryIndex, type HistoryEntry, type HistoryIndex } from "./history.ts";
+import {
+  liveDataUpdateLayoutPlan,
+  overlayLayoutSpec,
+  resolveMapFocusView,
+} from "./mapDisplaySpec.ts";
 
 const WIDTH = 960;
 const HEIGHT = 640;
@@ -241,8 +250,10 @@ export function App() {
     omit: ["local"],
     omitModules: [],
     weight: urlParams.weight,
+    stableLayout: urlParams.stableLayout,
     followChanges: true,
     changedPreview: urlParams.changedPreview,
+    traceExtract: urlParams.traceExtract,
     diffBase: "",
     // ambient edges add noise; macro module deps are opt-in via this toggle
     showEdges: urlParams.showEdges,
@@ -275,7 +286,9 @@ export function App() {
       boundaries: params.boundaries,
       displayLevels: params.displayLevels,
       weight: params.weight,
+      stableLayout: params.stableLayout,
       changedPreview: params.changedPreview,
+      traceExtract: params.traceExtract,
       showEdges: params.showEdges,
       groupByService: params.groupByService,
       dark: params.dark,
@@ -288,7 +301,9 @@ export function App() {
     params.boundaries,
     params.displayLevels,
     params.weight,
+    params.stableLayout,
     params.changedPreview,
+    params.traceExtract,
     params.showEdges,
     params.groupByService,
     params.dark,
@@ -305,6 +320,7 @@ export function App() {
     selectedIdsRef,
     setFocusId,
     setSelectedId,
+    setSelection,
     promoteToPrimary,
     deselect,
     selectNode,
@@ -435,6 +451,7 @@ export function App() {
   const playwrightSnapRef = useRef<SnapshotLike | null>(null);
   /** Snapshot served by the CLI at /api/snapshot (fetched once). */
   const servedSnapRef = useRef<SnapshotLike | null>(null);
+  const servedSnapshotPromiseRef = useRef<Promise<SnapshotLike | null> | null>(null);
   /** Fingerprint of the last applied served snapshot, so the live stream can
    * drop re-emitted, unchanged snapshots instead of cold-rebuilding. */
   const lastSnapSigRef = useRef<string | null>(null);
@@ -457,6 +474,16 @@ export function App() {
   // unless the server was started with --experimental or the URL opts in.
   const [configExperimental, setConfigExperimental] = useState(false);
   const experimentalOn = urlParams.experimental || configExperimental;
+  const servedRepo = urlParams.repo.trim();
+  const servedRepoQuery = servedRepo ? `?repo=${encodeURIComponent(servedRepo)}` : "";
+  const liveRepoName = params.source === "served" && servedRepo ? servedRepo : params.source;
+  const remoteServedRepo = params.source === "served" && servedRepo.length > 0;
+  const [snapshotLoad, setSnapshotLoad] = useState<SnapshotLoadState>(() => ({
+    status: remoteServedRepo ? "loading" : "idle",
+    repo: servedRepo,
+    startedAt: Date.now(),
+  }));
+  const [snapshotLoadTick, setSnapshotLoadTick] = useState(Date.now());
   // keyboard cheat-sheet modal (toggled with `?`)
   const [helpOpen, setHelpOpen] = useState(false);
   // raycast-style command palette (Cmd/Ctrl+F): fuzzy-jump to any node
@@ -478,18 +505,71 @@ export function App() {
   /** Layer render manifest from the server (sprawlens.toml); defaults to the
    * built-in test/deps presets for demo / fixtures with no server config. */
   const [layerManifest, setLayerManifest] = useState<LayerManifestEntry[]>(DEFAULT_LAYER_MANIFEST);
+  const loadServedSnapshot = (): Promise<SnapshotLike | null> => {
+    if (servedSnapRef.current) return Promise.resolve(servedSnapRef.current);
+    if (servedSnapshotPromiseRef.current) return servedSnapshotPromiseRef.current;
+    const repo = servedRepo;
+    if (repo) {
+      setSnapshotLoad({ status: "loading", repo, startedAt: Date.now() });
+    }
+    const promise = fetch(`/api/snapshot${servedRepoQuery}`)
+      .then(async (r) => {
+        if (!r.ok) {
+          const body = await r.text().catch(() => "");
+          throw new Error(`snapshot ${r.status}${body ? `: ${body.slice(0, 160)}` : ""}`);
+        }
+        return r.json() as Promise<SnapshotLike>;
+      })
+      .then((json) => {
+        servedSnapRef.current = json;
+        lastSnapSigRef.current = snapshotSignature(json);
+        if (repo) {
+          setSnapshotLoad({ status: "ready", repo, startedAt: Date.now() });
+        }
+        return json;
+      })
+      .catch((error) => {
+        if (repo) {
+          setSnapshotLoad({
+            status: "error",
+            repo,
+            startedAt: Date.now(),
+            error: error instanceof Error ? error.message : "snapshot failed",
+          });
+        }
+        throw error;
+      })
+      .finally(() => {
+        servedSnapshotPromiseRef.current = null;
+      });
+    servedSnapshotPromiseRef.current = promise;
+    return promise;
+  };
+  useEffect(() => {
+    if (snapshotLoad.status === "loading") {
+      setSnapshotLoadTick(Date.now());
+      const timer = window.setInterval(() => setSnapshotLoadTick(Date.now()), 180);
+      return () => window.clearInterval(timer);
+    }
+    if (snapshotLoad.status === "ready") {
+      const startedAt = snapshotLoad.startedAt;
+      const timer = window.setTimeout(() => {
+        setSnapshotLoad((current) =>
+          current.status === "ready" && current.startedAt === startedAt
+            ? { ...current, status: "idle" }
+            : current,
+        );
+      }, 700);
+      return () => window.clearTimeout(timer);
+    }
+  }, [snapshotLoad.status, snapshotLoad.startedAt]);
   // launched by the CLI? a snapshot is served — adopt it as the default source
   // (cached here so the rebuild below doesn't refetch). No-ops in dev/demo.
   useEffect(() => {
     let cancelled = false;
-    fetch("/api/snapshot")
-      .then((r) => (r.ok ? r.json() : null))
+    loadServedSnapshot()
       .then((json: SnapshotLike | null) => {
         if (cancelled || !json) return;
-        servedSnapRef.current = json;
-        // seed the fingerprint so the first stream emit (the same snapshot) is
-        // recognized as unchanged and doesn't reshuffle
-        lastSnapSigRef.current = snapshotSignature(json);
         setParams((p) => (p.source === "sprawlens" ? { ...p, source: "served" } : p));
       })
       .catch(() => {});
@@ -677,12 +757,24 @@ export function App() {
     return new Map([["service", edges]]);
   };
 
+  const stableNeighborhoodOptions = (enabled: boolean) =>
+    enabled
+      ? {
+          maxNodes: 32,
+          anchorMixes: [0, 0.5, 1],
+          adjacencyTolerance: 0,
+          areaTolerance: 0.01,
+          maxSteps: 240,
+        }
+      : (false as const);
+
   const ringsOptions = (p: PlaygroundParams) => ({
     width: WIDTH,
     height: HEIGHT,
     seed,
     adaptationRate: ADAPTATION_RATE,
     lloydRate: LLOYD_RATE,
+    stableNeighborhood: stableNeighborhoodOptions(p.stableLayout),
     boundaries: boundariesOf(p),
     nativeEdges: serviceNativeEdges(p),
   });
@@ -693,6 +785,7 @@ export function App() {
     seed,
     adaptationRate: ADAPTATION_RATE,
     lloydRate: LLOYD_RATE,
+    stableNeighborhood: stableNeighborhoodOptions(p.stableLayout),
     boundaries: boundariesOf(p),
     nativeEdges: serviceNativeEdges(p),
   });
@@ -1040,7 +1133,7 @@ export function App() {
         testTreeRef.current = null;
         fetch("fixtures/playwright.json")
           .then((r) => r.json())
-          .then((json: SnapshotLike) => {
+          .then((json: SnapshotLike | null) => {
             playwrightSnapRef.current = json;
             if (paramsRef.current.source === "playwright") {
               rebuild(paramsRef.current);
@@ -1062,10 +1155,9 @@ export function App() {
         symbolsRef.current = null;
         symbolEdgesRef.current = [];
         testTreeRef.current = null;
-        fetch("/api/snapshot")
-          .then((r) => r.json())
-          .then((json: SnapshotLike) => {
-            servedSnapRef.current = json;
+        loadServedSnapshot()
+          .then((json: SnapshotLike | null) => {
+            if (!json) return;
             if (paramsRef.current.source === "served") {
               rebuild(paramsRef.current);
               setFrame((f) => f + 1);
@@ -1116,7 +1208,7 @@ export function App() {
   // structural params trigger a rebuild; solver params only update
   // options on the existing layout
   const treemapSizeKey = params.layout === "treemap" ? `${mapSize.width}x${mapSize.height}` : "";
-  const structuralKey = `${params.source}|${params.layout}|${granularity}|${params.boundaries.join("+")}|${treemapSizeKey}|svc:${params.groupByService}`;
+  const structuralKey = `${params.source}|repo:${servedRepo}|${params.layout}|${granularity}|${params.boundaries.join("+")}|${treemapSizeKey}|svc:${params.groupByService}`;
   // weight / filters re-flow warm (the diff animation); only granularity
   // and data swaps rebuild cold
   const shownPlanesKey = params.tilt.enabled
@@ -1189,6 +1281,46 @@ export function App() {
     },
   });
 
+  const invalidateGraphDeltaLayouts = (delta: ReturnType<typeof diffGraphs>) => {
+    for (const node of delta.added) innerLayoutsRef.current.delete(node.id);
+    for (const node of delta.modified) innerLayoutsRef.current.delete(node.id);
+    for (const id of delta.removed) innerLayoutsRef.current.delete(id);
+    if (delta.added.length || delta.modified.length || delta.removed.length) {
+      innerDirtyRef.current = true;
+    }
+  };
+
+  const warmApplyDisplayedGraph = (previousVisible: AtlasGraph): boolean => {
+    const nextVisible = effectiveGraph(paramsRef.current);
+    const delta = diffGraphs(previousVisible, nextVisible);
+    const plan = liveDataUpdateLayoutPlan({
+      layoutReady: ringsRef.current !== null || treemapRef.current !== null,
+      displayChanged: !isEmptyDelta(delta),
+    });
+    if (plan === "ignore") return false;
+    invalidateGraphDeltaLayouts(delta);
+    if (plan === "cold-rebuild") {
+      rebuild(paramsRef.current);
+      setFrame((f) => f + 1);
+      return true;
+    }
+    if (ringsRef.current) {
+      ringsRef.current = applyRingsChanges(
+        ringsRef.current,
+        nextVisible,
+        ringsOptions(paramsRef.current),
+      );
+    } else if (treemapRef.current) {
+      treemapRef.current = applyTreemapChanges(
+        treemapRef.current,
+        nextVisible,
+        treemapOptions(paramsRef.current),
+      );
+    }
+    setFrame((f) => f + 1);
+    return true;
+  };
+
   const afterGraphMutation = (changedFileId?: string) => {
     refreshGraphLookups();
     if (ringsRef.current) {
@@ -1254,6 +1386,7 @@ export function App() {
 
   const applyWorkingTreeDiff = (diff: WorkingDiffPayload) => {
     const prev = graphRef.current;
+    const previousVisible = displayGraphRef.current;
     const byId = new Map(prev.nodes.map((n) => [n.id, n]));
     const loc = diff.loc ?? {};
     const removed = new Set(diff.removed.filter((id) => byId.has(id)));
@@ -1283,34 +1416,18 @@ export function App() {
     };
     const delta = diffGraphs(prev, nextGraph);
     if (isEmptyDelta(delta)) return;
-    for (const node of delta.added) innerLayoutsRef.current.delete(node.id);
-    for (const node of delta.modified) innerLayoutsRef.current.delete(node.id);
-    for (const id of delta.removed) innerLayoutsRef.current.delete(id);
-    innerDirtyRef.current = true;
+    invalidateGraphDeltaLayouts(delta);
     graphRef.current = nextGraph;
     refreshGraphLookups();
-    if (ringsRef.current) {
-      ringsRef.current = applyRingsChanges(
-        ringsRef.current,
-        effectiveGraph(paramsRef.current),
-        ringsOptions(paramsRef.current),
-      );
-    } else if (treemapRef.current) {
-      treemapRef.current = applyTreemapChanges(
-        treemapRef.current,
-        effectiveGraph(paramsRef.current),
-        treemapOptions(paramsRef.current),
-      );
-    }
-    setFrame((f) => f + 1);
+    if (!warmApplyDisplayedGraph(previousVisible)) setFrame((f) => f + 1);
   };
 
   /**
    * Apply a freshly re-analyzed snapshot from the live stream: refresh the
-   * symbol/edge/dep projections, then either cold-rebuild (symbol granularity,
-   * so new symbols get laid out) or warm-apply the graph delta in place (file
-   * granularity), keeping camera + positions. This is what makes fs edits show
-   * up — symbols and import edges, not just file sizes.
+   * symbol/edge/dep projections, then diff the displayed graph (file or symbol
+   * projection) and warm-apply that delta in place. This is what makes fs edits
+   * show up without returning to the seed layout — symbols and import edges,
+   * not just file sizes.
    */
   const applyServedSnapshot = (snap: SnapshotLike) => {
     // the stream re-analyzes on any fs event; ignore a re-emitted snapshot whose
@@ -1319,42 +1436,20 @@ export function App() {
     const sig = snapshotSignature(snap);
     if (sig === lastSnapSigRef.current) return;
     lastSnapSigRef.current = sig;
+    const prev = graphRef.current;
+    const previousVisible = displayGraphRef.current;
+    const nextGraph = snapshotToAtlasGraph(snap);
+    const rawDelta = diffGraphs(prev, nextGraph);
     servedSnapRef.current = snap;
     symbolsRef.current = snapshotSymbols(snap);
     symbolEdgesRef.current = snapshotSymbolEdges(snap);
     externalDepsRef.current = snapshotExternalDeps(snap);
     testTreeRef.current = snapshotTestTree(snap);
-    const symbolGranularity =
-      granularityOf(paramsRef.current.boundaries, paramsRef.current.displayLevels) === "symbol";
-    if (symbolGranularity) {
-      rebuild(paramsRef.current);
-      setFrame((f) => f + 1);
-      return;
-    }
-    const prev = graphRef.current;
-    const nextGraph = snapshotToAtlasGraph(snap);
-    const delta = diffGraphs(prev, nextGraph);
-    if (isEmptyDelta(delta)) return;
-    for (const node of delta.added) innerLayoutsRef.current.delete(node.id);
-    for (const node of delta.modified) innerLayoutsRef.current.delete(node.id);
-    for (const id of delta.removed) innerLayoutsRef.current.delete(id);
-    innerDirtyRef.current = true;
     graphRef.current = nextGraph;
+    if (!isEmptyDelta(rawDelta)) invalidateGraphDeltaLayouts(rawDelta);
     refreshGraphLookups();
-    if (ringsRef.current) {
-      ringsRef.current = applyRingsChanges(
-        ringsRef.current,
-        effectiveGraph(paramsRef.current),
-        ringsOptions(paramsRef.current),
-      );
-    } else if (treemapRef.current) {
-      treemapRef.current = applyTreemapChanges(
-        treemapRef.current,
-        effectiveGraph(paramsRef.current),
-        treemapOptions(paramsRef.current),
-      );
-    }
-    setFrame((f) => f + 1);
+    if (!warmApplyDisplayedGraph(previousVisible) && !isEmptyDelta(rawDelta))
+      setFrame((f) => f + 1);
   };
 
   const goToCommit = (index: number) => {
@@ -1434,60 +1529,14 @@ export function App() {
     return null;
   };
 
-  // topological elevation at the MODULE level — the architecturally meaningful
-  // layer: the apps (packages nothing else depends on, e.g. the one holding
-  // main) sit at the summit, foundations (contracts / layout / schema) at sea
-  // level. The renderer lifts each module's whole disc — cells, labels, edges —
-  // by its height when tilted, so packages stack as a dependency layer-cake.
-  // Keyed by module id; cells resolve to their module in the renderer. Cached
-  // by the layout-state identity.
+  // Topological elevation at the module/package level. Language analyzers emit
+  // file import edges; moduleDependencyElevation folds them into a module DAG
+  // and normalizes app/root packages to 1, deep dependencies to 0.
   const elevationCacheRef = useRef<{ key: unknown; map: Map<string, number> } | null>(null);
   const currentElevation = (): Map<string, number> => {
     const graph = displayGraphRef.current;
     if (elevationCacheRef.current?.key === graph) return elevationCacheRef.current.map;
-    // derive the package → package dependency graph by folding the import edges
-    // up to their modules (rings.topEdges doesn't carry cross-module deps)
-    const moduleOf = currentModuleIdOf();
-    const seen = new Set<string>();
-    const moduleEdges: { source: string; target: string }[] = [];
-    for (const e of graph.edges) {
-      const s = moduleOf(contractParentFileOf(e.source));
-      const t = moduleOf(contractParentFileOf(e.target));
-      if (s === t) continue;
-      const key = `${s}>${t}`;
-      if (seen.has(key)) continue;
-      seen.add(key);
-      moduleEdges.push({ source: s, target: t });
-    }
-    const moduleIds = new Set<string>();
-    for (const e of moduleEdges) {
-      moduleIds.add(e.source);
-      moduleIds.add(e.target);
-    }
-    // entry modules = packages nothing depends on (the apps at the top of the
-    // stack); fall back to every module if there is no clear root
-    const targets = new Set(moduleEdges.map((e) => e.target));
-    let entries = [...moduleIds].filter((id) => !targets.has(id));
-    if (entries.length === 0) entries = [...moduleIds];
-    const map = new Map<string, number>();
-    if (moduleEdges.length > 0 && entries.length > 0) {
-      const raw = elevationFromEntry(entries, moduleEdges);
-      let max = 0;
-      for (const v of raw.values()) max = Math.max(max, v);
-      if (max > 0) {
-        for (const [id, v] of raw) map.set(id, v / max);
-        // expand to every displayed node (and its file), keyed to its module's
-        // height, so the renderer resolves any cell / symbol / reference-anchored
-        // endpoint consistently — otherwise lit effects detach from their disc
-        for (const node of graph.nodes) {
-          const ev = map.get(moduleOf(contractParentFileOf(node.id)));
-          if (ev === undefined) continue;
-          map.set(node.id, ev);
-          const file = contractParentFileOf(node.id);
-          if (!map.has(file)) map.set(file, ev);
-        }
-      }
-    }
+    const map = moduleDependencyElevation(graph, currentModuleIdOf());
     elevationCacheRef.current = { key: graph, map };
     return map;
   };
@@ -1499,7 +1548,7 @@ export function App() {
   const tiltAffine = mapTiltAffine(params.tilt, WIDTH, HEIGHT);
   const elevationLift = (() => {
     const strength = tiltStrengthOf(params.tilt);
-    if (!tiltAffine || strength <= 0.01 || !ringsRef.current) return null;
+    if (!tiltAffine || strength <= 0.01 || (!ringsRef.current && !treemapRef.current)) return null;
     const elev = currentElevation();
     return elev.size > 0
       ? { unitLift: elevationUnitLift(tiltAffine, HEIGHT, strength), elev }
@@ -1668,28 +1717,104 @@ export function App() {
   // ---- chat dock: bridge the live view <-> the agent's headless ViewState ----
   const chatViewState = (): AgentViewState => {
     const p = paramsRef.current;
+    const camera = viewInfoRef.current;
+    const traceId = trace?.label ?? trace?.capturedAt ?? null;
+    const traceTimeUs = timeline ? stepClockUs(timeline, timelineCursor) : null;
     return {
+      version: 1,
       layout: p.layout as AgentViewState["layout"],
       granularity: granularityOf(p.boundaries, p.displayLevels),
-      selection: selectedId ? [selectedId] : [],
-      camera: { target: selectedId },
-      hiddenLayers: [],
-      showDiff: false,
+      hierarchy: {
+        boundaries: [...p.boundaries],
+        displayLevels: [...p.displayLevels],
+      },
+      weight: p.weight,
+      stableLayout: p.stableLayout,
+      theme: p.dark ? "dark" : "light",
+      viewport:
+        p.layout === "rings"
+          ? { width: WIDTH, height: HEIGHT }
+          : { width: mapSizeRef.current.width, height: mapSizeRef.current.height },
+      seed: urlParams.seed,
+      selection: [...selectedIds],
+      camera: {
+        target: selectedId,
+        center: { x: camera.x, y: camera.y },
+        zoom: camera.zoom,
+      },
+      hiddenLayers: [
+        ...new Set([
+          ...hiddenLayersOf(p.omit),
+          ...Object.entries(p.tilt.layers)
+            .filter(([, shown]) => !shown)
+            .map(([name]) => name),
+        ]),
+      ],
+      showEdges: p.showEdges,
+      showDiff: p.changedPreview,
+      trace: { id: traceId, timeUs: traceTimeUs },
       tilt: { enabled: p.tilt.enabled, theta: p.tilt.theta, pitch: p.tilt.pitch },
     };
   };
   const applyChatView = (v: AgentViewState) => {
     const p = paramsRef.current;
-    if (v.layout !== p.layout || v.tilt.enabled !== p.tilt.enabled) {
+    const omit = v.hiddenLayers.includes("test")
+      ? ([...new Set([...p.omit, "test"])] as PlaygroundParams["omit"])
+      : (p.omit.filter((scope) => scope !== "test") as PlaygroundParams["omit"]);
+    const layers = { ...p.tilt.layers };
+    for (const name of v.hiddenLayers) layers[name] = false;
+    if (
+      v.layout !== p.layout ||
+      v.tilt.enabled !== p.tilt.enabled ||
+      v.granularity !== granularityOf(p.boundaries, p.displayLevels) ||
+      v.hierarchy.boundaries.join("+") !== p.boundaries.join("+") ||
+      v.hierarchy.displayLevels.join("+") !== p.displayLevels.join("+") ||
+      v.weight !== p.weight ||
+      v.stableLayout !== p.stableLayout ||
+      (v.theme === "dark") !== p.dark ||
+      v.showEdges !== p.showEdges ||
+      v.showDiff !== p.changedPreview ||
+      omit.join("+") !== p.omit.join("+")
+    ) {
       onControlsChange({
         ...p,
         layout: v.layout as PlaygroundParams["layout"],
-        tilt: { ...p.tilt, enabled: v.tilt.enabled, theta: v.tilt.theta, pitch: v.tilt.pitch },
+        boundaries: [...v.hierarchy.boundaries],
+        displayLevels: [...v.hierarchy.displayLevels],
+        omit,
+        weight: v.weight,
+        stableLayout: v.stableLayout,
+        dark: v.theme === "dark",
+        showEdges: v.showEdges,
+        changedPreview: v.showDiff,
+        tilt: {
+          ...p.tilt,
+          enabled: v.tilt.enabled,
+          theta: v.tilt.theta,
+          pitch: v.tilt.pitch,
+          layers,
+        },
       });
     }
+    if (v.seed !== urlParams.seed) setUrlParams({ seed: v.seed });
+    setSelection(v.selection);
     const target = v.camera.target ?? v.selection[0] ?? null;
-    setSelectedId(target);
     if (target) flyToNode(target);
+    else if (v.camera.center && v.camera.zoom) {
+      restoreView(v.camera.center, WIDTH / v.camera.zoom);
+    }
+    if (timeline && v.trace.timeUs !== null) {
+      let nearest = 0;
+      let distance = Infinity;
+      for (let i = 0; i < timeline.steps.length; i++) {
+        const d = Math.abs(stepClockUs(timeline, i) - v.trace.timeUs);
+        if (d < distance) {
+          distance = d;
+          nearest = i;
+        }
+      }
+      setTimelineCursor(nearest);
+    }
   };
   const openPalette = () => {
     paletteNodesRef.current = buildSearchNodes();
@@ -2030,8 +2155,9 @@ export function App() {
     ...changedSymbolsRef.current.keys(),
     ...[...diffStatsRef.current.keys()].filter((id) => id.startsWith("symbol:")),
   ]);
-  const changedPreviewView =
-    params.changedPreview && changedSignalIds.size > 0
+  const graphIdentity = graphRef.current;
+  const changedPreviewAvailableView =
+    changedSignalIds.size > 0
       ? buildChangedPreviewFocus({
           changedFiles: changedFilesRef.current,
           changedSymbols: changedSymbolsRef.current,
@@ -2041,7 +2167,30 @@ export function App() {
           symbolsByFile: symbolsRef.current,
         })
       : null;
-  const mapFocusView = focusView ?? changedPreviewView;
+  const traceExtractAvailableView = useMemo(
+    () =>
+      buildTraceExtractFocus({
+        timeline,
+        trace,
+        moduleOfId,
+        parentFileOf,
+      }),
+    // moduleOfId/parentFileOf read graph-backed refs; graphIdentity tracks rebuilds.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [timeline, trace, graphIdentity],
+  );
+  const traceExtractCount = traceExtractAvailableView?.symbolIds.size ?? 0;
+  const mapFocusView = resolveMapFocusView({
+    manual: focusView,
+    traceExtractEnabled: params.traceExtract,
+    traceExtract: traceExtractAvailableView,
+    changedPreviewEnabled: params.changedPreview,
+    changedPreview: changedPreviewAvailableView,
+  });
+  const changedPreviewActive =
+    changedPreviewAvailableView !== null &&
+    params.changedPreview &&
+    mapFocusView === changedPreviewAvailableView;
   /** Diff kind for any leaf, file or symbol. A file matches directly; a symbol
    * inherits its file's change so the diff stays visible at symbol granularity,
    * with its own precise change (history) taking priority when present. */
@@ -2059,6 +2208,22 @@ export function App() {
     const inherited = file === id ? undefined : diffStatsRef.current.get(file);
     if (inherited) return inherited;
     const changed = changedOf(id);
+    if (!changed) return undefined;
+    const symbolLoc =
+      file !== id
+        ? symbolsRef.current?.get(file)?.find((symbol) => symbol.id === id)?.metrics.loc
+        : undefined;
+    return fallbackChangedDiffStat(
+      changed,
+      symbolLoc ?? locOfRef.current.get(id) ?? locOfRef.current.get(file),
+    );
+  };
+  const emphasisDiffStatOf = (id: string): NodeDiffStat | undefined => {
+    const direct = diffStatsRef.current.get(id);
+    if (direct) return direct;
+    const file = parentFileOf(id);
+    const changed =
+      file === id ? changedFilesRef.current.get(id) : changedSymbolsRef.current.get(id);
     if (!changed) return undefined;
     const symbolLoc =
       file !== id
@@ -2220,11 +2385,11 @@ export function App() {
   const firstPushRef = useRef(true);
   const seenChangesRef = useRef(new Set<string>());
   // live working-tree diff for the dev server (sprawlens) and the CLI (served);
-  // the server resolves an unknown repo name to its only repo.
-  const liveDiff = params.source === "sprawlens" || params.source === "served";
+  // Worker-hosted remote repos only expose the static snapshot endpoint.
+  const liveDiff = params.source === "sprawlens" || (params.source === "served" && !servedRepo);
   useEventSource(
     liveDiff
-      ? `/api/working-diff/stream?repo=${params.source}&base=${encodeURIComponent(params.diffBase)}`
+      ? `/api/working-diff/stream?repo=${encodeURIComponent(liveRepoName)}&base=${encodeURIComponent(params.diffBase)}`
       : null,
     {
       onOpen: () => {
@@ -2242,8 +2407,9 @@ export function App() {
       onMessage: (data) => {
         const diff = JSON.parse(data) as WorkingDiffPayload;
         // incremental recompute: turn the working-tree diff into a graph delta
-        // and warm-apply it so edited files re-flow in place. Gated by
-        // followChanges — off keeps the highlight-only behavior.
+        // and warm-apply it so edited files re-flow in place. followChanges
+        // gates raw graph mutations; symbol mode can still re-budget so a
+        // highlighted private/changed symbol gets a visible cell.
         if (paramsRef.current.followChanges) {
           applyWorkingTreeDiff(diff);
         }
@@ -2254,22 +2420,18 @@ export function App() {
         const fresh = [...next.keys()].filter((id) => !seen.has(id));
         seen.clear();
         for (const id of next.keys()) seen.add(id);
+        const previousVisible = displayGraphRef.current;
         const previous = changedFilesRef.current;
         const dirty =
           previous.size !== next.size || [...next].some(([id, kind]) => previous.get(id) !== kind);
         if (dirty || statsDirty) {
           if (dirty) changedFilesRef.current = next;
-          // at symbol granularity a warm reflow leaves the changed (esp. private)
-          // symbols folded, so the diff never shows; a cold rebuild lays them out
-          // with the keep/priority boost. file granularity recolors in place.
-          if (
+          const rebudgeted =
             dirty &&
             granularityOf(paramsRef.current.boundaries, paramsRef.current.displayLevels) ===
-              "symbol"
-          ) {
-            rebuild(paramsRef.current);
-          }
-          setFrame((f) => f + 1);
+              "symbol" &&
+            warmApplyDisplayedGraph(previousVisible);
+          if (!rebudgeted) setFrame((f) => f + 1);
         }
         if (!firstPushRef.current && fresh.length > 0) {
           const now = Date.now();
@@ -2287,17 +2449,22 @@ export function App() {
 
   // Live snapshot stream (CLI serve): the server re-analyzes on fs change and
   // pushes a fresh snapshot, which we warm-apply so symbols + import edges
-  // update in place. Only the served source has a live analyzer; the baked and
-  // history sources have none, so the stream 404s and stays closed.
-  useEventSource(params.source === "served" ? `/api/snapshot/stream?repo=${params.source}` : null, {
-    onMessage: (data) => {
-      try {
-        applyServedSnapshot(JSON.parse(data) as SnapshotLike);
-      } catch (error) {
-        console.error("snapshot stream", error);
-      }
+  // update in place. Worker-hosted remote repos have no fs watcher, so they
+  // stay on the fetched snapshot.
+  useEventSource(
+    params.source === "served" && !remoteServedRepo
+      ? `/api/snapshot/stream?repo=${encodeURIComponent(liveRepoName)}`
+      : null,
+    {
+      onMessage: (data) => {
+        try {
+          applyServedSnapshot(JSON.parse(data) as SnapshotLike);
+        } catch (error) {
+          console.error("snapshot stream", error);
+        }
+      },
     },
-  });
+  );
 
   const allCells: CellResult[] = ringsRef.current
     ? [...ringsRef.current.leafLayouts.values()].flatMap((l) => l.cells)
@@ -2524,6 +2691,56 @@ export function App() {
     };
   }, [testRun]);
 
+  // Materialize the same JSON-safe evidence envelope consumed by headless/MCP,
+  // then project it back to scene maps. This keeps the interactive renderer on
+  // the shared contract instead of maintaining a browser-only overlay shape.
+  const sceneEvidence = useMemo(() => {
+    const changed = new Map<string, "added" | "modified">([
+      ...changedFilesRef.current,
+      ...changedSymbolsRef.current,
+    ]);
+    return projectAtlasEvidence({
+      changes: [...changed].map(([id, kind]) => {
+        const stat = diffStatsRef.current.get(id);
+        return {
+          id,
+          kind,
+          ...(stat
+            ? {
+                addedLines: stat.added,
+                deletedLines: stat.deleted,
+                touchedLines: stat.touched,
+                totalLines: stat.total,
+              }
+            : {}),
+        };
+      }),
+      trace:
+        traceEdges.length > 0 || traceHeat.size > 0
+          ? {
+              id: trace?.label ?? trace?.capturedAt ?? null,
+              timeUs: timeline ? stepClockUs(timeline, timelineCursor) : null,
+              edges: traceEdges,
+              heat: [...traceHeat].map(([id, value]) => ({ id, value })),
+            }
+          : null,
+      tests: [...testStatus].map(([id, status]) => ({
+        id,
+        status,
+        ...(testDuration.has(id) ? { durationMs: testDuration.get(id) } : {}),
+      })),
+    });
+  }, [
+    hierarchyVersion,
+    trace,
+    timeline,
+    timelineCursor,
+    traceEdges,
+    traceHeat,
+    testStatus,
+    testDuration,
+  ]);
+
   const selectedLens: LensResult | null = useMemo(() => {
     if (!activeId) return null;
     const target =
@@ -2622,10 +2839,10 @@ export function App() {
     displayEdges: displayGraphRef.current.edges,
     symbolEdges: symbolEdgesRef.current,
     detailEdges: detailOverlayEdges,
-    traceEdges,
-    traceHeat,
-    testStatus,
-    testDuration,
+    traceEdges: sceneEvidence.traceEdges,
+    traceHeat: sceneEvidence.traceHeat,
+    testStatus: sceneEvidence.testStatus,
+    testDuration: sceneEvidence.testDuration,
     visibleLevels,
     cfgEntries,
     cyclicIds,
@@ -2634,12 +2851,14 @@ export function App() {
     exportedIds,
     symbolKindOf,
     focus: mapFocusView,
+    changedPreviewActive,
     testFileIds,
     layers: satelliteLayers,
     altEdges,
     parentFileOf,
     changedOf,
     diffStatOf,
+    emphasisDiffStatOf,
     portNodes,
     hiddenLayers: new Set(hiddenLayersOf(params.omit)),
     showEdges: params.showEdges,
@@ -2653,6 +2872,36 @@ export function App() {
   // the service layer (terraform) only exists when the repo has .tf that
   // resolves to services; otherwise the toggle is hidden, not just inert
   const hasServiceLayer = (serviceGraph?.services.length ?? 0) > 0;
+  const snapshotLoadModel = snapshotLoadingUi({
+    status: snapshotLoad.status,
+    repo: snapshotLoad.repo,
+    elapsedMs:
+      snapshotLoad.status === "loading"
+        ? Math.max(0, snapshotLoadTick - snapshotLoad.startedAt)
+        : 0,
+    error: snapshotLoad.error,
+  });
+  const snapshotLoadColor =
+    snapshotLoadModel?.tone === "error"
+      ? "#ef4444"
+      : snapshotLoadModel?.tone === "ready"
+        ? "#22c55e"
+        : "#38bdf8";
+  const hasChangedPreviewPanel = changedSignalIds.size > 0 || recentChangesRef.current.length > 0;
+  const hasTraceTimelineControl = experimentalOn && timeline !== null;
+  const hasTraceExtractControl = experimentalOn && !timeline && traceExtractCount > 0;
+  const leafUpdateSummary = summarizeLeafUpdateStrategies(
+    ringsRef.current?.lastLeafUpdateStrategies.values() ??
+      treemapRef.current?.lastLeafUpdateStrategies.values() ??
+      [],
+  );
+  const { mobileLayout, traceControlBottom, changedPreviewBottom, chatBottomOffset } =
+    overlayLayoutSpec({
+      mapWidth: mapSize.width,
+      hasChangedPreviewPanel,
+      hasTraceTimelineControl,
+      hasTraceExtractControl,
+    });
 
   return (
     <div
@@ -2677,6 +2926,67 @@ export function App() {
         }}
       >
         {scene ? <SvgRenderer scene={scene} {...handlers} /> : null}
+        {snapshotLoadModel ? (
+          <div
+            role="status"
+            aria-live="polite"
+            style={{
+              position: "absolute",
+              top: "10px",
+              left: "50%",
+              transform: "translateX(-50%)",
+              zIndex: 90,
+              width: "min(440px, calc(100vw - 32px))",
+              padding: "8px 10px",
+              background: PANEL_BG,
+              border: `1px solid ${PANEL_BORDER}`,
+              borderRadius: "6px",
+              boxShadow: "0 8px 24px rgba(0,0,0,0.18)",
+              color: INK,
+              pointerEvents: "none",
+            }}
+          >
+            <div
+              style={{
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "space-between",
+                gap: "12px",
+                marginBottom: "6px",
+                fontSize: "12px",
+                lineHeight: "1.2",
+              }}
+            >
+              <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                {snapshotLoadModel.label}
+              </span>
+              <span style={{ color: MUTED_INK }}>{snapshotLoadModel.percent}%</span>
+            </div>
+            <div
+              role="progressbar"
+              aria-label={snapshotLoadModel.label}
+              aria-valuemin={0}
+              aria-valuemax={100}
+              aria-valuenow={snapshotLoadModel.percent}
+              style={{
+                height: "4px",
+                overflow: "hidden",
+                borderRadius: "999px",
+                background: params.dark ? "rgba(148,163,184,0.22)" : "rgba(15,23,42,0.12)",
+              }}
+            >
+              <div
+                style={{
+                  width: `${snapshotLoadModel.percent}%`,
+                  height: "100%",
+                  borderRadius: "999px",
+                  background: snapshotLoadColor,
+                  transition: "width 180ms ease-out",
+                }}
+              />
+            </div>
+          </div>
+        ) : null}
         {/* upper service layer (terraform): a full-map overlay when toggled on */}
         {servicesMode && hasServiceLayer ? (
           <div style={{ position: "absolute", inset: "0", background: MAP_BG }}>
@@ -2910,6 +3220,7 @@ export function App() {
             availableScopes={availableScopes}
             debug={DEBUG}
             changedCount={changedSignalIds.size}
+            leafUpdateSummary={leafUpdateSummary}
             onChange={onControlsChange}
             onRegenerate={() => rebuild(paramsRef.current)}
             onMutateWeight={mutateWeight}
@@ -2918,7 +3229,11 @@ export function App() {
           />
         </LayersMenu>
         <CameraPanel params={params} onChange={onControlsChange} />
-        <ChatDock view={chatViewState} onApplyView={applyChatView} />
+        <ChatDock
+          view={chatViewState}
+          onApplyView={applyChatView}
+          bottomOffset={chatBottomOffset}
+        />
         {/* dev toggle for experimental features (the --experimental flag forces
             them on regardless; this only flips the URL opt-in) */}
         <button
@@ -2969,12 +3284,56 @@ export function App() {
             timeline={timeline}
             cursor={timelineCursor}
             playing={timelinePlaying}
+            extractEnabled={params.traceExtract}
+            extractCount={traceExtractCount}
+            mobile={mobileLayout}
+            bottom={traceControlBottom}
             onCursor={(c) => {
               setTimelinePlaying(false);
               setTimelineCursor(c);
             }}
             onTogglePlay={() => setTimelinePlaying((p) => !p)}
+            onToggleExtract={() =>
+              onControlsChange({ ...paramsRef.current, traceExtract: !params.traceExtract })
+            }
           />
+        ) : null}
+        {experimentalOn && !timeline && traceExtractCount > 0 ? (
+          <div
+            style={{
+              position: "absolute",
+              left: mobileLayout ? 8 : "50%",
+              right: mobileLayout ? 8 : undefined,
+              bottom: traceControlBottom,
+              transform: mobileLayout ? undefined : "translateX(-50%)",
+              padding: "8px 10px",
+              borderRadius: 10,
+              background: "rgba(15, 23, 42, 0.86)",
+              color: "#e2e8f0",
+              font: "12px/1.2 ui-monospace, monospace",
+              boxShadow: "0 4px 18px rgba(0,0,0,0.35)",
+              zIndex: 30,
+            }}
+          >
+            <button
+              type="button"
+              onClick={() =>
+                onControlsChange({ ...paramsRef.current, traceExtract: !params.traceExtract })
+              }
+              title={params.traceExtract ? "show full map" : "extract traced symbols"}
+              style={{
+                padding: "6px 8px",
+                borderRadius: 6,
+                border: `1px solid ${params.traceExtract ? "#ff7a1a" : "#334155"}`,
+                cursor: "pointer",
+                background: params.traceExtract ? "rgba(154,52,18,0.88)" : "#1e293b",
+                color: params.traceExtract ? "#fed7aa" : "#cbd5e1",
+                font: "11px/1 ui-monospace, monospace",
+              }}
+            >
+              Trace extract {params.traceExtract ? "on" : "off"} · {traceExtractCount}
+            </button>
+          </div>
         ) : null}
       </div>
       {/* detail / history overlay: floats over the right of the full-screen
@@ -2986,9 +3345,10 @@ export function App() {
           style={{
             position: "absolute",
             left: "8px",
-            bottom: "8px",
-            width: "290px",
-            maxHeight: "40vh",
+            right: mobileLayout ? "8px" : undefined,
+            bottom: changedPreviewBottom,
+            width: mobileLayout ? undefined : "290px",
+            maxHeight: mobileLayout ? "24vh" : "40vh",
             overflowY: "auto",
             background: PANEL_BG,
             border: `1px solid ${PANEL_BORDER}`,
@@ -2996,6 +3356,7 @@ export function App() {
             padding: "8px 10px",
             fontSize: "12px",
             color: INK,
+            zIndex: 31,
           }}
         >
           <button
@@ -3055,11 +3416,11 @@ export function App() {
                 ))}
               </div>
             </>
-          ) : (
+          ) : !mobileLayout ? (
             <div style={{ marginTop: "6px", fontSize: "11px", color: MUTED_INK }}>
               Working tree changes are highlighted on the map.
             </div>
-          )}
+          ) : null}
         </div>
       ) : null}
       {/* Agent Lens dock: keep it out of the top-right hover/LSP popup lane.

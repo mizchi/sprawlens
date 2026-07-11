@@ -1,5 +1,6 @@
 node_modules/
 dist/
+.wrangler/
 .codesprawl/
 .DS_Store
 *.log
@@ -8,6 +9,7 @@ codesprawl-*.png
 test-results/
 perf-results/
 coverage/
+/research/
 
 # dotenvx: keep secrets local-only on this public repo (don't commit even
 # the encrypted .env). dotenvx run -- decrypts via .env.keys at runtime.

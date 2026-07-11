@@ -5,6 +5,7 @@ import path from "node:path";
 import { promisify } from "node:util";
 import { describe, expect, it } from "vitest";
 import { analyzeRealtimeRepository, analyzeRepository, collectRepository } from "./collect.ts";
+import { createSnapshotFromWorkingTree } from "./snapshot.ts";
 
 const exec = promisify(execFile);
 
@@ -57,6 +58,71 @@ describe("collectRepository", () => {
 
       const sinceResult = await collectRepository(root, { since: "6.months" });
       expect(sinceResult.snapshots).toHaveLength(2);
+    });
+  });
+
+  it("can collect into an external directory without replacing repository data", async () => {
+    await withGitRepo(async (root) => {
+      const outputDir = await mkdtemp(path.join(tmpdir(), "codesprawl-output-"));
+      try {
+        await mkdir(path.join(root, ".codesprawl"), { recursive: true });
+        await writeFile(path.join(root, ".codesprawl", "keep.txt"), "user data");
+
+        const result = await collectRepository(root, { commits: 2, outputDir });
+
+        expect(result.outputDir).toBe(outputDir);
+        expect(
+          JSON.parse(await readFile(path.join(outputDir, "commits.json"), "utf8")),
+        ).toHaveLength(2);
+        expect(await readFile(path.join(root, ".codesprawl", "keep.txt"), "utf8")).toBe(
+          "user data",
+        );
+      } finally {
+        await rm(outputDir, { recursive: true, force: true });
+      }
+    });
+  });
+
+  it("collects from a frozen revision and records first-parent provenance", async () => {
+    await withGitRepo(async (root) => {
+      const { stdout } = await exec("git", ["rev-list", "--max-parents=0", "HEAD"], {
+        cwd: root,
+      });
+      const revision = stdout.trim();
+      const outputDir = await mkdtemp(path.join(tmpdir(), "codesprawl-frozen-"));
+      try {
+        const result = await collectRepository(root, {
+          commits: 1,
+          revision,
+          firstParent: true,
+          outputDir,
+        });
+
+        expect(result.commits.map(({ hash }) => hash)).toEqual([revision]);
+        expect(result.config.options).toMatchObject({ revision, firstParent: true, commits: 1 });
+      } finally {
+        await rm(outputDir, { recursive: true, force: true });
+      }
+    });
+  });
+
+  it("uses an injected language analyzer and normalizes temporary worktree identity", async () => {
+    await withGitRepo(async (root) => {
+      const analyzedPaths: string[] = [];
+      const result = await collectRepository(root, {
+        commits: 1,
+        analyzeWorktree: async (worktreePath, commit) => {
+          analyzedPaths.push(worktreePath);
+          return createSnapshotFromWorkingTree(worktreePath, commit);
+        },
+      });
+
+      expect(analyzedPaths).toHaveLength(1);
+      expect(analyzedPaths[0]).not.toBe(root);
+      expect(result.snapshots[0]?.repoPath).toBe(root);
+      expect(result.snapshots[0]?.nodes.find(({ id }) => id === "repo")).toMatchObject({
+        name: path.basename(root),
+      });
     });
   });
 

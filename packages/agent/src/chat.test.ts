@@ -79,6 +79,15 @@ describe("runChatTurn", () => {
     );
   });
 
+  it("reports the stable-layout condition in the current view summary", async () => {
+    const llm = new MockLlm([{ text: "ok" }]);
+    await runChatTurn(idx, { ...initialView, stableLayout: true }, "where am I?", llm);
+
+    expect(llm.calls[0]!.messages[1]).toEqual(
+      expect.objectContaining({ content: expect.stringContaining("stableLayout=on") }),
+    );
+  });
+
   it("handles an unknown tool name without crashing", async () => {
     const llm = new MockLlm([{ toolCalls: [call("bogus", {})] }, { text: "recovered" }]);
     const { reply } = await runChatTurn(idx, initialView, "do something weird", llm);

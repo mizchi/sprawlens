@@ -8,7 +8,7 @@
 import { applyIntent } from "./applyIntent.ts";
 import type { GraphIndex } from "./graphQuery.ts";
 import { INTENT_TOOLS, type JsonSchema } from "./toolSpecs.ts";
-import type { ViewState } from "./viewState.ts";
+import { normalizeViewState, type ViewState } from "./viewState.ts";
 
 export type LlmTool = { name: string; description: string; parameters: JsonSchema };
 export type LlmToolCall = { id: string; name: string; args: Record<string, unknown> };
@@ -34,7 +34,7 @@ Node ids: a file is its path (e.g. "src/app/main.ts"); a symbol is "symbol:<path
 Resolve a name to an id with find() before querying it. Use lens() before broad explanations of ownership, impact, or local dependency context; it returns the target, upstream dependents, downstream dependencies, and the internal edges among them. When the user wants to look at or go to something, also call a navigation tool (focus / set_layout / set_granularity / home) so the map follows along.`;
 
 const viewSummary = (v: ViewState): string =>
-  `layout=${v.layout}, granularity=${v.granularity}, selection=[${v.selection.join(", ")}], camera=${v.camera.target ?? "(all)"}`;
+  `layout=${v.layout}, stableLayout=${v.stableLayout ? "on" : "off"}, granularity=${v.granularity}, selection=[${v.selection.join(", ")}], camera=${v.camera.target ?? "(all)"}`;
 
 /**
  * Run one chat turn. Loops the model over the intent tools up to `maxSteps`
@@ -61,7 +61,7 @@ export async function runChatTurn(
     { role: "user", content: `Current view: ${viewSummary(view)}\n\n${userMessage}` },
   ];
 
-  let v = view;
+  let v = normalizeViewState(view);
   const steps: ChatStep[] = [];
   for (let i = 0; i < maxSteps; i++) {
     const res = await llm.complete(messages, tools);

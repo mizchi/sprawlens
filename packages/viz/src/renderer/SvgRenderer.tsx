@@ -1,6 +1,7 @@
 import { RingsMapSvg } from "../RingsMapSvg.tsx";
 import { TreemapSvg } from "../TreemapSvg.tsx";
 import type { MapHandlers, MapScene } from "./contract.ts";
+import { sceneGeometryFingerprint } from "./sceneGeometry.ts";
 
 /**
  * The SVG implementation of the renderer boundary. Unpacks a {@link MapScene}
@@ -9,10 +10,12 @@ import type { MapHandlers, MapScene } from "./contract.ts";
  * draw it some other way.
  */
 export function SvgRenderer({ scene, ...handlers }: { scene: MapScene } & MapHandlers) {
+  const geometryFingerprint = sceneGeometryFingerprint(scene);
   if (scene.kind === "rings") {
     return (
       <RingsMapSvg
         rings={scene.rings}
+        geometryFingerprint={geometryFingerprint}
         innerCells={scene.innerCells}
         fileEdges={scene.edges.file}
         symbolEdges={scene.edges.symbol}
@@ -32,6 +35,7 @@ export function SvgRenderer({ scene, ...handlers }: { scene: MapScene } & MapHan
         exportedIds={scene.exportedIds}
         symbolKindOf={scene.symbolKindOf}
         focus={scene.focus}
+        changedPreviewActive={scene.changedPreviewActive}
         testFileIds={scene.testFileIds}
         layers={scene.layers}
         altEdges={scene.altEdges}
@@ -39,6 +43,7 @@ export function SvgRenderer({ scene, ...handlers }: { scene: MapScene } & MapHan
         parentFileOf={scene.parentFileOf}
         changedOf={scene.changedOf}
         diffStatOf={scene.diffStatOf}
+        emphasisDiffStatOf={scene.emphasisDiffStatOf}
         portNodes={scene.portNodes}
         width={scene.width}
         height={scene.height}
@@ -64,6 +69,7 @@ export function SvgRenderer({ scene, ...handlers }: { scene: MapScene } & MapHan
   return (
     <TreemapSvg
       state={scene.state}
+      geometryFingerprint={geometryFingerprint}
       innerCells={scene.innerCells}
       exportedIds={scene.exportedIds}
       symbolKindOf={scene.symbolKindOf}
@@ -78,11 +84,13 @@ export function SvgRenderer({ scene, ...handlers }: { scene: MapScene } & MapHan
       labels={scene.labels}
       changedOf={scene.changedOf}
       diffStatOf={scene.diffStatOf}
+      emphasisDiffStatOf={scene.emphasisDiffStatOf}
       cyclicIds={scene.cyclicIds}
       testFileIds={scene.testFileIds}
       layers={scene.layers}
       altEdges={scene.altEdges}
       focus={scene.focus}
+      changedPreviewActive={scene.changedPreviewActive}
       width={scene.width}
       height={scene.height}
       labelMinPx={scene.labelMinPx}

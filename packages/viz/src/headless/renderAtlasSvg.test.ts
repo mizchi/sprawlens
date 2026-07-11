@@ -3,7 +3,8 @@ import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
 import type { AtlasGraph } from "@sprawlens/schema";
-import { renderAtlasSvg } from "./renderAtlasSvg.ts";
+import { initialView, parseViewState, type ViewState } from "@sprawlens/agent";
+import { renderAtlasSvg, renderAtlasViewSvg } from "./renderAtlasSvg.ts";
 
 /** A small two-module graph: enough to exercise grouping, leaf cells, edges. */
 const GRAPH: AtlasGraph = {
@@ -24,6 +25,53 @@ const REPO_ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "../../../.."
 const CLI_DIR = resolve(REPO_ROOT, "packages/cli");
 
 describe("renderAtlasSvg", () => {
+  it("renders the agent ViewState through the same rings/treemap scene pipeline", () => {
+    const rings = renderAtlasViewSvg(GRAPH, {
+      ...initialView,
+      layout: "rings",
+      showEdges: true,
+      selection: ["src/a/foo.ts"],
+    });
+    const treemap = renderAtlasViewSvg(GRAPH, {
+      ...initialView,
+      layout: "treemap",
+      showEdges: true,
+      selection: ["src/a/foo.ts"],
+    });
+
+    expect(rings).toContain('data-atlas-layout="rings"');
+    expect(treemap).toContain('data-atlas-layout="treemap"');
+    expect(rings).toContain('data-selected-id="src/a/foo.ts"');
+    expect(treemap).toContain('data-selected-id="src/a/foo.ts"');
+    expect(rings).toContain("#1d4ed8");
+  });
+
+  it("normalizes a wire ViewState before rendering", () => {
+    const wire = {
+      ...initialView,
+      layout: "treemap",
+      seed: 9,
+      camera: { target: "src/a", center: null, zoom: null },
+    } satisfies ViewState;
+    expect(renderAtlasViewSvg(GRAPH, wire)).toBe(renderAtlasViewSvg(GRAPH, wire));
+  });
+
+  it("reproduces viewport/camera and embeds the normalized state provenance", () => {
+    const view: ViewState = {
+      ...initialView,
+      layout: "treemap",
+      viewport: { width: 500, height: 300 },
+      camera: { target: null, center: { x: 200, y: 120 }, zoom: 2 },
+    };
+    const svg = renderAtlasViewSvg(GRAPH, view);
+    expect(svg).toContain('width="500"');
+    expect(svg).toContain('height="300"');
+    expect(svg).toContain('viewBox="75 45 250 150"');
+    const encoded = /data-view-state="([^"]+)"/.exec(svg)?.[1];
+    expect(encoded).toBeDefined();
+    expect(parseViewState(decodeURIComponent(encoded!))).toEqual(view);
+  });
+
   it("renders a standalone treemap SVG with capacity cells", () => {
     const svg = renderAtlasSvg(GRAPH, { layout: "treemap", level: "file", seed: 1 });
     expect(svg.startsWith("<svg")).toBe(true);
@@ -70,6 +118,62 @@ describe("renderAtlasSvg", () => {
     expect(svg).toContain("hsl(29 96% 58%)");
     expect(svg).not.toContain("hsl(150 55% 80%)");
     expect(svg).not.toContain("hsl(8 85% 78%)");
+  });
+
+  it("projects diff and trace overlays and preserves the test summary from one evidence payload", () => {
+    const evidence = {
+      schemaVersion: 1 as const,
+      changes: [
+        {
+          id: "src/a/foo.ts",
+          kind: "modified" as const,
+          touchedLines: 5,
+          totalLines: 10,
+        },
+      ],
+      trace: {
+        id: "trace-1",
+        timeUs: 100,
+        edges: [{ source: "src/a/foo.ts", target: "src/b/baz.ts" }],
+        heat: [{ id: "src/a/foo.ts", value: 0.8 }],
+      },
+      tests: [{ id: "src/b/qux.ts", status: "fail" as const, durationMs: 17 }],
+    };
+    const svg = renderAtlasSvg(GRAPH, {
+      layout: "treemap",
+      level: "file",
+      seed: 1,
+      showEdges: true,
+      evidence,
+    });
+
+    expect(svg).toContain("hsl(29 96% 58%)");
+    expect(svg).toContain("#ff7a1a");
+    expect(svg).toContain('data-evidence-changes="1"');
+    expect(svg).toContain('data-evidence-trace-edges="1"');
+    expect(svg).toContain('data-evidence-tests="1"');
+  });
+
+  it("embeds a deterministic scene-geometry fingerprint independent of evidence", () => {
+    const plain = renderAtlasSvg(GRAPH, { layout: "treemap", level: "file", seed: 4 });
+    const withEvidence = renderAtlasSvg(GRAPH, {
+      layout: "treemap",
+      level: "file",
+      seed: 4,
+      evidence: {
+        schemaVersion: 1,
+        changes: [{ id: "src/a/foo.ts", kind: "modified" }],
+        trace: null,
+        tests: [],
+      },
+    });
+    const fingerprint = (svg: string) => /data-geometry-fingerprint="([^"]+)"/.exec(svg)?.[1];
+
+    expect(fingerprint(plain)).toMatch(/^sg1-[0-9a-f]{16}$/);
+    expect(fingerprint(withEvidence)).toBe(fingerprint(plain));
+    expect(fingerprint(renderAtlasSvg(GRAPH, { layout: "rings", seed: 4 }))).not.toBe(
+      fingerprint(plain),
+    );
   });
 
   it("embeds a diff legend with per-kind counts", () => {

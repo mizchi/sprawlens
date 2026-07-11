@@ -216,6 +216,9 @@ importers:
       '@sprawlens/schema':
         specifier: workspace:*
         version: link:../schema
+      '@sprawlens/viz':
+        specifier: workspace:*
+        version: link:../viz
 
   packages/providers:
     dependencies:
@@ -280,6 +283,12 @@ importers:
       preact-render-to-string:
         specifier: ^6.5.13
         version: 6.7.0(preact@10.29.2)
+
+  packages/worker:
+    dependencies:
+      '@sprawlens/schema':
+        specifier: workspace:*
+        version: link:../schema
 
 packages:
 

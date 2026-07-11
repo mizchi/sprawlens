@@ -67,6 +67,15 @@ function boolean(fallback: boolean): Parser<boolean> {
   };
 }
 
+function stringValue(fallback: string): Parser<string> {
+  return {
+    default: fallback,
+    parse: (raw) => raw ?? fallback,
+    serialize: (v) => v,
+    eq: (a, b) => a === b,
+  };
+}
+
 function integer(fallback: number): Parser<number> {
   return {
     default: fallback,
@@ -85,11 +94,15 @@ function integer(fallback: number): Parser<number> {
 export function makeUrlParamParsers(darkDefault: boolean) {
   return {
     source: literal(DATA_SOURCES, "sprawlens"),
+    repo: stringValue(""),
     layout: literal(LAYOUTS, "treemap"),
     boundaries: literalArray(BOUNDARIES, ["module", "class"]),
     displayLevels: literalArray(DISPLAY_LEVELS, ["module", "class", "symbol"]),
     weight: literal(WEIGHTS, "loc"),
     changedPreview: boolean(true),
+    traceExtract: boolean(false),
+    /** Stable NPVT delta update; separate from unrelated experimental features. */
+    stableLayout: boolean(false),
     showEdges: boolean(false),
     groupByService: boolean(false),
     dark: boolean(darkDefault),

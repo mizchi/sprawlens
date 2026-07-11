@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import type { AtlasGraph } from "@sprawlens/schema";
+import type { AtlasEvidence, AtlasGraph } from "@sprawlens/schema";
 import { indexGraph } from "@sprawlens/agent";
 import { Session, TOOLS } from "./index.ts";
 
@@ -30,6 +30,7 @@ describe("TOOLS listing", () => {
         "lens",
         "focus",
         "get_view",
+        "get_evidence",
       ]),
     );
     for (const t of TOOLS) expect(t.inputSchema.type).toBe("object");
@@ -66,11 +67,31 @@ describe("Session", () => {
 
   it("render returns an SVG document for the current view", () => {
     const s = new Session(idx);
+    s.call("set_layout", { layout: "treemap" });
     s.call("focus", { target: "src/core/lib.ts" });
     const r = s.call("render");
     if (r.kind !== "data") throw new Error("expected data");
     expect(typeof r.data).toBe("string");
     expect(r.data as string).toContain("<svg");
+    expect(r.data as string).toContain('data-atlas-layout="treemap"');
+    expect(r.data as string).toContain('data-selected-id="src/core/lib.ts"');
+  });
+
+  it("carries the same evidence payload through inspection and rendering", () => {
+    const evidence: AtlasEvidence = {
+      schemaVersion: 1,
+      changes: [{ id: "src/core/lib.ts", kind: "modified" }],
+      trace: null,
+      tests: [],
+    };
+    const s = new Session(idx, evidence);
+    const inspected = s.call("get_evidence");
+    if (inspected.kind !== "data") throw new Error("expected data");
+    expect(inspected.data).toEqual(evidence);
+
+    const rendered = s.call("render");
+    if (rendered.kind !== "data") throw new Error("expected data");
+    expect(rendered.data as string).toContain('data-evidence-changes="1"');
   });
 
   it("reports an error for an unknown tool", () => {

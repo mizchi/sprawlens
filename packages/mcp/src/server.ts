@@ -7,10 +7,11 @@
 import { Server } from "@modelcontextprotocol/sdk/server/index.js";
 import { CallToolRequestSchema, ListToolsRequestSchema } from "@modelcontextprotocol/sdk/types.js";
 import type { GraphIndex } from "@sprawlens/agent";
+import type { AtlasEvidence } from "@sprawlens/schema";
 import { Session, TOOLS } from "./tools.ts";
 
-export function createServer(idx: GraphIndex): Server {
-  const session = new Session(idx);
+export function createServer(idx: GraphIndex, evidence?: AtlasEvidence): Server {
+  const session = new Session(idx, evidence);
   const server = new Server(
     { name: "sprawlens", version: "0.0.0" },
     { capabilities: { tools: {} } },

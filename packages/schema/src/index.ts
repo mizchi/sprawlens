@@ -20,6 +20,8 @@ export * from "./core/testTree.ts";
 export * from "./core/trace.ts";
 export * from "./core/traceTimeline.ts";
 export * from "./core/testRun.ts";
+export * from "./core/evidence.ts";
 export * from "./core/packageImports.ts";
 export * from "./core/callHierarchy.ts";
+export * from "./contracts/externalLayoutBaseline.ts";
 export * from "./adapter.ts";

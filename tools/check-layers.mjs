@@ -17,8 +17,8 @@ const ALLOWED = {
   // L1 domain
   "@sprawlens/schema": ["@sprawlens/contracts"],
   "@sprawlens/layout": ["@sprawlens/contracts"],
-  // L2 headless agent: pure graph queries / intents / SVG render over the
-  // domain — no analyzer, no browser. Both apps (server, viz, mcp) ride on it.
+  // L2 headless agent: pure graph queries / intents / versioned view state —
+  // no analyzer or browser. Rendering is composed through viz/headless by apps.
   "@sprawlens/agent": ["@sprawlens/contracts", "@sprawlens/schema", "@sprawlens/layout"],
   // L2 capability (language providers + their registry)
   "@sprawlens/analyzer-ts": ["@sprawlens/contracts", "@sprawlens/schema"],
@@ -50,12 +50,15 @@ const ALLOWED = {
     "@sprawlens/schema",
     "@sprawlens/agent",
     "@sprawlens/analyzer-ts",
+    // composition root: agent ViewState rendered by the canonical viz scene
+    "@sprawlens/viz",
   ],
   // L4 composition root — the only place allowed to know concrete analyzers
   "@sprawlens/cli": [
     "@sprawlens/contracts",
     "@sprawlens/schema",
     "@sprawlens/layout",
+    "@sprawlens/agent",
     "@sprawlens/providers",
     "@sprawlens/analyzer-ts",
     "@sprawlens/analyzer-terraform",
@@ -63,6 +66,7 @@ const ALLOWED = {
     // the headless SVG renderer (sprawlens render) lives in viz
     "@sprawlens/viz",
   ],
+  "@sprawlens/worker": ["@sprawlens/contracts", "@sprawlens/schema"],
   // the bare `sprawlens` package is a thin wrapper that re-exposes the cli bin
   sprawlens: ["@sprawlens/cli"],
 };

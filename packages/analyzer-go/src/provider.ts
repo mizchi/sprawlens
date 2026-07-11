@@ -18,10 +18,10 @@ const worktreeCommit = (timestamp: string) => ({
 export const goProvider: LanguageProvider = {
   id: "go",
   matchesManifest(repoPath) {
-    return existsSync(join(repoPath, "go.mod"));
+    return existsSync(join(repoPath, "go.mod")) || existsSync(join(repoPath, "go.work"));
   },
   async match(repoPath) {
-    if (existsSync(join(repoPath, "go.mod"))) return true;
+    if (existsSync(join(repoPath, "go.mod")) || existsSync(join(repoPath, "go.work"))) return true;
     const hits = await fg("**/*.go", {
       cwd: repoPath,
       ignore: ["**/vendor/**", "**/node_modules/**"],

@@ -6,7 +6,16 @@
  * `server.ts` wires these descriptors into the MCP SDK.
  */
 import type { GraphIndex, IntentResult, JsonSchema, LensResult, ViewState } from "@sprawlens/agent";
-import { applyIntent, initialView, INTENT_TOOLS, renderLens, renderView } from "@sprawlens/agent";
+import type { AtlasEvidence } from "@sprawlens/schema";
+import { normalizeAtlasEvidence, projectAtlasEvidence } from "@sprawlens/schema";
+import {
+  applyIntent,
+  initialView,
+  INTENT_TOOLS,
+  normalizeViewState,
+  renderLens,
+} from "@sprawlens/agent";
+import { renderAtlasViewSvg } from "@sprawlens/viz/headless";
 
 type ToolDescriptor = { name: string; description: string; inputSchema: JsonSchema };
 
@@ -25,8 +34,14 @@ const GET_VIEW: ToolDescriptor = {
 const RENDER: ToolDescriptor = {
   name: "render",
   description:
-    "Render the current view to an SVG map image: modules as colored districts, files as hierarchical-wedge cells, the selection outlined, a focused node's dependencies/dependents tinted, cropped to the focused module.",
+    "Render the current ViewState through the same rings/treemap scene and SVG renderer as the interactive map.",
   inputSchema: obj({ theme: { type: "string", description: '"light" (default) or "dark"' } }),
+};
+
+const GET_EVIDENCE: ToolDescriptor = {
+  name: "get_evidence",
+  description: "Return the versioned diff, runtime-trace, and test evidence carried by this view.",
+  inputSchema: obj({}),
 };
 
 const SEE_REPO: ToolDescriptor = {
@@ -49,14 +64,21 @@ const SEE_REPO: ToolDescriptor = {
 export const TOOLS: ToolDescriptor[] = [
   ...INTENT_TOOLS.map(({ name, description, inputSchema }) => ({ name, description, inputSchema })),
   GET_VIEW,
+  GET_EVIDENCE,
   RENDER,
   SEE_REPO,
 ];
 
 /** One client connection: the graph it queries plus the view it's navigating. */
 export class Session {
-  view: ViewState = initialView;
-  constructor(private readonly idx: GraphIndex) {}
+  view: ViewState = normalizeViewState(initialView);
+  readonly evidence: AtlasEvidence;
+  constructor(
+    private readonly idx: GraphIndex,
+    evidence?: AtlasEvidence,
+  ) {
+    this.evidence = normalizeAtlasEvidence(evidence);
+  }
 
   call(name: string, args: Record<string, unknown> = {}): IntentResult {
     if (name === GET_VIEW.name) {
@@ -68,10 +90,19 @@ export class Session {
       };
     }
     if (name === RENDER.name) {
-      const svg = renderView(this.idx, this.view, {
-        theme: args.theme === "dark" ? "dark" : "light",
+      const svg = renderAtlasViewSvg(this.idx.graph, this.view, {
+        dark: args.theme === "dark" ? true : args.theme === "light" ? false : undefined,
+        evidence: this.evidence,
       });
       return { kind: "data", data: svg, summary: `Rendered SVG map (${svg.length} bytes)` };
+    }
+    if (name === GET_EVIDENCE.name) {
+      const summary = projectAtlasEvidence(this.evidence).summary;
+      return {
+        kind: "data",
+        data: this.evidence,
+        summary: `${summary.changes.added + summary.changes.modified + summary.changes.removed} changes, ${summary.traceEdges} trace edges, ${Object.values(summary.tests).reduce((sum, count) => sum + count, 0)} tests`,
+      };
     }
     if (name === SEE_REPO.name) {
       const applied = applyIntent(this.idx, this.view, {

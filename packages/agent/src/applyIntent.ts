@@ -48,7 +48,11 @@ export function applyIntent(idx: GraphIndex, view: ViewState, intent: Intent): A
     // ---- navigation ----
     case "focus": {
       if (!resolve(idx, intent.target)) return err(view, `unknown target: ${intent.target}`);
-      const next = { ...view, selection: [intent.target], camera: { target: intent.target } };
+      const next = {
+        ...view,
+        selection: [intent.target],
+        camera: { target: intent.target, center: null, zoom: null },
+      };
       return nav(next, `Focused ${describeBrief(idx, intent.target)}`);
     }
     case "select": {
@@ -59,7 +63,19 @@ export function applyIntent(idx: GraphIndex, view: ViewState, intent: Intent): A
       return nav({ ...view, selection: [] }, "Cleared selection");
     case "setGranularity":
       return nav(
-        { ...view, granularity: intent.granularity },
+        {
+          ...view,
+          granularity: intent.granularity,
+          hierarchy:
+            intent.granularity === "module"
+              ? { boundaries: ["module"], displayLevels: ["module"] }
+              : intent.granularity === "symbol"
+                ? { boundaries: ["module"], displayLevels: ["module", "symbol"] }
+                : {
+                    boundaries: ["module", "file"],
+                    displayLevels: ["module", "symbol"],
+                  },
+        },
         `Granularity → ${intent.granularity}`,
       );
     case "setLayout":
@@ -79,7 +95,10 @@ export function applyIntent(idx: GraphIndex, view: ViewState, intent: Intent): A
     case "setDiff":
       return nav({ ...view, showDiff: intent.show }, `Diff overlay ${intent.show ? "on" : "off"}`);
     case "home":
-      return nav({ ...view, selection: [], camera: { target: null } }, "Framed the whole map");
+      return nav(
+        { ...view, selection: [], camera: { target: null, center: null, zoom: null } },
+        "Framed the whole map",
+      );
 
     // ---- queries ----
     case "structure": {

@@ -4,6 +4,8 @@ import { computePowerDiagram, type CellEdge, type PowerSite } from "./powerDiagr
 import { createRng, type Rng } from "./rng.ts";
 import { nearestNeighborSquared } from "./spatialGrid.ts";
 import type { Vec2 } from "./vec.ts";
+import type { AtlasEdge } from "@sprawlens/contracts";
+import type { DeltaGuidance } from "./deltaTypes.ts";
 
 export type { ClipRegion } from "./clip.ts";
 
@@ -57,6 +59,8 @@ export type CapacityLayoutState = {
    */
   annealBase: number;
   options: Required<CapacityOptions>;
+  /** Optional dependency/temporal objective used by deltaAwareStep. */
+  guidance?: DeltaGuidance;
 };
 
 const DEFAULT_OPTIONS: Required<CapacityOptions> = {
@@ -71,7 +75,10 @@ const DEFAULT_OPTIONS: Required<CapacityOptions> = {
 function mergeOptions(options: CapacityOptions | undefined): Required<CapacityOptions> {
   const merged = { ...DEFAULT_OPTIONS };
   if (options) {
-    for (const key of Object.keys(options) as (keyof CapacityOptions)[]) {
+    // Read only declared capacity keys. Higher-level solver option bags also
+    // carry delta guidance; leaking those fields into `state.options` makes the
+    // supposedly serializable capacity contract depend on its caller.
+    for (const key of Object.keys(DEFAULT_OPTIONS) as (keyof CapacityOptions)[]) {
       const value = options[key];
       if (value !== undefined) (merged as Record<string, unknown>)[key] = value;
     }
@@ -401,7 +408,30 @@ export type GraphChanges = {
   upsert?: CellInputNode[];
   remove?: string[];
   clip?: ClipRegion;
+  /** Refreshed dependency constraints for a guided layout. */
+  edges?: readonly AtlasEdge[];
 };
+
+/**
+ * Rebuild a diagram after a higher-level objective moved its sites. Power
+ * weights and target areas are retained; the following capacity step repairs
+ * any area error introduced by the move.
+ */
+export function relocateCapacitySites(
+  state: CapacityLayoutState,
+  positions: ReadonlyMap<string, Vec2>,
+): CapacityLayoutState {
+  const rng = createRng(state.options.seed + state.iteration + 104729);
+  const sites = state.sites.map((site) => {
+    const position = positions.get(site.id);
+    if (!position) return site;
+    const clamped = clampInto(state.clip, position);
+    return { ...site, x: clamped.x, y: clamped.y };
+  });
+  separateCoincident(sites, clipScale(state.clip), rng);
+  const { cells, maxRelativeError } = computeCells(sites, state.clipRing);
+  return { ...state, sites, cells, maxRelativeError };
+}
 
 /**
  * Warm-start entry point: existing sites keep their position and power
@@ -417,6 +447,7 @@ export function applyGraphChanges(
   const clipRing = clipToRing(clip, options.circleSegments);
   const clipArea = signedArea(clipRing);
   const removed = new Set(changes.remove ?? []);
+  const changedIds = new Set<string>();
   const upserts = new Map((changes.upsert ?? []).map((n) => [n.id, n]));
 
   const kept: { node: CellInputNode; site: SiteState | null }[] = [];
@@ -424,12 +455,14 @@ export function applyGraphChanges(
     if (removed.has(site.id)) continue;
     const upsert = upserts.get(site.id);
     upserts.delete(site.id);
+    if (upsert && Math.abs(upsert.weight - site.rawWeight) > 1e-12) changedIds.add(site.id);
     kept.push({
       node: upsert ?? { id: site.id, weight: site.rawWeight },
       site,
     });
   }
   for (const node of upserts.values()) {
+    changedIds.add(node.id);
     kept.push({ node, site: null });
   }
 
@@ -468,5 +501,31 @@ export function applyGraphChanges(
   });
   separateCoincident(sites, clipScale(clip), rng);
   sites = assignTargets(sites, clipArea);
-  return buildState(clip, sites, state.iteration, options);
+  const next = buildState(clip, sites, state.iteration, options);
+  if (!state.guidance) return next;
+
+  const nextIds = new Set(sites.map((site) => site.id));
+  const edges = [...(changes.edges ?? state.guidance.edges)];
+  // A removed node has no site to move, so its surviving dependency neighbors
+  // become the local delta frontier instead.
+  for (const edge of state.guidance.edges) {
+    if (removed.has(edge.source) && nextIds.has(edge.target)) changedIds.add(edge.target);
+    if (removed.has(edge.target) && nextIds.has(edge.source)) changedIds.add(edge.source);
+  }
+  const anchors = new Map<string, Vec2>();
+  for (const cell of state.cells) {
+    if (nextIds.has(cell.id)) anchors.set(cell.id, clampInto(clip, cell.site));
+  }
+  return {
+    ...next,
+    guidance: {
+      ...state.guidance,
+      edges,
+      anchors,
+      changedIds,
+      guidedSteps: 0,
+      stalledSteps: 0,
+      lastObjective: Number.POSITIVE_INFINITY,
+    },
+  };
 }

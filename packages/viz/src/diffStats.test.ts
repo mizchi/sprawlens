@@ -1,8 +1,10 @@
 import { describe, expect, it } from "vitest";
 import {
   buildSymbolDiffStats,
+  diffBaseStrokeActive,
   diffForegroundStrokeWidth,
   diffOutlineOpacity,
+  diffForegroundOutlineVisible,
   fallbackChangedDiffStat,
   formatDiffPercent,
   normalizeFileDiffStats,
@@ -92,12 +94,53 @@ describe("fallbackChangedDiffStat", () => {
 describe("diff outline visuals", () => {
   it("draws changed-node outlines above structural boundaries", () => {
     const stat = { added: 5, deleted: 0, touched: 5, total: 20, ratio: 0.25 };
-    expect(diffForegroundStrokeWidth(stat, 0.8)).toBeGreaterThan(2.4);
-    expect(diffOutlineOpacity(stat)).toBeGreaterThan(0.8);
+    expect(diffForegroundStrokeWidth(stat, 0.8)).toBeGreaterThan(1.6);
+    expect(diffForegroundStrokeWidth(stat, 0.8)).toBeLessThan(2.2);
+    expect(diffOutlineOpacity(stat)).toBeGreaterThan(0.5);
+    expect(diffOutlineOpacity(stat)).toBeLessThan(0.65);
+  });
+
+  it("subdues changed-node outlines while a focus/extract overlay is active", () => {
+    const stat = { added: 5, deleted: 0, touched: 5, total: 20, ratio: 0.25 };
+    expect(diffForegroundStrokeWidth(stat, 0.8, true)).toBeLessThan(
+      diffForegroundStrokeWidth(stat, 0.8)!,
+    );
+    expect(diffOutlineOpacity(stat, true)).toBeLessThan(diffOutlineOpacity(stat)!);
   });
 
   it("omits foreground outline values for unchanged nodes", () => {
     expect(diffForegroundStrokeWidth(undefined, 0.8)).toBeUndefined();
     expect(diffOutlineOpacity(undefined)).toBeUndefined();
+  });
+
+  it("does not turn changed-preview base cells into an orange mesh", () => {
+    const stat = { added: 5, deleted: 0, touched: 5, total: 20, ratio: 0.25 };
+    expect(diffBaseStrokeActive(stat, false)).toBe(true);
+    expect(diffBaseStrokeActive(stat, true)).toBe(false);
+  });
+
+  it("keeps exact foreground outlines visible during changed preview", () => {
+    const stat = { added: 5, deleted: 0, touched: 5, total: 20, ratio: 0.25 };
+    expect(
+      diffForegroundOutlineVisible(stat, {
+        changedPreviewActive: true,
+        selected: false,
+        screenPx: 4,
+      }),
+    ).toBe(true);
+    expect(
+      diffForegroundOutlineVisible(stat, {
+        changedPreviewActive: true,
+        selected: false,
+        screenPx: 32,
+      }),
+    ).toBe(true);
+    expect(
+      diffForegroundOutlineVisible(stat, {
+        changedPreviewActive: false,
+        selected: false,
+        screenPx: 4,
+      }),
+    ).toBe(true);
   });
 });

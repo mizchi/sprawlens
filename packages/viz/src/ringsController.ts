@@ -2,21 +2,30 @@ import type { AtlasEdge, AtlasGraph, AtlasNodeKind } from "@sprawlens/schema";
 import { deriveLevels, moduleGrouping, type Grouping, type LevelTree } from "@sprawlens/schema";
 import type { ModuleIdOf } from "@sprawlens/schema";
 import {
-  applyGraphChanges,
   capacityStep,
+  deltaAwareStep,
+  isDeltaConverged,
   isConverged,
   type CapacityLayoutState,
   type ClipRegion,
+  type DeltaGuidanceOptions,
 } from "@sprawlens/layout";
 import { createGraphLayout, embedSeedHints, forceIterationsFor } from "@sprawlens/layout";
 import { centralityRings, dependentWeights, importanceScore } from "@sprawlens/layout";
 import { ringLayout, type PlacedCircle } from "@sprawlens/layout";
 import {
   DECLUMP_ITERATIONS,
+  guideLevel,
   seedLeafLayout,
   subdivideUnder,
   type SubdivisionLevel,
 } from "./subdivision.ts";
+import {
+  leafGraphKey,
+  updateLeafLayout,
+  type LeafUpdateStrategy,
+  type StableNeighborhoodUpdateConfig,
+} from "./incrementalLayout.ts";
 
 /**
  * Concentric-ring layout: the top boundary level's network is placed as
@@ -32,6 +41,10 @@ export type RingsOptions = {
   seed: number;
   adaptationRate?: number;
   lloydRate?: number;
+  /** Dependency/temporal multi-objective refinement; false disables it. */
+  delta?: DeltaGuidanceOptions | false;
+  /** Bounded stable-NPVT update for existing leaf groups; experimental. */
+  stableNeighborhood?: StableNeighborhoodUpdateConfig | false;
   /** Display boundary chain, outer → inner; defaults to module level. */
   boundaries?: readonly Grouping[];
   /** Level-native edges (service communication etc.), keyed by level kind. */
@@ -47,6 +60,10 @@ export type RingsState = {
   innerLevels: SubdivisionLevel[];
   /** Innermost group id → its (animated) leaf subdivision. */
   leafLayouts: Map<string, CapacityLayoutState>;
+  /** Layout-relevant signatures used to skip unchanged stable solves. */
+  leafGraphKeys: Map<string, string>;
+  /** Strategy used by the latest create/apply operation per leaf group. */
+  lastLeafUpdateStrategies: Map<string, LeafUpdateStrategy>;
   /** The top level's network (lifted + native edges). */
   topEdges: AtlasEdge[];
   ranks: Map<string, number>;
@@ -80,6 +97,7 @@ function solverOf(options: RingsOptions) {
     seed: options.seed,
     adaptationRate: options.adaptationRate,
     lloydRate: options.lloydRate,
+    delta: options.delta,
   };
 }
 
@@ -158,24 +176,22 @@ export function createRingsState(graph: AtlasGraph, options: RingsOptions): Ring
     solver,
   );
   const leafLayouts = new Map<string, CapacityLayoutState>();
+  const leafGraphKeys = new Map<string, string>();
+  const lastLeafUpdateStrategies = new Map<string, LeafUpdateStrategy>();
   for (const [groupId, leafClip] of sub.leafClips) {
     const leaves = base.tree.childrenOf.get(groupId) ?? [];
     if (leaves.length === 0) continue;
-    leafLayouts.set(
-      groupId,
-      seedLeafLayout(
-        leaves,
-        base.tree.innerEdgesOf.get(groupId) ?? [],
-        leafClip,
-        sub.positions,
-        solver,
-      ),
-    );
+    const edges = base.tree.innerEdgesOf.get(groupId) ?? [];
+    leafLayouts.set(groupId, seedLeafLayout(leaves, edges, leafClip, sub.positions, solver));
+    leafGraphKeys.set(groupId, leafGraphKey(leaves, edges));
+    lastLeafUpdateStrategies.set(groupId, "cold");
   }
   return {
     circles: base.circles,
     innerLevels: sub.innerLevels,
     leafLayouts,
+    leafGraphKeys,
+    lastLeafUpdateStrategies,
     topEdges: base.tree.levels[0]!.edges,
     ranks: base.ranks,
     parentOf: base.tree.parentOf,
@@ -191,10 +207,13 @@ export function stepRingsState(
   let active = false;
   let leafLayouts: Map<string, CapacityLayoutState> | null = null;
   for (const [groupId, layout] of state.leafLayouts) {
-    if (isConverged(layout, CONVERGENCE)) continue;
+    if (layout.guidance ? isDeltaConverged(layout, CONVERGENCE) : isConverged(layout, CONVERGENCE))
+      continue;
     active = true;
     let next = layout;
-    for (let i = 0; i < stepsPerFrame; i++) next = capacityStep(next);
+    for (let i = 0; i < stepsPerFrame; i++) {
+      next = next.guidance ? deltaAwareStep(next) : capacityStep(next);
+    }
     if (!leafLayouts) leafLayouts = new Map(state.leafLayouts);
     leafLayouts.set(groupId, next);
   }
@@ -206,7 +225,7 @@ export function stepRingsState(
 
 /**
  * Warm-start after the graph changed: the top level is re-derived and
- * re-placed, existing leaf layouts keep their sites via applyGraphChanges
+ * re-placed, existing leaf layouts keep their sites via the shared updater
  * (new clip, refreshed weights, removed leaves dropped); brand-new groups
  * start cold. With a single boundary the (cheap) path skips the global
  * force entirely; deeper chains re-solve the intermediate levels.
@@ -231,26 +250,30 @@ export function applyRingsChanges(
   }
 
   const leafLayouts = new Map<string, CapacityLayoutState>();
+  const leafGraphKeys = new Map<string, string>();
+  const lastLeafUpdateStrategies = new Map<string, LeafUpdateStrategy>();
   for (const [groupId, clip] of leafClips) {
     const leaves = base.tree.childrenOf.get(groupId) ?? [];
     if (leaves.length === 0) continue;
     const edges = base.tree.innerEdgesOf.get(groupId) ?? [];
+    const graphKey = leafGraphKey(leaves, edges);
+    leafGraphKeys.set(groupId, graphKey);
     const existing = state.leafLayouts.get(groupId);
     if (existing) {
-      const leafIds = new Set(leaves.map((f) => f.id));
-      const remove = existing.cells.map((c) => c.id).filter((id) => !leafIds.has(id));
-      leafLayouts.set(
-        groupId,
-        applyGraphChanges(existing, {
-          clip,
-          upsert: leaves.map((f) => ({ id: f.id, weight: f.metrics.loc })),
-          remove,
-        }),
-      );
+      const update = updateLeafLayout(existing, leaves, edges, clip, {
+        seed: options.seed,
+        adaptationRate: options.adaptationRate,
+        lloydRate: options.lloydRate,
+        stableNeighborhood:
+          state.leafGraphKeys.get(groupId) === graphKey ? false : options.stableNeighborhood,
+      });
+      leafLayouts.set(groupId, update.state);
+      lastLeafUpdateStrategies.set(groupId, update.strategy);
       continue;
     }
     if (positions) {
       leafLayouts.set(groupId, seedLeafLayout(leaves, edges, clip, positions, solver));
+      lastLeafUpdateStrategies.set(groupId, "cold");
       continue;
     }
     // cold group on the fast path: embedding seeds inside its own clip
@@ -258,20 +281,27 @@ export function applyRingsChanges(
     const hints = embedSeedHints(subgraph, clip);
     leafLayouts.set(
       groupId,
-      createGraphLayout(subgraph, clip, {
-        ...solver,
-        hints: hints ?? undefined,
-        forceIterations: hints
-          ? Math.min(DECLUMP_ITERATIONS, forceIterationsFor(leaves.length))
-          : forceIterationsFor(leaves.length),
-      }),
+      guideLevel(
+        createGraphLayout(subgraph, clip, {
+          ...solver,
+          hints: hints ?? undefined,
+          forceIterations: hints
+            ? Math.min(DECLUMP_ITERATIONS, forceIterationsFor(leaves.length))
+            : forceIterationsFor(leaves.length),
+        }),
+        edges,
+        solver,
+      ),
     );
+    lastLeafUpdateStrategies.set(groupId, "cold");
   }
 
   return {
     circles: base.circles,
     innerLevels,
     leafLayouts,
+    leafGraphKeys,
+    lastLeafUpdateStrategies,
     topEdges: base.tree.levels[0]!.edges,
     ranks: base.ranks,
     parentOf: base.tree.parentOf,

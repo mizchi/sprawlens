@@ -1,6 +1,17 @@
 import { useEffect, useRef, useState } from "preact/hooks";
 import type { AtlasEdge } from "@sprawlens/schema";
 import type { Vec2 } from "@sprawlens/layout";
+import {
+  midpoint,
+  panViewByClientDelta,
+  pinchView,
+  pointDistance,
+  zoomViewAtClientPoint,
+  type ClientRectLike,
+  type ViewBox,
+} from "./viewportGestures.ts";
+
+export type { ViewBox } from "./viewportGestures.ts";
 
 /** Camera-flight target: the view rect that frames the jump target's bbox. */
 export type FocusRequest = {
@@ -26,8 +37,6 @@ export type FocusView = {
   /** Paths that depend on the focused node. */
   upstreamEdges: AtlasEdge[];
 };
-
-export type ViewBox = { x: number; y: number; w: number; h: number };
 
 const COMMIT_MS = 120;
 /** Deepest zoom-in: dynamic detail levels (CFG inside a symbol cell)
@@ -78,6 +87,15 @@ export function useMapViewport(options: {
     moved: number;
     /** "tilt" = Alt-held drag adjusting the plane orientation, not the view. */
     mode: "pan" | "tilt";
+  } | null>(null);
+  const activePointersRef = useRef<Map<number, Vec2>>(new Map());
+  const pinchRef = useRef<{
+    pointerIds: [number, number];
+    startView: ViewBox;
+    startDistance: number;
+    startMidpoint: Vec2;
+    rect: ClientRectLike;
+    moved: number;
   } | null>(null);
   /** A drag that actually panned must not select on release. */
   const suppressClickRef = useRef(false);
@@ -215,22 +233,67 @@ export function useMapViewport(options: {
     const rect = svgRef.current?.getBoundingClientRect();
     if (!rect) return;
     const factor = Math.exp(event.deltaY * 0.0018);
-    const v = viewRef.current;
-    const newW = Math.min(Math.max(v.w * factor, width / MAX_ZOOM), width * 3);
-    const scale = newW / v.w;
-    const px = v.x + ((event.clientX - rect.left) / rect.width) * v.w;
-    const py = v.y + ((event.clientY - rect.top) / rect.height) * v.h;
-    viewRef.current = {
-      x: px - (px - v.x) * scale,
-      y: py - (py - v.y) * scale,
-      w: newW,
-      h: v.h * scale,
-    };
+    viewRef.current = zoomViewAtClientPoint({
+      view: viewRef.current,
+      rect,
+      client: { x: event.clientX, y: event.clientY },
+      factor,
+      worldWidth: width,
+      maxZoom: MAX_ZOOM,
+    });
     applyView();
     // pin the LOD focus to the world point under the cursor (the zoom anchor),
     // read after the viewBox update so the CTM is current; falls back to the
     // screen center if the pick fails
     wheelFocusRef.current = clientToWorld(event.clientX, event.clientY) ?? wheelFocusRef.current;
+  };
+
+  const capturePointer = (e: PointerEvent) => {
+    try {
+      (e.currentTarget as Element).setPointerCapture(e.pointerId);
+    } catch {
+      // Synthetic tests and some embedded webviews can reject capture for a
+      // pointer id; the active pointer map still keeps the gesture coherent.
+    }
+  };
+
+  const releasePointer = (e: PointerEvent) => {
+    try {
+      (e.currentTarget as Element).releasePointerCapture(e.pointerId);
+    } catch {
+      // It is fine if capture was already lost.
+    }
+  };
+
+  const startPinchFromActivePointers = () => {
+    const entries = [...activePointersRef.current.entries()];
+    if (entries.length < 2) return false;
+    const rect = svgRef.current?.getBoundingClientRect();
+    if (!rect) return false;
+    const [a, b] = entries;
+    const startMidpoint = midpoint(a![1], b![1]);
+    pinchRef.current = {
+      pointerIds: [a![0], b![0]],
+      startView: { ...viewRef.current },
+      startDistance: pointDistance(a![1], b![1]),
+      startMidpoint,
+      rect,
+      moved: 0,
+    };
+    dragRef.current = null;
+    wheelFocusRef.current = null;
+    return true;
+  };
+
+  const restartPanFromRemainingPointer = () => {
+    const [entry] = activePointersRef.current.entries();
+    if (!entry) return;
+    dragRef.current = {
+      pointerId: entry[0],
+      last: entry[1],
+      moved: 0,
+      mode: "pan",
+    };
   };
 
   /** Spread onto the <svg>; the component adds its own onClick(deselect). */
@@ -254,6 +317,12 @@ export function useMapViewport(options: {
     onWheel,
     onPointerDown: (e: PointerEvent) => {
       cancelFlight();
+      activePointersRef.current.set(e.pointerId, { x: e.clientX, y: e.clientY });
+      capturePointer(e);
+      if (activePointersRef.current.size >= 2 && startPinchFromActivePointers()) {
+        if (svgRef.current) svgRef.current.style.cursor = "grabbing";
+        return;
+      }
       // Alt+drag rotates/pitches the plane; only when a tilt sink is wired
       const tilt = e.altKey && !!onTiltRef.current;
       dragRef.current = {
@@ -262,7 +331,6 @@ export function useMapViewport(options: {
         moved: 0,
         mode: tilt ? "tilt" : "pan",
       };
-      (e.target as Element).setPointerCapture(e.pointerId);
       // panning moves what sits at the screen center, so drop the wheel focus
       // pin and let the LOD follow the center again
       wheelFocusRef.current = null;
@@ -272,6 +340,36 @@ export function useMapViewport(options: {
       if (svgRef.current) svgRef.current.style.cursor = "grabbing";
     },
     onPointerMove: (e: PointerEvent) => {
+      if (activePointersRef.current.has(e.pointerId)) {
+        activePointersRef.current.set(e.pointerId, { x: e.clientX, y: e.clientY });
+      }
+      const pinch = pinchRef.current;
+      if (pinch) {
+        const a = activePointersRef.current.get(pinch.pointerIds[0]);
+        const b = activePointersRef.current.get(pinch.pointerIds[1]);
+        if (a && b) {
+          const currentMidpoint = midpoint(a, b);
+          const currentDistance = pointDistance(a, b);
+          const moved =
+            Math.abs(currentDistance - pinch.startDistance) +
+            pointDistance(currentMidpoint, pinch.startMidpoint);
+          pinch.moved = Math.max(pinch.moved, moved);
+          viewRef.current = pinchView({
+            startView: pinch.startView,
+            rect: pinch.rect,
+            startDistance: pinch.startDistance,
+            startMidpoint: pinch.startMidpoint,
+            currentDistance,
+            currentMidpoint,
+            worldWidth: width,
+            maxZoom: MAX_ZOOM,
+          });
+          applyView();
+          wheelFocusRef.current =
+            clientToWorld(currentMidpoint.x, currentMidpoint.y) ?? wheelFocusRef.current;
+        }
+        return;
+      }
       const drag = dragRef.current;
       if (!drag || drag.pointerId !== e.pointerId) {
         // hovering (no active pan): surface what an edge click would pick
@@ -287,15 +385,24 @@ export function useMapViewport(options: {
         return;
       }
       const scale = toViewScale();
-      const v = viewRef.current;
-      viewRef.current = {
-        ...v,
-        x: v.x - dx * scale,
-        y: v.y - dy * scale,
-      };
+      viewRef.current = panViewByClientDelta(viewRef.current, dx, dy, scale);
       applyView();
     },
     onPointerUp: (e: PointerEvent) => {
+      releasePointer(e);
+      const pinch = pinchRef.current;
+      activePointersRef.current.delete(e.pointerId);
+      if (pinch && pinch.pointerIds.includes(e.pointerId)) {
+        if (pinch.moved > 5) suppressClickRef.current = true;
+        pinchRef.current = null;
+        if (activePointersRef.current.size === 1) {
+          restartPanFromRemainingPointer();
+        } else {
+          dragRef.current = null;
+          if (svgRef.current) svgRef.current.style.cursor = "grab";
+        }
+        return;
+      }
       const drag = dragRef.current;
       if (drag?.pointerId === e.pointerId) {
         // ~5px of accumulated motion = a pan, not a click
@@ -315,6 +422,19 @@ export function useMapViewport(options: {
             commitView();
           }, COMMIT_MS);
         }
+      }
+    },
+    onPointerCancel: (e: PointerEvent) => {
+      releasePointer(e);
+      activePointersRef.current.delete(e.pointerId);
+      if (pinchRef.current?.pointerIds.includes(e.pointerId)) {
+        pinchRef.current = null;
+      }
+      if (dragRef.current?.pointerId === e.pointerId) {
+        dragRef.current = null;
+      }
+      if (activePointersRef.current.size === 0 && svgRef.current) {
+        svgRef.current.style.cursor = "grab";
       }
     },
   };

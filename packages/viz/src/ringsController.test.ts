@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import type { AtlasGraph } from "@sprawlens/schema";
 import { directoryGrouping, moduleGrouping } from "@sprawlens/schema";
 import { containsPoint } from "@sprawlens/layout";
 import { applyRingsChanges, createRingsState, stepRingsState } from "./ringsController.ts";
@@ -30,6 +31,14 @@ describe("createRingsState", () => {
         r: circle.r * 0.94,
       });
     }
+  });
+
+  it("attaches the delta-aware objective to modules with internal dependencies", () => {
+    const graph = createSyntheticGraph({ count: 60, seed: 11 });
+    const state = createRingsState(graph, opts);
+    expect([...state.leafLayouts.values()].some((layout) => layout.guidance?.edges.length)).toBe(
+      true,
+    );
   });
 
   it("fits all module circles inside the viewport", () => {
@@ -145,6 +154,38 @@ describe("stepRingsState", () => {
 });
 
 describe("applyRingsChanges", () => {
+  it("can apply the bounded stable-neighborhood strategy to changed leaf groups", () => {
+    const graph = createSyntheticGraph({ count: 30, seed: 12 });
+    let state = createRingsState(graph, { ...opts, seed: 12 });
+    for (let index = 0; index < 400; index++) {
+      const result = stepRingsState(state, 4);
+      state = result.state;
+      if (!result.active) break;
+    }
+    const target = graph.nodes[0]!;
+    const mutated = {
+      ...graph,
+      nodes: graph.nodes.map((node) =>
+        node.id === target.id ? { ...node, metrics: { loc: node.metrics.loc * 2 } } : node,
+      ),
+    };
+
+    const next = applyRingsChanges(state, mutated, {
+      ...opts,
+      seed: 12,
+      stableNeighborhood: { maxNodes: 16, anchorMixes: [0, 0.5, 1], maxSteps: 240 },
+    });
+    const groupId = state.parentOf.get(target.id)!;
+
+    expect(next.leafLayouts.get(groupId)!.maxRelativeError).toBeLessThan(0.01);
+    expect(next.lastLeafUpdateStrategies.get(groupId)).toBe("stableNeighborhood");
+    expect(
+      [...next.lastLeafUpdateStrategies.entries()].some(
+        ([id, strategy]) => id !== groupId && strategy === "warm",
+      ),
+    ).toBe(true);
+  });
+
   it("keeps leaf layouts warm when a file weight changes", () => {
     const graph = createSyntheticGraph({ count: 50, seed: 5 });
     let state = createRingsState(graph, { ...opts, seed: 5 });
@@ -183,5 +224,44 @@ describe("applyRingsChanges", () => {
     };
     const next = applyRingsChanges(state, without, { ...opts, seed: 6 });
     expect(next.leafLayouts.has(someModule)).toBe(false);
+  });
+
+  it("seeds a new connected file near its dependency neighbor", () => {
+    const graph: AtlasGraph = {
+      nodes: ["a", "b", "c"].map((name) => ({
+        id: `src/alpha/${name}.ts`,
+        kind: "file" as const,
+        label: `${name}.ts`,
+        metrics: { loc: 80 },
+      })),
+      edges: [{ source: "src/alpha/a.ts", target: "src/alpha/b.ts" }],
+    };
+    let state = createRingsState(graph, opts);
+    for (let i = 0; i < 200; i++) {
+      const result = stepRingsState(state, 3);
+      state = result.state;
+      if (!result.active) break;
+    }
+    const before = state.leafLayouts.get("src/alpha")!;
+    const aSite = before.cells.find((c) => c.id === "src/alpha/a.ts")!.site;
+    const grown: AtlasGraph = {
+      nodes: [
+        ...graph.nodes,
+        {
+          id: "src/alpha/new.ts",
+          kind: "file" as const,
+          label: "new.ts",
+          metrics: { loc: 20 },
+        },
+      ],
+      edges: [...graph.edges, { source: "src/alpha/new.ts", target: "src/alpha/a.ts" }],
+    };
+
+    const next = applyRingsChanges(state, grown, opts);
+    const newSite = next.leafLayouts
+      .get("src/alpha")!
+      .cells.find((c) => c.id === "src/alpha/new.ts")!.site;
+
+    expect(Math.hypot(newSite.x - aSite.x, newSite.y - aSite.y)).toBeLessThan(2);
   });
 });

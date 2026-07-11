@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { extractMoonbitSymbols } from "./astExtract.ts";
+import { parseMoonbitGenSymbol } from "./moonSymbols.ts";
 
 // integration test: loads the vendored MoonBit parser bundle and checks the
 // AST → symbol mapping. Skips gracefully if the parser cannot be loaded.
@@ -54,5 +55,16 @@ describe("extractMoonbitSymbols (real parser)", () => {
     // real source locations (add spans its multi-line body)
     expect(by("add")?.startLine).toBe(1);
     expect(by("add")?.endLine).toBe(3);
+  });
+});
+
+describe("parseMoonbitGenSymbol", () => {
+  it("keeps SymChild receiver type as parentClass and method name as label", () => {
+    expect(parseMoonbitGenSymbol(["SymChild", "Int", "to_string"], "1001")).toEqual({
+      kind: "method",
+      name: "to_string",
+      parentClass: "Int",
+      exported: true,
+    });
   });
 });

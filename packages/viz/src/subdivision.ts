@@ -2,12 +2,16 @@ import type { AtlasEdge, AtlasGraph, AtlasNode, AtlasNodeKind } from "@sprawlens
 import type { LevelTree } from "@sprawlens/schema";
 import { minCostAssignment } from "@sprawlens/layout";
 import {
+  attachDeltaGuidance,
   capacityStep,
   createCapacityLayout,
+  deltaAwareStep,
+  isDeltaConverged,
   isConverged,
   type CapacityLayoutState,
   type CellResult,
   type ClipRegion,
+  type DeltaGuidanceOptions,
 } from "@sprawlens/layout";
 import { clipCenter, clipToRing } from "@sprawlens/layout";
 import { createForceLayout, forceStep } from "@sprawlens/layout";
@@ -30,6 +34,8 @@ export type SolverOptions = {
   seed: number;
   adaptationRate?: number;
   lloydRate?: number;
+  /** Multi-objective dependency/temporal refinement; false disables it. */
+  delta?: DeltaGuidanceOptions | false;
 };
 
 export type SubdivisionLevel = {
@@ -145,10 +151,31 @@ export function assignedSlotHints(
 /** Solve one capacity layout to (near) convergence synchronously. */
 export function solveLevel(layout: CapacityLayoutState): CapacityLayoutState {
   let current = layout;
-  for (let i = 0; i < LEVEL_MAX_STEPS && !isConverged(current, LEVEL_CONVERGENCE); i++) {
-    current = capacityStep(current);
+  for (
+    let i = 0;
+    i < LEVEL_MAX_STEPS &&
+    (current.guidance
+      ? !isDeltaConverged(current, LEVEL_CONVERGENCE)
+      : !isConverged(current, LEVEL_CONVERGENCE));
+    i++
+  ) {
+    current = current.guidance ? deltaAwareStep(current) : capacityStep(current);
   }
   return current;
+}
+
+/** Enable the shared delta objective when this level has dependency evidence. */
+export function guideLevel(
+  layout: CapacityLayoutState,
+  edges: readonly AtlasEdge[],
+  options: SolverOptions,
+  anchors?: ReadonlyMap<string, Vec2>,
+): CapacityLayoutState {
+  if (options.delta === false || edges.length === 0) return layout;
+  return attachDeltaGuidance(layout, edges, {
+    ...options.delta,
+    anchors: anchors ?? options.delta?.anchors,
+  });
 }
 
 /** Leaves of every group (transitively), in graph order. */
@@ -244,14 +271,18 @@ export function subdivideUnder(
         options.seed,
       );
       const layout = solveLevel(
-        createCapacityLayout(
-          children.map((child) => ({
-            id: child.id,
-            weight: child.metrics.loc,
-            hint: slotHints?.get(child.id) ?? similarity.get(child.id),
-          })),
-          parentClip,
-          solver,
+        guideLevel(
+          createCapacityLayout(
+            children.map((child) => ({
+              id: child.id,
+              weight: child.metrics.loc,
+              hint: slotHints?.get(child.id) ?? similarity.get(child.id),
+            })),
+            parentClip,
+            solver,
+          ),
+          tree.innerEdgesOf.get(parentId) ?? [],
+          options,
         ),
       );
       for (const cell of layout.cells) {
@@ -292,17 +323,21 @@ export function seedLeafLayout(
   options: SolverOptions,
 ): CapacityLayoutState {
   const slotHints = assignedSlotHints(leaves, edges, clip, similarity, options.seed);
-  return createCapacityLayout(
-    leaves.map((leaf) => ({
-      id: leaf.id,
-      weight: leaf.metrics.loc,
-      hint: slotHints?.get(leaf.id) ?? similarity.get(leaf.id),
-    })),
-    clip,
-    {
-      seed: options.seed,
-      adaptationRate: options.adaptationRate,
-      lloydRate: options.lloydRate,
-    },
+  return guideLevel(
+    createCapacityLayout(
+      leaves.map((leaf) => ({
+        id: leaf.id,
+        weight: leaf.metrics.loc,
+        hint: slotHints?.get(leaf.id) ?? similarity.get(leaf.id),
+      })),
+      clip,
+      {
+        seed: options.seed,
+        adaptationRate: options.adaptationRate,
+        lloydRate: options.lloydRate,
+      },
+    ),
+    edges,
+    options,
   );
 }

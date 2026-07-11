@@ -11,3 +11,5 @@ export * from "./workspace.ts";
 export * from "./trace.ts";
 export * from "./traceTimeline.ts";
 export * from "./testRun.ts";
+export * from "./evidence.ts";
+export * from "./externalLayoutBaseline.ts";

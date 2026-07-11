@@ -18,6 +18,7 @@
     "@modelcontextprotocol/sdk": "^1.29.0",
     "@sprawlens/agent": "workspace:*",
     "@sprawlens/analyzer-ts": "workspace:*",
-    "@sprawlens/schema": "workspace:*"
+    "@sprawlens/schema": "workspace:*",
+    "@sprawlens/viz": "workspace:*"
   }
 }

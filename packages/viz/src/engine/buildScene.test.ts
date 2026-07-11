@@ -21,6 +21,7 @@ const base: SceneInput = {
   exportedIds: new Set(),
   symbolKindOf: () => undefined,
   focus: null,
+  changedPreviewActive: false,
   testFileIds: new Set(),
   layers: [],
   altEdges: false,
@@ -67,5 +68,23 @@ describe("buildScene", () => {
 
   it("prefers rings when both layouts are present", () => {
     expect(buildScene({ ...base, rings: {} as never, treemap: {} as never })?.kind).toBe("rings");
+  });
+
+  it("preserves whether the active focus is changed preview", () => {
+    const scene = buildScene({ ...base, rings: {} as never, changedPreviewActive: true });
+    expect(scene?.changedPreviewActive).toBe(true);
+  });
+
+  it("preserves the exact diff emphasis channel separately from broad diff stats", () => {
+    const broad = () => ({ added: 1, deleted: 0, touched: 1, total: 10, ratio: 0.1 });
+    const exact = () => ({ added: 3, deleted: 0, touched: 3, total: 10, ratio: 0.3 });
+    const scene = buildScene({
+      ...base,
+      rings: {} as never,
+      diffStatOf: broad,
+      emphasisDiffStatOf: exact,
+    });
+    expect(scene?.diffStatOf("symbol:src/app.ts:function:App:10")?.ratio).toBe(0.1);
+    expect(scene?.emphasisDiffStatOf("symbol:src/app.ts:function:App:10")?.ratio).toBe(0.3);
   });
 });

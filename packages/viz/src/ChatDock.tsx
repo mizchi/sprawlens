@@ -16,6 +16,8 @@ export function ChatDock(props: {
   view: () => ViewState;
   /** Apply the agent's returned view to the live map. */
   onApplyView: (view: ViewState) => void;
+  /** Leave room for mobile bottom controls. */
+  bottomOffset?: number | string;
 }): preact.JSX.Element {
   const [available, setAvailable] = useState(false);
   const [open, setOpen] = useState(false);
@@ -80,7 +82,7 @@ export function ChatDock(props: {
         position: "absolute",
         left: 0,
         right: 0,
-        bottom: 0,
+        bottom: props.bottomOffset ?? 0,
         zIndex: 30,
         fontFamily: "ui-monospace, monospace",
         fontSize: "12px",

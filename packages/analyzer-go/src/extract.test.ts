@@ -2,6 +2,7 @@ import { mkdtemp, rm, writeFile, mkdir } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
+import { deriveModuleIdOf, deriveModules, snapshotToAtlasGraph } from "@sprawlens/schema";
 import { snapshotGoWorkingTree } from "./extract.ts";
 
 let dir: string;
@@ -95,5 +96,50 @@ describe("Go external dependency classification", () => {
     expect(bySpec.has("github.com/baz/qux/v2")).toBe(true);
     // no raw sub-paths leak into the deps
     expect(ext.some((e) => e.specifier === "github.com/foo/bar/sub")).toBe(false);
+  });
+});
+
+describe("Go workspace module imports", () => {
+  let ws: string;
+  beforeAll(async () => {
+    ws = await mkdtemp(join(tmpdir(), "go-work-"));
+    await writeFile(join(ws, "go.work"), "go 1.22\n\nuse (\n\t./services/app\n\t./libs/core\n)\n");
+    await mkdir(join(ws, "services/app"), { recursive: true });
+    await writeFile(
+      join(ws, "services/app/go.mod"),
+      "module example.com/app\n\ngo 1.22\n\nrequire example.com/core v0.0.0\n\nreplace example.com/core => ../../libs/core\n",
+    );
+    await writeFile(
+      join(ws, "services/app/main.go"),
+      'package main\n\nimport "example.com/core"\n\nfunc main() { _ = core.Name() }\n',
+    );
+    await mkdir(join(ws, "libs/core"), { recursive: true });
+    await writeFile(join(ws, "libs/core/go.mod"), "module example.com/core\n\ngo 1.22\n");
+    await writeFile(
+      join(ws, "libs/core/core.go"),
+      'package core\n\nfunc Name() string { return "core" }\n',
+    );
+  });
+  afterAll(async () => {
+    await rm(ws, { recursive: true, force: true });
+  });
+
+  it("resolves sibling go.mod modules so ring macro edges can lift them", async () => {
+    const snap = await snapshotGoWorkingTree(ws, commit, "demo");
+    const imports = snap.edges.filter((e) => e.type === "imports");
+    expect(
+      imports.some(
+        (e) =>
+          e.from === "file:services/app/main.go" && e.to === "file:libs/core/core.go" && e.resolved,
+      ),
+    ).toBe(true);
+
+    const graph = snapshotToAtlasGraph(snap as Parameters<typeof snapshotToAtlasGraph>[0]);
+    const moduleIdOf = deriveModuleIdOf(graph.nodes.map((node) => node.id));
+    expect(deriveModules(graph, moduleIdOf).moduleEdges).toContainEqual({
+      source: "services/app",
+      target: "libs/core",
+      weight: 1,
+    });
   });
 });

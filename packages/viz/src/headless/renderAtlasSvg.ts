@@ -1,12 +1,22 @@
 import { h } from "preact";
 import { renderToString } from "preact-render-to-string";
-import type { AtlasGraph, SymbolKind } from "@sprawlens/schema";
-import { fileGrouping, moduleGrouping } from "@sprawlens/schema";
+import type { AtlasEvidence, AtlasGraph, SymbolKind } from "@sprawlens/schema";
+import {
+  deriveModuleIdOf,
+  classGrouping,
+  directoryGrouping,
+  fileGrouping,
+  moduleGrouping,
+  parentFileOf as contractParentFileOf,
+  projectAtlasEvidence,
+} from "@sprawlens/schema";
 import { cyclicComponents } from "@sprawlens/layout";
+import { normalizeViewState, serializeViewState, type ViewState } from "@sprawlens/agent";
 import "./preactClassicJsxRuntime.ts";
 import { buildScene } from "../engine/buildScene.ts";
 import { fallbackChangedDiffStat } from "../diffStats.ts";
 import { SvgRenderer } from "../renderer/SvgRenderer.tsx";
+import type { MapScene } from "../renderer/contract.ts";
 import { createRingsState, stepRingsState, type RingsState } from "../ringsController.ts";
 import { createTreemapState, stepTreemapState, type TreemapState } from "../treemapController.ts";
 import {
@@ -22,6 +32,7 @@ import {
 } from "../mapShared.tsx";
 import type { TiltParams } from "../Controls.tsx";
 import type { Granularity } from "../viewConfig.ts";
+import { reweightByTransitiveComplexity } from "../viewConfig.ts";
 
 /**
  * Render a repository's structure map to a standalone SVG string in Node —
@@ -36,7 +47,7 @@ export type AtlasSvgOptions = {
   /** Concentric rings or bundled treemap. Defaults to treemap (the app default). */
   layout?: "rings" | "treemap";
   /** Leaf unit: bare modules, or modules subdivided into file cells. */
-  level?: "module" | "file";
+  level?: Granularity;
   /** Layout seed; the same seed yields the same map. Defaults to 1. */
   seed?: number;
   /** Draw the dependency mesh. Defaults to false. */
@@ -54,7 +65,13 @@ export type AtlasSvgOptions = {
   diffSummary?: { added: number; modified: number; removed: number };
   /** Semantic change overlay: touched files plus dependency blast radius. */
   changeSpectrum?: ChangeSpectrum;
+  /** Canonical human/agent view contract; its fields override legacy scalars. */
+  view?: ViewState;
+  /** Serializable diff/runtime/test evidence shared with browser and MCP clients. */
+  evidence?: AtlasEvidence;
 };
+
+export type AtlasViewSvgOptions = Omit<AtlasSvgOptions, "view" | "layout" | "level" | "seed">;
 
 export type ChangeSpectrum = {
   added: number;
@@ -136,15 +153,64 @@ type TreemapSolveOpts = {
 };
 
 export function renderAtlasSvg(graph: AtlasGraph, options: AtlasSvgOptions = {}): string {
-  const layout = options.layout ?? "treemap";
-  const level: Granularity = options.level ?? "file";
-  const seed = options.seed ?? 1;
-  const dark = options.dark ?? false;
-  const width = options.width ?? (layout === "rings" ? RINGS_W : TREE_W);
-  const height = options.height ?? (layout === "rings" ? RINGS_H : TREE_H);
+  const view = options.view ? normalizeViewState(options.view) : null;
+  const layout = view?.layout ?? options.layout ?? "treemap";
+  const level: Granularity = view?.granularity ?? options.level ?? "file";
+  const seed = view?.seed ?? options.seed ?? 1;
+  const dark = options.dark ?? view?.theme === "dark";
+  const width = options.width ?? view?.viewport.width ?? (layout === "rings" ? RINGS_W : TREE_W);
+  const height = options.height ?? view?.viewport.height ?? (layout === "rings" ? RINGS_H : TREE_H);
   const maxSteps = options.maxSteps ?? DEFAULT_MAX_STEPS;
-  // a file boundary makes files the leaf cells; otherwise modules are the leaves
-  const boundaries = level === "file" ? [moduleGrouping(), fileGrouping()] : [moduleGrouping()];
+  const evidence = projectAtlasEvidence(options.evidence);
+  const showEvidenceDiff = view?.showDiff ?? true;
+  const fileIds = graph.nodes.filter((node) => node.kind === "file").map((node) => node.id);
+  const moduleIdOf = deriveModuleIdOf(fileIds);
+  const moduleOf = (id: string) => moduleIdOf(contractParentFileOf(id));
+  const weightedGraph =
+    view?.weight === "complexity" ? reweightByTransitiveComplexity(graph) : graph;
+  const displayGraph =
+    level === "symbol" && weightedGraph.nodes.some((node) => node.kind === "symbol")
+      ? (() => {
+          const nodes = weightedGraph.nodes.filter((node) => node.kind === "symbol");
+          const ids = new Set(nodes.map((node) => node.id));
+          return {
+            nodes,
+            edges: weightedGraph.edges.filter(
+              (edge) => ids.has(edge.source) && ids.has(edge.target),
+            ),
+          };
+        })()
+      : (() => {
+          const nodes = weightedGraph.nodes.filter((node) => node.kind !== "symbol");
+          const ids = new Set(nodes.map((node) => node.id));
+          return {
+            nodes,
+            edges: weightedGraph.edges.filter(
+              (edge) => ids.has(edge.source) && ids.has(edge.target),
+            ),
+          };
+        })();
+  // A file boundary makes files the leaf cells; symbol mode skips that boundary
+  // and lays the symbol graph directly inside the same derived modules as the app.
+  const directory = directoryGrouping(3);
+  const hierarchyBoundaries = view?.hierarchy.boundaries;
+  const hasDirectory = hierarchyBoundaries?.includes("directory") ?? false;
+  const boundaries = hierarchyBoundaries
+    ? hierarchyBoundaries.flatMap((boundary) => {
+        if (boundary === "module") return [moduleGrouping(moduleOf)];
+        if (boundary === "directory") return [directory];
+        if (boundary === "file" && level === "file") return [fileGrouping()];
+        if (boundary === "class" && level === "symbol") {
+          return [
+            classGrouping(moduleOf, hasDirectory ? (id) => directory.groupOf(id) : undefined),
+          ];
+        }
+        return [];
+      })
+    : level === "file"
+      ? [moduleGrouping(moduleOf), fileGrouping()]
+      : [moduleGrouping(moduleOf)];
+  if (boundaries.length === 0) boundaries.push(moduleGrouping(moduleOf));
   const solver = {
     width,
     height,
@@ -157,8 +223,8 @@ export function renderAtlasSvg(graph: AtlasGraph, options: AtlasSvgOptions = {})
   // the theme tokens are ESM live bindings the components read at render time
   setMapTheme(dark);
 
-  const rings = layout === "rings" ? solveRings(graph, { solver, maxSteps }) : null;
-  const treemap = layout === "treemap" ? solveTreemap(graph, { solver, maxSteps }) : null;
+  const rings = layout === "rings" ? solveRings(displayGraph, { solver, maxSteps }) : null;
+  const treemap = layout === "treemap" ? solveTreemap(displayGraph, { solver, maxSteps }) : null;
 
   const labels = new Map(graph.nodes.map((n) => [n.id, n.label]));
   const locOf = new Map(graph.nodes.map((n) => [n.id, n.metrics.loc]));
@@ -185,14 +251,17 @@ export function renderAtlasSvg(graph: AtlasGraph, options: AtlasSvgOptions = {})
     treemap,
     granularity: level,
     innerCells: [],
-    displayEdges: graph.edges,
+    displayEdges: displayGraph.edges,
     symbolEdges: [],
     detailEdges: [],
-    traceEdges: [],
-    traceHeat: new Map(),
-    testStatus: new Map(),
-    testDuration: new Map(),
-    visibleLevels: new Set<string>([level, "module"]),
+    traceEdges: evidence.traceEdges,
+    traceHeat: evidence.traceHeat,
+    testStatus: evidence.testStatus,
+    testDuration: evidence.testDuration,
+    visibleLevels: new Set<string>([
+      ...(view?.hierarchy.displayLevels ?? [level, "module"]),
+      level,
+    ]),
     cfgEntries: [],
     cyclicIds,
     cyclicModuleIds,
@@ -200,19 +269,31 @@ export function renderAtlasSvg(graph: AtlasGraph, options: AtlasSvgOptions = {})
     exportedIds,
     symbolKindOf,
     focus: null,
+    changedPreviewActive: false,
     testFileIds: new Set(),
     layers: [],
     altEdges: false,
     parentFileOf,
-    changedOf: (id) => options.changed?.get(id),
+    changedOf: (id) =>
+      options.changed?.get(id) ?? (showEvidenceDiff ? evidence.changed.get(id) : undefined),
     diffStatOf: (id) => {
-      const kind = options.changed?.get(id);
+      const exact = showEvidenceDiff ? evidence.diffStats.get(id) : undefined;
+      if (exact) return exact;
+      const kind =
+        options.changed?.get(id) ?? (showEvidenceDiff ? evidence.changed.get(id) : undefined);
       return kind ? fallbackChangedDiffStat(kind, locOf.get(id)) : undefined;
     },
     portNodes: [],
-    hiddenLayers: new Set(),
-    showEdges: options.showEdges ?? false,
-    tilt: NO_TILT,
+    hiddenLayers: new Set(view?.hiddenLayers ?? []),
+    showEdges: view?.showEdges ?? options.showEdges ?? false,
+    tilt: view
+      ? {
+          ...NO_TILT,
+          enabled: view.tilt.enabled,
+          theta: view.tilt.theta,
+          pitch: view.tilt.pitch,
+        }
+      : NO_TILT,
     labelMinPx: 9,
     labelScale: 1,
     ringsExtent: { width, height },
@@ -223,8 +304,8 @@ export function renderAtlasSvg(graph: AtlasGraph, options: AtlasSvgOptions = {})
   const body = renderToString(
     h(SvgRenderer, {
       scene,
-      selectedId: null,
-      selectedIds: new Set<string>(),
+      selectedId: view?.selection[0] ?? null,
+      selectedIds: new Set(view?.selection ?? []),
       selectedEdges: [],
       focusRequest: null,
       onSelect: NOOP,
@@ -239,7 +320,77 @@ export function renderAtlasSvg(graph: AtlasGraph, options: AtlasSvgOptions = {})
     : options.diffSummary
       ? buildDiffLegend(options.diffSummary, height)
       : "";
-  return finalize(body, width, height, legend);
+  return finalize(body, width, height, legend, {
+    layout,
+    selectedId: view?.selection[0] ?? null,
+    view,
+    viewBox: view ? viewBoxFor(scene, view) : null,
+    evidence: evidence.summary,
+  });
+}
+
+/** Render the versioned ViewState through the exact solver/scene/SVG path used by the app. */
+export function renderAtlasViewSvg(
+  graph: AtlasGraph,
+  view: ViewState,
+  options: AtlasViewSvgOptions = {},
+): string {
+  return renderAtlasSvg(graph, { ...options, view: normalizeViewState(view) });
+}
+
+function polygonBounds(points: readonly { x: number; y: number }[]) {
+  if (points.length === 0) return null;
+  let minX = Infinity;
+  let maxX = -Infinity;
+  let minY = Infinity;
+  let maxY = -Infinity;
+  for (const point of points) {
+    minX = Math.min(minX, point.x);
+    maxX = Math.max(maxX, point.x);
+    minY = Math.min(minY, point.y);
+    maxY = Math.max(maxY, point.y);
+  }
+  return { x: minX, y: minY, width: maxX - minX, height: maxY - minY };
+}
+
+function targetBounds(scene: MapScene, id: string) {
+  if (scene.kind === "rings") {
+    const circle = scene.rings.circles.get(id);
+    if (circle) {
+      return {
+        x: circle.cx - circle.r,
+        y: circle.cy - circle.r,
+        width: circle.r * 2,
+        height: circle.r * 2,
+      };
+    }
+    for (const layout of scene.rings.leafLayouts.values()) {
+      const cell = layout.cells.find((candidate) => candidate.id === id);
+      if (cell) return polygonBounds(cell.polygon);
+    }
+  } else {
+    for (const level of scene.state.levels) {
+      const cell = level.cells.get(id);
+      if (cell) return polygonBounds(cell.polygon);
+    }
+    for (const layout of scene.state.leafLayouts.values()) {
+      const cell = layout.cells.find((candidate) => candidate.id === id);
+      if (cell) return polygonBounds(cell.polygon);
+    }
+  }
+  return null;
+}
+
+function viewBoxFor(scene: MapScene, view: ViewState): string | null {
+  if (view.camera.center && view.camera.zoom) {
+    const width = scene.width / view.camera.zoom;
+    const height = scene.height / view.camera.zoom;
+    return `${view.camera.center.x - width / 2} ${view.camera.center.y - height / 2} ${width} ${height}`;
+  }
+  const bounds = view.camera.target ? targetBounds(scene, view.camera.target) : null;
+  if (!bounds) return null;
+  const padding = Math.max(bounds.width, bounds.height) * 0.08 + 4;
+  return `${bounds.x - padding} ${bounds.y - padding} ${bounds.width + padding * 2} ${bounds.height + padding * 2}`;
 }
 
 function buildChangeSpectrumOverlay(summary: ChangeSpectrum, height: number): string {
@@ -330,17 +481,54 @@ function buildDiffLegend(
  * namespace (preact omits it), pin explicit pixel dimensions for rasterizers,
  * and paint the map background the app draws behind the <svg>.
  */
-function finalize(body: string, width: number, height: number, legend = ""): string {
+function finalize(
+  body: string,
+  width: number,
+  height: number,
+  legend = "",
+  metadata?: {
+    layout: "rings" | "treemap";
+    selectedId: string | null;
+    view: ViewState | null;
+    viewBox: string | null;
+    evidence: ReturnType<typeof projectAtlasEvidence>["summary"];
+  },
+): string {
   const open = body.indexOf(">");
   if (!body.startsWith("<svg") || open === -1) return body;
-  const head = body.slice(0, open);
+  let head = body.slice(0, open);
   const rest = body.slice(open + 1);
+  if (metadata?.viewBox) {
+    head = /viewBox="[^"]*"/.test(head)
+      ? head.replace(/viewBox="[^"]*"/, `viewBox="${metadata.viewBox}"`)
+      : `${head} viewBox="${metadata.viewBox}"`;
+  }
+  if (metadata) {
+    head += ` data-atlas-layout="${metadata.layout}"`;
+    if (metadata.selectedId) {
+      head += ` data-selected-id="${escapeAttribute(metadata.selectedId)}"`;
+    }
+    if (metadata.view) {
+      head += ` data-view-state="${encodeURIComponent(serializeViewState(metadata.view))}"`;
+    }
+    const evidenceTests = Object.values(metadata.evidence.tests).reduce(
+      (sum, count) => sum + count,
+      0,
+    );
+    head += ` data-evidence-changes="${metadata.evidence.changes.added + metadata.evidence.changes.modified + metadata.evidence.changes.removed}"`;
+    head += ` data-evidence-trace-edges="${metadata.evidence.traceEdges}"`;
+    head += ` data-evidence-tests="${evidenceTests}"`;
+  }
   const ns = head.includes("xmlns=")
     ? head
     : `${head} xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}"`;
   const bg = `<rect x="0" y="0" width="${width}" height="${height}" fill="${MAP_BG}"/>`;
   const withLegend = legend ? rest.replace(/<\/svg>\s*$/, `${legend}</svg>`) : rest;
   return `${ns}>${bg}${withLegend}`;
+}
+
+function escapeAttribute(value: string): string {
+  return value.replaceAll("&", "&amp;").replaceAll('"', "&quot;").replaceAll("<", "&lt;");
 }
 
 function emptySvg(width: number, height: number): string {

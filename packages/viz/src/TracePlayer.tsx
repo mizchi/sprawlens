@@ -13,8 +13,13 @@ type Props = {
   timeline: TraceTimeline;
   cursor: number;
   playing: boolean;
+  extractEnabled: boolean;
+  extractCount: number;
+  mobile?: boolean;
+  bottom?: number | string;
   onCursor: (c: number) => void;
   onTogglePlay: () => void;
+  onToggleExtract: () => void;
 };
 
 /**
@@ -22,7 +27,18 @@ type Props = {
  * The map's warm-orange overlay is driven by the cursor (see App's
  * projectTimelineCursor), so playing animates the path the program took.
  */
-export function TracePlayer({ timeline, cursor, playing, onCursor, onTogglePlay }: Props) {
+export function TracePlayer({
+  timeline,
+  cursor,
+  playing,
+  extractEnabled,
+  extractCount,
+  mobile = false,
+  bottom,
+  onCursor,
+  onTogglePlay,
+  onToggleExtract,
+}: Props) {
   const last = timeline.steps.length - 1;
   const step = timeline.steps[Math.min(cursor, last)];
   if (!step) return null;
@@ -33,20 +49,22 @@ export function TracePlayer({ timeline, cursor, playing, onCursor, onTogglePlay 
     <div
       style={{
         position: "absolute",
-        left: "50%",
-        bottom: 16,
-        transform: "translateX(-50%)",
+        left: mobile ? 8 : "50%",
+        right: mobile ? 8 : undefined,
+        bottom: bottom ?? (mobile ? "max(8px, env(safe-area-inset-bottom))" : 16),
+        transform: mobile ? undefined : "translateX(-50%)",
         display: "flex",
         alignItems: "center",
-        gap: 12,
-        padding: "8px 14px",
+        flexWrap: mobile ? "wrap" : "nowrap",
+        gap: mobile ? 7 : 12,
+        padding: mobile ? "7px 8px" : "8px 14px",
         borderRadius: 10,
         background: "rgba(15, 23, 42, 0.86)",
         color: "#e2e8f0",
         font: "12px/1.2 ui-monospace, monospace",
         boxShadow: "0 4px 18px rgba(0,0,0,0.35)",
         zIndex: 30,
-        maxWidth: "min(720px, 90vw)",
+        maxWidth: mobile ? undefined : "min(720px, 90vw)",
       }}
     >
       <button
@@ -84,11 +102,17 @@ export function TracePlayer({ timeline, cursor, playing, onCursor, onTogglePlay 
         max={last}
         value={Math.min(cursor, last)}
         onInput={(e) => onCursor(Number((e.target as HTMLInputElement).value))}
-        style={{ width: 320, accentColor: "#ff7a1a" }}
+        style={{
+          width: mobile ? undefined : 320,
+          flex: mobile ? "1 1 128px" : undefined,
+          minWidth: mobile ? 116 : undefined,
+          accentColor: "#ff7a1a",
+        }}
       />
       <span
         style={{
-          minWidth: 220,
+          minWidth: mobile ? 0 : 220,
+          flex: mobile ? "1 1 145px" : undefined,
           whiteSpace: "nowrap",
           overflow: "hidden",
           textOverflow: "ellipsis",
@@ -100,6 +124,23 @@ export function TracePlayer({ timeline, cursor, playing, onCursor, onTogglePlay 
       <span style={{ color: "#64748b", flex: "none" }}>
         {Math.min(cursor, last) + 1}/{timeline.steps.length}
       </span>
+      <button
+        type="button"
+        onClick={onToggleExtract}
+        disabled={extractCount === 0}
+        title={extractEnabled ? "show full trace context" : "extract traced symbols"}
+        style={{
+          padding: "6px 8px",
+          borderRadius: 6,
+          border: `1px solid ${extractEnabled ? "#ff7a1a" : "#334155"}`,
+          cursor: extractCount === 0 ? "default" : "pointer",
+          background: extractEnabled ? "rgba(154,52,18,0.88)" : "#1e293b",
+          color: extractEnabled ? "#fed7aa" : "#cbd5e1",
+          font: mobile ? "10px/1 ui-monospace, monospace" : "11px/1 ui-monospace, monospace",
+        }}
+      >
+        extract {extractEnabled ? "on" : "off"} · {extractCount}
+      </button>
     </div>
   );
 }

@@ -20,12 +20,21 @@ export type CollectOptions = {
   commits?: number;
   since?: string;
   step?: "weekly";
+  /** Revision whose history is collected; defaults to the checked-out HEAD. */
+  revision?: string;
+  /** Follow only the first parent when walking merge history. */
+  firstParent?: boolean;
+  /** Language-provider hook; defaults to the TypeScript snapshot implementation. */
+  analyzeWorktree?: (worktreePath: string, commit: SnapshotCommit) => Promise<Snapshot>;
+  /** Artifact directory; defaults to <repo>/.codesprawl. */
+  outputDir?: string;
 };
 
 export type CollectResult = {
   config: CodesprawlConfig;
   commits: CommitRecord[];
   snapshots: Snapshot[];
+  outputDir: string;
 };
 
 export type AnalyzeResult = {
@@ -49,19 +58,32 @@ export async function collectRepository(
   const selectedCommits = options.step === "weekly" ? sampleWeekly(commits) : commits;
   const snapshots: Snapshot[] = [];
   const repoName = path.basename(repo);
+  const outputDir = options.outputDir ? path.resolve(options.outputDir) : codesprawlDir(repo);
 
-  await resetCodesprawlOutput(repo);
+  await resetCodesprawlOutput(outputDir);
 
   for (const commit of selectedCommits) {
     const worktreePath = await mkdtemp(path.join(tmpdir(), "codesprawl-worktree-"));
     try {
       await git(repo, ["worktree", "add", "--detach", "--quiet", worktreePath, commit.hash]);
-      const snapshot = await createSnapshotFromWorkingTree(worktreePath, commit, {
-        repoPath: repo,
-        repoName,
-      });
+      const analyzed = options.analyzeWorktree
+        ? await options.analyzeWorktree(worktreePath, commit)
+        : await createSnapshotFromWorkingTree(worktreePath, commit, {
+            repoPath: repo,
+            repoName,
+          });
+      const snapshot: Snapshot = options.analyzeWorktree
+        ? {
+            ...analyzed,
+            repoPath: repo,
+            commit,
+            nodes: analyzed.nodes.map((node) =>
+              node.id === "repo" && node.type === "repo" ? { ...node, name: repoName } : node,
+            ),
+          }
+        : analyzed;
       snapshots.push(snapshot);
-      await writeJson(path.join(snapshotsDir(repo), `${commit.hash}.json`), snapshot);
+      await writeJson(path.join(outputDir, "snapshots", `${commit.hash}.json`), snapshot);
     } finally {
       await git(repo, ["worktree", "remove", "--force", worktreePath]).catch(async () => {
         await rm(worktreePath, { recursive: true, force: true });
@@ -69,25 +91,33 @@ export async function collectRepository(
     }
   }
 
+  const configOptions = {
+    ...(options.commits !== undefined ? { commits: options.commits } : {}),
+    ...(options.since !== undefined ? { since: options.since } : {}),
+    ...(options.step !== undefined ? { step: options.step } : {}),
+    ...(options.revision !== undefined ? { revision: options.revision } : {}),
+    ...(options.firstParent !== undefined ? { firstParent: options.firstParent } : {}),
+  };
   const config: CodesprawlConfig = {
     schemaVersion: 1,
     repoPath: repo,
     createdAt: new Date().toISOString(),
-    options,
+    options: configOptions,
   };
   const commitRecords: CommitRecord[] = selectedCommits.map((commit) => ({
     ...commit,
     likelyAI: commit.aiIndicators.length > 0,
   }));
 
-  await writeJson(path.join(codesprawlDir(repo), "config.json"), config);
-  await writeJson(path.join(codesprawlDir(repo), "commits.json"), commitRecords);
-  await writeMetricsCsv(repo, snapshots);
+  await writeJson(path.join(outputDir, "config.json"), config);
+  await writeJson(path.join(outputDir, "commits.json"), commitRecords);
+  await writeMetricsCsv(repo, snapshots, outputDir);
 
   return {
     config,
     commits: commitRecords,
     snapshots,
+    outputDir,
   };
 }
 
@@ -215,12 +245,12 @@ function diffsDir(repoPath: string): string {
   return path.join(codesprawlDir(repoPath), "diffs");
 }
 
-async function resetCodesprawlOutput(repo: string) {
-  await mkdir(codesprawlDir(repo), { recursive: true });
-  await rm(snapshotsDir(repo), { recursive: true, force: true });
-  await rm(diffsDir(repo), { recursive: true, force: true });
-  await mkdir(snapshotsDir(repo), { recursive: true });
-  await mkdir(diffsDir(repo), { recursive: true });
+async function resetCodesprawlOutput(outputDir: string) {
+  await mkdir(outputDir, { recursive: true });
+  await rm(path.join(outputDir, "snapshots"), { recursive: true, force: true });
+  await rm(path.join(outputDir, "diffs"), { recursive: true, force: true });
+  await mkdir(path.join(outputDir, "snapshots"), { recursive: true });
+  await mkdir(path.join(outputDir, "diffs"), { recursive: true });
 }
 
 async function getGitCommits(repo: string, options: CollectOptions): Promise<SnapshotCommit[]> {
@@ -231,6 +261,8 @@ async function getGitCommits(repo: string, options: CollectOptions): Promise<Sna
   if (options.since) {
     args.splice(1, 0, `--since=${normalizeSince(options.since)}`);
   }
+  if (options.firstParent) args.splice(1, 0, "--first-parent");
+  if (options.revision) args.push(options.revision);
 
   const { stdout } = await git(repo, args);
   return parseGitCommitLog(stdout);
@@ -328,7 +360,11 @@ function weekKey(timestamp: string): string {
   return monday.toISOString().slice(0, 10);
 }
 
-async function writeMetricsCsv(repo: string, snapshots: Snapshot[]) {
+async function writeMetricsCsv(
+  repo: string,
+  snapshots: Snapshot[],
+  outputDir = codesprawlDir(repo),
+) {
   const header = [
     "commit",
     "timestamp",
@@ -357,10 +393,7 @@ async function writeMetricsCsv(repo: string, snapshots: Snapshot[]) {
       .map(csvCell)
       .join(","),
   );
-  await writeFile(
-    path.join(codesprawlDir(repo), "metrics.csv"),
-    `${header.join(",")}\n${rows.join("\n")}\n`,
-  );
+  await writeFile(path.join(outputDir, "metrics.csv"), `${header.join(",")}\n${rows.join("\n")}\n`);
 }
 
 function csvCell(value: string | number): string {

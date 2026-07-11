@@ -256,6 +256,8 @@ export type CodesprawlConfig = {
     commits?: number;
     since?: string;
     step?: "weekly";
+    revision?: string;
+    firstParent?: boolean;
   };
 };
 

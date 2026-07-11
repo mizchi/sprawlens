@@ -24,6 +24,13 @@ type GenSym = {
   range: [number, number, number, number]; // [startLine, startCol, endLine, endCol], 1-based
 };
 
+type ParsedGenSym = {
+  kind: CodeSymbolKind;
+  name: string;
+  exported: boolean;
+  parentClass?: string;
+};
+
 // dependency / build dirs whose symbols are not the repo's own code
 const FOREIGN_PREFIXES = [".mooncakes", ".mool", "target", "_build"];
 
@@ -48,6 +55,22 @@ function kindOf(kind: string[], tag: number): CodeSymbolKind | null {
   if ((tag & 0xff0) === 0x50) return "enum"; // enum 0x5x
   if ((tag & 0xf00) === 0x400) return "variable"; // let 0x40x
   return null;
+}
+
+export function parseMoonbitGenSymbol(kind: string[], tagHex: string): ParsedGenSym | null {
+  const tag = Number.parseInt(tagHex, 16);
+  if (!Number.isFinite(tag)) return null;
+  const neutralKind = kindOf(kind, tag);
+  if (!neutralKind) return null;
+  if (kind[0] === "SymChild") {
+    const parentClass = kind[1];
+    const name = kind[2];
+    return parentClass && name
+      ? { kind: neutralKind, name, exported: (tag & 1) === 1, parentClass }
+      : null;
+  }
+  const name = kind[1];
+  return name ? { kind: neutralKind, name, exported: (tag & 1) === 1 } : null;
 }
 
 export async function extractMoonbitSymbolsViaIde(
@@ -80,26 +103,20 @@ export async function extractMoonbitSymbolsViaIde(
     }
     const path = entry.path.split("\\").join("/");
     if (FOREIGN_PREFIXES.some((prefix) => path.startsWith(prefix))) continue;
-    const tag = Number.parseInt(entry.tag, 16);
-    if (!Number.isFinite(tag)) continue;
-    const kind = kindOf(entry.kind, tag);
-    if (!kind) continue;
-    const isChild = entry.kind[0] === "SymChild";
-    const name = (isChild ? entry.kind[2] : entry.kind[1]) ?? "";
-    if (!name) continue;
-    const parentClass = isChild ? entry.kind[1] : undefined;
+    const parsed = parseMoonbitGenSymbol(entry.kind, entry.tag);
+    if (!parsed) continue;
     const startLine = entry.range[0];
     const endLine = entry.range[2];
     const symbol: CodeSymbol = {
-      id: `symbol:${path}:${kind}:${parentClass ? `${parentClass}.${name}` : name}:${startLine}`,
-      kind,
-      name,
+      id: `symbol:${path}:${parsed.kind}:${parsed.parentClass ? `${parsed.parentClass}.${parsed.name}` : parsed.name}:${startLine}`,
+      kind: parsed.kind,
+      name: parsed.name,
       startLine,
       endLine,
       loc: Math.max(endLine - startLine + 1, 1),
       complexity: 1,
-      exported: (tag & 1) === 1,
-      ...(parentClass ? { parentClass } : {}),
+      exported: parsed.exported,
+      ...(parsed.parentClass ? { parentClass: parsed.parentClass } : {}),
     };
     const arr = byFile.get(path) ?? [];
     arr.push(symbol);

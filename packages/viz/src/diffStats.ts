@@ -95,22 +95,60 @@ export function formatDiffPercent(stat: NodeDiffStat | undefined): string {
   return `${Math.max(1, Math.round(stat.ratio * 100))}%`;
 }
 
-export function diffStrokeWidth(stat: NodeDiffStat | undefined, base: number): number {
+function subdueRange(value: number, base: number): number {
+  return base + (value - base) * 0.62;
+}
+
+export function diffStrokeWidth(
+  stat: NodeDiffStat | undefined,
+  base: number,
+  subdued = false,
+): number {
   if (!stat) return base;
-  return Math.max(base, 0.9 + 3.2 * Math.sqrt(stat.ratio));
+  const width = Math.max(base, 0.6 + 1.7 * Math.sqrt(stat.ratio));
+  return subdued ? subdueRange(width, base) : width;
 }
 
 export function diffForegroundStrokeWidth(
   stat: NodeDiffStat | undefined,
   base: number,
+  subdued = false,
+  changedPreviewActive = false,
 ): number | undefined {
   if (!stat) return undefined;
-  return diffStrokeWidth(stat, base) + 0.9;
+  const width = diffStrokeWidth(stat, base) + (changedPreviewActive ? 0.15 : 0.4);
+  const out = subdued ? subdueRange(width, base) : width;
+  return changedPreviewActive ? Math.min(out, base + 0.8) : out;
 }
 
-export function diffOutlineOpacity(stat: NodeDiffStat | undefined): number | undefined {
+export function diffOutlineOpacity(
+  stat: NodeDiffStat | undefined,
+  subdued = false,
+  changedPreviewActive = false,
+): number | undefined {
   if (!stat) return undefined;
-  return 0.74 + 0.24 * Math.sqrt(stat.ratio);
+  const opacity = 0.46 + 0.22 * Math.sqrt(stat.ratio);
+  const out = subdued ? opacity * 0.62 : opacity;
+  return changedPreviewActive ? Math.min(out, 0.38) : out;
+}
+
+export function diffBaseStrokeActive(
+  stat: NodeDiffStat | undefined,
+  changedPreviewActive: boolean,
+): boolean {
+  return stat !== undefined && !changedPreviewActive;
+}
+
+export function diffForegroundOutlineVisible(
+  stat: NodeDiffStat | undefined,
+  args: {
+    changedPreviewActive: boolean;
+    selected: boolean;
+    screenPx: number;
+  },
+): boolean {
+  if (!stat || args.selected) return false;
+  return true;
 }
 
 export function fallbackChangedDiffStat(

@@ -30,6 +30,12 @@ export function useSelection() {
     setSelectedIds(id === null ? [] : [id]);
   };
 
+  /** Replace the ordered node selection from a serialized ViewState. */
+  const setSelection = (ids: readonly string[]) => {
+    setSelectedEdges([]);
+    setSelectedIds([...new Set(ids)]);
+  };
+
   /** Move an already-selected id to the end (make it the primary). */
   const promoteToPrimary = (id: string) =>
     setSelectedIds((prev) => [...prev.filter((x) => x !== id), id]);
@@ -100,6 +106,7 @@ export function useSelection() {
     selectedIdsRef,
     setFocusId,
     setSelectedId,
+    setSelection,
     promoteToPrimary,
     deselect,
     selectNode,

@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import type { AtlasGraph } from "@sprawlens/schema";
 import { directoryGrouping, moduleGrouping } from "@sprawlens/schema";
-import { cellAdjacency, realizedEdgeRate } from "@sprawlens/layout";
+import { cellAdjacency, measureDeltaObjective, realizedEdgeRate } from "@sprawlens/layout";
 import { containsPoint } from "@sprawlens/layout";
 import {
   applyTreemapChanges,
@@ -113,6 +113,8 @@ describe("createTreemapState", () => {
     const state = settled(createTreemapState({ nodes, edges }, OPTIONS));
     const layout = state.leafLayouts.get("src/alpha")!;
     const rate = realizedEdgeRate(cellAdjacency(layout.cells), edges);
+    expect(layout.guidance?.edges).toEqual(edges);
+    expect(measureDeltaObjective(layout).dependencyAdjacency).toBe(rate);
     expect(rate).toBeGreaterThanOrEqual(0.7);
   });
 
@@ -220,6 +222,28 @@ describe("stepTreemapState", () => {
 });
 
 describe("applyTreemapChanges", () => {
+  it("can apply the bounded stable-neighborhood strategy to changed leaf groups", () => {
+    const graph = sampleGraph();
+    const state = settled(createTreemapState(graph, OPTIONS));
+    const mutated = {
+      ...graph,
+      nodes: graph.nodes.map((node) =>
+        node.id === "src/alpha/a.ts" ? { ...node, metrics: { loc: 140 } } : node,
+      ),
+    };
+
+    const next = applyTreemapChanges(state, mutated, {
+      ...OPTIONS,
+      stableNeighborhood: { maxNodes: 16, anchorMixes: [0, 0.5, 1], maxSteps: 240 },
+    });
+
+    expect(next.leafLayouts.get("src/alpha")!.maxRelativeError).toBeLessThan(0.01);
+    expect(next.lastLeafUpdateStrategies.get("src/alpha")).toBe("stableNeighborhood");
+    expect(next.lastLeafUpdateStrategies.get("src/beta")).toBe("warm");
+    expect(next.leafGraphKeys.get("src/alpha")).not.toBe(state.leafGraphKeys.get("src/alpha"));
+    expect(next.leafGraphKeys.get("src/beta")).toBe(state.leafGraphKeys.get("src/beta"));
+  });
+
   it("keeps leaf layouts warm when a file weight changes", () => {
     const graph = sampleGraph();
     const state = settled(createTreemapState(graph, OPTIONS));
@@ -303,6 +327,40 @@ describe("applyTreemapChanges", () => {
     for (const cell of layout.cells) {
       expect(containsPoint(groupCell.polygon, cell.site)).toBe(true);
     }
+  });
+
+  it("seeds a new connected file near its dependency neighbor", () => {
+    const graph: AtlasGraph = {
+      nodes: ["a", "b", "c"].map((name) => ({
+        id: `src/alpha/${name}.ts`,
+        kind: "file" as const,
+        label: `${name}.ts`,
+        metrics: { loc: 80 },
+      })),
+      edges: [{ source: "src/alpha/a.ts", target: "src/alpha/b.ts" }],
+    };
+    const state = settled(createTreemapState(graph, OPTIONS));
+    const before = state.leafLayouts.get("src/alpha")!;
+    const aSite = before.cells.find((c) => c.id === "src/alpha/a.ts")!.site;
+    const grown: AtlasGraph = {
+      nodes: [
+        ...graph.nodes,
+        {
+          id: "src/alpha/new.ts",
+          kind: "file" as const,
+          label: "new.ts",
+          metrics: { loc: 20 },
+        },
+      ],
+      edges: [...graph.edges, { source: "src/alpha/new.ts", target: "src/alpha/a.ts" }],
+    };
+
+    const next = applyTreemapChanges(state, grown, OPTIONS);
+    const newSite = next.leafLayouts
+      .get("src/alpha")!
+      .cells.find((c) => c.id === "src/alpha/new.ts")!.site;
+
+    expect(Math.hypot(newSite.x - aSite.x, newSite.y - aSite.y)).toBeLessThan(2);
   });
 
   it("re-solves intermediate boundary levels inside their new parents", () => {

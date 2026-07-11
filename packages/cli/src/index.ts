@@ -502,12 +502,37 @@ program
   .option("--commits <n>", "number of recent commits to collect", parsePositiveInteger)
   .option("--since <duration>", "git --since duration, for example 6.months")
   .option("--step <step>", "sampling step; only 'weekly' is supported", parseStep)
-  .action(async (repo: string, options: { commits?: number; since?: string; step?: "weekly" }) => {
-    const result = await collectRepository(repo, options);
-    console.log(
-      `Collected ${result.snapshots.length} snapshots into ${result.config.repoPath}/.codesprawl`,
-    );
-  });
+  .option("--revision <revision>", "collect history ending at this fixed revision")
+  .option("--first-parent", "follow only the first parent of merge commits")
+  .option("--lang <id>", "language provider id (typescript, go, rust, moonbit)")
+  .option("--output-dir <path>", "artifact directory; defaults to <repo>/.codesprawl")
+  .action(
+    async (
+      repo: string,
+      options: {
+        commits?: number;
+        since?: string;
+        step?: "weekly";
+        revision?: string;
+        firstParent?: boolean;
+        lang?: string;
+        outputDir?: string;
+      },
+    ) => {
+      const root = resolve(repo);
+      const provider = await chooseProvider(root, options.lang);
+      if (!provider) {
+        process.exitCode = 1;
+        return;
+      }
+      const { lang: _, ...collectOptions } = options;
+      const result = await collectRepository(root, {
+        ...collectOptions,
+        analyzeWorktree: (worktreePath, commit) => provider.analyze(worktreePath, { commit }),
+      });
+      console.log(`Collected ${result.snapshots.length} snapshots into ${result.outputDir}`);
+    },
+  );
 
 program
   .command("analyze")

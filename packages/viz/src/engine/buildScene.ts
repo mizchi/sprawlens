@@ -39,12 +39,14 @@ export type SceneInput = {
   exportedIds: Set<string>;
   symbolKindOf: (id: string) => SymbolKind | undefined;
   focus: FocusView | null;
+  changedPreviewActive: boolean;
   testFileIds: Set<string>;
   layers: SolvedLayer[];
   altEdges: boolean;
   parentFileOf: (id: string) => string;
   changedOf: (id: string) => "added" | "modified" | undefined;
   diffStatOf?: (id: string) => NodeDiffStat | undefined;
+  emphasisDiffStatOf?: (id: string) => NodeDiffStat | undefined;
   portNodes: { id: string; label: string; x: number; y: number }[];
   hiddenLayers: Set<string>;
   /** `params.showEdges` toggle (symbol granularity forces edges on for rings). */
@@ -79,12 +81,14 @@ export function buildScene(i: SceneInput): MapScene | null {
     exportedIds: i.exportedIds,
     symbolKindOf: i.symbolKindOf,
     focus: i.focus,
+    changedPreviewActive: i.changedPreviewActive,
     testFileIds: i.testFileIds,
     layers: i.layers,
     altEdges: i.altEdges,
     parentFileOf: i.parentFileOf,
     changedOf: i.changedOf,
     diffStatOf: i.diffStatOf ?? (() => undefined),
+    emphasisDiffStatOf: i.emphasisDiffStatOf ?? i.diffStatOf ?? (() => undefined),
     testStatus: i.testStatus,
     testDuration: i.testDuration,
     tilt: i.tilt,
