@@ -762,6 +762,8 @@ function symbolsFromTopLevelStatement(
     }
     return [direct];
   }
+  const registration = registrationSymbolFromStatement(statement, sourceFile, fileName);
+  if (registration) return [registration];
   if (!ts.isVariableStatement(statement)) {
     return [];
   }
@@ -775,6 +777,42 @@ function symbolsFromTopLevelStatement(
     );
     return variableSymbol ? [variableSymbol] : [];
   });
+}
+
+/** Named top-level registration calls form stable callback regions without
+ * promoting every expression statement into the symbol layer. */
+function registrationSymbolFromStatement(
+  statement: ts.Statement,
+  sourceFile: ts.SourceFile,
+  fileName: string,
+): CodeSymbol | undefined {
+  if (!ts.isExpressionStatement(statement) || !ts.isCallExpression(statement.expression)) {
+    return undefined;
+  }
+  const call = statement.expression;
+  const callee = call.expression;
+  const calleeName = ts.isPropertyAccessExpression(callee)
+    ? callee.name.text
+    : ts.isIdentifier(callee)
+      ? callee.text
+      : undefined;
+  if (!calleeName || !/^register[A-Z_]/.test(calleeName)) return undefined;
+  const key = call.arguments[0];
+  if (!key || (!ts.isStringLiteral(key) && !ts.isNoSubstitutionTemplateLiteral(key))) {
+    return undefined;
+  }
+  const hasInlineCallback = call.arguments.some(
+    (argument) => ts.isArrowFunction(argument) || ts.isFunctionExpression(argument),
+  );
+  if (!hasInlineCallback) return undefined;
+  return createSymbol(
+    fileName,
+    sourceFile,
+    statement,
+    "registration",
+    `${calleeName}.${key.text}`,
+    false,
+  );
 }
 
 function hasModifier(node: ts.Node, kind: ts.SyntaxKind): boolean {

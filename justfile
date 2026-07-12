@@ -60,6 +60,17 @@ evaluate-ast-diff-extraction-v2:
     @pnpm tsx tools/check-ast-diff-freeze.ts research/ast-diff-extraction-v2-freeze.json
     @pnpm tsx tools/evaluate-ast-symbol-diff.ts --manifest research/ast-diff-extraction-v2-annotation.json --gold research/datasets/ast-diff-extraction-v2-posthoc.json --output research/results/ast-diff-extraction-v2-posthoc-report.json --markdown research/results/ast-diff-extraction-v2-posthoc-report.md
 
+prepare-ast-diff-registration-v3:
+    @pnpm tsx tools/extend-ast-diff-annotation.ts research/ast-diff-extraction-v2-annotation.json research/ast-diff-registration-v3-extension.json research/ast-diff-registration-v3-annotation.json
+    @pnpm tsx tools/prepare-ast-diff-annotation-packets.ts research/ast-diff-confirmatory-candidates.json research/annotation-packets/ast-diff-registration-v3 ast-diff-registration-v3-posthoc posthoc
+
+evaluate-ast-diff-registration-v3:
+    @pnpm tsx tools/check-ast-diff-freeze.ts research/ast-diff-registration-v3-freeze.json
+    @pnpm tsx tools/evaluate-ast-symbol-diff.ts --manifest research/ast-diff-registration-v3-annotation.json --gold research/datasets/ast-diff-registration-v3-posthoc.json --output research/results/ast-diff-registration-v3-posthoc-report.json --markdown research/results/ast-diff-registration-v3-posthoc-report.md
+
+compare-ast-diff-variants:
+    @pnpm tsx tools/compare-ast-diff-variants.ts
+
 dev:
     pnpm dev
 

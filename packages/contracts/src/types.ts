@@ -67,6 +67,8 @@ export type CodeSymbolKind =
   | "enum"
   | "type"
   | "variable"
+  // a named top-level registration call with an inline callback
+  | "registration"
   // a macro definition (e.g. Rust `macro_rules!`); declares a callable unit
   // that is not a function
   | "macro"

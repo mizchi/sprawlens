@@ -30,6 +30,8 @@ export type SymbolKind =
   | "function"
   | "class"
   | "variable"
+  // named top-level registration call (route/tool/resource/etc.)
+  | "registration"
   | "type"
   | "interface"
   | "enum"

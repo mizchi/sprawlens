@@ -418,4 +418,36 @@ describe("extractCodeSymbolsFromSource", () => {
       }),
     ]);
   });
+
+  it("extracts named top-level registration callbacks as distinct regions", () => {
+    const symbols = extractCodeSymbolsFromSource(
+      "src/server.ts",
+      [
+        'server.registerTool("create_entities", { title: "Create" }, async ({ entities }) => {',
+        "  return manager.createEntities(entities);",
+        "});",
+        'server.registerResource("knowledge-graph", uri, async () => ({ contents: [] }));',
+        'server.connect("transport");',
+      ].join("\n"),
+    );
+
+    expect(symbols).toEqual([
+      expect.objectContaining({
+        id: "symbol:src/server.ts:registration:registerTool.create_entities:1",
+        name: "registerTool.create_entities",
+        kind: "registration",
+        startLine: 1,
+        endLine: 3,
+        exported: false,
+      }),
+      expect.objectContaining({
+        id: "symbol:src/server.ts:registration:registerResource.knowledge-graph:4",
+        name: "registerResource.knowledge-graph",
+        kind: "registration",
+        startLine: 4,
+        endLine: 4,
+        exported: false,
+      }),
+    ]);
+  });
 });

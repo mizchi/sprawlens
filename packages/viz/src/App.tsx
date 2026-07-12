@@ -145,6 +145,7 @@ const SYMBOL_KIND_SET: ReadonlySet<string> = new Set([
   "function",
   "class",
   "variable",
+  "registration",
   "type",
   "interface",
   "enum",

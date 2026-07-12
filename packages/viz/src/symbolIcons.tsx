@@ -26,6 +26,7 @@ export function symbolGlyphOf(kind: SymbolKind | undefined, name: string): Symbo
   if (!kind) return null;
   if (kind === "method" || kind === "static-method") return "method";
   if (kind === "property" || kind === "static-property") return "property";
+  if (kind === "registration") return "function";
   const camel = /^[A-Z]/.test(name);
   if ((kind === "function" || kind === "variable") && camel) return "component";
   return kind;
