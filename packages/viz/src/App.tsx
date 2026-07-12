@@ -124,8 +124,10 @@ import {
   type NodeDiffStat,
   type RawDiffLineStat,
 } from "./diffStats.ts";
+import { diffAstSymbols } from "./astSymbolDiff.ts";
 import {
   buildHistoryIndex,
+  clearHistorySelection,
   historyCommitUpdateMode,
   moveHistorySelection,
   type HistoryEntry,
@@ -209,33 +211,24 @@ function insetRing(ring: Ring, factor: number): Ring {
 }
 
 /**
- * Best-effort per-symbol diff between two snapshots. Symbol ids embed the
- * declaration line, so they shift on any edit above — match symbols by their
- * (name, kind) within a file instead, then report add / modify keyed by the
- * AFTER snapshot's symbol id (which the symbol cells use). Modification is
- * inferred from LOC / complexity, the only stable per-symbol metrics we keep.
+ * Structural per-symbol diff between snapshots. Declaration lines are not
+ * identity; parent-qualified AST paths disambiguate same-name members and
+ * descendant changes propagate to their visible parent declaration.
  */
 function changedSymbolsBetween(
   before: SnapshotLike,
   after: SnapshotLike,
 ): Map<string, "added" | "modified"> {
-  const beforeByFile = new Map<string, Map<string, { loc: number; complexity?: number }>>();
+  const beforeByFile = new Map<string, NonNullable<SnapshotLike["nodes"][number]["symbols"]>>();
   for (const n of before.nodes) {
     if (n.type !== "file" || !n.path) continue;
-    const m = new Map<string, { loc: number; complexity?: number }>();
-    for (const s of n.symbols ?? [])
-      m.set(`${s.name}\u0000${s.kind}`, { loc: s.loc, complexity: s.complexity });
-    beforeByFile.set(n.path, m);
+    beforeByFile.set(n.path, n.symbols ?? []);
   }
   const result = new Map<string, "added" | "modified">();
   for (const n of after.nodes) {
     if (n.type !== "file" || !n.path) continue;
-    const prev = beforeByFile.get(n.path);
-    for (const s of n.symbols ?? []) {
-      const p = prev?.get(`${s.name}\u0000${s.kind}`);
-      if (!p) result.set(s.id, "added");
-      else if (p.loc !== s.loc || p.complexity !== s.complexity) result.set(s.id, "modified");
-    }
+    for (const [id, kind] of diffAstSymbols(beforeByFile.get(n.path) ?? [], n.symbols ?? []))
+      result.set(id, kind);
   }
   return result;
 }
@@ -823,7 +816,9 @@ export function App() {
       : symbolId.split("#")[0]!;
     const changedBoost =
       changedFilesRef.current.size > 0 &&
-      (changedFilesRef.current.has(file) || changedSymbolsRef.current.has(symbolId))
+      (changedFilesRef.current.has(file) ||
+        changedSymbolsRef.current.has(symbolId) ||
+        diffStatsRef.current.has(symbolId))
         ? 1e6
         : 0;
     const rings = ringsRef.current;
@@ -932,7 +927,11 @@ export function App() {
         // at symbol granularity without flipping the whole "local" filter
         keep: (id) => {
           const file = id.startsWith("symbol:") ? (id.split(":")[1] ?? id) : id.split("#")[0]!;
-          return changedFilesRef.current.has(file) || changedSymbolsRef.current.has(id);
+          return (
+            changedFilesRef.current.has(file) ||
+            changedSymbolsRef.current.has(id) ||
+            diffStatsRef.current.has(id)
+          );
         },
         weight: p.weight,
       });
@@ -1513,12 +1512,46 @@ export function App() {
     const hi = Math.max(fixedAnchor, endpoint);
     commitRangeRef.current = [lo, hi];
     commitIndexRef.current = endpoint;
+    if (historyCommitUpdateMode(paramsRef.current.stableLayout) === "warm-experiment") {
+      const previousVisible = displayGraphRef.current;
+      const snapshot = history[endpoint]!.snapshot;
+      graphRef.current = snapshotToAtlasGraph(snapshot);
+      symbolsRef.current = snapshotSymbols(snapshot);
+      symbolEdgesRef.current = snapshotSymbolEdges(snapshot);
+      externalDepsRef.current = snapshotExternalDeps(snapshot);
+      testTreeRef.current = snapshotTestTree(snapshot);
+      applyRangeDiff(lo, hi);
+      refreshGraphLookups();
+      if (!warmApplyDisplayedGraph(previousVisible)) setFrame((frame) => frame + 1);
+      return;
+    }
     rebuild(paramsRef.current);
     setFrame((f) => f + 1);
   };
 
   useEffect(() => {
     const onKey = (event: KeyboardEvent) => {
+      if (event.key === "Escape") {
+        if (paramsRef.current.source !== "sprawlens-history" || commitRangeRef.current === null) {
+          return;
+        }
+        event.preventDefault();
+        const cleared = clearHistorySelection({
+          index: commitIndexRef.current,
+          rangeAnchor: commitRangeAnchorRef.current,
+        });
+        commitRangeRef.current = cleared.range;
+        commitRangeAnchorRef.current = cleared.rangeAnchor;
+        if (historyCommitUpdateMode(paramsRef.current.stableLayout) === "warm-experiment") {
+          const previousVisible = displayGraphRef.current;
+          applyCommitDiff(cleared.index);
+          if (!warmApplyDisplayedGraph(previousVisible)) setFrame((frame) => frame + 1);
+          return;
+        }
+        rebuild(paramsRef.current);
+        setFrame((frame) => frame + 1);
+        return;
+      }
       if (event.key !== "ArrowUp" && event.key !== "ArrowDown") return;
       if (event.metaKey || event.ctrlKey || event.altKey || event.defaultPrevented) return;
       const target = event.target as HTMLElement | null;
@@ -2485,7 +2518,7 @@ export function App() {
         if (dirty || statsDirty) {
           if (dirty) changedFilesRef.current = next;
           const rebudgeted =
-            dirty &&
+            (dirty || statsDirty) &&
             granularityOf(paramsRef.current.boundaries, paramsRef.current.displayLevels) ===
               "symbol" &&
             warmApplyDisplayedGraph(previousVisible);

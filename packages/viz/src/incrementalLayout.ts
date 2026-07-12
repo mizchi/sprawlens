@@ -1,6 +1,10 @@
 import type { AtlasEdge, AtlasNode } from "@sprawlens/schema";
 import {
   applyGraphChanges,
+  capacityStep,
+  deltaAwareStep,
+  isConverged,
+  isDeltaConverged,
   stableNeighborhoodUpdate,
   type CapacityLayoutState,
   type ClipRegion,
@@ -19,6 +23,8 @@ export type LeafUpdateOptions = {
   adaptationRate?: number;
   lloydRate?: number;
   stableNeighborhood?: StableNeighborhoodUpdateConfig | false;
+  /** Skip the unstable first solver steps without waiting for convergence. */
+  preRollWarm?: { steps: number; tolerance: number } | false;
 };
 
 export type LeafUpdateResult =
@@ -134,6 +140,24 @@ export function nodeInsertionHint(
   return siteOf(id) ?? neighborSiteHint(id, edges, siteOf);
 }
 
+/** Skip a bounded number of unstable solver steps without repainting them. */
+export function preRollCapacityLayout(
+  state: CapacityLayoutState,
+  options: { steps: number; tolerance: number },
+): CapacityLayoutState {
+  let current = state;
+  let steps = 0;
+  const converged = () =>
+    current.guidance
+      ? isDeltaConverged(current, options.tolerance)
+      : isConverged(current, options.tolerance);
+  while (steps < options.steps && !converged()) {
+    current = current.guidance ? deltaAwareStep(current) : capacityStep(current);
+    steps++;
+  }
+  return current;
+}
+
 /**
  * Update one existing innermost group. Stable neighborhood selection is an
  * explicit, bounded production experiment; all unsupported or non-converged
@@ -169,17 +193,18 @@ export function updateLeafLayout(
   }
 
   const leafIds = new Set(leaves.map((leaf) => leaf.id));
+  const warm = applyGraphChanges(existing, {
+    clip,
+    upsert: leaves.map((leaf) => ({
+      id: leaf.id,
+      weight: leaf.metrics.loc,
+      hint: nodeInsertionHint(leaf.id, edges, previousSiteOf),
+    })),
+    remove: existing.cells.map((cell) => cell.id).filter((id) => !leafIds.has(id)),
+    edges,
+  });
   return {
     strategy: "warm",
-    state: applyGraphChanges(existing, {
-      clip,
-      upsert: leaves.map((leaf) => ({
-        id: leaf.id,
-        weight: leaf.metrics.loc,
-        hint: nodeInsertionHint(leaf.id, edges, previousSiteOf),
-      })),
-      remove: existing.cells.map((cell) => cell.id).filter((id) => !leafIds.has(id)),
-      edges,
-    }),
+    state: options.preRollWarm ? preRollCapacityLayout(warm, options.preRollWarm) : warm,
   };
 }

@@ -80,6 +80,48 @@ describe("buildSymbolDiffStats", () => {
       ratio: 0.2,
     });
   });
+
+  it("uses exact AST ranges and aggregates a member hunk into its parent class", () => {
+    const stats = buildSymbolDiffStats(
+      [
+        {
+          id: "symbol:src/a.ts:class:Service:1",
+          metrics: { loc: 2 },
+          sourceRange: { startLine: 1, endLine: 20 },
+        },
+        {
+          id: "symbol:src/a.ts:method:Service.run:8",
+          metrics: { loc: 5 },
+          sourceRange: { startLine: 8, endLine: 12 },
+          parentId: "symbol:src/a.ts:class:Service:1",
+        },
+      ],
+      [{ oldStart: 9, oldLines: 1, newStart: 9, newLines: 2 }],
+    );
+
+    expect(stats.get("symbol:src/a.ts:method:Service.run:8")).toMatchObject({
+      touched: 2,
+      total: 5,
+      ratio: 0.4,
+    });
+    expect(stats.get("symbol:src/a.ts:class:Service:1")).toMatchObject({
+      touched: 2,
+      total: 20,
+      ratio: 0.1,
+    });
+  });
+
+  it("recovers parent aggregation from legacy qualified symbol ids", () => {
+    const stats = buildSymbolDiffStats(
+      [
+        { id: "symbol:src/a.ts:class:Service:1", metrics: { loc: 2 } },
+        { id: "symbol:src/a.ts:method:Service.run:8", metrics: { loc: 5 } },
+      ],
+      [{ oldStart: 9, oldLines: 1, newStart: 9, newLines: 2 }],
+    );
+
+    expect(stats.get("symbol:src/a.ts:class:Service:1")).toMatchObject({ touched: 2, total: 12 });
+  });
 });
 
 describe("fallbackChangedDiffStat", () => {

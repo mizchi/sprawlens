@@ -43,6 +43,11 @@ export type HistorySelectionMove = HistorySelectionState & {
   range: [number, number] | null;
 };
 
+/** Drop a range selection while keeping its moving endpoint selected. */
+export function clearHistorySelection(state: HistorySelectionState): HistorySelectionMove {
+  return { index: state.index, rangeAnchor: null, range: null };
+}
+
 /** Move in the visual log: newer rows are above, older rows are below. */
 export function moveHistorySelection(
   state: HistorySelectionState,

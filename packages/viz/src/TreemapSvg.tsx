@@ -36,6 +36,8 @@ import {
   selectionDirections,
   focusDimOf,
   focusNodeOutlineVisual,
+  foregroundLast,
+  symbolVisibleAtMacro,
   InnerLevelsLayer,
   changedBoundaryAncestors,
   isWatermarkSized,
@@ -52,6 +54,7 @@ import {
   TEST_LABEL_INK,
   TEST_STATUS_FILL,
   topStructureVisual,
+  topStructureProminent,
   UPSTREAM_COLOR,
   WatermarkLabelsLayer,
 } from "./mapShared.tsx";
@@ -411,6 +414,9 @@ export function TreemapSvg(props: Props) {
     changedPreviewActive ? props.emphasisDiffStatOf?.(id) : props.diffStatOf?.(id);
   const moduleOpacity = dim.module;
   const fileOpacity = dim.leaf;
+  const paintedTopCells = foregroundLast([...topCells.values()], (cell) =>
+    topStructureProminent(focusActive, isSelected(cell.id), moduleOpacity(cell.id)),
+  );
 
   // selection split: what the selection depends on vs what depends on it,
   // drawn regardless of the ambient-edges toggle (same as rings)
@@ -502,15 +508,19 @@ export function TreemapSvg(props: Props) {
   const innerCells = props.innerCells ?? [];
   const parentFileOf = props.parentFileOf ?? ((id: string) => id);
   const showInner = zoom > 0.8 && innerCells.length > 0;
-  const visibleInnerCells = showInner
-    ? innerCells.filter(
-        (c) =>
-          c.polygon.length >= 3 &&
-          (isSelected(c.id) ||
-            (Math.sqrt(c.actualArea) * zoom >= MIN_CELL_PX &&
-              cellInView(c.site, Math.sqrt(c.actualArea), committedView))),
-      )
-    : [];
+  const visibleInnerCells = innerCells.filter(
+    (c) =>
+      c.polygon.length >= 3 &&
+      symbolVisibleAtMacro({
+        selected: isSelected(c.id),
+        exactDiff:
+          props.emphasisDiffStatOf?.(c.id) !== undefined &&
+          cellInView(c.site, Math.sqrt(c.actualArea), committedView),
+        screenPx: Math.sqrt(c.actualArea) * zoom,
+        minPx: MIN_CELL_PX,
+        allowed: showInner && cellInView(c.site, Math.sqrt(c.actualArea), committedView),
+      }),
+  );
 
   const fillOf = (cell: CellResult): string =>
     traceFillOf(cell.id) ??
@@ -579,10 +589,13 @@ export function TreemapSvg(props: Props) {
       <g ref={contentRef} transform={tiltMatrix}>
         {/* top-level districts */}
         <g style={{ display: levelVisible(state.levels[0]!.kind) ? "" : "none" }}>
-          {[...topCells.values()].map((cell) => {
+          {paintedTopCells.map((cell) => {
             if (cell.polygon.length < 3) return null;
             const selected = isSelected(cell.id);
-            const visual = topStructureVisual(focusActive, selected);
+            const visual = topStructureVisual(
+              focusActive,
+              topStructureProminent(focusActive, selected, moduleOpacity(cell.id)),
+            );
             return (
               <polygon
                 key={cell.id}
@@ -699,7 +712,7 @@ export function TreemapSvg(props: Props) {
           />
         ) : null}
         {/* nested symbols inside file cells (same rules as rings) */}
-        {showInner ? (
+        {visibleInnerCells.length > 0 ? (
           <g stroke={SYMBOL_STROKE} stroke-width={0.4} stroke-opacity={0.8}>
             {visibleInnerCells.map((cell) => {
               const diffStat = emphasisDiffStatOf(cell.id);
@@ -799,7 +812,7 @@ export function TreemapSvg(props: Props) {
               : null}
           </g>
         ) : null}
-        {showInner ? (
+        {visibleInnerCells.length > 0 ? (
           <g text-anchor="middle" style={{ pointerEvents: "none", userSelect: "none" }}>
             {visibleInnerCells.map((cell) => {
               if (cell.id.endsWith("#rest")) return null;
@@ -1077,11 +1090,14 @@ export function TreemapSvg(props: Props) {
             display: levelVisible(state.levels[0]!.kind) ? "" : "none",
           }}
         >
-          {[...topCells.values()].map((cell) => {
+          {paintedTopCells.map((cell) => {
             if (cell.polygon.length < 3) return null;
             // screen-px cap: district names stay readable, never dominant
             const fontSize = labelFont(Math.sqrt(cell.actualArea) * 0.18, 28, zoom);
-            const visual = topStructureVisual(focusActive, isSelected(cell.id));
+            const visual = topStructureVisual(
+              focusActive,
+              topStructureProminent(focusActive, isSelected(cell.id), moduleOpacity(cell.id)),
+            );
             return (
               <text
                 key={cell.id}

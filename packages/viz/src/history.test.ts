@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import type { AtlasGraph } from "@sprawlens/schema";
 import {
   buildHistoryIndex,
+  clearHistorySelection,
   diffGraphs,
   historyCommitUpdateMode,
   moveHistorySelection,
@@ -146,6 +147,14 @@ describe("moveHistorySelection", () => {
   it("clears the range anchor on the next unshifted move", () => {
     expect(moveHistorySelection({ index: 1, rangeAnchor: 3 }, "ArrowUp", false, 6)).toEqual({
       index: 2,
+      rangeAnchor: null,
+      range: null,
+    });
+  });
+
+  it("clears an extended range without moving its current endpoint", () => {
+    expect(clearHistorySelection({ index: 1, rangeAnchor: 3 })).toEqual({
+      index: 1,
       rangeAnchor: null,
       range: null,
     });

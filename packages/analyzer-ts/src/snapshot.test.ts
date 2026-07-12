@@ -239,6 +239,7 @@ describe("createSnapshotFromWorkingTree", () => {
               startLine: 1,
               endLine: 3,
               exported: true,
+              fingerprint: expect.stringMatching(/^[0-9a-f]{8}$/),
             }),
             expect.objectContaining({
               name: "Service",
@@ -246,12 +247,14 @@ describe("createSnapshotFromWorkingTree", () => {
               startLine: 5,
               endLine: 9,
               exported: false,
+              fingerprint: expect.stringMatching(/^[0-9a-f]{8}$/),
             }),
             expect.objectContaining({
               name: "run",
               kind: "method",
               startLine: 6,
               parentClass: "symbol:src/service.ts:class:Service:5",
+              fingerprint: expect.stringMatching(/^[0-9a-f]{8}$/),
             }),
             expect.objectContaining({
               name: "helper",

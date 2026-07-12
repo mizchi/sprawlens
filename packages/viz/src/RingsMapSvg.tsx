@@ -31,6 +31,8 @@ import {
   FILE_LABEL_INK,
   focusDimOf,
   focusNodeOutlineVisual,
+  foregroundLast,
+  symbolVisibleAtMacro,
   INTERNAL_LABEL,
   LEAF_STROKE,
   LEAF_BORDER_MIN_PX,
@@ -63,6 +65,7 @@ import {
   SELECT_HALO_STROKE,
   LINKED_STROKE,
   topStructureVisual,
+  topStructureProminent,
   UPSTREAM_COLOR,
   UPSTREAM_FILL,
   WatermarkLabelsLayer,
@@ -684,10 +687,13 @@ export function RingsMapSvg(props: Props) {
     return allowed;
   })();
   const innerVisible = (cell: CellResult) =>
-    isSelected(cell.id) ||
-    (Math.sqrt(cell.actualArea) * zoom >= MIN_SYMBOL_PX &&
-      allowedFiles.has(parentFileOf(cell.id)) &&
-      cellVisible(cell));
+    symbolVisibleAtMacro({
+      selected: isSelected(cell.id),
+      exactDiff: props.emphasisDiffStatOf?.(cell.id) !== undefined && cellVisible(cell),
+      screenPx: Math.sqrt(cell.actualArea) * zoom,
+      minPx: MIN_SYMBOL_PX,
+      allowed: allowedFiles.has(parentFileOf(cell.id)) && cellVisible(cell),
+    });
 
   // polygon point strings survive across re-renders as long as the cell
   // objects do (zoom/pan commits re-render unchanged geometry)
@@ -880,6 +886,9 @@ export function RingsMapSvg(props: Props) {
   const moduleOpacity = dim.module;
   const fileOpacity = dim.leaf;
   const symbolOpacity = dim.symbol;
+  const paintedModuleList = foregroundLast(moduleList, ([id]) =>
+    topStructureProminent(focusActive, isSelected(id), moduleOpacity(id)),
+  );
   const diffLabel = (id: string, name: string, screenPx: number, force = false): string => {
     const stat = emphasisDiffStatOf(id);
     if (!stat || (!force && (zoom < 1.35 || screenPx < 72))) return name;
@@ -1037,10 +1046,13 @@ export function RingsMapSvg(props: Props) {
               : "none",
           }}
         >
-          {moduleList.map(([id, circle]) => {
+          {paintedModuleList.map(([id, circle]) => {
             const c = liftXY({ x: circle.cx, y: circle.cy }, id);
             const selected = isSelected(id);
-            const visual = topStructureVisual(focusActive, selected);
+            const visual = topStructureVisual(
+              focusActive,
+              topStructureProminent(focusActive, selected, moduleOpacity(id)),
+            );
             return (
               <circle
                 key={id}
@@ -1176,7 +1188,7 @@ export function RingsMapSvg(props: Props) {
             })}
           </g>
         ) : null}
-        {showInner ? (
+        {visibleInnerCells.length > 0 ? (
           <g stroke={SYMBOL_STROKE} stroke-width={0.4} stroke-opacity={0.8}>
             {visibleInnerCells.map((cell) => {
               const diffStat = emphasisDiffStatOf(cell.id);
@@ -1744,12 +1756,15 @@ export function RingsMapSvg(props: Props) {
               : "none",
           }}
         >
-          {moduleList.map(([id, circle]) => {
+          {paintedModuleList.map(([id, circle]) => {
             // modules are the macro anchors: always labeled, 10–18px on screen
             const fontSize = screenFont(circle.r * 0.18, 10, 18, true);
             if (fontSize === null) return null;
             const segments = id.split("/");
-            const visual = topStructureVisual(focusActive, isSelected(id));
+            const visual = topStructureVisual(
+              focusActive,
+              topStructureProminent(focusActive, isSelected(id), moduleOpacity(id)),
+            );
             const expanded =
               compactModuleLabels &&
               segments.length > 1 &&

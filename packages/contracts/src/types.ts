@@ -88,6 +88,8 @@ export type CodeSymbol = {
   exported: boolean;
   /** For class members: the parent class's symbol id. */
   parentClass?: string;
+  /** Trivia-insensitive AST token fingerprint, when the analyzer can provide it. */
+  fingerprint?: string;
 };
 
 /**

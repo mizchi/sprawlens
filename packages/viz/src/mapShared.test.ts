@@ -2,7 +2,10 @@ import { describe, expect, it } from "vitest";
 import {
   changedBoundaryAncestors,
   focusNodeOutlineVisual,
+  foregroundLast,
   intermediateBoundaryVisual,
+  topStructureProminent,
+  symbolVisibleAtMacro,
   topStructureVisual,
 } from "./mapShared.tsx";
 
@@ -130,5 +133,38 @@ describe("topStructureVisual", () => {
       strokeOpacity: 1,
       labelOpacity: 1,
     });
+  });
+});
+
+describe("focus foreground ordering", () => {
+  it("treats reached top-level regions as prominent, not only explicit selections", () => {
+    expect(topStructureProminent(true, false, 1)).toBe(true);
+    expect(topStructureProminent(true, false, 0.1)).toBe(false);
+    expect(topStructureProminent(true, true, 0.1)).toBe(true);
+  });
+
+  it("paints focused items after subdued siblings", () => {
+    expect(foregroundLast(["background", "focus", "other"], (id) => id === "focus")).toEqual([
+      "background",
+      "other",
+      "focus",
+    ]);
+  });
+});
+
+describe("symbolVisibleAtMacro", () => {
+  it("keeps exact AST diffs visible below the normal size and file budget gates", () => {
+    expect(symbolVisibleAtMacro({ selected: false, exactDiff: true, screenPx: 2, minPx: 12 })).toBe(
+      true,
+    );
+    expect(
+      symbolVisibleAtMacro({
+        selected: false,
+        exactDiff: false,
+        screenPx: 20,
+        minPx: 12,
+        allowed: false,
+      }),
+    ).toBe(false);
   });
 });

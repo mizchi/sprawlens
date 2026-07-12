@@ -159,6 +159,34 @@ export function topStructureVisual(
   return { fillOpacity: 0.055, strokeOpacity: 0.09, labelOpacity: 0.18 };
 }
 
+/** A reached focus region belongs in the foreground just like a selection. */
+export function topStructureProminent(
+  focusActive: boolean,
+  selected: boolean,
+  focusOpacity: number,
+): boolean {
+  return selected || (focusActive && focusOpacity >= 1);
+}
+
+/** Stable partition used by SVG layers: foreground nodes paint last. */
+export function foregroundLast<T>(items: readonly T[], isForeground: (item: T) => boolean): T[] {
+  const background: T[] = [];
+  const foreground: T[] = [];
+  for (const item of items) (isForeground(item) ? foreground : background).push(item);
+  return [...background, ...foreground];
+}
+
+/** Exact AST-diff signal bypasses macro LOD and per-file symbol budgets. */
+export function symbolVisibleAtMacro(args: {
+  selected: boolean;
+  exactDiff: boolean;
+  screenPx: number;
+  minPx: number;
+  allowed?: boolean;
+}): boolean {
+  return args.selected || args.exactDiff || (args.allowed !== false && args.screenPx >= args.minPx);
+}
+
 export function setMapTheme(dark: boolean): void {
   if (dark) {
     MODIFIED_FILL = "hsl(8 65% 32%)";

@@ -23,8 +23,17 @@ const snapshot: SnapshotLike = {
           kind: "function",
           loc: 40,
           exported: true,
+          startLine: 1,
+          endLine: 40,
         },
-        { id: "symbol:src/a.ts:class:Bar:50", name: "Bar", kind: "class", loc: 30 },
+        {
+          id: "symbol:src/a.ts:class:Bar:50",
+          name: "Bar",
+          kind: "class",
+          loc: 30,
+          startLine: 50,
+          endLine: 90,
+        },
       ],
     },
     {
@@ -168,6 +177,18 @@ describe("snapshotSymbols", () => {
     expect(symbols.find((s) => s.label === "foo")!.exported).toBe(true);
     expect(symbols.find((s) => s.label === "Bar")!.exported).toBe(false);
     expect(symbols.find((s) => s.id.endsWith("#rest"))!.exported).toBeFalsy();
+  });
+
+  it("preserves exact AST declaration ranges for hunk projection", () => {
+    const symbols = snapshotSymbols(snapshot).get("src/a.ts")!;
+    expect(symbols.find((s) => s.label === "foo")!.sourceRange).toEqual({
+      startLine: 1,
+      endLine: 40,
+    });
+    expect(symbols.find((s) => s.label === "Bar")!.sourceRange).toEqual({
+      startLine: 50,
+      endLine: 90,
+    });
   });
 
   it("represents files without symbols as a single node", () => {

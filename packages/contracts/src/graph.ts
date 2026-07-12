@@ -50,6 +50,10 @@ export type AtlasNode = {
   exported?: boolean;
   /** Symbol declaration kind (function/class/...), when the node is a symbol. */
   symbolKind?: SymbolKind;
+  /** Exact 1-based AST declaration range, when the producer retained it. */
+  sourceRange?: { startLine: number; endLine: number };
+  /** Containing AST symbol id (class for member symbols), when present. */
+  parentId?: string;
   /** Visual layer (test, deps, ...) for a file node; absent = source plane. */
   layer?: string;
 };

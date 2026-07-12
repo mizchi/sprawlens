@@ -116,6 +116,35 @@ describe("updateLeafLayout", () => {
     expect(result.strategy).toBe("warm");
   });
 
+  it("can pre-roll a warm fallback without waiting for full convergence", () => {
+    const graphLeaves = leaves(7);
+    const graphEdges = chain(7);
+    const before = stableNeighborhoodUpdate(
+      graphLeaves.map((leaf) => ({ id: leaf.id, weight: leaf.metrics.loc })),
+      graphEdges,
+      clip,
+      { seed: 7, anchorMixes: [0], maxSteps: 800 },
+    );
+    const changedLeaves = graphLeaves.map((leaf, index) =>
+      index === 0 ? { ...leaf, metrics: { loc: 120 } } : leaf,
+    );
+
+    const raw = updateLeafLayout(before.state, changedLeaves, graphEdges, clip, {
+      seed: 7,
+      stableNeighborhood: { maxNodes: 4 },
+    });
+    const result = updateLeafLayout(before.state, changedLeaves, graphEdges, clip, {
+      seed: 7,
+      stableNeighborhood: { maxNodes: 4 },
+      preRollWarm: { steps: 8, tolerance: 0.005 },
+    });
+
+    expect(result.strategy).toBe("warm");
+    expect(result.state.iteration).toBeGreaterThan(raw.state.iteration);
+    expect(result.state.iteration).toBeLessThanOrEqual(raw.state.iteration + 8);
+    expect(result.state.maxRelativeError).toBeGreaterThanOrEqual(0.005);
+  });
+
   it("falls back when the bounded stable solver cannot converge", () => {
     const graphLeaves = leaves(7);
     const graphEdges = chain(7);

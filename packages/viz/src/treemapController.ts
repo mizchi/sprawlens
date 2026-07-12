@@ -29,6 +29,7 @@ import {
 import {
   leafGraphKey,
   nodeInsertionHint,
+  preRollCapacityLayout,
   updateLeafLayout,
   type LeafUpdateStrategy,
   type StableNeighborhoodUpdateConfig,
@@ -84,6 +85,7 @@ export type TreemapState = {
 };
 
 const LEAF_CONVERGENCE = 0.005;
+const PRE_ROLL_STEPS = 8;
 
 export function createTreemapState(graph: AtlasGraph, options: TreemapOptions): TreemapState {
   const boundaries =
@@ -354,12 +356,13 @@ export function applyTreemapChanges(
     leafGraphKeys.set(groupId, graphKey);
     const existing = state.leafLayouts.get(groupId);
     if (existing) {
+      const stable = options.stableNeighborhood;
       const update = updateLeafLayout(existing, leaves, edges, leafClip, {
         seed: options.seed,
         adaptationRate: options.adaptationRate,
         lloydRate: options.lloydRate,
-        stableNeighborhood:
-          state.leafGraphKeys.get(groupId) === graphKey ? false : options.stableNeighborhood,
+        stableNeighborhood: state.leafGraphKeys.get(groupId) === graphKey ? false : stable,
+        preRollWarm: stable ? { steps: PRE_ROLL_STEPS, tolerance: LEAF_CONVERGENCE } : false,
       });
       leafLayouts.set(groupId, update.state);
       lastLeafUpdateStrategies.set(groupId, update.strategy);
@@ -378,27 +381,30 @@ export function applyTreemapChanges(
     const ring = leafClip.kind === "polygon" ? leafClip.ring : null;
     leafLayouts.set(
       groupId,
-      guideLevel(
-        createCapacityLayout(
-          leaves.map((leaf) => {
-            const previous = nodeInsertionHint(leaf.id, edges, prevLeafSiteOf);
-            return {
-              id: leaf.id,
-              weight: leaf.metrics.loc,
-              hint: previous && ring ? nearestPointInRing(ring, previous) : previous,
-            };
-          }),
-          leafClip,
+      preRollCapacityLayout(
+        guideLevel(
+          createCapacityLayout(
+            leaves.map((leaf) => {
+              const previous = nodeInsertionHint(leaf.id, edges, prevLeafSiteOf);
+              return {
+                id: leaf.id,
+                weight: leaf.metrics.loc,
+                hint: previous && ring ? nearestPointInRing(ring, previous) : previous,
+              };
+            }),
+            leafClip,
+            solver,
+          ),
+          edges,
           solver,
+          new Map(
+            leaves.flatMap((leaf) => {
+              const previous = prevLeafSiteOf(leaf.id);
+              return previous ? [[leaf.id, previous] as const] : [];
+            }),
+          ),
         ),
-        edges,
-        solver,
-        new Map(
-          leaves.flatMap((leaf) => {
-            const previous = prevLeafSiteOf(leaf.id);
-            return previous ? [[leaf.id, previous] as const] : [];
-          }),
-        ),
+        { steps: PRE_ROLL_STEPS, tolerance: LEAF_CONVERGENCE },
       ),
     );
     lastLeafUpdateStrategies.set(groupId, "cold");

@@ -815,6 +815,7 @@ function classMemberSymbols(
       complexity: cyclomaticComplexity(member),
       exported: classExported && !isPrivate,
       parentClass: classId,
+      fingerprint: syntaxFingerprint(member, sourceFile),
     });
   }
   return out;
@@ -906,7 +907,31 @@ function createSymbol(
     loc: Math.max(1, end - start + 1),
     complexity: cyclomaticComplexity(node),
     exported,
+    fingerprint: syntaxFingerprint(node, sourceFile),
   };
+}
+
+/** Token hash ignores whitespace/comments while retaining identifiers and literals. */
+function syntaxFingerprint(node: ts.Node, sourceFile: ts.SourceFile): string {
+  const scanner = ts.createScanner(
+    ts.ScriptTarget.Latest,
+    true,
+    sourceFile.languageVariant,
+    node.getText(sourceFile),
+  );
+  let hash = 0x811c9dc5;
+  const mix = (value: number) => {
+    hash ^= value;
+    hash = Math.imul(hash, 0x01000193);
+  };
+  for (;;) {
+    const token = scanner.scan();
+    if (token === ts.SyntaxKind.EndOfFileToken) break;
+    mix(token);
+    const text = scanner.getTokenText();
+    for (let i = 0; i < text.length; i++) mix(text.charCodeAt(i));
+  }
+  return (hash >>> 0).toString(16).padStart(8, "0");
 }
 
 /** Cyclomatic complexity: 1 + decision points in the subtree. Logical

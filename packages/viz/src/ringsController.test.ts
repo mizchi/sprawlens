@@ -186,6 +186,7 @@ describe("applyRingsChanges", () => {
       ),
     ).toBe(true);
     expect(next.lastStableNeighborhoodResults.size).toBe(1);
+    expect(stepRingsState(next, 1).active).toBe(true);
   });
 
   it("keeps leaf layouts warm when a file weight changes", () => {

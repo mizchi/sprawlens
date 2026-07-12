@@ -23,6 +23,7 @@ import {
 } from "./subdivision.ts";
 import {
   leafGraphKey,
+  preRollCapacityLayout,
   updateLeafLayout,
   type LeafUpdateStrategy,
   type StableNeighborhoodUpdateConfig,
@@ -77,6 +78,7 @@ export type RingsState = {
 };
 
 const CONVERGENCE = 0.005;
+const PRE_ROLL_STEPS = 8;
 const CLIP_INSET = 0.94;
 
 function resolvedBoundaries(options: RingsOptions): readonly Grouping[] {
@@ -266,12 +268,13 @@ export function applyRingsChanges(
     leafGraphKeys.set(groupId, graphKey);
     const existing = state.leafLayouts.get(groupId);
     if (existing) {
+      const stable = options.stableNeighborhood;
       const update = updateLeafLayout(existing, leaves, edges, clip, {
         seed: options.seed,
         adaptationRate: options.adaptationRate,
         lloydRate: options.lloydRate,
-        stableNeighborhood:
-          state.leafGraphKeys.get(groupId) === graphKey ? false : options.stableNeighborhood,
+        stableNeighborhood: state.leafGraphKeys.get(groupId) === graphKey ? false : stable,
+        preRollWarm: stable ? { steps: PRE_ROLL_STEPS, tolerance: CONVERGENCE } : false,
       });
       leafLayouts.set(groupId, update.state);
       lastLeafUpdateStrategies.set(groupId, update.strategy);
@@ -281,7 +284,13 @@ export function applyRingsChanges(
       continue;
     }
     if (positions) {
-      leafLayouts.set(groupId, seedLeafLayout(leaves, edges, clip, positions, solver));
+      leafLayouts.set(
+        groupId,
+        preRollCapacityLayout(seedLeafLayout(leaves, edges, clip, positions, solver), {
+          steps: PRE_ROLL_STEPS,
+          tolerance: CONVERGENCE,
+        }),
+      );
       lastLeafUpdateStrategies.set(groupId, "cold");
       continue;
     }
@@ -290,16 +299,19 @@ export function applyRingsChanges(
     const hints = embedSeedHints(subgraph, clip);
     leafLayouts.set(
       groupId,
-      guideLevel(
-        createGraphLayout(subgraph, clip, {
-          ...solver,
-          hints: hints ?? undefined,
-          forceIterations: hints
-            ? Math.min(DECLUMP_ITERATIONS, forceIterationsFor(leaves.length))
-            : forceIterationsFor(leaves.length),
-        }),
-        edges,
-        solver,
+      preRollCapacityLayout(
+        guideLevel(
+          createGraphLayout(subgraph, clip, {
+            ...solver,
+            hints: hints ?? undefined,
+            forceIterations: hints
+              ? Math.min(DECLUMP_ITERATIONS, forceIterationsFor(leaves.length))
+              : forceIterationsFor(leaves.length),
+          }),
+          edges,
+          solver,
+        ),
+        { steps: PRE_ROLL_STEPS, tolerance: CONVERGENCE },
       ),
     );
     lastLeafUpdateStrategies.set(groupId, "cold");
