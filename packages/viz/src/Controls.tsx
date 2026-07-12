@@ -8,7 +8,10 @@ import {
   type ViewConfig,
   type WeightKind,
 } from "./viewConfig.ts";
-import type { LeafUpdateSummary } from "./incrementalLayout.ts";
+import type {
+  LeafUpdateSummary,
+  StableNeighborhoodExperimentSummary,
+} from "./incrementalLayout.ts";
 
 type DataSource =
   | "synthetic"
@@ -85,6 +88,7 @@ type Props = {
   debug?: boolean;
   changedCount?: number;
   leafUpdateSummary?: LeafUpdateSummary;
+  stableExperimentSummary?: StableNeighborhoodExperimentSummary;
   onChange: (params: PlaygroundParams) => void;
   onRegenerate: () => void;
   onMutateWeight: () => void;
@@ -98,6 +102,8 @@ const row: Record<string, string> = {
   gap: "8px",
   fontSize: "12px",
 };
+
+const formatSigned = (value: number) => `${value >= 0 ? "+" : ""}${value.toFixed(4)}`;
 
 /** The data-source picker is a dev / demo affordance: shown only on localhost
  * and the GitHub Pages demo, hidden in any embedded / production use. */
@@ -184,7 +190,7 @@ export function Controls(props: Props) {
       </label>
       <label
         style={row}
-        title="preserve NPVT adjacency while minimizing changed-layout displacement"
+        title="run the paper envelope: retain the NPVT baseline and minimize changed-layout displacement"
       >
         <span style={{ width: "110px" }}>stable delta</span>
         <input
@@ -199,6 +205,72 @@ export function Controls(props: Props) {
           </small>
         ) : null}
       </label>
+      {params.stableLayout ? (
+        <div
+          data-testid="stable-layout-experiment"
+          data-stable-groups={props.stableExperimentSummary?.groups ?? 0}
+          data-warm-groups={props.leafUpdateSummary?.warm ?? 0}
+          data-cold-groups={props.leafUpdateSummary?.cold ?? 0}
+          data-baseline-selections={props.stableExperimentSummary?.baselineSelections ?? 0}
+          data-contract-violations={props.stableExperimentSummary?.contractViolations ?? 0}
+          data-adjacency-gain={props.stableExperimentSummary?.meanAdjacencyGain ?? 0}
+          data-displacement-reduction={
+            props.stableExperimentSummary?.meanDisplacementReduction ?? 0
+          }
+          data-eligible-candidates={props.stableExperimentSummary?.meanEligibleCandidates ?? 0}
+          data-weighted-solves={props.stableExperimentSummary?.meanWeightedSolves ?? 0}
+          data-total-steps={props.stableExperimentSummary?.meanTotalSteps ?? 0}
+          style={{
+            display: "grid",
+            gridTemplateColumns: "1fr auto",
+            gap: "4px 10px",
+            padding: "8px 10px",
+            border: "1px solid rgba(56, 189, 248, 0.35)",
+            borderRadius: "6px",
+            background: "rgba(14, 116, 144, 0.1)",
+            fontSize: "11px",
+            fontVariantNumeric: "tabular-nums",
+          }}
+        >
+          <strong style={{ gridColumn: "1 / -1", color: "#38bdf8" }}>paper envelope</strong>
+          <small style={{ gridColumn: "1 / -1", color: "#94a3b8" }}>
+            5 anchor mixes · 8 swaps · ≤80 nodes
+          </small>
+          {(props.stableExperimentSummary?.groups ?? 0) === 0 ? (
+            <small style={{ gridColumn: "1 / -1", color: "#94a3b8" }}>
+              Use the modules-only preset, then advance history to measure a file delta.
+            </small>
+          ) : (
+            <>
+              <span>stable groups</span>
+              <b>{props.stableExperimentSummary!.groups}</b>
+              <span>displacement saved</span>
+              <b>{formatSigned(props.stableExperimentSummary!.meanDisplacementReduction)}</b>
+              <span>adjacency gain</span>
+              <b>{formatSigned(props.stableExperimentSummary!.meanAdjacencyGain)}</b>
+              <span>baseline selected</span>
+              <b>
+                {props.stableExperimentSummary!.baselineSelections}/
+                {props.stableExperimentSummary!.groups}
+              </b>
+              <span>eligible / solves</span>
+              <b>
+                {props.stableExperimentSummary!.meanEligibleCandidates.toFixed(1)} /{" "}
+                {props.stableExperimentSummary!.meanWeightedSolves.toFixed(1)}
+              </b>
+              <span>contract</span>
+              <b
+                style={{
+                  color:
+                    props.stableExperimentSummary!.contractViolations === 0 ? "#22c55e" : "#ef4444",
+                }}
+              >
+                {props.stableExperimentSummary!.contractViolations} violations
+              </b>
+            </>
+          )}
+        </div>
+      ) : null}
       <label style={row}>
         <span style={{ width: "110px" }}>follow changes</span>
         <input

@@ -29,6 +29,11 @@ export type HistoryIndex = {
   nodeHistory: Map<string, NodeChange[]>;
 };
 
+/** Preserve the legacy cold history view unless the paper experiment is explicit. */
+export function historyCommitUpdateMode(stableLayout: boolean): "cold" | "warm-experiment" {
+  return stableLayout ? "warm-experiment" : "cold";
+}
+
 /** Precomputed per-commit diffs and their per-node inversion. */
 export function buildHistoryIndex(entries: readonly HistoryEntry[]): HistoryIndex {
   const diffs: GraphDiff[] = [];

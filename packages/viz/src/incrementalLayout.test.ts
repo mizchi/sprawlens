@@ -5,6 +5,7 @@ import {
   leafGraphKey,
   neighborSiteHint,
   nodeInsertionHint,
+  summarizeStableNeighborhoodExperiments,
   updateLeafLayout,
   summarizeLeafUpdateStrategies,
 } from "./incrementalLayout.ts";
@@ -82,6 +83,19 @@ describe("updateLeafLayout", () => {
       result.result.baseline.displacement + 1e-12,
     );
     expect(result.state.maxRelativeError).toBeLessThan(0.01);
+
+    expect(summarizeStableNeighborhoodExperiments([result.result])).toEqual({
+      groups: 1,
+      baselineSelections:
+        result.result.selected.anchorMix === 0 && result.result.selected.swapPasses === 8 ? 1 : 0,
+      contractViolations: 0,
+      meanAdjacencyGain: result.result.selected.adjacency - result.result.baseline.adjacency,
+      meanDisplacementReduction:
+        result.result.baseline.displacement - result.result.selected.displacement,
+      meanEligibleCandidates: result.result.eligibleCandidates,
+      meanWeightedSolves: result.result.weightedSolves,
+      meanTotalSteps: result.result.totalSteps,
+    });
   });
 
   it("falls back to the animated warm update above the stable node budget", () => {
@@ -145,6 +159,19 @@ describe("summarizeLeafUpdateStrategies", () => {
       cold: 1,
       warm: 2,
       stableNeighborhood: 1,
+    });
+  });
+
+  it("returns an explicit empty stable experiment summary before the first delta", () => {
+    expect(summarizeStableNeighborhoodExperiments([])).toEqual({
+      groups: 0,
+      baselineSelections: 0,
+      contractViolations: 0,
+      meanAdjacencyGain: 0,
+      meanDisplacementReduction: 0,
+      meanEligibleCandidates: 0,
+      meanWeightedSolves: 0,
+      meanTotalSteps: 0,
     });
   });
 });

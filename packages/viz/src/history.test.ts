@@ -1,6 +1,11 @@
 import { describe, expect, it } from "vitest";
 import type { AtlasGraph } from "@sprawlens/schema";
-import { buildHistoryIndex, diffGraphs, type HistoryEntry } from "./history.ts";
+import {
+  buildHistoryIndex,
+  diffGraphs,
+  historyCommitUpdateMode,
+  type HistoryEntry,
+} from "./history.ts";
 
 function graphOf(files: [string, number][]): AtlasGraph {
   return {
@@ -82,5 +87,12 @@ describe("buildHistoryIndex", () => {
       { index: 2, kind: "removed" },
     ]);
     expect(index.nodeHistory.get("b.ts")).toEqual([{ index: 1, kind: "added" }]);
+  });
+});
+
+describe("historyCommitUpdateMode", () => {
+  it("uses a warm delta only for the explicit stable-layout experiment", () => {
+    expect(historyCommitUpdateMode(false)).toBe("cold");
+    expect(historyCommitUpdateMode(true)).toBe("warm-experiment");
   });
 });

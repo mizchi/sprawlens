@@ -239,7 +239,9 @@ describe("applyTreemapChanges", () => {
 
     expect(next.leafLayouts.get("src/alpha")!.maxRelativeError).toBeLessThan(0.01);
     expect(next.lastLeafUpdateStrategies.get("src/alpha")).toBe("stableNeighborhood");
+    expect(next.lastStableNeighborhoodResults.get("src/alpha")).toBeDefined();
     expect(next.lastLeafUpdateStrategies.get("src/beta")).toBe("warm");
+    expect(next.lastStableNeighborhoodResults.size).toBe(1);
     expect(next.leafGraphKeys.get("src/alpha")).not.toBe(state.leafGraphKeys.get("src/alpha"));
     expect(next.leafGraphKeys.get("src/beta")).toBe(state.leafGraphKeys.get("src/beta"));
   });

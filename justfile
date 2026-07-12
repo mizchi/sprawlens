@@ -36,6 +36,10 @@ run-repository-missingness-sensitivity:
 benchmark-repository-condition-memory:
     @pnpm tsx tools/benchmark-repository-condition-memory.ts
 
+experiment-stable-visual:
+    pnpm --filter @sprawlens/viz build
+    pnpm tsx tools/run-stable-visual-experiment.ts
+
 dev:
     pnpm dev
 

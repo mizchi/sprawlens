@@ -81,6 +81,23 @@ pnpm cli collect /abs/repo --commits 50 --output-dir /tmp/repo-history
 pnpm cli analyze <repo>                # diff consecutive snapshots
 ```
 
+## Stable-layout visual experiment
+
+The `stable delta` toggle runs the paper envelope for changed file groups: five
+anchor mixes, the retained 8-swap NPVT-style baseline, an 80-node bound, and an
+800-step convergence budget. In the modules-only history view, the controls
+report displacement saved, adjacency gain, candidate/solve counts, baseline
+selection, and contract violations for the latest commit transition.
+
+```bash
+just experiment-stable-visual
+```
+
+The browser-level experiment walks the committed Sprawlens history fixture in
+order and writes `summary.json`, `before.png`, and `best.png` under
+`preview/stable-layout-experiment/`. The preview directory is generated and
+git-ignored; rerun the command after implementation or fixture changes.
+
 ## Architecture
 
 A pnpm workspace split into responsibility layers. Each package only depends

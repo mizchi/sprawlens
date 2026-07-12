@@ -11,6 +11,7 @@ import {
   type CellResult,
   type ClipRegion,
   type DeltaGuidanceOptions,
+  type StableNeighborhoodResult,
 } from "@sprawlens/layout";
 import { nearestPointInRing } from "@sprawlens/layout";
 import { createGraphLayout, embedSeedHints, forceIterationsFor } from "@sprawlens/layout";
@@ -72,6 +73,8 @@ export type TreemapState = {
   leafGraphKeys: Map<string, string>;
   /** Strategy used by the latest create/apply operation per leaf group. */
   lastLeafUpdateStrategies: Map<string, LeafUpdateStrategy>;
+  /** Full paper-envelope diagnostics for stable groups in the latest update. */
+  lastStableNeighborhoodResults: Map<string, StableNeighborhoodResult>;
   /** The top level's network (lifted + native edges). */
   topEdges: AtlasEdge[];
   /** Any id (group or leaf) → parent group id; top groups → null. */
@@ -157,6 +160,7 @@ export function createTreemapState(graph: AtlasGraph, options: TreemapOptions): 
   const leafLayouts = new Map<string, CapacityLayoutState>();
   const leafGraphKeys = new Map<string, string>();
   const lastLeafUpdateStrategies = new Map<string, LeafUpdateStrategy>();
+  const lastStableNeighborhoodResults = new Map<string, StableNeighborhoodResult>();
   for (const [groupId, leafClip] of sub.leafClips) {
     const leaves = tree.childrenOf.get(groupId) ?? [];
     if (leaves.length === 0) continue;
@@ -171,6 +175,7 @@ export function createTreemapState(graph: AtlasGraph, options: TreemapOptions): 
     leafLayouts,
     leafGraphKeys,
     lastLeafUpdateStrategies,
+    lastStableNeighborhoodResults,
     topEdges: top.edges,
     parentOf: tree.parentOf,
     kindOf: tree.kindOf,
@@ -340,6 +345,7 @@ export function applyTreemapChanges(
   const leafLayouts = new Map<string, CapacityLayoutState>();
   const leafGraphKeys = new Map<string, string>();
   const lastLeafUpdateStrategies = new Map<string, LeafUpdateStrategy>();
+  const lastStableNeighborhoodResults = new Map<string, StableNeighborhoodResult>();
   for (const [groupId, leafClip] of parentClips) {
     const leaves = tree.childrenOf.get(groupId) ?? [];
     if (leaves.length === 0) continue;
@@ -357,6 +363,9 @@ export function applyTreemapChanges(
       });
       leafLayouts.set(groupId, update.state);
       lastLeafUpdateStrategies.set(groupId, update.strategy);
+      if (update.strategy === "stableNeighborhood") {
+        lastStableNeighborhoodResults.set(groupId, update.result);
+      }
       continue;
     }
     const prevLeafSiteOf = (id: string) => {
@@ -400,6 +409,7 @@ export function applyTreemapChanges(
     leafLayouts,
     leafGraphKeys,
     lastLeafUpdateStrategies,
+    lastStableNeighborhoodResults,
     topEdges: top.edges,
     parentOf: tree.parentOf,
     kindOf: tree.kindOf,

@@ -9,6 +9,7 @@ import {
   type CapacityLayoutState,
   type ClipRegion,
   type DeltaGuidanceOptions,
+  type StableNeighborhoodResult,
 } from "@sprawlens/layout";
 import { createGraphLayout, embedSeedHints, forceIterationsFor } from "@sprawlens/layout";
 import { centralityRings, dependentWeights, importanceScore } from "@sprawlens/layout";
@@ -64,6 +65,8 @@ export type RingsState = {
   leafGraphKeys: Map<string, string>;
   /** Strategy used by the latest create/apply operation per leaf group. */
   lastLeafUpdateStrategies: Map<string, LeafUpdateStrategy>;
+  /** Full paper-envelope diagnostics for stable groups in the latest update. */
+  lastStableNeighborhoodResults: Map<string, StableNeighborhoodResult>;
   /** The top level's network (lifted + native edges). */
   topEdges: AtlasEdge[];
   ranks: Map<string, number>;
@@ -178,6 +181,7 @@ export function createRingsState(graph: AtlasGraph, options: RingsOptions): Ring
   const leafLayouts = new Map<string, CapacityLayoutState>();
   const leafGraphKeys = new Map<string, string>();
   const lastLeafUpdateStrategies = new Map<string, LeafUpdateStrategy>();
+  const lastStableNeighborhoodResults = new Map<string, StableNeighborhoodResult>();
   for (const [groupId, leafClip] of sub.leafClips) {
     const leaves = base.tree.childrenOf.get(groupId) ?? [];
     if (leaves.length === 0) continue;
@@ -192,6 +196,7 @@ export function createRingsState(graph: AtlasGraph, options: RingsOptions): Ring
     leafLayouts,
     leafGraphKeys,
     lastLeafUpdateStrategies,
+    lastStableNeighborhoodResults,
     topEdges: base.tree.levels[0]!.edges,
     ranks: base.ranks,
     parentOf: base.tree.parentOf,
@@ -252,6 +257,7 @@ export function applyRingsChanges(
   const leafLayouts = new Map<string, CapacityLayoutState>();
   const leafGraphKeys = new Map<string, string>();
   const lastLeafUpdateStrategies = new Map<string, LeafUpdateStrategy>();
+  const lastStableNeighborhoodResults = new Map<string, StableNeighborhoodResult>();
   for (const [groupId, clip] of leafClips) {
     const leaves = base.tree.childrenOf.get(groupId) ?? [];
     if (leaves.length === 0) continue;
@@ -269,6 +275,9 @@ export function applyRingsChanges(
       });
       leafLayouts.set(groupId, update.state);
       lastLeafUpdateStrategies.set(groupId, update.strategy);
+      if (update.strategy === "stableNeighborhood") {
+        lastStableNeighborhoodResults.set(groupId, update.result);
+      }
       continue;
     }
     if (positions) {
@@ -302,6 +311,7 @@ export function applyRingsChanges(
     leafLayouts,
     leafGraphKeys,
     lastLeafUpdateStrategies,
+    lastStableNeighborhoodResults,
     topEdges: base.tree.levels[0]!.edges,
     ranks: base.ranks,
     parentOf: base.tree.parentOf,

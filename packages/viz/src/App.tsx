@@ -13,7 +13,10 @@ import {
 import { centroid, containsPoint, type Ring, type Vec2 } from "@sprawlens/layout";
 import { createRng, type Rng } from "@sprawlens/layout";
 import { Controls, type PlaygroundParams } from "./Controls.tsx";
-import { summarizeLeafUpdateStrategies } from "./incrementalLayout.ts";
+import {
+  summarizeLeafUpdateStrategies,
+  summarizeStableNeighborhoodExperiments,
+} from "./incrementalLayout.ts";
 import { CameraPanel, LayersMenu } from "./OverlayPanels.tsx";
 import { SvgRenderer } from "./renderer/SvgRenderer.tsx";
 import { fetchHover, symbolNameOf } from "./cfgClient.ts";
@@ -121,7 +124,12 @@ import {
   type NodeDiffStat,
   type RawDiffLineStat,
 } from "./diffStats.ts";
-import { buildHistoryIndex, type HistoryEntry, type HistoryIndex } from "./history.ts";
+import {
+  buildHistoryIndex,
+  historyCommitUpdateMode,
+  type HistoryEntry,
+  type HistoryIndex,
+} from "./history.ts";
 import {
   liveDataUpdateLayoutPlan,
   overlayLayoutSpec,
@@ -760,11 +768,12 @@ export function App() {
   const stableNeighborhoodOptions = (enabled: boolean) =>
     enabled
       ? {
-          maxNodes: 32,
-          anchorMixes: [0, 0.5, 1],
+          maxNodes: 80,
+          anchorMixes: [0, 0.25, 0.5, 0.75, 1],
+          swapPasses: [8],
           adjacencyTolerance: 0,
           areaTolerance: 0.01,
-          maxSteps: 240,
+          maxSteps: 800,
         }
       : (false as const);
 
@@ -1456,10 +1465,23 @@ export function App() {
     const history = commitsRef.current;
     if (!history || index < 0 || index >= history.length) return;
     if (index === commitIndexRef.current) return;
-    // a cold rebuild re-solves the layout for the commit's snapshot so the
-    // changed symbols actually surface (a warm reflow leaves new leaves
-    // folded, hiding the diff at symbol granularity)
     commitIndexRef.current = index;
+    if (historyCommitUpdateMode(paramsRef.current.stableLayout) === "warm-experiment") {
+      const previousVisible = displayGraphRef.current;
+      const snapshot = history[index]!.snapshot;
+      graphRef.current = snapshotToAtlasGraph(snapshot);
+      symbolsRef.current = snapshotSymbols(snapshot);
+      symbolEdgesRef.current = snapshotSymbolEdges(snapshot);
+      externalDepsRef.current = snapshotExternalDeps(snapshot);
+      testTreeRef.current = snapshotTestTree(snapshot);
+      applyCommitDiff(index);
+      refreshGraphLookups();
+      if (!warmApplyDisplayedGraph(previousVisible)) setFrame((frame) => frame + 1);
+      return;
+    }
+    // The regular history browser retains its cold rebuild: it guarantees new
+    // symbols surface at full granularity. The explicit paper experiment above
+    // instead preserves the previous layout so temporal displacement exists.
     rebuild(paramsRef.current);
     setFrame((f) => f + 1);
   };
@@ -2895,6 +2917,11 @@ export function App() {
       treemapRef.current?.lastLeafUpdateStrategies.values() ??
       [],
   );
+  const stableExperimentSummary = summarizeStableNeighborhoodExperiments(
+    ringsRef.current?.lastStableNeighborhoodResults.values() ??
+      treemapRef.current?.lastStableNeighborhoodResults.values() ??
+      [],
+  );
   const { mobileLayout, traceControlBottom, changedPreviewBottom, chatBottomOffset } =
     overlayLayoutSpec({
       mapWidth: mapSize.width,
@@ -3221,6 +3248,7 @@ export function App() {
             debug={DEBUG}
             changedCount={changedSignalIds.size}
             leafUpdateSummary={leafUpdateSummary}
+            stableExperimentSummary={stableExperimentSummary}
             onChange={onControlsChange}
             onRegenerate={() => rebuild(paramsRef.current)}
             onMutateWeight={mutateWeight}

@@ -25,7 +25,7 @@ export type StableNeighborhoodOptions = {
   lloydRate?: number;
 };
 
-type StableNeighborhoodCandidate = {
+export type StableNeighborhoodCandidate = {
   anchorMix: number;
   swapPasses: number;
   state: CapacityLayoutState;

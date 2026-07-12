@@ -179,11 +179,13 @@ describe("applyRingsChanges", () => {
 
     expect(next.leafLayouts.get(groupId)!.maxRelativeError).toBeLessThan(0.01);
     expect(next.lastLeafUpdateStrategies.get(groupId)).toBe("stableNeighborhood");
+    expect(next.lastStableNeighborhoodResults.get(groupId)).toBeDefined();
     expect(
       [...next.lastLeafUpdateStrategies.entries()].some(
         ([id, strategy]) => id !== groupId && strategy === "warm",
       ),
     ).toBe(true);
+    expect(next.lastStableNeighborhoodResults.size).toBe(1);
   });
 
   it("keeps leaf layouts warm when a file weight changes", () => {

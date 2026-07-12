@@ -33,11 +33,63 @@ export type LeafUpdateStrategy = "cold" | LeafUpdateResult["strategy"];
 
 export type LeafUpdateSummary = Record<LeafUpdateStrategy, number>;
 
+export type StableNeighborhoodExperimentSummary = {
+  groups: number;
+  baselineSelections: number;
+  contractViolations: number;
+  meanAdjacencyGain: number;
+  meanDisplacementReduction: number;
+  meanEligibleCandidates: number;
+  meanWeightedSolves: number;
+  meanTotalSteps: number;
+};
+
 export function summarizeLeafUpdateStrategies(
   strategies: Iterable<LeafUpdateStrategy>,
 ): LeafUpdateSummary {
   const summary: LeafUpdateSummary = { cold: 0, warm: 0, stableNeighborhood: 0 };
   for (const strategy of strategies) summary[strategy]++;
+  return summary;
+}
+
+export function summarizeStableNeighborhoodExperiments(
+  results: Iterable<StableNeighborhoodResult>,
+): StableNeighborhoodExperimentSummary {
+  const summary: StableNeighborhoodExperimentSummary = {
+    groups: 0,
+    baselineSelections: 0,
+    contractViolations: 0,
+    meanAdjacencyGain: 0,
+    meanDisplacementReduction: 0,
+    meanEligibleCandidates: 0,
+    meanWeightedSolves: 0,
+    meanTotalSteps: 0,
+  };
+  for (const result of results) {
+    summary.groups++;
+    if (result.selected.anchorMix === 0 && result.selected.swapPasses === 8) {
+      summary.baselineSelections++;
+    }
+    if (
+      result.selected.adjacency + 1e-12 < result.minimumAdjacency ||
+      result.selected.displacement > result.baseline.displacement + 1e-12
+    ) {
+      summary.contractViolations++;
+    }
+    summary.meanAdjacencyGain += result.selected.adjacency - result.baseline.adjacency;
+    summary.meanDisplacementReduction +=
+      result.baseline.displacement - result.selected.displacement;
+    summary.meanEligibleCandidates += result.eligibleCandidates;
+    summary.meanWeightedSolves += result.weightedSolves;
+    summary.meanTotalSteps += result.totalSteps;
+  }
+  if (summary.groups > 0) {
+    summary.meanAdjacencyGain /= summary.groups;
+    summary.meanDisplacementReduction /= summary.groups;
+    summary.meanEligibleCandidates /= summary.groups;
+    summary.meanWeightedSolves /= summary.groups;
+    summary.meanTotalSteps /= summary.groups;
+  }
   return summary;
 }
 
