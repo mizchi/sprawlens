@@ -78,6 +78,18 @@ type ParsedFile = {
   tests: TestNode[];
 };
 
+/** Parse one source revision for annotation/evaluation without materializing a working tree. */
+export function extractCodeSymbolsFromSource(relativePath: string, content: string): CodeSymbol[] {
+  const sourceFile = ts.createSourceFile(
+    relativePath,
+    content,
+    ts.ScriptTarget.Latest,
+    false,
+    scriptKindFor(relativePath),
+  );
+  return extractSymbolsAndUsages(sourceFile, relativePath, new Set()).symbols;
+}
+
 /** Per-file parse cache for incremental re-analysis (path → mtime/size/parse). */
 export type ParseCache = Map<string, { mtimeMs: number; size: number; parsed: ParsedFile }>;
 

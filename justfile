@@ -40,6 +40,18 @@ experiment-stable-visual:
     pnpm --filter @sprawlens/viz build
     pnpm tsx tools/run-stable-visual-experiment.ts
 
+evaluate-ast-diff-gold *args:
+    @pnpm tsx tools/evaluate-ast-symbol-diff.ts {{ args }}
+
+prepare-ast-diff-annotations *args:
+    @pnpm tsx tools/prepare-ast-diff-annotation-packets.ts {{ args }}
+
+check-ast-diff-confirmatory-freeze:
+    @pnpm tsx tools/check-ast-diff-freeze.ts
+
+evaluate-ast-diff-confirmatory: check-ast-diff-confirmatory-freeze
+    @pnpm tsx tools/evaluate-ast-symbol-diff.ts --manifest research/ast-diff-confirmatory-annotation.json --gold research/datasets/ast-diff-confirmatory-v1-phase1.json --output research/results/ast-diff-confirmatory-v1-phase1-report.json --markdown research/results/ast-diff-confirmatory-v1-phase1-report.md
+
 dev:
     pnpm dev
 

@@ -2,7 +2,7 @@ import { mkdtemp, rm, writeFile, mkdir } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { describe, expect, it } from "vitest";
-import { createSnapshotFromWorkingTree } from "./snapshot.ts";
+import { createSnapshotFromWorkingTree, extractCodeSymbolsFromSource } from "./snapshot.ts";
 
 async function withFixture(files: Record<string, string>, fn: (root: string) => Promise<void>) {
   const root = await mkdtemp(path.join(tmpdir(), "codesprawl-fixture-"));
@@ -360,5 +360,37 @@ describe("createSnapshotFromWorkingTree", () => {
         expect(filePaths).toEqual(["src/index.ts"]);
       },
     );
+  });
+});
+
+describe("extractCodeSymbolsFromSource", () => {
+  it("extracts the same annotation-ready symbol contract without a working tree", () => {
+    const symbols = extractCodeSymbolsFromSource(
+      "src/service.ts",
+      [
+        "export class Service {",
+        "  run(value: number) {",
+        "    return value + 1;",
+        "  }",
+        "}",
+      ].join("\n"),
+    );
+
+    expect(symbols).toEqual([
+      expect.objectContaining({
+        id: "symbol:src/service.ts:class:Service:1",
+        name: "Service",
+        kind: "class",
+        startLine: 1,
+        endLine: 5,
+        fingerprint: expect.stringMatching(/^[0-9a-f]{8}$/),
+      }),
+      expect.objectContaining({
+        id: "symbol:src/service.ts:method:Service.run:2",
+        name: "run",
+        kind: "method",
+        parentClass: "symbol:src/service.ts:class:Service:1",
+      }),
+    ]);
   });
 });
