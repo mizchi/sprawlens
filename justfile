@@ -30,6 +30,9 @@ run-repository-evaluation *args:
 benchmark-repository-evaluation-cost *args:
     @pnpm tsx tools/benchmark-repository-evaluation-cost.ts {{ args }}
 
+run-repository-missingness-sensitivity:
+    @pnpm tsx tools/run-repository-missingness-sensitivity.ts
+
 dev:
     pnpm dev
 

@@ -20,6 +20,21 @@ import type {
 
 type SyntaxNode = Parser.SyntaxNode;
 
+/** Consume a tree-sitter tree and release its WASM allocation on every path. */
+export function withParsedTree<TNode, TResult>(
+  parser: { parse(source: string): { rootNode: TNode; delete(): void } | null },
+  source: string,
+  consume: (root: TNode) => TResult,
+): TResult | null {
+  const tree = parser.parse(source);
+  if (!tree) return null;
+  try {
+    return consume(tree.rootNode);
+  } finally {
+    tree.delete();
+  }
+}
+
 const require = createRequire(import.meta.url);
 let parserPromise: Promise<Parser> | null = null;
 function goParser(): Promise<Parser> {
@@ -292,9 +307,9 @@ export async function snapshotGoWorkingTree(
   }[] = [];
   for (const rel of files) {
     const source = await readFile(posix.join(repoPath, rel), "utf8");
-    const tree = parser.parse(source);
-    if (!tree) continue;
-    const { symbols, imports, selectors } = symbolsAndImports(tree.rootNode, rel);
+    const extracted = withParsedTree(parser, source, (root) => symbolsAndImports(root, rel));
+    if (!extracted) continue;
+    const { symbols, imports, selectors } = extracted;
     const loc = source.split("\n").length;
     totalLoc += loc;
     fileEntries.push({ rel, symbols, imports, selectors, loc, bytes: Buffer.byteLength(source) });

@@ -3,7 +3,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { deriveModuleIdOf, deriveModules, snapshotToAtlasGraph } from "@sprawlens/schema";
-import { snapshotGoWorkingTree } from "./extract.ts";
+import { snapshotGoWorkingTree, withParsedTree } from "./extract.ts";
 
 let dir: string;
 beforeAll(async () => {
@@ -61,6 +61,32 @@ describe("snapshotGoWorkingTree", () => {
         ? subEdge.symbolImports?.some((s) => s.toSymbolName === "Default")
         : false,
     ).toBe(true);
+  });
+});
+
+describe("tree-sitter lifecycle", () => {
+  it("deletes each WASM tree after extracting serializable data", () => {
+    let deletes = 0;
+    const parser = {
+      parse: () => ({ rootNode: { type: "source_file" }, delete: () => deletes++ }),
+    };
+
+    expect(withParsedTree(parser, "package main", (root) => root.type)).toBe("source_file");
+    expect(deletes).toBe(1);
+  });
+
+  it("deletes the WASM tree when extraction throws", () => {
+    let deletes = 0;
+    const parser = {
+      parse: () => ({ rootNode: { type: "source_file" }, delete: () => deletes++ }),
+    };
+
+    expect(() =>
+      withParsedTree(parser, "package main", () => {
+        throw new Error("extract failed");
+      }),
+    ).toThrow("extract failed");
+    expect(deletes).toBe(1);
   });
 });
 
