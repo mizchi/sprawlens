@@ -118,6 +118,11 @@ export type AstDiffEvaluationReport = {
   representation?: AstDiffRepresentationReport;
 };
 
+export type AstDiffPredictor = (
+  testCase: AstDiffGoldCase,
+  changedAfterLines: readonly number[],
+) => ReadonlyMap<string, AstDiffStatus>;
+
 export type AstDiffRepresentationMetrics = {
   cases: number;
   changedAfterLines: number;
@@ -326,6 +331,7 @@ const emptyCounts = (): Counts => ({
 export function evaluateAstDiffGoldSet(
   goldSet: AstDiffGoldSet,
   changedAfterLinesByCase?: ReadonlyMap<string, readonly number[]>,
+  predictor: AstDiffPredictor = (testCase) => diffAstSymbols(testCase.before, testCase.after),
 ): AstDiffEvaluationReport {
   const parsed = parseAstDiffGoldSet(goldSet);
   const micro = emptyCounts();
@@ -333,7 +339,7 @@ export function evaluateAstDiffGoldSet(
   const byRepository = new Map<string, Counts>();
   const byChangeKind = new Map<string, Counts>();
   const cases = parsed.cases.map((testCase): AstDiffCaseReport => {
-    const predicted = diffAstSymbols(testCase.before, testCase.after);
+    const predicted = predictor(testCase, changedAfterLinesByCase?.get(testCase.id) ?? []);
     const expected = new Map(testCase.expected.map((label) => [label.symbolId, label.status]));
     const truePositiveIds = [...predicted.keys()].filter((id) => expected.has(id)).sort();
     const falsePositiveIds = [...predicted.keys()].filter((id) => !expected.has(id)).sort();

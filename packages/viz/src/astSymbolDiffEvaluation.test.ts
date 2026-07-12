@@ -150,6 +150,23 @@ describe("evaluateAstDiffGoldSet", () => {
 
     expect(report.micro).toMatchObject({ precision: 1, recall: 1, f1: 1 });
   });
+
+  it("evaluates a named baseline through the same scoring path", () => {
+    const report = evaluateAstDiffGoldSet(
+      goldSet,
+      undefined,
+      (testCase) => new Map(testCase.after.map((item) => [item.id, "modified" as const])),
+    );
+
+    expect(report.micro).toMatchObject({
+      cases: 2,
+      expected: 2,
+      predicted: 3,
+      truePositive: 2,
+      falsePositive: 1,
+      statusCorrect: 1,
+    });
+  });
 });
 
 describe("parseAstDiffGoldSet", () => {

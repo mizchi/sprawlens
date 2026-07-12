@@ -46,6 +46,15 @@ evaluate-ast-diff-gold *args:
 prepare-ast-diff-annotations *args:
     @pnpm tsx tools/prepare-ast-diff-annotation-packets.ts {{ args }}
 
+select-ast-diff-confirmatory-v2:
+    @pnpm tsx tools/select-ast-diff-holdout.ts
+
+prepare-ast-diff-confirmatory-v2: select-ast-diff-confirmatory-v2
+    @pnpm tsx tools/prepare-ast-diff-annotation-packets.ts research/ast-diff-confirmatory-v2-candidates.json research/annotation-packets/ast-diff-confirmatory-v2 ast-diff-confirmatory-v2-holdout
+
+check-ast-diff-confirmatory-v2-preannotation:
+    @pnpm tsx tools/check-ast-diff-freeze.ts research/ast-diff-confirmatory-v2-preannotation-freeze.json
+
 check-ast-diff-confirmatory-freeze:
     @pnpm tsx tools/check-ast-diff-freeze.ts
 
@@ -70,6 +79,12 @@ evaluate-ast-diff-registration-v3:
 
 compare-ast-diff-variants:
     @pnpm tsx tools/compare-ast-diff-variants.ts
+
+compare-ast-diff-baselines:
+    @pnpm tsx tools/compare-ast-diff-baselines.ts
+
+preview-change-localization-study:
+    @pnpm tsx tools/generate-change-localization-study-plan.ts
 
 experiment-ast-diff-render:
     pnpm perf:ast-diff-render
