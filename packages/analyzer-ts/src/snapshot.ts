@@ -894,9 +894,6 @@ function symbolFromVariableDeclaration(
       : ts.isClassExpression(initializer)
         ? "class"
         : "variable";
-  if (kind === "variable" && !exported) {
-    return undefined;
-  }
   return createSymbol(fileName, sourceFile, statement, kind, declaration.name.text, exported);
 }
 

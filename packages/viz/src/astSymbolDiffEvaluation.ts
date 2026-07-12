@@ -60,6 +60,17 @@ export type AstDiffAnnotationManifest = {
   }>;
 };
 
+export type AstDiffAnnotationExtension = {
+  schemaVersion: 1;
+  datasetId: string;
+  baseDatasetId: string;
+  description?: string;
+  additions: Array<{
+    caseId: string;
+    expected: Array<{ symbol: AstDiffSymbolSelector; status: AstDiffStatus }>;
+  }>;
+};
+
 export type AstDiffSymbolLoadRequest = {
   caseId: string;
   repository: string;
@@ -126,6 +137,55 @@ export type AstDiffRepresentationReport = {
     }
   >;
 };
+
+/** Create a new annotation revision while leaving the frozen base untouched. */
+export function extendAstDiffAnnotationManifest(
+  base: AstDiffAnnotationManifest,
+  extension: AstDiffAnnotationExtension,
+): AstDiffAnnotationManifest {
+  const parsedBase = parseAstDiffAnnotationManifest(base);
+  if (extension.schemaVersion !== 1) throw new Error("extension schemaVersion must be 1");
+  if (extension.baseDatasetId !== parsedBase.datasetId) {
+    throw new Error(
+      `extension baseDatasetId ${extension.baseDatasetId} does not match ${parsedBase.datasetId}`,
+    );
+  }
+  if (!extension.datasetId) throw new Error("extension datasetId must be a non-empty string");
+  if (!Array.isArray(extension.additions)) throw new Error("extension additions must be an array");
+  const cases = parsedBase.cases.map((item) => ({
+    ...item,
+    changeKinds: [...item.changeKinds],
+    expected: item.expected.map((label) => ({
+      ...label,
+      symbol: cloneSelector(label.symbol),
+    })),
+  }));
+  const casesById = new Map(cases.map((item) => [item.id, item]));
+  const extendedCaseIds = new Set<string>();
+  for (const addition of extension.additions) {
+    const item = casesById.get(addition.caseId);
+    if (!item) throw new Error(`extension references missing case: ${addition.caseId}`);
+    if (extendedCaseIds.has(addition.caseId)) {
+      throw new Error(`duplicate extension case: ${addition.caseId}`);
+    }
+    extendedCaseIds.add(addition.caseId);
+    const selectorKeys = new Set(item.expected.map((label) => selectorKey(label.symbol)));
+    for (const label of addition.expected) {
+      const key = selectorKey(label.symbol);
+      if (selectorKeys.has(key)) {
+        throw new Error(`duplicate selector in ${addition.caseId}: ${key}`);
+      }
+      selectorKeys.add(key);
+      item.expected.push({ ...label, symbol: cloneSelector(label.symbol) });
+    }
+  }
+  return parseAstDiffAnnotationManifest({
+    ...parsedBase,
+    datasetId: extension.datasetId,
+    ...(extension.description ? { description: extension.description } : {}),
+    cases,
+  });
+}
 
 export function parseAstDiffAnnotationManifest(value: unknown): AstDiffAnnotationManifest {
   const root = objectAt(value, "annotation manifest");
@@ -440,6 +500,25 @@ function resolveSelector(
   const reason =
     matches.length === 0 ? "did not match" : `is ambiguous (${matches.length} matches)`;
   throw new Error(`${caseId}: selector ${selector.kind}:${selector.name} ${reason}`);
+}
+
+function cloneSelector(selector: AstDiffSymbolSelector): AstDiffSymbolSelector {
+  return {
+    kind: selector.kind,
+    name: selector.name,
+    ...(selector.parent ? { parent: { ...selector.parent } } : {}),
+    ...(selector.occurrence === undefined ? {} : { occurrence: selector.occurrence }),
+  };
+}
+
+function selectorKey(selector: AstDiffSymbolSelector): string {
+  return [
+    selector.kind,
+    selector.name,
+    selector.parent?.kind ?? "",
+    selector.parent?.name ?? "",
+    selector.occurrence ?? "",
+  ].join("\0");
 }
 
 function representationReport(

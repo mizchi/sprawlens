@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   evaluateAstDiffGoldSet,
+  extendAstDiffAnnotationManifest,
   materializeAstDiffGoldSet,
   parseAstDiffAnnotationManifest,
   parseAstDiffGoldSet,
@@ -297,5 +298,84 @@ describe("parseAstDiffAnnotationManifest", () => {
         ],
       }),
     ).toThrow(/duplicate case id/);
+  });
+});
+
+describe("extendAstDiffAnnotationManifest", () => {
+  it("adds post-hoc labels without mutating the frozen base manifest", () => {
+    const base = parseAstDiffAnnotationManifest({
+      schemaVersion: 1,
+      datasetId: "base",
+      cases: [
+        {
+          id: "case-a",
+          language: "typescript",
+          repository: "example/repo",
+          repositoryPath: ".",
+          beforeRevision: "a",
+          afterRevision: "b",
+          file: "src/a.ts",
+          changeKinds: ["body-edit"],
+          expected: [{ symbol: { kind: "function", name: "run" }, status: "modified" }],
+        },
+      ],
+    });
+
+    const extended = extendAstDiffAnnotationManifest(base, {
+      schemaVersion: 1,
+      datasetId: "v2",
+      baseDatasetId: "base",
+      additions: [
+        {
+          caseId: "case-a",
+          expected: [{ symbol: { kind: "variable", name: "config" }, status: "modified" }],
+        },
+      ],
+    });
+
+    expect(base.cases[0]!.expected).toHaveLength(1);
+    expect(extended.datasetId).toBe("v2");
+    expect(extended.cases[0]!.expected).toHaveLength(2);
+  });
+
+  it("rejects missing cases and duplicate semantic selectors", () => {
+    const base = parseAstDiffAnnotationManifest({
+      schemaVersion: 1,
+      datasetId: "base",
+      cases: [
+        {
+          id: "case-a",
+          language: "typescript",
+          repository: "example/repo",
+          repositoryPath: ".",
+          beforeRevision: "a",
+          afterRevision: "b",
+          file: "src/a.ts",
+          changeKinds: ["body-edit"],
+          expected: [{ symbol: { kind: "function", name: "run" }, status: "modified" }],
+        },
+      ],
+    });
+    expect(() =>
+      extendAstDiffAnnotationManifest(base, {
+        schemaVersion: 1,
+        datasetId: "v2",
+        baseDatasetId: "base",
+        additions: [{ caseId: "missing", expected: [] }],
+      }),
+    ).toThrow(/missing case/);
+    expect(() =>
+      extendAstDiffAnnotationManifest(base, {
+        schemaVersion: 1,
+        datasetId: "v2",
+        baseDatasetId: "base",
+        additions: [
+          {
+            caseId: "case-a",
+            expected: [{ symbol: { kind: "function", name: "run" }, status: "modified" }],
+          },
+        ],
+      }),
+    ).toThrow(/duplicate selector/);
   });
 });

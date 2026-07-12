@@ -41,4 +41,23 @@ describe("renderAstDiffAnnotationPacket", () => {
     expect(output).toContain("@@ -3 +3 @@");
     expect(output).not.toMatch(/predicted|precision|fingerprint/i);
   });
+
+  it("labels non-blind extraction follow-ups as post-hoc", () => {
+    const output = renderAstDiffAnnotationPacket(
+      {
+        id: "follow-up",
+        language: "typescript",
+        repository: "example/repo",
+        beforeRevision: "a".repeat(40),
+        afterRevision: "b".repeat(40),
+        file: "src/a.ts",
+        changeKinds: ["extraction-v2"],
+      },
+      [],
+      "",
+      { predictionBlind: false },
+    );
+    expect(output).toContain("Post-hoc annotation packet");
+    expect(output).not.toContain("Blind annotation packet");
+  });
 });

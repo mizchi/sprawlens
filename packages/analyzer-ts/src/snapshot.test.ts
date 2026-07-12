@@ -393,4 +393,29 @@ describe("extractCodeSymbolsFromSource", () => {
       }),
     ]);
   });
+
+  it("keeps non-exported top-level data declarations for exact diff localization", () => {
+    const symbols = extractCodeSymbolsFromSource(
+      "src/models.ts",
+      [
+        'const modelNames = ["alpha", "beta"];',
+        'const config = { endpoint: "https://example.com" };',
+      ].join("\n"),
+    );
+
+    expect(symbols).toEqual([
+      expect.objectContaining({
+        id: "symbol:src/models.ts:variable:modelNames:1",
+        name: "modelNames",
+        kind: "variable",
+        exported: false,
+      }),
+      expect.objectContaining({
+        id: "symbol:src/models.ts:variable:config:2",
+        name: "config",
+        kind: "variable",
+        exported: false,
+      }),
+    ]);
+  });
 });

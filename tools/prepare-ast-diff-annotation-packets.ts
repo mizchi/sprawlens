@@ -23,6 +23,8 @@ const manifestPath = resolve(process.argv[2] ?? "research/ast-diff-confirmatory-
 const outputDirectory = resolve(
   process.argv[3] ?? "research/annotation-packets/ast-diff-confirmatory-v1",
 );
+const outputDatasetId = process.argv[4];
+const predictionBlind = process.argv[5] !== "posthoc";
 const manifest = parseManifest(JSON.parse(await readFile(manifestPath, "utf8")));
 const manifestDirectory = dirname(manifestPath);
 
@@ -52,7 +54,7 @@ for (const testCase of manifest.cases) {
     ]),
   ]);
   const symbols = extractCodeSymbolsFromSource(testCase.file, afterSource);
-  const packet = renderAstDiffAnnotationPacket(testCase, symbols, patch);
+  const packet = renderAstDiffAnnotationPacket(testCase, symbols, patch, { predictionBlind });
   const packetPath = resolve(outputDirectory, `${testCase.id}.md`);
   await writeAtomic(packetPath, packet);
   outputs.push({
@@ -70,9 +72,9 @@ await writeAtomic(
   `${JSON.stringify(
     {
       schemaVersion: 1,
-      datasetId: manifest.datasetId,
+      datasetId: outputDatasetId ?? manifest.datasetId,
       selectionProtocol: manifest.selectionProtocol,
-      predictionBlind: true,
+      predictionBlind,
       cases: outputs,
     },
     null,
@@ -80,7 +82,7 @@ await writeAtomic(
   )}\n`,
 );
 process.stdout.write(
-  `${manifest.datasetId}: wrote ${outputs.length} prediction-blind annotation packets\n`,
+  `${outputDatasetId ?? manifest.datasetId}: wrote ${outputs.length} ${predictionBlind ? "prediction-blind" : "post-hoc"} annotation packets\n`,
 );
 
 async function git(repo: string, args: string[]): Promise<string> {

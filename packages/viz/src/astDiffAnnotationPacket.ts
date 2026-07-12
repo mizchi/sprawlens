@@ -15,6 +15,7 @@ export function renderAstDiffAnnotationPacket(
   testCase: AstDiffAnnotationPacketCase,
   afterSymbols: readonly AstSymbolLike[],
   unifiedDiff: string,
+  options: { predictionBlind?: boolean } = {},
 ): string {
   const byId = new Map(afterSymbols.map((symbol) => [symbol.id, symbol]));
   const candidates = [...afterSymbols]
@@ -37,7 +38,7 @@ export function renderAstDiffAnnotationPacket(
     });
 
   return [
-    `# Blind annotation packet: ${testCase.id}`,
+    `# ${options.predictionBlind === false ? "Post-hoc" : "Blind"} annotation packet: ${testCase.id}`,
     "",
     `- Repository: \`${testCase.repository}\``,
     `- Before: \`${testCase.beforeRevision}\``,
