@@ -191,6 +191,39 @@ describe("snapshotSymbols", () => {
     });
   });
 
+  it("preserves registration and member kinds for symbol rendering", () => {
+    const symbols = snapshotSymbols({
+      nodes: [
+        {
+          id: "file:src/server.ts",
+          type: "file",
+          path: "src/server.ts",
+          loc: 20,
+          symbols: [
+            {
+              id: "symbol:src/server.ts:registration:registerTool.run:1",
+              name: "registerTool.run",
+              kind: "registration",
+              loc: 10,
+            },
+            {
+              id: "symbol:src/server.ts:method:Server.start:12",
+              name: "start",
+              kind: "method",
+              loc: 4,
+            },
+          ],
+        },
+      ],
+      edges: [],
+    }).get("src/server.ts")!;
+
+    expect(symbols.find((item) => item.label === "registerTool.run")?.symbolKind).toBe(
+      "registration",
+    );
+    expect(symbols.find((item) => item.label === "start")?.symbolKind).toBe("method");
+  });
+
   it("represents files without symbols as a single node", () => {
     const symbols = snapshotSymbols(snapshot);
     const b = symbols.get("src/b.ts")!;

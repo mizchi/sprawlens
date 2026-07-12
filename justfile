@@ -71,6 +71,9 @@ evaluate-ast-diff-registration-v3:
 compare-ast-diff-variants:
     @pnpm tsx tools/compare-ast-diff-variants.ts
 
+experiment-ast-diff-render:
+    pnpm perf:ast-diff-render
+
 dev:
     pnpm dev
 
