@@ -62,6 +62,7 @@ export function CommitLog({ commits, index, range, onSelect, onRangeSelect }: Pr
       >
         <span style={{ width: 34 }}>GRAPH</span>
         <span>COMMIT MESSAGE</span>
+        <span style={{ marginLeft: "auto", fontSize: 9 }}>↑↓ move · ⇧ range</span>
       </div>
       <div style={{ overflowY: "auto" }}>
         {order.map((i) => {
@@ -74,6 +75,9 @@ export function CommitLog({ commits, index, range, onSelect, onRangeSelect }: Pr
               key={`${c.shortHash}-${i}`}
               type="button"
               data-testid="commit-row"
+              data-current={current ? "true" : "false"}
+              data-in-range={ranged ? "true" : "false"}
+              aria-current={current ? "true" : undefined}
               onMouseEnter={() => setHovered(i)}
               onMouseLeave={() => setHovered((h) => (h === i ? null : h))}
               onClick={(e) => (e.shiftKey ? onRangeSelect(index, i) : onSelect(i))}

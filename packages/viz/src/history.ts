@@ -34,6 +34,33 @@ export function historyCommitUpdateMode(stableLayout: boolean): "cold" | "warm-e
   return stableLayout ? "warm-experiment" : "cold";
 }
 
+export type HistorySelectionState = {
+  index: number;
+  rangeAnchor: number | null;
+};
+
+export type HistorySelectionMove = HistorySelectionState & {
+  range: [number, number] | null;
+};
+
+/** Move in the visual log: newer rows are above, older rows are below. */
+export function moveHistorySelection(
+  state: HistorySelectionState,
+  key: "ArrowUp" | "ArrowDown",
+  extendRange: boolean,
+  count: number,
+): HistorySelectionMove {
+  const delta = key === "ArrowUp" ? 1 : -1;
+  const index = Math.max(0, Math.min(Math.max(0, count - 1), state.index + delta));
+  if (!extendRange) return { index, rangeAnchor: null, range: null };
+  const rangeAnchor = state.rangeAnchor ?? state.index;
+  return {
+    index,
+    rangeAnchor,
+    range: [Math.min(rangeAnchor, index), Math.max(rangeAnchor, index)],
+  };
+}
+
 /** Precomputed per-commit diffs and their per-node inversion. */
 export function buildHistoryIndex(entries: readonly HistoryEntry[]): HistoryIndex {
   const diffs: GraphDiff[] = [];

@@ -127,6 +127,7 @@ import {
 import {
   buildHistoryIndex,
   historyCommitUpdateMode,
+  moveHistorySelection,
   type HistoryEntry,
   type HistoryIndex,
 } from "./history.ts";
@@ -639,10 +640,9 @@ export function App() {
   const commitsRef = useRef<HistoryEntry[] | null>(null);
   const historyIndexRef = useRef<HistoryIndex | null>(null);
   const commitIndexRef = useRef(-1);
-  /** Inclusive commit-range selection [a,b] (shift-click on the timeline); the
-   * end b is displayed and every node changed across the range is highlighted.
-   * Null for a single-commit view. */
+  /** Inclusive commit range plus its fixed shift-selection anchor. */
   const commitRangeRef = useRef<[number, number] | null>(null);
+  const commitRangeAnchorRef = useRef<number | null>(null);
   const changedFilesRef = useRef(new Map<string, "added" | "modified">());
   /** Per-symbol diff for the displayed history commit (empty otherwise). */
   const changedSymbolsRef = useRef(new Map<string, "added" | "modified">());
@@ -1119,9 +1119,9 @@ export function App() {
             ? commitIndexRef.current
             : history.length - 1;
         const range = commitRangeRef.current;
-        // a range selection displays its end commit and highlights the union of
-        // changes across the span; a single selection shows just that commit
-        const shown = range ? Math.max(range[0], range[1]) : index;
+        // commitIndex is the moving range endpoint; the normalized range only
+        // controls union highlighting.
+        const shown = index;
         commitIndexRef.current = shown;
         const snapshot = history[shown]!.snapshot;
         graph = snapshotToAtlasGraph(snapshot);
@@ -1490,6 +1490,7 @@ export function App() {
   const selectCommit = (index: number) => {
     const hadRange = commitRangeRef.current !== null;
     commitRangeRef.current = null;
+    commitRangeAnchorRef.current = null;
     if (index === commitIndexRef.current) {
       if (hadRange) {
         rebuild(paramsRef.current);
@@ -1505,13 +1506,48 @@ export function App() {
   const selectCommitRange = (anchor: number, index: number) => {
     const history = commitsRef.current;
     if (!history) return;
-    const lo = Math.max(0, Math.min(anchor, index));
-    const hi = Math.min(history.length - 1, Math.max(anchor, index));
+    const fixedAnchor = commitRangeAnchorRef.current ?? anchor;
+    commitRangeAnchorRef.current = fixedAnchor;
+    const endpoint = Math.max(0, Math.min(history.length - 1, index));
+    const lo = Math.min(fixedAnchor, endpoint);
+    const hi = Math.max(fixedAnchor, endpoint);
     commitRangeRef.current = [lo, hi];
-    commitIndexRef.current = hi;
+    commitIndexRef.current = endpoint;
     rebuild(paramsRef.current);
     setFrame((f) => f + 1);
   };
+
+  useEffect(() => {
+    const onKey = (event: KeyboardEvent) => {
+      if (event.key !== "ArrowUp" && event.key !== "ArrowDown") return;
+      if (event.metaKey || event.ctrlKey || event.altKey || event.defaultPrevented) return;
+      const target = event.target as HTMLElement | null;
+      if (
+        target &&
+        (target.tagName === "INPUT" ||
+          target.tagName === "TEXTAREA" ||
+          target.tagName === "SELECT" ||
+          target.isContentEditable)
+      ) {
+        return;
+      }
+      const history = commitsRef.current;
+      if (paramsRef.current.source !== "sprawlens-history" || !history) return;
+      event.preventDefault();
+      const move = moveHistorySelection(
+        { index: commitIndexRef.current, rangeAnchor: commitRangeAnchorRef.current },
+        event.key,
+        event.shiftKey,
+        history.length,
+      );
+      if (event.shiftKey) selectCommitRange(move.rangeAnchor!, move.index);
+      else selectCommit(move.index);
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+    // The handler operates through refs so one registration observes live state.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   /** Boundary-group cell (module, directory, ...) across layout kinds. */
   const groupCellOf = (id: string): CellResult | null => {

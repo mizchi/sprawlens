@@ -4,6 +4,7 @@ import {
   buildHistoryIndex,
   diffGraphs,
   historyCommitUpdateMode,
+  moveHistorySelection,
   type HistoryEntry,
 } from "./history.ts";
 
@@ -94,5 +95,59 @@ describe("historyCommitUpdateMode", () => {
   it("uses a warm delta only for the explicit stable-layout experiment", () => {
     expect(historyCommitUpdateMode(false)).toBe("cold");
     expect(historyCommitUpdateMode(true)).toBe("warm-experiment");
+  });
+});
+
+describe("moveHistorySelection", () => {
+  it("follows the visual commit-log direction and clamps at both ends", () => {
+    expect(moveHistorySelection({ index: 2, rangeAnchor: null }, "ArrowUp", false, 5)).toEqual({
+      index: 3,
+      rangeAnchor: null,
+      range: null,
+    });
+    expect(moveHistorySelection({ index: 2, rangeAnchor: null }, "ArrowDown", false, 5)).toEqual({
+      index: 1,
+      rangeAnchor: null,
+      range: null,
+    });
+    expect(moveHistorySelection({ index: 4, rangeAnchor: null }, "ArrowUp", false, 5)).toEqual({
+      index: 4,
+      rangeAnchor: null,
+      range: null,
+    });
+    expect(moveHistorySelection({ index: 0, rangeAnchor: null }, "ArrowDown", false, 5)).toEqual({
+      index: 0,
+      rangeAnchor: null,
+      range: null,
+    });
+  });
+
+  it("keeps the initial selection as the shift-range anchor", () => {
+    const first = moveHistorySelection({ index: 2, rangeAnchor: null }, "ArrowDown", true, 6);
+    expect(first).toEqual({ index: 1, rangeAnchor: 2, range: [1, 2] });
+    expect(moveHistorySelection(first, "ArrowDown", true, 6)).toEqual({
+      index: 0,
+      rangeAnchor: 2,
+      range: [0, 2],
+    });
+    const collapsed = moveHistorySelection(first, "ArrowUp", true, 6);
+    expect(collapsed).toEqual({
+      index: 2,
+      rangeAnchor: 2,
+      range: [2, 2],
+    });
+    expect(moveHistorySelection(collapsed, "ArrowUp", true, 6)).toEqual({
+      index: 3,
+      rangeAnchor: 2,
+      range: [2, 3],
+    });
+  });
+
+  it("clears the range anchor on the next unshifted move", () => {
+    expect(moveHistorySelection({ index: 1, rangeAnchor: 3 }, "ArrowUp", false, 6)).toEqual({
+      index: 2,
+      rangeAnchor: null,
+      range: null,
+    });
   });
 });
