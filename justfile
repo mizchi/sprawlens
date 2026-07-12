@@ -33,6 +33,9 @@ benchmark-repository-evaluation-cost *args:
 run-repository-missingness-sensitivity:
     @pnpm tsx tools/run-repository-missingness-sensitivity.ts
 
+benchmark-repository-condition-memory:
+    @pnpm tsx tools/benchmark-repository-condition-memory.ts
+
 dev:
     pnpm dev
 
