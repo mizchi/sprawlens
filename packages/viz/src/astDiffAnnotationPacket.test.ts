@@ -60,4 +60,35 @@ describe("renderAstDiffAnnotationPacket", () => {
     expect(output).toContain("Post-hoc annotation packet");
     expect(output).not.toContain("Blind annotation packet");
   });
+
+  it("renders an opaque pass alias and pre-disambiguated selectors", () => {
+    const output = renderAstDiffAnnotationPacket(
+      {
+        id: "source-case-id",
+        language: "typescript",
+        repository: "example/repo",
+        beforeRevision: "a".repeat(40),
+        afterRevision: "b".repeat(40),
+        file: "src/a.ts",
+        changeKinds: ["holdout"],
+      },
+      [
+        { id: "one", name: "run", kind: "function", startLine: 1, endLine: 1, loc: 1 },
+        { id: "two", name: "run", kind: "function", startLine: 3, endLine: 3, loc: 1 },
+      ],
+      "",
+      {
+        packetId: "B-017",
+        candidateSelectors: [
+          { kind: "function", name: "run", occurrence: 0 },
+          { kind: "function", name: "run", occurrence: 1 },
+        ],
+      },
+    );
+
+    expect(output).toContain("Blind annotation packet: B-017");
+    expect(output).not.toContain("source-case-id");
+    expect(output).toContain('"occurrence":0');
+    expect(output).toContain('"occurrence":1');
+  });
 });

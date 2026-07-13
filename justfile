@@ -55,6 +55,30 @@ prepare-ast-diff-confirmatory-v2: select-ast-diff-confirmatory-v2
 check-ast-diff-confirmatory-v2-preannotation:
     @pnpm tsx tools/check-ast-diff-freeze.ts research/ast-diff-confirmatory-v2-preannotation-freeze.json
 
+prepare-ast-diff-confirmatory-v2-solo:
+    @pnpm tsx tools/prepare-solo-ast-diff-annotation.ts
+
+freeze-ast-diff-confirmatory-v2-solo-preannotation:
+    @pnpm tsx tools/freeze-solo-ast-diff-preannotation.ts
+
+check-ast-diff-confirmatory-v2-solo-preannotation:
+    @pnpm tsx tools/check-ast-diff-freeze.ts research/ast-diff-confirmatory-v2-solo-preannotation-freeze.json
+
+lock-ast-diff-confirmatory-v2-solo-pass-a:
+    @pnpm tsx tools/lock-solo-ast-diff-annotation-pass.ts --pass A
+
+start-ast-diff-confirmatory-v2-solo-pass-b:
+    @pnpm tsx tools/check-ast-diff-freeze.ts research/ast-diff-confirmatory-v2-solo-pass-a-lock.json
+    @pnpm tsx tools/prepare-solo-ast-diff-annotation.ts --initialize-pass B
+
+lock-ast-diff-confirmatory-v2-solo-pass-b:
+    @pnpm tsx tools/lock-solo-ast-diff-annotation-pass.ts --pass B
+
+compare-ast-diff-confirmatory-v2-solo:
+    @pnpm tsx tools/check-ast-diff-freeze.ts research/ast-diff-confirmatory-v2-solo-pass-a-lock.json
+    @pnpm tsx tools/check-ast-diff-freeze.ts research/ast-diff-confirmatory-v2-solo-pass-b-lock.json
+    @pnpm tsx tools/compare-solo-ast-diff-annotations.ts
+
 check-ast-diff-confirmatory-freeze:
     @pnpm tsx tools/check-ast-diff-freeze.ts
 

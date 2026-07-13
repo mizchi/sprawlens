@@ -1,4 +1,5 @@
 import type { AstSymbolLike } from "./astSymbolDiff.ts";
+import type { AstDiffSymbolSelector } from "./astSymbolDiffEvaluation.ts";
 
 export type AstDiffAnnotationPacketCase = {
   id: string;
@@ -15,30 +16,42 @@ export function renderAstDiffAnnotationPacket(
   testCase: AstDiffAnnotationPacketCase,
   afterSymbols: readonly AstSymbolLike[],
   unifiedDiff: string,
-  options: { predictionBlind?: boolean } = {},
+  options: {
+    predictionBlind?: boolean;
+    packetId?: string;
+    candidateSelectors?: readonly AstDiffSymbolSelector[];
+  } = {},
 ): string {
   const byId = new Map(afterSymbols.map((symbol) => [symbol.id, symbol]));
-  const candidates = [...afterSymbols]
-    .sort(
-      (a, b) =>
-        (a.startLine ?? 0) - (b.startLine ?? 0) ||
-        a.kind.localeCompare(b.kind) ||
-        a.name.localeCompare(b.name),
-    )
-    .map((symbol) => {
-      const parent = symbol.parentClass ? byId.get(symbol.parentClass) : undefined;
-      const selector = {
+  const orderedSymbols = [...afterSymbols].sort(
+    (a, b) =>
+      (a.startLine ?? 0) - (b.startLine ?? 0) ||
+      a.kind.localeCompare(b.kind) ||
+      a.name.localeCompare(b.name) ||
+      a.id.localeCompare(b.id),
+  );
+  if (
+    options.candidateSelectors !== undefined &&
+    options.candidateSelectors.length !== orderedSymbols.length
+  ) {
+    throw new Error("candidateSelectors must correspond one-to-one with afterSymbols");
+  }
+  const candidates = orderedSymbols.map((symbol, index) => {
+    const parent = symbol.parentClass ? byId.get(symbol.parentClass) : undefined;
+    const selector =
+      options.candidateSelectors?.[index] ??
+      ({
         kind: symbol.kind,
         name: symbol.name,
         ...(parent ? { parent: { kind: parent.kind, name: parent.name } } : {}),
-      };
-      const start = symbol.startLine ?? 0;
-      const end = symbol.endLine ?? start;
-      return `- [ ] \`added\` / \`modified\` / none — \`${JSON.stringify(selector)}\` (lines ${start}–${end})`;
-    });
+      } satisfies AstDiffSymbolSelector);
+    const start = symbol.startLine ?? 0;
+    const end = symbol.endLine ?? start;
+    return `- [ ] \`added\` / \`modified\` / none — \`${JSON.stringify(selector)}\` (lines ${start}–${end})`;
+  });
 
   return [
-    `# ${options.predictionBlind === false ? "Post-hoc" : "Blind"} annotation packet: ${testCase.id}`,
+    `# ${options.predictionBlind === false ? "Post-hoc" : "Blind"} annotation packet: ${options.packetId ?? testCase.id}`,
     "",
     `- Repository: \`${testCase.repository}\``,
     `- Before: \`${testCase.beforeRevision}\``,
