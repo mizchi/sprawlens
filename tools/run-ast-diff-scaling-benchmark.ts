@@ -10,13 +10,22 @@ import {
   type AstDiffScalingMeasurement,
 } from "../packages/viz/src/astDiffScalingBenchmark.ts";
 import { SYMBOL_DIFF_PROJECTION_WORK_RATIO_THRESHOLD } from "../packages/viz/src/diffStats.ts";
+import {
+  astDiffScalingProfileDefaults,
+  type AstDiffScalingProfile,
+} from "./ast-diff-scaling-profiles.ts";
 
 const exec = promisify(execFile);
 const projectRoot = resolve(import.meta.dirname, "..");
-const profile = enumOption("--profile", ["smoke", "pilot"] as const, "pilot");
-const defaults = profileDefaults(profile);
+const profile: AstDiffScalingProfile = enumOption(
+  "--profile",
+  ["smoke", "pilot", "stress"] as const,
+  "pilot",
+);
+const defaults = astDiffScalingProfileDefaults(profile);
 const repetitions = integerOption("--repetitions", defaults.repetitions, 1);
 const warmupIterations = integerOption("--warmups", defaults.warmupIterations, 0);
+const batchIterations = integerOption("--batch-iterations", defaults.batchIterations, 1);
 const timeoutMs = integerOption("--timeout-ms", defaults.timeoutMs, 1);
 const outputPath = resolve(option("--output", "research/results/ast-diff-scaling-pilot.json"));
 const markdownPath = resolve(option("--markdown", "research/results/ast-diff-scaling-pilot.md"));
@@ -26,9 +35,11 @@ const protocol = {
   seed,
   repetitions,
   warmupIterations,
+  batchIterations,
   timeoutMs,
   processIsolation: "one fresh Node.js process per condition × scenario × repetition" as const,
-  timingScope: "one algorithm call after in-process warmup; fixture generation excluded" as const,
+  timingScope:
+    "per-call duration from a batch of algorithm calls after in-process warmup; fixture generation excluded" as const,
   memoryScope:
     "process.resourceUsage().maxRSS after fixture generation, warmup, and measured call" as const,
   correctnessGate:
@@ -36,8 +47,7 @@ const protocol = {
   order:
     "projection condition order rotates by repetition; scenarios use fixed ascending order" as const,
   projection: {
-    symbolCounts: defaults.symbolCounts,
-    hunkCounts: defaults.hunkCounts,
+    scenarios: defaults.projectionScenarios,
     conditions: ["indexed", "naive", "adaptive"] as const,
     adaptivePolicy: {
       workRatio: "S*H / ((S+H)*log2(H+1))" as const,
@@ -46,8 +56,7 @@ const protocol = {
     },
   },
   symbolTree: {
-    symbolCounts: defaults.symbolCounts,
-    maxDepths: defaults.maxDepths,
+    scenarios: defaults.symbolTreeScenarios,
     conditions: ["parent-aware"] as const,
   },
 };
@@ -59,42 +68,20 @@ const [{ stdout: revision }, { stdout: status }] = await Promise.all([
 const measurements: AstDiffScalingMeasurement[] = [];
 const startedAt = new Date().toISOString();
 
-for (const symbolCount of defaults.symbolCounts) {
-  for (const hunkCount of defaults.hunkCounts) {
-    for (let repetition = 1; repetition <= repetitions; repetition += 1) {
-      const conditions = rotate(protocol.projection.conditions, repetition - 1);
-      for (const condition of conditions) {
-        process.stderr.write(
-          `[projection S=${symbolCount} H=${hunkCount} ${condition} ${repetition}/${repetitions}]\n`,
-        );
-        measurements.push(
-          await runWorker({
-            kernel: "hunk-projection",
-            condition,
-            symbolCount,
-            hunkCount,
-            maxDepth: 0,
-            repetition,
-          }),
-        );
-      }
-    }
-  }
-}
-
-for (const symbolCount of defaults.symbolCounts) {
-  for (const maxDepth of defaults.maxDepths.filter((depth) => depth <= symbolCount)) {
-    for (let repetition = 1; repetition <= repetitions; repetition += 1) {
+for (const { symbolCount, hunkCount } of defaults.projectionScenarios) {
+  for (let repetition = 1; repetition <= repetitions; repetition += 1) {
+    const conditions = rotate(protocol.projection.conditions, repetition - 1);
+    for (const condition of conditions) {
       process.stderr.write(
-        `[symbol-tree S=${symbolCount} D=${maxDepth} parent-aware ${repetition}/${repetitions}]\n`,
+        `[projection S=${symbolCount} H=${hunkCount} ${condition} ${repetition}/${repetitions}]\n`,
       );
       measurements.push(
         await runWorker({
-          kernel: "symbol-tree",
-          condition: "parent-aware",
+          kernel: "hunk-projection",
+          condition,
           symbolCount,
-          hunkCount: 0,
-          maxDepth,
+          hunkCount,
+          maxDepth: 0,
           repetition,
         }),
       );
@@ -102,9 +89,27 @@ for (const symbolCount of defaults.symbolCounts) {
   }
 }
 
+for (const { symbolCount, maxDepth } of defaults.symbolTreeScenarios) {
+  for (let repetition = 1; repetition <= repetitions; repetition += 1) {
+    process.stderr.write(
+      `[symbol-tree S=${symbolCount} D=${maxDepth} parent-aware ${repetition}/${repetitions}]\n`,
+    );
+    measurements.push(
+      await runWorker({
+        kernel: "symbol-tree",
+        condition: "parent-aware",
+        symbolCount,
+        hunkCount: 0,
+        maxDepth,
+        repetition,
+      }),
+    );
+  }
+}
+
 const summary = summarizeAstDiffScalingMeasurements(measurements);
 const result = {
-  schemaVersion: 1 as const,
+  schemaVersion: 2 as const,
   status: "exploratory synthetic process-isolated scaling pilot" as const,
   startedAt,
   finishedAt: new Date().toISOString(),
@@ -152,7 +157,7 @@ async function runWorker(input: {
   repetition: number;
 }): Promise<AstDiffScalingMeasurement> {
   const base = {
-    schemaVersion: 1 as const,
+    schemaVersion: 2 as const,
     kernel: input.kernel,
     condition: input.condition,
     symbolCount: input.symbolCount,
@@ -161,6 +166,7 @@ async function runWorker(input: {
     seed,
     repetition: input.repetition,
     warmupIterations,
+    batchIterations,
   };
   try {
     const { stdout, stderr } = await exec(
@@ -185,6 +191,8 @@ async function runWorker(input: {
         String(input.repetition),
         "--warmups",
         String(warmupIterations),
+        "--batch-iterations",
+        String(batchIterations),
       ],
       {
         cwd: projectRoot,
@@ -231,6 +239,7 @@ function assertWorkerContract(
     | "seed"
     | "repetition"
     | "warmupIterations"
+    | "batchIterations"
   >,
 ): void {
   for (const key of Object.keys(expected) as Array<keyof typeof expected>) {
@@ -255,6 +264,7 @@ function renderMarkdown(result: {
       comparison.symbolCount,
       comparison.hunkCount,
       0,
+      comparison.batchIterations,
     );
     const naive = findGroup(
       result.summary.groups,
@@ -263,6 +273,7 @@ function renderMarkdown(result: {
       comparison.symbolCount,
       comparison.hunkCount,
       0,
+      comparison.batchIterations,
     );
     const adaptive = findGroup(
       result.summary.groups,
@@ -271,6 +282,7 @@ function renderMarkdown(result: {
       comparison.symbolCount,
       comparison.hunkCount,
       0,
+      comparison.batchIterations,
     );
     return `| ${comparison.symbolCount} | ${comparison.hunkCount} | ${formatMs(indexed.durationMs?.p50)} | ${formatMs(naive.durationMs?.p50)} | ${formatMs(adaptive.durationMs?.p50)} | ${comparison.adaptiveStrategy} | ${comparison.adaptiveOverBest.toFixed(2)}× | ${comparison.speedup.toFixed(2)}× | ${formatInteger(indexed.maxRssKb?.p50)} | ${formatInteger(naive.maxRssKb?.p50)} | ${formatInteger(adaptive.maxRssKb?.p50)} | ${indexed.failures + naive.failures + adaptive.failures} |`;
   });
@@ -290,7 +302,7 @@ Status: ${result.status}. This is a synthetic, single-machine exploratory measur
 - Isolation: ${result.protocol.processIsolation}
 - Timing scope: ${result.protocol.timingScope}
 - Memory scope: ${result.protocol.memoryScope}
-- Repetitions: ${result.protocol.repetitions}; warmups per process: ${result.protocol.warmupIterations}; timeout: ${result.protocol.timeoutMs} ms
+- Repetitions: ${result.protocol.repetitions}; warmups per process: ${result.protocol.warmupIterations}; calls per measured batch: ${result.protocol.batchIterations}; timeout: ${result.protocol.timeoutMs} ms
 - Correctness gate: ${result.protocol.correctnessGate}
 
 ## Hunk projection
@@ -318,6 +330,7 @@ function findGroup(
   symbolCount: number,
   hunkCount: number,
   maxDepth: number,
+  batchIterations: number,
 ): AstDiffScalingGroup {
   const group = groups.find(
     (item) =>
@@ -325,30 +338,11 @@ function findGroup(
       item.condition === condition &&
       item.symbolCount === symbolCount &&
       item.hunkCount === hunkCount &&
-      item.maxDepth === maxDepth,
+      item.maxDepth === maxDepth &&
+      item.batchIterations === batchIterations,
   );
   if (!group) throw new Error("missing scaling summary group");
   return group;
-}
-
-function profileDefaults(value: "smoke" | "pilot") {
-  return value === "smoke"
-    ? {
-        repetitions: 1,
-        warmupIterations: 1,
-        timeoutMs: 10_000,
-        symbolCounts: [100, 500],
-        hunkCounts: [20, 100],
-        maxDepths: [1, 8],
-      }
-    : {
-        repetitions: 3,
-        warmupIterations: 2,
-        timeoutMs: 30_000,
-        symbolCounts: [1_000, 5_000, 20_000],
-        hunkCounts: [100, 500, 2_000],
-        maxDepths: [1, 4, 16],
-      };
 }
 
 function rotate<T>(items: readonly T[], offset: number): T[] {

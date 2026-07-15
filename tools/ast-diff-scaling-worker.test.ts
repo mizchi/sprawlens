@@ -43,6 +43,7 @@ describe("AST diff scaling worker", () => {
       condition: "indexed",
       symbolCount: 100,
       hunkCount: 20,
+      batchIterations: 5,
       status: "ok",
     });
     expect(indexed.outputDigest).toBe(naive.outputDigest);
@@ -88,6 +89,8 @@ async function runWorker(args: string[]): Promise<AstDiffScalingMeasurement> {
       "1",
       "--warmups",
       "1",
+      "--batch-iterations",
+      "5",
     ],
     { cwd: process.cwd(), maxBuffer: 1024 * 1024 },
   );

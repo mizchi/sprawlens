@@ -146,6 +146,25 @@ describe("summarizeAstDiffScalingMeasurements", () => {
       ]),
     ).toThrow(/digest/i);
   });
+
+  it("keeps measurements with different batch sizes in separate comparisons", () => {
+    const batchOne = [
+      measurement("hunk-projection", "indexed", 1, 10, 100),
+      measurement("hunk-projection", "naive", 1, 20, 100),
+      measurement("hunk-projection", "adaptive", 1, 20, 100),
+    ];
+    const batchTwo = batchOne.map((item) => ({
+      ...item,
+      batchIterations: 2,
+      durationMs: item.durationMs! / 2,
+    }));
+
+    expect(
+      summarizeAstDiffScalingMeasurements([...batchOne, ...batchTwo]).projectionComparisons.map(
+        ({ batchIterations }) => batchIterations,
+      ),
+    ).toEqual([1, 2]);
+  });
 });
 
 function symbol(name: string, startLine: number, endLine: number) {
@@ -165,7 +184,7 @@ function measurement(
   dimensions: { hunkCount: number; maxDepth: number } = { hunkCount: 2_000, maxDepth: 0 },
 ): AstDiffScalingMeasurement {
   return {
-    schemaVersion: 1,
+    schemaVersion: 2,
     kernel,
     condition,
     symbolCount: 1_000,
@@ -174,6 +193,7 @@ function measurement(
     seed: 1729,
     repetition,
     warmupIterations: 2,
+    batchIterations: 1,
     status: "ok",
     durationMs,
     maxRssKb,

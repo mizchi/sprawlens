@@ -9,7 +9,7 @@ export type AstDiffProjectionSymbol = {
 };
 
 export type AstDiffScalingMeasurement = {
-  schemaVersion: 1;
+  schemaVersion: 2;
   kernel: "hunk-projection" | "symbol-tree";
   condition: "indexed" | "naive" | "adaptive" | "parent-aware";
   symbolCount: number;
@@ -18,6 +18,7 @@ export type AstDiffScalingMeasurement = {
   seed: number;
   repetition: number;
   warmupIterations: number;
+  batchIterations: number;
   status: "ok" | "timeout" | "error";
   durationMs: number | null;
   maxRssKb: number | null;
@@ -41,6 +42,7 @@ export type AstDiffScalingGroup = {
   symbolCount: number;
   hunkCount: number;
   maxDepth: number;
+  batchIterations: number;
   repetitions: number;
   successfulRepetitions: number;
   failures: number;
@@ -56,6 +58,7 @@ export type AstDiffScalingSummary = {
   projectionComparisons: Array<{
     symbolCount: number;
     hunkCount: number;
+    batchIterations: number;
     repetitions: number;
     indexedP50Ms: number;
     naiveP50Ms: number;
@@ -172,7 +175,7 @@ export function summarizeAstDiffScalingMeasurements(
   const projectionByScenario = new Map<string, AstDiffScalingGroup[]>();
   for (const group of groups) {
     if (group.kernel !== "hunk-projection") continue;
-    const key = `${group.symbolCount}:${group.hunkCount}`;
+    const key = `${group.symbolCount}:${group.hunkCount}:${group.batchIterations}`;
     const scenario = projectionByScenario.get(key) ?? [];
     scenario.push(group);
     projectionByScenario.set(key, scenario);
@@ -214,6 +217,7 @@ export function summarizeAstDiffScalingMeasurements(
     projectionComparisons.push({
       symbolCount: indexed.symbolCount,
       hunkCount: indexed.hunkCount,
+      batchIterations: indexed.batchIterations,
       repetitions: Math.min(
         indexed.successfulRepetitions,
         naive.successfulRepetitions,
@@ -231,7 +235,12 @@ export function summarizeAstDiffScalingMeasurements(
       adaptiveStrategy: chooseSymbolDiffProjectionStrategy(indexed.symbolCount, indexed.hunkCount),
     });
   }
-  projectionComparisons.sort((a, b) => a.symbolCount - b.symbolCount || a.hunkCount - b.hunkCount);
+  projectionComparisons.sort(
+    (a, b) =>
+      a.symbolCount - b.symbolCount ||
+      a.hunkCount - b.hunkCount ||
+      a.batchIterations - b.batchIterations,
+  );
   return { groups, projectionComparisons };
 }
 
@@ -258,6 +267,7 @@ function summarizeGroup(measurements: readonly AstDiffScalingMeasurement[]): Ast
     symbolCount: first.symbolCount,
     hunkCount: first.hunkCount,
     maxDepth: first.maxDepth,
+    batchIterations: first.batchIterations,
     repetitions: measurements.length,
     successfulRepetitions: successful.length,
     failures: measurements.length - successful.length,
@@ -270,9 +280,10 @@ function summarizeGroup(measurements: readonly AstDiffScalingMeasurement[]): Ast
 }
 
 function validateMeasurement(measurement: AstDiffScalingMeasurement): void {
-  if (measurement.schemaVersion !== 1) throw new Error("measurement schemaVersion must be 1");
+  if (measurement.schemaVersion !== 2) throw new Error("measurement schemaVersion must be 2");
   assertPositiveInteger(measurement.symbolCount, "measurement symbolCount");
   assertPositiveInteger(measurement.repetition, "measurement repetition");
+  assertPositiveInteger(measurement.batchIterations, "measurement batchIterations");
   if (measurement.hunkCount < 0 || !Number.isInteger(measurement.hunkCount)) {
     throw new Error("measurement hunkCount must be a non-negative integer");
   }
@@ -335,6 +346,7 @@ function groupKey(measurement: AstDiffScalingMeasurement): string {
     measurement.symbolCount,
     measurement.hunkCount,
     measurement.maxDepth,
+    measurement.batchIterations,
   ].join(":");
 }
 

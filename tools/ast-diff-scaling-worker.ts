@@ -25,9 +25,10 @@ const maxDepth = integerOption("--depth", kernel === "symbol-tree" ? 1 : 0, 0);
 const seed = integerOption("--seed", 1729, Number.MIN_SAFE_INTEGER);
 const repetition = integerOption("--repetition", 1, 1);
 const warmupIterations = integerOption("--warmups", 2, 0);
+const batchIterations = integerOption("--batch-iterations", 1, 1);
 
 if (kernel === "hunk-projection" && condition === "parent-aware") {
-  throw new Error("hunk-projection condition must be indexed or naive");
+  throw new Error("hunk-projection condition must be indexed, naive, or adaptive");
 }
 if (kernel === "symbol-tree" && condition !== "parent-aware") {
   throw new Error("symbol-tree condition must be parent-aware");
@@ -42,10 +43,11 @@ if (kernel === "symbol-tree" && (maxDepth < 1 || maxDepth > symbolCount)) {
 const run = createRun();
 for (let iteration = 0; iteration < warmupIterations; iteration += 1) run();
 const started = performance.now();
-const output = run();
-const durationMs = performance.now() - started;
+let output = run();
+for (let iteration = 1; iteration < batchIterations; iteration += 1) output = run();
+const durationMs = (performance.now() - started) / batchIterations;
 const measurement: AstDiffScalingMeasurement = {
-  schemaVersion: 1,
+  schemaVersion: 2,
   kernel,
   condition,
   symbolCount,
@@ -54,6 +56,7 @@ const measurement: AstDiffScalingMeasurement = {
   seed,
   repetition,
   warmupIterations,
+  batchIterations,
   status: "ok",
   durationMs,
   maxRssKb: process.resourceUsage().maxRSS,
