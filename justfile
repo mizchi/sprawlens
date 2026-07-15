@@ -42,6 +42,9 @@ benchmark-ast-diff-scaling profile="pilot" *args:
 calibrate-ast-diff-adaptive-threshold *args:
     @pnpm tsx tools/calibrate-ast-diff-adaptive-threshold-result.ts {{ args }}
 
+assess-ast-diff-adaptive-validation *args:
+    @pnpm tsx tools/assess-ast-diff-adaptive-validation-result.ts {{ args }}
+
 build-ast-diff-repository-fixture *args:
     @pnpm tsx tools/build-ast-diff-repository-fixture.ts {{ args }}
 
