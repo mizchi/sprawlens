@@ -64,6 +64,12 @@ freeze-ast-diff-confirmatory-v2-solo-preannotation:
 check-ast-diff-confirmatory-v2-solo-preannotation:
     @pnpm tsx tools/check-ast-diff-freeze.ts research/ast-diff-confirmatory-v2-solo-preannotation-freeze.json
 
+annotate-ast-diff-confirmatory-v2-solo-pass-a port="4317":
+    @pnpm tsx tools/serve-solo-ast-diff-annotation.ts --pass A --port {{ port }}
+
+test-ast-diff-confirmatory-v2-solo-annotation-ui:
+    @pnpm test:ast-diff-annotation
+
 lock-ast-diff-confirmatory-v2-solo-pass-a:
     @pnpm tsx tools/lock-solo-ast-diff-annotation-pass.ts --pass A
 

@@ -24,6 +24,7 @@
     "test:render:vlm": "playwright test -c playwright.vlm.config.ts",
     "perf:atlas": "playwright test -c playwright.atlas.config.ts",
     "perf:ast-diff-render": "playwright test -c playwright.ast-diff-perf.config.ts",
+    "test:ast-diff-annotation": "playwright test -c playwright.ast-diff-annotation.config.ts",
     "trace:self": "tsx e2e/captureSelfTrace.mts",
     "preview:atlas": "tsx e2e/capturePreview.mts"
   },

@@ -1,0 +1,118 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>AST diff blind annotation</title>
+    <link rel="stylesheet" href="/app.css" />
+  </head>
+  <body>
+    <header class="topbar">
+      <div class="brand">
+        <span class="eyebrow">Prediction-blind · single-annotator test–retest</span>
+        <div class="title-row">
+          <h1>AST diff blind annotation</h1>
+          <span id="pass-badge" class="badge">Pass –</span>
+        </div>
+      </div>
+      <div class="progress-area">
+        <div class="progress-copy">
+          <strong id="progress-label">Loading…</strong>
+          <span id="classification-label"></span>
+        </div>
+        <div class="progress-track" aria-hidden="true">
+          <span id="progress-bar"></span>
+        </div>
+      </div>
+      <button id="complete-button" class="button button-success" type="button" disabled>
+        Complete pass
+      </button>
+    </header>
+
+    <nav class="case-nav" aria-label="Case navigation">
+      <button id="previous-button" class="icon-button" type="button" aria-label="Previous case">
+        ←
+      </button>
+      <select id="case-select" aria-label="Current annotation case"></select>
+      <button id="next-button" class="icon-button" type="button" aria-label="Next case">→</button>
+      <span id="save-status" class="save-status" role="status">Loading</span>
+      <span class="shortcut-hint">↑↓ symbol · N none · M modified · A added · ⇧Enter review</span>
+    </nav>
+
+    <main id="workspace" class="workspace" hidden>
+      <section class="panel evidence-panel" aria-labelledby="packet-heading">
+        <div class="panel-header">
+          <div>
+            <span class="section-label">Evidence</span>
+            <h2 id="packet-heading">Annotation packet</h2>
+          </div>
+          <span id="packet-alias" class="mono"></span>
+        </div>
+        <div id="packet" class="packet" tabindex="0" aria-label="Source patch"></div>
+      </section>
+
+      <section class="panel decisions-panel" aria-labelledby="decisions-heading">
+        <div class="panel-header sticky-header">
+          <div>
+            <span class="section-label">After-revision symbols</span>
+            <h2 id="decisions-heading">Classify every candidate</h2>
+          </div>
+          <span id="case-state" class="case-state"></span>
+        </div>
+        <div id="decision-list" class="decision-list"></div>
+        <label class="notes-field">
+          <span>Notes / ambiguity evidence</span>
+          <textarea
+            id="notes"
+            rows="4"
+            maxlength="10000"
+            placeholder="Optional. Record ambiguity or exclusion evidence."
+          ></textarea>
+        </label>
+        <div class="action-bar">
+          <button id="save-button" class="button" type="button">Save draft</button>
+          <button id="review-button" class="button button-primary" type="button">
+            Mark reviewed &amp; next
+          </button>
+        </div>
+      </section>
+    </main>
+
+    <section id="completed-panel" class="completed-panel" hidden>
+      <span class="completion-mark">✓</span>
+      <div>
+        <h2>Pass completed and sealed in the working sheet</h2>
+        <p>Stop this server, then create the immutable pass lock with:</p>
+        <code>just lock-ast-diff-confirmatory-v2-solo-pass-a</code>
+      </div>
+    </section>
+
+    <dialog id="start-dialog" class="start-dialog">
+      <form id="start-form" method="dialog">
+        <span class="eyebrow">Required before annotation</span>
+        <h2>Start the blinded pass</h2>
+        <p>
+          This UI reads only the active pass sheet and its opaque packet aliases. It does not load
+          predictions, alias keys, or the other pass.
+        </p>
+        <label class="field">
+          <span>Annotator ID</span>
+          <input id="annotator-id" name="annotatorId" autocomplete="off" maxlength="120" required />
+        </label>
+        <label class="attestation">
+          <input id="predictions-attestation" type="checkbox" required />
+          <span>I have not inspected evaluated AST diff predictions for these cases.</span>
+        </label>
+        <label class="attestation">
+          <input id="other-pass-attestation" type="checkbox" required />
+          <span>I have not inspected the other annotation pass or either alias key.</span>
+        </label>
+        <p id="start-error" class="error" role="alert"></p>
+        <button class="button button-primary start-button" type="submit">Begin Pass A</button>
+      </form>
+    </dialog>
+
+    <div id="toast" class="toast" role="alert" hidden></div>
+    <script type="module" src="/app.js"></script>
+  </body>
+</html>

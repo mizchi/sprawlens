@@ -3,7 +3,7 @@ import { defineConfig } from "vitest/config";
 export default defineConfig({
   test: {
     environment: "node",
-    include: ["packages/**/*.test.ts"],
+    include: ["packages/**/*.test.ts", "tools/**/*.test.ts"],
     benchmark: { include: ["packages/**/*.bench.ts"] },
     // v8 coverage instrumentation slows the heavy convergence tests (e.g.
     // capacityLayout n=200) past the 5s default on CI runners; give headroom.
