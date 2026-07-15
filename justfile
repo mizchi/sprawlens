@@ -39,6 +39,12 @@ benchmark-repository-condition-memory:
 benchmark-ast-diff-scaling profile="pilot" *args:
     @pnpm tsx tools/run-ast-diff-scaling-benchmark.ts --profile {{ profile }} {{ args }}
 
+build-ast-diff-repository-fixture *args:
+    @pnpm tsx tools/build-ast-diff-repository-fixture.ts {{ args }}
+
+benchmark-ast-diff-repository profile="smoke" *args:
+    @pnpm tsx tools/run-ast-diff-repository-benchmark.ts --profile {{ profile }} {{ args }}
+
 experiment-stable-visual:
     pnpm --filter @sprawlens/viz build
     pnpm tsx tools/run-stable-visual-experiment.ts
