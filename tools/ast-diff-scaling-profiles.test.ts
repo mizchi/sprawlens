@@ -3,7 +3,7 @@ import { chooseSymbolDiffProjectionStrategy } from "../packages/viz/src/diffStat
 import { astDiffScalingProfileDefaults } from "./ast-diff-scaling-profiles.ts";
 
 describe("astDiffScalingProfileDefaults", () => {
-  it("fixes a balanced batched stress matrix on both sides of the adaptive threshold", () => {
+  it("keeps the v1 stress matrix fixed under the current adaptive threshold", () => {
     const profile = astDiffScalingProfileDefaults("stress");
     const strategies = profile.projectionScenarios.map(({ symbolCount, hunkCount }) =>
       chooseSymbolDiffProjectionStrategy(symbolCount, hunkCount),
@@ -24,8 +24,8 @@ describe("astDiffScalingProfileDefaults", () => {
         ),
       ).size,
     ).toBe(12);
-    expect(strategies.filter((strategy) => strategy === "naive")).toHaveLength(6);
-    expect(strategies.filter((strategy) => strategy === "indexed")).toHaveLength(6);
+    expect(strategies.filter((strategy) => strategy === "naive")).toHaveLength(0);
+    expect(strategies.filter((strategy) => strategy === "indexed")).toHaveLength(12);
   });
 
   it("keeps v2 calibration and validation scenarios disjoint before timing", () => {

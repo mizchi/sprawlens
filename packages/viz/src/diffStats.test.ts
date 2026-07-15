@@ -12,6 +12,7 @@ import {
   formatDiffPercent,
   normalizeFileDiffStats,
   parseSymbolStartLine,
+  SYMBOL_DIFF_PROJECTION_WORK_RATIO_THRESHOLD,
   symbolDiffProjectionWorkRatio,
 } from "./diffStats.ts";
 
@@ -56,10 +57,13 @@ describe("buildSymbolDiffStats", () => {
     expect(() => symbolDiffProjectionWorkRatio(10, 1.5)).toThrow(/hunkCount/i);
   });
 
-  it("selects the development-fixed strategy on both sides of the observed crossover", () => {
+  it("selects the v2b calibrated strategy on both sides of the fixed boundary", () => {
+    expect(SYMBOL_DIFF_PROJECTION_WORK_RATIO_THRESHOLD).toBe(4.6917628829515525);
+    expect(chooseSymbolDiffProjectionStrategy(5_000, 5)).toBe("naive");
+    expect(chooseSymbolDiffProjectionStrategy(20_000, 40)).toBe("indexed");
     expect(chooseSymbolDiffProjectionStrategy(101, 13)).toBe("naive");
-    expect(chooseSymbolDiffProjectionStrategy(1_000, 500)).toBe("naive");
-    expect(chooseSymbolDiffProjectionStrategy(20_000, 100)).toBe("naive");
+    expect(chooseSymbolDiffProjectionStrategy(1_000, 500)).toBe("indexed");
+    expect(chooseSymbolDiffProjectionStrategy(20_000, 100)).toBe("indexed");
     expect(chooseSymbolDiffProjectionStrategy(1_000, 2_000)).toBe("indexed");
     expect(chooseSymbolDiffProjectionStrategy(5_000, 500)).toBe("indexed");
   });

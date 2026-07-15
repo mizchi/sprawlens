@@ -33,11 +33,12 @@ type Measure = { added: number; deleted: number; touched: number };
 export type SymbolDiffProjectionStrategy = "naive" | "indexed";
 
 /**
- * Development-tuned boundary fixed from the 2026-07-16 synthetic pilot before
- * evaluating any new performance-only holdout. It separated all nine observed
- * synthetic conditions; it is not a universal hardware-independent constant.
+ * Post-hoc v2b boundary calibrated on the fixed 2026-07-16 low-hunk synthetic
+ * profile and committed before its reserved validation grid was executed. Only
+ * four of 24 calibration scenarios cleared the 1.10 materiality margin, so this
+ * remains an engineering policy rather than a hardware-independent constant.
  */
-export const SYMBOL_DIFF_PROJECTION_WORK_RATIO_THRESHOLD = 45;
+export const SYMBOL_DIFF_PROJECTION_WORK_RATIO_THRESHOLD = 4.6917628829515525;
 
 /** Piecewise line-change prefix index. Build O(H log H), query O(log H). */
 class LineChangeIndex {
