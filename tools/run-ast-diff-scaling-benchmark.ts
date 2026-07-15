@@ -19,7 +19,7 @@ const exec = promisify(execFile);
 const projectRoot = resolve(import.meta.dirname, "..");
 const profile: AstDiffScalingProfile = enumOption(
   "--profile",
-  ["smoke", "pilot", "stress", "calibration", "validation"] as const,
+  ["smoke", "pilot", "stress", "calibration", "calibration-low", "validation"] as const,
   "pilot",
 );
 const defaults = astDiffScalingProfileDefaults(profile);

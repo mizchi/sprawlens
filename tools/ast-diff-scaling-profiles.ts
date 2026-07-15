@@ -1,4 +1,10 @@
-export type AstDiffScalingProfile = "smoke" | "pilot" | "stress" | "calibration" | "validation";
+export type AstDiffScalingProfile =
+  | "smoke"
+  | "pilot"
+  | "stress"
+  | "calibration"
+  | "calibration-low"
+  | "validation";
 
 export type AstDiffScalingProfileDefaults = {
   repetitions: number;
@@ -53,6 +59,14 @@ const profiles = {
     batchIterations: 20,
     timeoutMs: 30_000,
     projectionScenarios: gridProjection([1_000, 5_000, 20_000], [25, 50, 100, 150, 200, 250]),
+    symbolTreeScenarios: [],
+  },
+  "calibration-low": {
+    repetitions: 7,
+    warmupIterations: 10,
+    batchIterations: 20,
+    timeoutMs: 30_000,
+    projectionScenarios: gridProjection([1_000, 5_000, 20_000], [1, 2, 5, 10, 15, 20, 30, 40]),
     symbolTreeScenarios: [],
   },
   validation: {

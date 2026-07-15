@@ -53,7 +53,7 @@ process.stdout.write(
 type CalibrationResult = {
   schemaVersion: 2;
   protocolHash: string;
-  protocol: { profile: "calibration" };
+  protocol: { profile: "calibration" | "calibration-low" };
   implementation: { revision: string; dirtyAtRun: boolean };
   summary: {
     projectionComparisons: Array<{
@@ -71,8 +71,11 @@ function parseCalibrationResult(value: unknown): CalibrationResult {
   }
   const result = value as Partial<CalibrationResult>;
   if (result.schemaVersion !== 2) throw new Error("calibration result schemaVersion must be 2");
-  if (result.protocol?.profile !== "calibration") {
-    throw new Error("threshold calibration requires the fixed calibration profile");
+  if (
+    result.protocol?.profile !== "calibration" &&
+    result.protocol?.profile !== "calibration-low"
+  ) {
+    throw new Error("threshold calibration requires a fixed calibration profile");
   }
   if (!result.protocolHash || !/^[0-9a-f]{64}$/.test(result.protocolHash)) {
     throw new Error("calibration result protocolHash must be SHA-256");
@@ -80,12 +83,15 @@ function parseCalibrationResult(value: unknown): CalibrationResult {
   if (!result.implementation || typeof result.implementation.revision !== "string") {
     throw new Error("calibration result implementation metadata is missing");
   }
+  const expectedComparisons = result.protocol.profile === "calibration-low" ? 24 : 18;
   if (
     !result.summary ||
     !Array.isArray(result.summary.projectionComparisons) ||
-    result.summary.projectionComparisons.length !== 18
+    result.summary.projectionComparisons.length !== expectedComparisons
   ) {
-    throw new Error("calibration result must contain exactly 18 projection comparisons");
+    throw new Error(
+      `calibration result must contain exactly ${expectedComparisons} projection comparisons`,
+    );
   }
   return result as CalibrationResult;
 }

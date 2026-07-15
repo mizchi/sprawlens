@@ -56,4 +56,30 @@ describe("astDiffScalingProfileDefaults", () => {
     expect(validation.projectionScenarios).toHaveLength(18);
     expect(validationKeys.every((key) => !calibrationKeys.has(key))).toBe(true);
   });
+
+  it("keeps the post-stop low-hunk calibration disjoint from both frozen grids", () => {
+    const originalKeys = new Set(
+      astDiffScalingProfileDefaults("calibration").projectionScenarios.map(
+        ({ symbolCount, hunkCount }) => `${symbolCount}:${hunkCount}`,
+      ),
+    );
+    const validationKeys = new Set(
+      astDiffScalingProfileDefaults("validation").projectionScenarios.map(
+        ({ symbolCount, hunkCount }) => `${symbolCount}:${hunkCount}`,
+      ),
+    );
+    const low = astDiffScalingProfileDefaults("calibration-low");
+    const lowKeys = low.projectionScenarios.map(
+      ({ symbolCount, hunkCount }) => `${symbolCount}:${hunkCount}`,
+    );
+
+    expect(low).toMatchObject({
+      repetitions: 7,
+      warmupIterations: 10,
+      batchIterations: 20,
+      symbolTreeScenarios: [],
+    });
+    expect(low.projectionScenarios).toHaveLength(24);
+    expect(lowKeys.every((key) => !originalKeys.has(key) && !validationKeys.has(key))).toBe(true);
+  });
 });
