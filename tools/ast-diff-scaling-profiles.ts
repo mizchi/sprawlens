@@ -1,4 +1,4 @@
-export type AstDiffScalingProfile = "smoke" | "pilot" | "stress";
+export type AstDiffScalingProfile = "smoke" | "pilot" | "stress" | "calibration" | "validation";
 
 export type AstDiffScalingProfileDefaults = {
   repetitions: number;
@@ -45,6 +45,22 @@ const profiles = {
       { symbolCount: 20_000, hunkCount: 400 },
       { symbolCount: 20_000, hunkCount: 500 },
     ],
+    symbolTreeScenarios: [],
+  },
+  calibration: {
+    repetitions: 7,
+    warmupIterations: 10,
+    batchIterations: 20,
+    timeoutMs: 30_000,
+    projectionScenarios: gridProjection([1_000, 5_000, 20_000], [25, 50, 100, 150, 200, 250]),
+    symbolTreeScenarios: [],
+  },
+  validation: {
+    repetitions: 7,
+    warmupIterations: 10,
+    batchIterations: 20,
+    timeoutMs: 30_000,
+    projectionScenarios: gridProjection([2_000, 10_000, 30_000], [35, 75, 125, 175, 225, 300]),
     symbolTreeScenarios: [],
   },
 } as const satisfies Record<AstDiffScalingProfile, AstDiffScalingProfileDefaults>;
