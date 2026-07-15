@@ -36,6 +36,9 @@ run-repository-missingness-sensitivity:
 benchmark-repository-condition-memory:
     @pnpm tsx tools/benchmark-repository-condition-memory.ts
 
+benchmark-ast-diff-scaling profile="pilot" *args:
+    @pnpm tsx tools/run-ast-diff-scaling-benchmark.ts --profile {{ profile }} {{ args }}
+
 experiment-stable-visual:
     pnpm --filter @sprawlens/viz build
     pnpm tsx tools/run-stable-visual-experiment.ts

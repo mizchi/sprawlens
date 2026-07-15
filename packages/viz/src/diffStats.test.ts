@@ -122,6 +122,25 @@ describe("buildSymbolDiffStats", () => {
 
     expect(stats.get("symbol:src/a.ts:class:Service:1")).toMatchObject({ touched: 2, total: 12 });
   });
+
+  it("rounds exact half-line replacement density without prefix floating-point drift", () => {
+    const stats = buildSymbolDiffStats(
+      [
+        {
+          id: "symbol:fixture.ts:function:target:331",
+          metrics: { loc: 9 },
+          sourceRange: { startLine: 331, endLine: 339 },
+        },
+      ],
+      [{ oldStart: 330, oldLines: 5, newStart: 329, newLines: 4 }],
+    );
+
+    expect(stats.get("symbol:fixture.ts:function:target:331")).toMatchObject({
+      added: 2,
+      deleted: 3,
+      touched: 2,
+    });
+  });
 });
 
 describe("fallbackChangedDiffStat", () => {

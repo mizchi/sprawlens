@@ -106,11 +106,14 @@ class LineChangeIndex {
     const deletionStart = lowerBound(this.deletionLines, from);
     const deletionEnd = upperBound(this.deletionLines, endLine);
     const pureDeleted = this.deletionPrefix[deletionEnd]! - this.deletionPrefix[deletionStart]!;
-    const deleted = replacementDeleted > 0 ? Math.max(1, Math.round(replacementDeleted)) : 0;
+    // Prefix areas accumulate fractional replacement density across unrelated
+    // events. Stabilize exact half values (for example 2.5 - ε) before applying
+    // the same round-half-up rule as the direct hunk scan.
+    const deleted = replacementDeleted > 0 ? Math.max(1, stableRound(replacementDeleted)) : 0;
     return {
-      added: Math.round(added),
+      added: stableRound(added),
       deleted: deleted + pureDeleted,
-      touched: Math.round(replacementTouched) + pureDeleted,
+      touched: stableRound(replacementTouched) + pureDeleted,
     };
   }
 
@@ -126,6 +129,10 @@ class LineChangeIndex {
     if (width <= 0) return base;
     return base + ((prefix[index + 1]! - base) * (x - start)) / width;
   }
+}
+
+function stableRound(value: number): number {
+  return Math.round(value + 1e-9);
 }
 
 export function parseSymbolStartLine(id: string): number | null {
