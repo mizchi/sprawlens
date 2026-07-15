@@ -27,6 +27,16 @@ describe("AST diff scaling worker", () => {
       "--hunks",
       "20",
     ]);
+    const adaptive = await runWorker([
+      "--kernel",
+      "hunk-projection",
+      "--condition",
+      "adaptive",
+      "--symbols",
+      "100",
+      "--hunks",
+      "20",
+    ]);
 
     expect(indexed).toMatchObject({
       kernel: "hunk-projection",
@@ -36,6 +46,7 @@ describe("AST diff scaling worker", () => {
       status: "ok",
     });
     expect(indexed.outputDigest).toBe(naive.outputDigest);
+    expect(adaptive.outputDigest).toBe(naive.outputDigest);
     expect(indexed.outputItems).toBe(naive.outputItems);
     expect(indexed.durationMs).toBeGreaterThan(0);
     expect(indexed.maxRssKb).toBeGreaterThan(0);

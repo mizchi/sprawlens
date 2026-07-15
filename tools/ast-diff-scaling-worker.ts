@@ -1,16 +1,24 @@
 import { createHash } from "node:crypto";
 import { performance } from "node:perf_hooks";
 import {
-  buildSymbolDiffStatsNaive,
   createAstDiffProjectionFixture,
   createAstDiffTreeFixture,
   type AstDiffScalingMeasurement,
 } from "../packages/viz/src/astDiffScalingBenchmark.ts";
 import { diffAstSymbols } from "../packages/viz/src/astSymbolDiff.ts";
-import { buildSymbolDiffStats } from "../packages/viz/src/diffStats.ts";
+import {
+  buildSymbolDiffStats,
+  buildSymbolDiffStatsIndexed,
+  buildSymbolDiffStatsNaive,
+} from "../packages/viz/src/diffStats.ts";
 
 const kernel = enumOption("--kernel", ["hunk-projection", "symbol-tree"] as const);
-const condition = enumOption("--condition", ["indexed", "naive", "parent-aware"] as const);
+const condition = enumOption("--condition", [
+  "indexed",
+  "naive",
+  "adaptive",
+  "parent-aware",
+] as const);
 const symbolCount = integerOption("--symbols", 1_000, 1);
 const hunkCount = integerOption("--hunks", kernel === "hunk-projection" ? 100 : 0, 0);
 const maxDepth = integerOption("--depth", kernel === "symbol-tree" ? 1 : 0, 0);
@@ -59,8 +67,10 @@ function createRun(): () => ReadonlyMap<string, unknown> {
   if (kernel === "hunk-projection") {
     const fixture = createAstDiffProjectionFixture({ symbolCount, hunkCount, seed });
     return condition === "indexed"
-      ? () => buildSymbolDiffStats(fixture.symbols, fixture.hunks)
-      : () => buildSymbolDiffStatsNaive(fixture.symbols, fixture.hunks);
+      ? () => buildSymbolDiffStatsIndexed(fixture.symbols, fixture.hunks)
+      : condition === "naive"
+        ? () => buildSymbolDiffStatsNaive(fixture.symbols, fixture.hunks)
+        : () => buildSymbolDiffStats(fixture.symbols, fixture.hunks);
   }
   const fixture = createAstDiffTreeFixture({ symbolCount, maxDepth, seed });
   return () => diffAstSymbols(fixture.before, fixture.after);

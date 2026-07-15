@@ -1,7 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { buildSymbolDiffStats } from "./diffStats.ts";
+import { buildSymbolDiffStatsIndexed, buildSymbolDiffStatsNaive } from "./diffStats.ts";
 import {
-  buildSymbolDiffStatsNaive,
   createAstDiffProjectionFixture,
   createAstDiffTreeFixture,
   summarizeAstDiffScalingMeasurements,
@@ -24,7 +23,7 @@ describe("AST diff scaling fixtures", () => {
     ];
 
     expect([...buildSymbolDiffStatsNaive(symbols, hunks)]).toEqual([
-      ...buildSymbolDiffStats(symbols, hunks),
+      ...buildSymbolDiffStatsIndexed(symbols, hunks),
     ]);
   });
 
@@ -35,7 +34,7 @@ describe("AST diff scaling fixtures", () => {
       seed: 1729,
     });
 
-    expect([...buildSymbolDiffStats(fixture.symbols, fixture.hunks)]).toEqual([
+    expect([...buildSymbolDiffStatsIndexed(fixture.symbols, fixture.hunks)]).toEqual([
       ...buildSymbolDiffStatsNaive(fixture.symbols, fixture.hunks),
     ]);
   });
@@ -69,6 +68,9 @@ describe("summarizeAstDiffScalingMeasurements", () => {
       measurement("hunk-projection", "naive", 1, 100, 130),
       measurement("hunk-projection", "naive", 2, 110, 140),
       measurement("hunk-projection", "naive", 3, 120, 150),
+      measurement("hunk-projection", "adaptive", 1, 11, 105),
+      measurement("hunk-projection", "adaptive", 2, 12, 115),
+      measurement("hunk-projection", "adaptive", 3, 13, 125),
       measurement("symbol-tree", "parent-aware", 1, 20, 200, {
         hunkCount: 0,
         maxDepth: 8,
@@ -111,6 +113,11 @@ describe("summarizeAstDiffScalingMeasurements", () => {
         durationMs: expect.objectContaining({ p50: 110 }),
       }),
       expect.objectContaining({
+        kernel: "hunk-projection",
+        condition: "adaptive",
+        durationMs: expect.objectContaining({ p50: 12 }),
+      }),
+      expect.objectContaining({
         kernel: "symbol-tree",
         condition: "parent-aware",
         successfulRepetitions: 2,
@@ -120,10 +127,13 @@ describe("summarizeAstDiffScalingMeasurements", () => {
     expect(summary.projectionComparisons).toEqual([
       expect.objectContaining({
         symbolCount: 1_000,
-        hunkCount: 100,
+        hunkCount: 2_000,
         indexedP50Ms: 12,
         naiveP50Ms: 110,
         speedup: 110 / 12,
+        adaptiveP50Ms: 12,
+        adaptiveOverBest: 1,
+        adaptiveStrategy: "indexed",
       }),
     ]);
   });
@@ -148,11 +158,11 @@ function symbol(name: string, startLine: number, endLine: number) {
 
 function measurement(
   kernel: "hunk-projection" | "symbol-tree",
-  condition: "indexed" | "naive" | "parent-aware",
+  condition: "indexed" | "naive" | "adaptive" | "parent-aware",
   repetition: number,
   durationMs: number,
   maxRssKb: number,
-  dimensions: { hunkCount: number; maxDepth: number } = { hunkCount: 100, maxDepth: 0 },
+  dimensions: { hunkCount: number; maxDepth: number } = { hunkCount: 2_000, maxDepth: 0 },
 ): AstDiffScalingMeasurement {
   return {
     schemaVersion: 1,

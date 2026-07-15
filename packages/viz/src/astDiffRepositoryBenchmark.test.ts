@@ -17,6 +17,16 @@ describe("AST diff repository benchmark contract", () => {
     };
 
     expect(parseAstDiffRepositoryFixture(fixture)).toEqual(fixture);
+    expect(
+      parseAstDiffRepositoryFixture({
+        ...fixture,
+        sourceDatasetId: "ast-diff-adaptive-performance-holdout-v1",
+        status: "performance-only holdout fixed before adaptive benchmark execution",
+      }),
+    ).toMatchObject({
+      sourceDatasetId: "ast-diff-adaptive-performance-holdout-v1",
+      status: "performance-only holdout fixed before adaptive benchmark execution",
+    });
     expect(() =>
       parseAstDiffRepositoryFixture({
         ...fixture,
@@ -31,6 +41,9 @@ describe("runAstDiffRepositoryCase", () => {
     const testCase = repositoryCase();
 
     expect([...runAstDiffRepositoryCase(testCase, "projection-indexed")]).toEqual([
+      ...runAstDiffRepositoryCase(testCase, "projection-naive"),
+    ]);
+    expect([...runAstDiffRepositoryCase(testCase, "projection-adaptive")]).toEqual([
       ...runAstDiffRepositoryCase(testCase, "projection-naive"),
     ]);
   });
@@ -50,20 +63,36 @@ describe("summarizeAstDiffRepositoryMeasurements", () => {
       measurement("case-a", "owner/repo-a", "projection-indexed", 2, 4),
       measurement("case-a", "owner/repo-a", "projection-naive", 1, 8),
       measurement("case-a", "owner/repo-a", "projection-naive", 2, 10),
+      measurement("case-a", "owner/repo-a", "projection-adaptive", 1, 3.5),
+      measurement("case-a", "owner/repo-a", "projection-adaptive", 2, 4.5),
       measurement("case-a", "owner/repo-a", "parent-aware", 1, 5, "tree-a"),
       measurement("case-a", "owner/repo-a", "parent-aware", 2, 7, "tree-a"),
       measurement("case-b", "owner/repo-a", "projection-indexed", 1, 4),
       measurement("case-b", "owner/repo-a", "projection-indexed", 2, 6),
       measurement("case-b", "owner/repo-a", "projection-naive", 1, 18),
       measurement("case-b", "owner/repo-a", "projection-naive", 2, 22),
+      measurement("case-b", "owner/repo-a", "projection-adaptive", 1, 4),
+      measurement("case-b", "owner/repo-a", "projection-adaptive", 2, 6),
       measurement("case-b", "owner/repo-a", "parent-aware", 1, 9, "tree-b"),
       measurement("case-b", "owner/repo-a", "parent-aware", 2, 11, "tree-b"),
     ];
 
     const summary = summarizeAstDiffRepositoryMeasurements(measurements);
     expect(summary.projectionComparisons).toEqual([
-      expect.objectContaining({ caseId: "case-a", indexedP50Ms: 3, naiveP50Ms: 9, speedup: 3 }),
-      expect.objectContaining({ caseId: "case-b", indexedP50Ms: 5, naiveP50Ms: 20, speedup: 4 }),
+      expect.objectContaining({
+        caseId: "case-a",
+        indexedP50Ms: 3,
+        naiveP50Ms: 9,
+        adaptiveP50Ms: 4,
+        adaptiveOverBest: 4 / 3,
+      }),
+      expect.objectContaining({
+        caseId: "case-b",
+        indexedP50Ms: 5,
+        naiveP50Ms: 20,
+        adaptiveP50Ms: 5,
+        adaptiveOverBest: 1,
+      }),
     ]);
     expect(summary.repositories).toEqual([
       expect.objectContaining({
@@ -71,6 +100,9 @@ describe("summarizeAstDiffRepositoryMeasurements", () => {
         caseCount: 2,
         projectionCaseCount: 2,
         medianProjectionSpeedup: 3.5,
+        medianAdaptiveOverBest: expect.closeTo(7 / 6, 10),
+        adaptiveWithin25PctCases: 1,
+        adaptiveWithin25PctRate: 0.5,
         parentAwareMedianCaseP50Ms: 8,
       }),
     ]);
@@ -146,6 +178,8 @@ function measurement(
     beforeSymbolCount: 2,
     afterSymbolCount: 3,
     hunkCount: 4,
+    adaptiveNaiveFileCount: 2,
+    adaptiveIndexedFileCount: 0,
     status: "ok",
     durationMs: durationPerIterationMs * 10,
     durationPerIterationMs,

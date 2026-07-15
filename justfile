@@ -42,6 +42,9 @@ benchmark-ast-diff-scaling profile="pilot" *args:
 build-ast-diff-repository-fixture *args:
     @pnpm tsx tools/build-ast-diff-repository-fixture.ts {{ args }}
 
+select-ast-diff-performance-holdout *args:
+    @pnpm tsx tools/select-ast-diff-performance-holdout.ts {{ args }}
+
 benchmark-ast-diff-repository profile="smoke" *args:
     @pnpm tsx tools/run-ast-diff-repository-benchmark.ts --profile {{ profile }} {{ args }}
 

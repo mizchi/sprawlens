@@ -11,7 +11,7 @@ import {
 import {
   isAstDiffRepositorySourcePath,
   parseAstDiffRepositoryChangedFiles,
-  parseAstDiffRepositoryDevelopmentManifest,
+  parseAstDiffRepositorySourceManifest,
 } from "./ast-diff-repository-corpus.ts";
 
 const exec = promisify(execFile);
@@ -23,7 +23,7 @@ const outputPath = resolve(
   option("--output", "research/datasets/ast-diff-repository-performance-v1.json"),
 );
 const manifestText = await readFile(manifestPath, "utf8");
-const manifest = parseAstDiffRepositoryDevelopmentManifest(JSON.parse(manifestText));
+const manifest = parseAstDiffRepositorySourceManifest(JSON.parse(manifestText));
 const manifestDirectory = dirname(manifestPath);
 const cases: AstDiffRepositoryCaseFixture[] = [];
 
@@ -100,7 +100,10 @@ for (const manifestCase of manifest.cases) {
 const fixture = parseAstDiffRepositoryFixture({
   schemaVersion: 1,
   sourceDatasetId: manifest.datasetId,
-  status: "post-hoc development corpus; not confirmatory evidence",
+  status:
+    manifest.datasetId === "ast-diff-adaptive-performance-holdout-v1"
+      ? "performance-only holdout fixed before adaptive benchmark execution"
+      : "post-hoc development corpus; not confirmatory evidence",
   cases,
 });
 await writeAtomic(outputPath, `${JSON.stringify(fixture, null, 2)}\n`);

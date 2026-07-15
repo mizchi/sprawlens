@@ -4,9 +4,9 @@ export type AstDiffRepositoryChangedFile = {
   afterPath: string | null;
 };
 
-export type AstDiffRepositoryDevelopmentManifest = {
+export type AstDiffRepositorySourceManifest = {
   schemaVersion: 1;
-  datasetId: "ast-diff-confirmatory-v1-phase1";
+  datasetId: "ast-diff-confirmatory-v1-phase1" | "ast-diff-adaptive-performance-holdout-v1";
   cases: Array<{
     id: string;
     repository: string;
@@ -37,16 +37,21 @@ const IGNORED_SEGMENTS = new Set([
 ]);
 
 /** The repository benchmark must never consume the blinded v2 holdout. */
-export function parseAstDiffRepositoryDevelopmentManifest(
+export function parseAstDiffRepositorySourceManifest(
   value: unknown,
-): AstDiffRepositoryDevelopmentManifest {
+): AstDiffRepositorySourceManifest {
   if (typeof value !== "object" || value === null || Array.isArray(value)) {
     throw new Error("development manifest must be an object");
   }
   const root = value as Record<string, unknown>;
   if (root.schemaVersion !== 1) throw new Error("development manifest schemaVersion must be 1");
-  if (root.datasetId !== "ast-diff-confirmatory-v1-phase1") {
-    throw new Error("only the fixed v1 development corpus is allowed; holdout input is forbidden");
+  if (
+    root.datasetId !== "ast-diff-confirmatory-v1-phase1" &&
+    root.datasetId !== "ast-diff-adaptive-performance-holdout-v1"
+  ) {
+    throw new Error(
+      "only the fixed development or performance-only manifest is allowed; annotation holdout input is forbidden",
+    );
   }
   if (!Array.isArray(root.cases) || root.cases.length === 0) {
     throw new Error("development manifest cases must be a non-empty array");

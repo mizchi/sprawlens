@@ -1,11 +1,11 @@
 import { describe, expect, it } from "vitest";
 import {
   parseAstDiffRepositoryChangedFiles,
-  parseAstDiffRepositoryDevelopmentManifest,
+  parseAstDiffRepositorySourceManifest,
 } from "./ast-diff-repository-corpus.ts";
 
-describe("parseAstDiffRepositoryDevelopmentManifest", () => {
-  it("accepts only the fixed v1 development manifest", () => {
+describe("parseAstDiffRepositorySourceManifest", () => {
+  it("accepts the fixed development and performance-only manifests", () => {
     const manifest = {
       schemaVersion: 1,
       datasetId: "ast-diff-confirmatory-v1-phase1",
@@ -19,9 +19,18 @@ describe("parseAstDiffRepositoryDevelopmentManifest", () => {
         },
       ],
     };
-    expect(parseAstDiffRepositoryDevelopmentManifest(manifest)).toEqual(manifest);
+    expect(parseAstDiffRepositorySourceManifest(manifest)).toEqual(manifest);
+    expect(
+      parseAstDiffRepositorySourceManifest({
+        ...manifest,
+        datasetId: "ast-diff-adaptive-performance-holdout-v1",
+      }),
+    ).toEqual({
+      ...manifest,
+      datasetId: "ast-diff-adaptive-performance-holdout-v1",
+    });
     expect(() =>
-      parseAstDiffRepositoryDevelopmentManifest({
+      parseAstDiffRepositorySourceManifest({
         ...manifest,
         datasetId: "ast-diff-confirmatory-v2-holdout",
       }),

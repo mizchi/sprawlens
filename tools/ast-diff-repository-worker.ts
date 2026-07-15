@@ -9,6 +9,7 @@ import {
   type AstDiffRepositoryCondition,
   type AstDiffRepositoryMeasurement,
 } from "../packages/viz/src/astDiffRepositoryBenchmark.ts";
+import { chooseSymbolDiffProjectionStrategy } from "../packages/viz/src/diffStats.ts";
 
 const fixturePath = resolve(option("--fixture", ""));
 const caseId = option("--case", "");
@@ -29,6 +30,9 @@ const started = performance.now();
 for (let iteration = 0; iteration < batchIterations; iteration += 1) output = run();
 const durationMs = performance.now() - started;
 if (!output) throw new Error("repository worker produced no output");
+const adaptiveStrategies = testCase.files.map((file) =>
+  chooseSymbolDiffProjectionStrategy(file.after.length, file.hunks.length),
+);
 const measurement: AstDiffRepositoryMeasurement = {
   schemaVersion: 1,
   caseId: testCase.id,
@@ -41,6 +45,8 @@ const measurement: AstDiffRepositoryMeasurement = {
   beforeSymbolCount: countSymbols(testCase.files, "before"),
   afterSymbolCount: countSymbols(testCase.files, "after"),
   hunkCount: testCase.files.reduce((sum, file) => sum + file.hunks.length, 0),
+  adaptiveNaiveFileCount: adaptiveStrategies.filter((strategy) => strategy === "naive").length,
+  adaptiveIndexedFileCount: adaptiveStrategies.filter((strategy) => strategy === "indexed").length,
   status: "ok",
   durationMs,
   durationPerIterationMs: durationMs / batchIterations,

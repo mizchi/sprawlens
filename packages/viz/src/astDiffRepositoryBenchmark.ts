@@ -1,10 +1,16 @@
 import { diffAstSymbols, type AstSymbolLike } from "./astSymbolDiff.ts";
-import { buildSymbolDiffStatsNaive } from "./astDiffScalingBenchmark.ts";
-import { buildSymbolDiffStats, type DiffHunk, type NodeDiffStat } from "./diffStats.ts";
+import {
+  buildSymbolDiffStats,
+  buildSymbolDiffStatsIndexed,
+  buildSymbolDiffStatsNaive,
+  type DiffHunk,
+  type NodeDiffStat,
+} from "./diffStats.ts";
 
 export const AST_DIFF_REPOSITORY_CONDITIONS = [
   "projection-indexed",
   "projection-naive",
+  "projection-adaptive",
   "parent-aware",
 ] as const;
 
@@ -30,7 +36,9 @@ export type AstDiffRepositoryCaseFixture = {
 export type AstDiffRepositoryFixture = {
   schemaVersion: 1;
   sourceDatasetId: string;
-  status: "post-hoc development corpus; not confirmatory evidence";
+  status:
+    | "post-hoc development corpus; not confirmatory evidence"
+    | "performance-only holdout fixed before adaptive benchmark execution";
   cases: AstDiffRepositoryCaseFixture[];
 };
 
@@ -46,6 +54,8 @@ export type AstDiffRepositoryMeasurement = {
   beforeSymbolCount: number;
   afterSymbolCount: number;
   hunkCount: number;
+  adaptiveNaiveFileCount: number;
+  adaptiveIndexedFileCount: number;
   status: "ok" | "timeout" | "error";
   durationMs: number | null;
   durationPerIterationMs: number | null;
@@ -72,6 +82,8 @@ export type AstDiffRepositoryGroup = {
   beforeSymbolCount: number;
   afterSymbolCount: number;
   hunkCount: number;
+  adaptiveNaiveFileCount: number;
+  adaptiveIndexedFileCount: number;
   repetitions: number;
   successfulRepetitions: number;
   failures: number;
@@ -94,12 +106,19 @@ export type AstDiffRepositorySummary = {
     indexedP50Ms: number;
     naiveP50Ms: number;
     speedup: number;
+    adaptiveP50Ms: number;
+    adaptiveOverBest: number;
+    adaptiveNaiveFileCount: number;
+    adaptiveIndexedFileCount: number;
   }>;
   repositories: Array<{
     repository: string;
     caseCount: number;
     projectionCaseCount: number;
     medianProjectionSpeedup: number | null;
+    medianAdaptiveOverBest: number | null;
+    adaptiveWithin25PctCases: number;
+    adaptiveWithin25PctRate: number | null;
     parentAwareMedianCaseP50Ms: number | null;
   }>;
 };
@@ -108,11 +127,16 @@ export function parseAstDiffRepositoryFixture(value: unknown): AstDiffRepository
   const root = objectAt(value, "fixture");
   if (root.schemaVersion !== 1) throw new Error("fixture schemaVersion must be 1");
   const sourceDatasetId = stringAt(root.sourceDatasetId, "fixture.sourceDatasetId");
-  if (/confirmatory-v2|holdout/i.test(sourceDatasetId)) {
-    throw new Error("confirmatory holdout input is forbidden for repository performance work");
+  const development = sourceDatasetId === "ast-diff-confirmatory-v1-phase1";
+  const performanceHoldout = sourceDatasetId === "ast-diff-adaptive-performance-holdout-v1";
+  if (!development && !performanceHoldout) {
+    throw new Error("annotation holdout input is forbidden for repository performance work");
   }
-  if (root.status !== "post-hoc development corpus; not confirmatory evidence") {
-    throw new Error("fixture status must identify the post-hoc development corpus");
+  const expectedStatus = development
+    ? "post-hoc development corpus; not confirmatory evidence"
+    : "performance-only holdout fixed before adaptive benchmark execution";
+  if (root.status !== expectedStatus) {
+    throw new Error("fixture status does not match its fixed source dataset");
   }
   if (!Array.isArray(root.cases) || root.cases.length === 0) {
     throw new Error("fixture.cases must be a non-empty array");
@@ -127,7 +151,7 @@ export function parseAstDiffRepositoryFixture(value: unknown): AstDiffRepository
   return {
     schemaVersion: 1,
     sourceDatasetId,
-    status: root.status,
+    status: expectedStatus,
     cases,
   };
 }
@@ -157,8 +181,10 @@ export function runAstDiffRepositoryCase(
     });
     const stats =
       condition === "projection-indexed"
-        ? buildSymbolDiffStats(symbols, file.hunks)
-        : buildSymbolDiffStatsNaive(symbols, file.hunks);
+        ? buildSymbolDiffStatsIndexed(symbols, file.hunks)
+        : condition === "projection-naive"
+          ? buildSymbolDiffStatsNaive(symbols, file.hunks)
+          : buildSymbolDiffStats(symbols, file.hunks);
     for (const [symbolId, stat] of stats) output.set(`${path}\0${symbolId}`, stat);
   }
   return output;
@@ -188,13 +214,33 @@ export function summarizeAstDiffRepositoryMeasurements(
   for (const scenario of projectionByCase.values()) {
     const indexed = scenario.find((group) => group.condition === "projection-indexed");
     const naive = scenario.find((group) => group.condition === "projection-naive");
-    if (!indexed || !naive || !indexed.durationPerIterationMs || !naive.durationPerIterationMs) {
+    const adaptive = scenario.find((group) => group.condition === "projection-adaptive");
+    if (
+      indexed &&
+      naive &&
+      indexed.durationPerIterationMs &&
+      naive.durationPerIterationMs &&
+      (indexed.outputDigest !== naive.outputDigest || indexed.outputItems !== naive.outputItems)
+    ) {
+      throw new Error(`projection output digest mismatch for ${indexed.caseId}`);
+    }
+    if (
+      !indexed ||
+      !naive ||
+      !adaptive ||
+      !indexed.durationPerIterationMs ||
+      !naive.durationPerIterationMs ||
+      !adaptive.durationPerIterationMs
+    ) {
       continue;
     }
-    if (indexed.repository !== naive.repository) {
+    if (indexed.repository !== naive.repository || indexed.repository !== adaptive.repository) {
       throw new Error(`projection repository mismatch for ${indexed.caseId}`);
     }
-    if (indexed.outputDigest !== naive.outputDigest || indexed.outputItems !== naive.outputItems) {
+    if (
+      indexed.outputDigest !== adaptive.outputDigest ||
+      indexed.outputItems !== adaptive.outputItems
+    ) {
       throw new Error(`projection output digest mismatch for ${indexed.caseId}`);
     }
     projectionComparisons.push({
@@ -207,6 +253,12 @@ export function summarizeAstDiffRepositoryMeasurements(
       indexedP50Ms: indexed.durationPerIterationMs.p50,
       naiveP50Ms: naive.durationPerIterationMs.p50,
       speedup: naive.durationPerIterationMs.p50 / indexed.durationPerIterationMs.p50,
+      adaptiveP50Ms: adaptive.durationPerIterationMs.p50,
+      adaptiveOverBest:
+        adaptive.durationPerIterationMs.p50 /
+        Math.min(indexed.durationPerIterationMs.p50, naive.durationPerIterationMs.p50),
+      adaptiveNaiveFileCount: adaptive.adaptiveNaiveFileCount,
+      adaptiveIndexedFileCount: adaptive.adaptiveIndexedFileCount,
     });
   }
   projectionComparisons.sort(
@@ -221,12 +273,20 @@ export function summarizeAstDiffRepositoryMeasurements(
       const parentAware = repositoryGroups.filter(
         (group) => group.condition === "parent-aware" && group.durationPerIterationMs,
       );
+      const adaptiveWithin25PctCases = comparisons.filter(
+        (item) => item.adaptiveOverBest <= 1.25,
+      ).length;
       return {
         repository,
         caseCount: new Set(repositoryGroups.map((group) => group.caseId)).size,
         projectionCaseCount: comparisons.length,
         medianProjectionSpeedup:
           comparisons.length > 0 ? median(comparisons.map((item) => item.speedup)) : null,
+        medianAdaptiveOverBest:
+          comparisons.length > 0 ? median(comparisons.map((item) => item.adaptiveOverBest)) : null,
+        adaptiveWithin25PctCases,
+        adaptiveWithin25PctRate:
+          comparisons.length > 0 ? adaptiveWithin25PctCases / comparisons.length : null,
         parentAwareMedianCaseP50Ms:
           parentAware.length > 0
             ? median(parentAware.map((group) => group.durationPerIterationMs!.p50))
@@ -314,6 +374,8 @@ function summarizeGroup(
       "beforeSymbolCount",
       "afterSymbolCount",
       "hunkCount",
+      "adaptiveNaiveFileCount",
+      "adaptiveIndexedFileCount",
     ] as const) {
       if (measurement[key] !== first[key]) {
         throw new Error(`inconsistent ${key} in repository group ${groupKey(first)}`);
@@ -343,6 +405,8 @@ function summarizeGroup(
     beforeSymbolCount: first.beforeSymbolCount,
     afterSymbolCount: first.afterSymbolCount,
     hunkCount: first.hunkCount,
+    adaptiveNaiveFileCount: first.adaptiveNaiveFileCount,
+    adaptiveIndexedFileCount: first.adaptiveIndexedFileCount,
     repetitions: measurements.length,
     successfulRepetitions: successful.length,
     failures: measurements.length - successful.length,
@@ -370,6 +434,17 @@ function validateMeasurement(measurement: AstDiffRepositoryMeasurement): void {
   nonNegativeIntegerAt(measurement.beforeSymbolCount, "measurement.beforeSymbolCount");
   nonNegativeIntegerAt(measurement.afterSymbolCount, "measurement.afterSymbolCount");
   nonNegativeIntegerAt(measurement.hunkCount, "measurement.hunkCount");
+  nonNegativeIntegerAt(measurement.adaptiveNaiveFileCount, "measurement.adaptiveNaiveFileCount");
+  nonNegativeIntegerAt(
+    measurement.adaptiveIndexedFileCount,
+    "measurement.adaptiveIndexedFileCount",
+  );
+  if (
+    measurement.adaptiveNaiveFileCount + measurement.adaptiveIndexedFileCount !==
+    measurement.fileCount
+  ) {
+    throw new Error("measurement adaptive file counts must sum to fileCount");
+  }
   if (measurement.status === "ok") {
     if (
       measurement.durationMs === null ||

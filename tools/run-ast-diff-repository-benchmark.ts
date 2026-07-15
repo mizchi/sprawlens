@@ -12,6 +12,10 @@ import {
   type AstDiffRepositoryGroup,
   type AstDiffRepositoryMeasurement,
 } from "../packages/viz/src/astDiffRepositoryBenchmark.ts";
+import {
+  chooseSymbolDiffProjectionStrategy,
+  SYMBOL_DIFF_PROJECTION_WORK_RATIO_THRESHOLD,
+} from "../packages/viz/src/diffStats.ts";
 
 const exec = promisify(execFile);
 const projectRoot = resolve(import.meta.dirname, "..");
@@ -45,9 +49,14 @@ const protocol = {
     "batch of whole-commit algorithm calls after in-process warmup; fixture parsing excluded" as const,
   analysisUnit: "case paired within repository; repository is the outer summary unit" as const,
   correctnessGate:
-    "indexed and naive projection output SHA-256 digests and item counts must match per case" as const,
-  order: "case order and the three-condition order rotate deterministically by repetition" as const,
+    "indexed, naive, and adaptive projection output SHA-256 digests and item counts must match per case" as const,
+  order: "case order and condition order rotate deterministically by repetition" as const,
   conditions: AST_DIFF_REPOSITORY_CONDITIONS,
+  adaptivePolicy: {
+    workRatio: "S*H / ((S+H)*log2(H+1))" as const,
+    threshold: SYMBOL_DIFF_PROJECTION_WORK_RATIO_THRESHOLD,
+    indexedWhen: "work ratio > threshold" as const,
+  },
 };
 const protocolHash = sha256(JSON.stringify(protocol));
 const [implementation, evidence] = await Promise.all([
@@ -66,6 +75,9 @@ for (let repetition = 1; repetition <= repetitions; repetition += 1) {
       (repetition + caseIndex - 1) % AST_DIFF_REPOSITORY_CONDITIONS.length,
     );
     for (const condition of conditions) {
+      const adaptiveStrategies = testCase.files.map((file) =>
+        chooseSymbolDiffProjectionStrategy(file.after.length, file.hunks.length),
+      );
       process.stderr.write(
         `[repository ${testCase.repository} ${testCase.id} ${condition} ${repetition}/${repetitions}]\n`,
       );
@@ -79,6 +91,10 @@ for (let repetition = 1; repetition <= repetitions; repetition += 1) {
           beforeSymbolCount: countSymbols(testCase.files, "before"),
           afterSymbolCount: countSymbols(testCase.files, "after"),
           hunkCount: testCase.files.reduce((sum, file) => sum + file.hunks.length, 0),
+          adaptiveNaiveFileCount: adaptiveStrategies.filter((strategy) => strategy === "naive")
+            .length,
+          adaptiveIndexedFileCount: adaptiveStrategies.filter((strategy) => strategy === "indexed")
+            .length,
         }),
       );
     }
@@ -95,6 +111,7 @@ const result = {
     path: relative(projectRoot, fixturePath),
     sha256: sha256(fixtureText),
     sourceDatasetId: fixture.sourceDatasetId,
+    status: fixture.status,
     repositories: new Set(fixture.cases.map((testCase) => testCase.repository)).size,
     cases: fixture.cases.length,
     files: fixture.cases.reduce((sum, testCase) => sum + testCase.files.length, 0),
@@ -143,6 +160,8 @@ async function runWorker(input: {
   beforeSymbolCount: number;
   afterSymbolCount: number;
   hunkCount: number;
+  adaptiveNaiveFileCount: number;
+  adaptiveIndexedFileCount: number;
 }): Promise<AstDiffRepositoryMeasurement> {
   const base = {
     schemaVersion: 1 as const,
@@ -156,6 +175,8 @@ async function runWorker(input: {
     beforeSymbolCount: input.beforeSymbolCount,
     afterSymbolCount: input.afterSymbolCount,
     hunkCount: input.hunkCount,
+    adaptiveNaiveFileCount: input.adaptiveNaiveFileCount,
+    adaptiveIndexedFileCount: input.adaptiveIndexedFileCount,
   };
   try {
     const { stdout, stderr } = await exec(
@@ -225,6 +246,8 @@ function assertWorkerContract(
     | "beforeSymbolCount"
     | "afterSymbolCount"
     | "hunkCount"
+    | "adaptiveNaiveFileCount"
+    | "adaptiveIndexedFileCount"
   >,
 ): void {
   for (const key of Object.keys(expected) as Array<keyof typeof expected>) {
@@ -239,6 +262,7 @@ function renderMarkdown(result: {
     path: string;
     sha256: string;
     sourceDatasetId: string;
+    status: (typeof fixture)["status"];
     repositories: number;
     cases: number;
     files: number;
@@ -250,13 +274,17 @@ function renderMarkdown(result: {
   environment: { node: string; platform: string; arch: string; cpu: string };
   summary: ReturnType<typeof summarizeAstDiffRepositoryMeasurements>;
 }): string {
+  const claimBoundary =
+    result.fixture.status === "post-hoc development corpus; not confirmatory evidence"
+      ? "The fixed v1/v3 development corpus is post-hoc and contains only four repositories, so this is not confirmatory evidence."
+      : "This locally fixed performance-only holdout was not externally timestamped or preregistered, so results remain bounded exploratory evidence.";
   const repositoryRows = result.summary.repositories.map(
     (repository) =>
-      `| ${repository.repository} | ${repository.caseCount} | ${repository.projectionCaseCount} | ${formatNumber(repository.medianProjectionSpeedup, 2, "×")} | ${formatNumber(repository.parentAwareMedianCaseP50Ms, 4, " ms")} |`,
+      `| ${repository.repository} | ${repository.caseCount} | ${repository.projectionCaseCount} | ${formatNumber(repository.medianProjectionSpeedup, 2, "×")} | ${formatNumber(repository.medianAdaptiveOverBest, 2, "×")} | ${formatPercent(repository.adaptiveWithin25PctRate)} | ${formatNumber(repository.parentAwareMedianCaseP50Ms, 4, " ms")} |`,
   );
   const projectionRows = result.summary.projectionComparisons.map(
     (comparison) =>
-      `| ${comparison.repository} | ${comparison.caseId} | ${comparison.fileCount} | ${comparison.afterSymbolCount} | ${comparison.hunkCount} | ${comparison.indexedP50Ms.toFixed(4)} | ${comparison.naiveP50Ms.toFixed(4)} | ${comparison.speedup.toFixed(2)}× |`,
+      `| ${comparison.repository} | ${comparison.caseId} | ${comparison.fileCount} | ${comparison.afterSymbolCount} | ${comparison.hunkCount} | ${comparison.indexedP50Ms.toFixed(4)} | ${comparison.naiveP50Ms.toFixed(4)} | ${comparison.adaptiveP50Ms.toFixed(4)} | ${comparison.adaptiveOverBest.toFixed(2)}× | ${comparison.adaptiveNaiveFileCount}/${comparison.adaptiveIndexedFileCount} |`,
   );
   const treeRows = result.summary.groups
     .filter((group) => group.condition === "parent-aware")
@@ -267,7 +295,7 @@ function renderMarkdown(result: {
   const failures = result.summary.groups.filter((group) => group.failures > 0);
   return `# Multi-repository AST diff performance pilot
 
-Status: ${result.status}. The fixed v1/v3 development corpus is post-hoc and contains only four repositories, so this is not confirmatory evidence.
+Status: ${result.status}. ${claimBoundary}
 
 - Fixture: \`${result.fixture.path}\` (SHA-256 \`${result.fixture.sha256}\`)
 - Source dataset: \`${result.fixture.sourceDatasetId}\`
@@ -285,17 +313,17 @@ Status: ${result.status}. The fixed v1/v3 development corpus is post-hoc and con
 
 Each case first contributes one paired median. Repository rows summarize those case-level values; process repetitions are not treated as independent repository samples.
 
-| Repository | Cases | Paired projection cases | Median naive/indexed speedup | Parent-aware median case p50 |
-| --- | ---: | ---: | ---: | ---: |
+| Repository | Cases | Paired projection cases | Median naive/indexed speedup | Median adaptive/best overhead | Adaptive within 25% | Parent-aware median case p50 |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: |
 ${repositoryRows.join("\n")}
 
 ## Projection by commit case
 
-| Repository | Case | Files | After symbols | Hunks | Indexed p50 ms | Naive p50 ms | Naive/indexed |
-| --- | --- | ---: | ---: | ---: | ---: | ---: | ---: |
+| Repository | Case | Files | After symbols | Hunks | Indexed p50 ms | Naive p50 ms | Adaptive p50 ms | Adaptive/best | Adaptive N/I files |
+| --- | --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
 ${projectionRows.join("\n")}
 
-All paired indexed/naive output digests and item counts must agree before this table is emitted.
+All paired indexed/naive/adaptive output digests and item counts must agree before this table is emitted.
 
 ## Parent-aware tree diff by commit case
 
@@ -361,6 +389,10 @@ function formatNumber(
 
 function formatInteger(value: number | null | undefined): string {
   return value === null || value === undefined ? "–" : Math.round(value).toLocaleString("en-US");
+}
+
+function formatPercent(value: number | null | undefined): string {
+  return value === null || value === undefined ? "–" : `${(value * 100).toFixed(1)}%`;
 }
 
 function sanitizeError(value: string): string {

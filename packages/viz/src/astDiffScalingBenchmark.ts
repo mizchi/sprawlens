@@ -1,5 +1,5 @@
 import type { AstSymbolLike } from "./astSymbolDiff.ts";
-import type { DiffHunk, NodeDiffStat } from "./diffStats.ts";
+import { chooseSymbolDiffProjectionStrategy, type DiffHunk } from "./diffStats.ts";
 
 export type AstDiffProjectionSymbol = {
   id: string;
@@ -11,7 +11,7 @@ export type AstDiffProjectionSymbol = {
 export type AstDiffScalingMeasurement = {
   schemaVersion: 1;
   kernel: "hunk-projection" | "symbol-tree";
-  condition: "indexed" | "naive" | "parent-aware";
+  condition: "indexed" | "naive" | "adaptive" | "parent-aware";
   symbolCount: number;
   hunkCount: number;
   maxDepth: number;
@@ -63,57 +63,11 @@ export type AstDiffScalingSummary = {
     indexedP50MaxRssKb: number;
     naiveP50MaxRssKb: number;
     memoryRatio: number;
+    adaptiveP50Ms: number;
+    adaptiveOverBest: number;
+    adaptiveStrategy: "indexed" | "naive";
   }>;
 };
-
-/**
- * Reference implementation for the pre-index projection path. Each symbol
- * scans every hunk, making the intended comparison O(SH) time / O(S) output.
- */
-export function buildSymbolDiffStatsNaive(
-  symbols: readonly AstDiffProjectionSymbol[],
-  hunks: readonly DiffHunk[],
-): Map<string, NodeDiffStat> {
-  const output = new Map<string, NodeDiffStat>();
-  for (const symbol of symbols) {
-    const start = Math.max(1, symbol.sourceRange.startLine);
-    const end = Math.max(start, symbol.sourceRange.endLine);
-    let added = 0;
-    let replacementDeleted = 0;
-    let replacementTouched = 0;
-    let pureDeleted = 0;
-    for (const hunk of hunks) {
-      if (hunk.newLines > 0) {
-        const hunkStart = hunk.newStart;
-        const hunkEnd = hunk.newStart + hunk.newLines - 1;
-        const overlap = Math.max(0, Math.min(end, hunkEnd) - Math.max(start, hunkStart) + 1);
-        if (overlap === 0) continue;
-        added += overlap;
-        replacementDeleted += overlap * (hunk.oldLines / hunk.newLines);
-        replacementTouched += overlap;
-      } else if (
-        hunk.oldLines > 0 &&
-        Math.max(1, hunk.newStart) >= start &&
-        Math.max(1, hunk.newStart) <= end
-      ) {
-        pureDeleted += hunk.oldLines;
-      }
-    }
-    const touched = Math.round(replacementTouched) + pureDeleted;
-    if (touched <= 0) continue;
-    const deleted =
-      (replacementDeleted > 0 ? Math.max(1, Math.round(replacementDeleted)) : 0) + pureDeleted;
-    const total = Math.max(1, end - start + 1);
-    output.set(symbol.id, {
-      added: Math.round(added),
-      deleted,
-      touched,
-      total,
-      ratio: Math.max(0, Math.min(1, touched / total)),
-    });
-  }
-  return output;
-}
 
 export function createAstDiffProjectionFixture(options: {
   symbolCount: number;
@@ -227,22 +181,54 @@ export function summarizeAstDiffScalingMeasurements(
   for (const scenario of projectionByScenario.values()) {
     const indexed = scenario.find((group) => group.condition === "indexed");
     const naive = scenario.find((group) => group.condition === "naive");
-    if (!indexed || !naive || !indexed.durationMs || !naive.durationMs) continue;
-    if (indexed.outputDigest !== naive.outputDigest) {
+    const adaptive = scenario.find((group) => group.condition === "adaptive");
+    if (
+      indexed &&
+      naive &&
+      indexed.durationMs &&
+      naive.durationMs &&
+      indexed.outputDigest !== naive.outputDigest
+    ) {
       throw new Error(
         `projection output digest mismatch for S=${indexed.symbolCount}, H=${indexed.hunkCount}`,
+      );
+    }
+    if (
+      !indexed ||
+      !naive ||
+      !adaptive ||
+      !indexed.durationMs ||
+      !naive.durationMs ||
+      !adaptive.durationMs
+    ) {
+      continue;
+    }
+    if (
+      indexed.outputDigest !== adaptive.outputDigest ||
+      indexed.outputItems !== adaptive.outputItems
+    ) {
+      throw new Error(
+        `adaptive projection output digest mismatch for S=${indexed.symbolCount}, H=${indexed.hunkCount}`,
       );
     }
     projectionComparisons.push({
       symbolCount: indexed.symbolCount,
       hunkCount: indexed.hunkCount,
-      repetitions: Math.min(indexed.successfulRepetitions, naive.successfulRepetitions),
+      repetitions: Math.min(
+        indexed.successfulRepetitions,
+        naive.successfulRepetitions,
+        adaptive.successfulRepetitions,
+      ),
       indexedP50Ms: indexed.durationMs.p50,
       naiveP50Ms: naive.durationMs.p50,
       speedup: naive.durationMs.p50 / indexed.durationMs.p50,
       indexedP50MaxRssKb: indexed.maxRssKb!.p50,
       naiveP50MaxRssKb: naive.maxRssKb!.p50,
       memoryRatio: naive.maxRssKb!.p50 / indexed.maxRssKb!.p50,
+      adaptiveP50Ms: adaptive.durationMs.p50,
+      adaptiveOverBest:
+        adaptive.durationMs.p50 / Math.min(indexed.durationMs.p50, naive.durationMs.p50),
+      adaptiveStrategy: chooseSymbolDiffProjectionStrategy(indexed.symbolCount, indexed.hunkCount),
     });
   }
   projectionComparisons.sort((a, b) => a.symbolCount - b.symbolCount || a.hunkCount - b.hunkCount);
@@ -332,7 +318,7 @@ function quantile(sorted: readonly number[], value: number): number {
 
 function compareGroups(a: AstDiffScalingGroup, b: AstDiffScalingGroup): number {
   const kernelOrder = { "hunk-projection": 0, "symbol-tree": 1 } as const;
-  const conditionOrder = { indexed: 0, naive: 1, "parent-aware": 2 } as const;
+  const conditionOrder = { indexed: 0, naive: 1, adaptive: 2, "parent-aware": 3 } as const;
   return (
     kernelOrder[a.kernel] - kernelOrder[b.kernel] ||
     a.symbolCount - b.symbolCount ||

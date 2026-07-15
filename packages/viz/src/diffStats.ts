@@ -30,6 +30,15 @@ type SymbolLike = {
 
 type Measure = { added: number; deleted: number; touched: number };
 
+export type SymbolDiffProjectionStrategy = "naive" | "indexed";
+
+/**
+ * Development-tuned boundary fixed from the 2026-07-16 synthetic pilot before
+ * evaluating any new performance-only holdout. It separated all nine observed
+ * synthetic conditions; it is not a universal hardware-independent constant.
+ */
+export const SYMBOL_DIFF_PROJECTION_WORK_RATIO_THRESHOLD = 45;
+
 /** Piecewise line-change prefix index. Build O(H log H), query O(log H). */
 class LineChangeIndex {
   private readonly xs: number[];
@@ -169,6 +178,38 @@ export function buildSymbolDiffStats(
   symbols: readonly SymbolLike[],
   hunks: readonly DiffHunk[] | undefined,
 ): Map<string, NodeDiffStat> {
+  return chooseSymbolDiffProjectionStrategy(symbols.length, hunks?.length ?? 0) === "indexed"
+    ? buildSymbolDiffStatsIndexed(symbols, hunks)
+    : buildSymbolDiffStatsNaive(symbols, hunks);
+}
+
+export function chooseSymbolDiffProjectionStrategy(
+  symbolCount: number,
+  hunkCount: number,
+): SymbolDiffProjectionStrategy {
+  return symbolDiffProjectionWorkRatio(symbolCount, hunkCount) >
+    SYMBOL_DIFF_PROJECTION_WORK_RATIO_THRESHOLD
+    ? "indexed"
+    : "naive";
+}
+
+export function symbolDiffProjectionWorkRatio(symbolCount: number, hunkCount: number): number {
+  if (!Number.isSafeInteger(symbolCount) || symbolCount < 0) {
+    throw new Error("symbolCount must be a non-negative safe integer");
+  }
+  if (!Number.isSafeInteger(hunkCount) || hunkCount < 0) {
+    throw new Error("hunkCount must be a non-negative safe integer");
+  }
+  if (symbolCount === 0 || hunkCount === 0) return 0;
+  const naiveWork = symbolCount * hunkCount;
+  const indexedWork = (symbolCount + hunkCount) * Math.log2(hunkCount + 1);
+  return naiveWork / indexedWork;
+}
+
+export function buildSymbolDiffStatsIndexed(
+  symbols: readonly SymbolLike[],
+  hunks: readonly DiffHunk[] | undefined,
+): Map<string, NodeDiffStat> {
   const out = new Map<string, NodeDiffStat>();
   if (!hunks?.length) return out;
   const index = new LineChangeIndex(hunks);
@@ -184,6 +225,58 @@ export function buildSymbolDiffStats(
     const { added, deleted, touched } = index.query(start, end);
     if (touched <= 0) continue;
     out.set(symbol.id, { added, deleted, touched, total, ratio: clamp01(touched / total) });
+  }
+  return out;
+}
+
+/** Direct all-hunk scan: O(SH) time with no index construction cost. */
+export function buildSymbolDiffStatsNaive(
+  symbols: readonly SymbolLike[],
+  hunks: readonly DiffHunk[] | undefined,
+): Map<string, NodeDiffStat> {
+  const out = new Map<string, NodeDiffStat>();
+  if (!hunks?.length) return out;
+  const legacyEnds = legacyExpandedEnds(symbols);
+  for (const symbol of symbols) {
+    const start = symbol.sourceRange?.startLine ?? parseSymbolStartLine(symbol.id);
+    if (start === null) continue;
+    const end =
+      symbol.sourceRange?.endLine ??
+      legacyEnds.get(symbol.id) ??
+      start + Math.max(1, symbol.metrics.loc) - 1;
+    let added = 0;
+    let replacementDeleted = 0;
+    let replacementTouched = 0;
+    let pureDeleted = 0;
+    for (const hunk of hunks) {
+      if (hunk.newLines > 0) {
+        const hunkStart = hunk.newStart;
+        const hunkEnd = hunk.newStart + hunk.newLines - 1;
+        const overlap = Math.max(0, Math.min(end, hunkEnd) - Math.max(start, hunkStart) + 1);
+        if (overlap === 0) continue;
+        added += overlap;
+        replacementDeleted += overlap * (hunk.oldLines / hunk.newLines);
+        replacementTouched += overlap;
+      } else if (
+        hunk.oldLines > 0 &&
+        Math.max(1, hunk.newStart) >= start &&
+        Math.max(1, hunk.newStart) <= end
+      ) {
+        pureDeleted += hunk.oldLines;
+      }
+    }
+    const touched = stableRound(replacementTouched) + pureDeleted;
+    if (touched <= 0) continue;
+    const deleted =
+      (replacementDeleted > 0 ? Math.max(1, stableRound(replacementDeleted)) : 0) + pureDeleted;
+    const total = Math.max(1, end - start + 1);
+    out.set(symbol.id, {
+      added: stableRound(added),
+      deleted,
+      touched,
+      total,
+      ratio: clamp01(touched / total),
+    });
   }
   return out;
 }

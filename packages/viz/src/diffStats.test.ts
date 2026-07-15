@@ -1,6 +1,9 @@
 import { describe, expect, it } from "vitest";
 import {
   buildSymbolDiffStats,
+  buildSymbolDiffStatsIndexed,
+  buildSymbolDiffStatsNaive,
+  chooseSymbolDiffProjectionStrategy,
   diffBaseStrokeActive,
   diffForegroundStrokeWidth,
   diffOutlineOpacity,
@@ -9,6 +12,7 @@ import {
   formatDiffPercent,
   normalizeFileDiffStats,
   parseSymbolStartLine,
+  symbolDiffProjectionWorkRatio,
 } from "./diffStats.ts";
 
 describe("parseSymbolStartLine", () => {
@@ -44,6 +48,43 @@ describe("normalizeFileDiffStats", () => {
 });
 
 describe("buildSymbolDiffStats", () => {
+  it("defines the adaptive work ratio for empty and invalid dimensions", () => {
+    expect(symbolDiffProjectionWorkRatio(0, 10)).toBe(0);
+    expect(symbolDiffProjectionWorkRatio(10, 0)).toBe(0);
+    expect(symbolDiffProjectionWorkRatio(1_000, 2_000)).toBeGreaterThan(45);
+    expect(() => symbolDiffProjectionWorkRatio(-1, 10)).toThrow(/symbolCount/i);
+    expect(() => symbolDiffProjectionWorkRatio(10, 1.5)).toThrow(/hunkCount/i);
+  });
+
+  it("selects the development-fixed strategy on both sides of the observed crossover", () => {
+    expect(chooseSymbolDiffProjectionStrategy(101, 13)).toBe("naive");
+    expect(chooseSymbolDiffProjectionStrategy(1_000, 500)).toBe("naive");
+    expect(chooseSymbolDiffProjectionStrategy(20_000, 100)).toBe("naive");
+    expect(chooseSymbolDiffProjectionStrategy(1_000, 2_000)).toBe("indexed");
+    expect(chooseSymbolDiffProjectionStrategy(5_000, 500)).toBe("indexed");
+  });
+
+  it("keeps the adaptive facade output-exact with both explicit strategies", () => {
+    const symbols = Array.from({ length: 50 }, (_, index) => ({
+      id: `symbol:fixture.ts:function:s${index}:${index * 4 + 1}`,
+      metrics: { loc: 3 },
+      sourceRange: { startLine: index * 4 + 1, endLine: index * 4 + 3 },
+    }));
+    const hunks = Array.from({ length: 20 }, (_, index) => ({
+      oldStart: index * 8 + 2,
+      oldLines: index % 3,
+      newStart: index * 8 + 2,
+      newLines: (index % 4) + 1,
+    }));
+
+    expect([...buildSymbolDiffStats(symbols, hunks)]).toEqual([
+      ...buildSymbolDiffStatsNaive(symbols, hunks),
+    ]);
+    expect([...buildSymbolDiffStatsIndexed(symbols, hunks)]).toEqual([
+      ...buildSymbolDiffStatsNaive(symbols, hunks),
+    ]);
+  });
+
   it("projects hunk ranges onto symbol line spans", () => {
     const stats = buildSymbolDiffStats(
       [

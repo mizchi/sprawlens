@@ -9,6 +9,7 @@ import {
   type AstDiffScalingGroup,
   type AstDiffScalingMeasurement,
 } from "../packages/viz/src/astDiffScalingBenchmark.ts";
+import { SYMBOL_DIFF_PROJECTION_WORK_RATIO_THRESHOLD } from "../packages/viz/src/diffStats.ts";
 
 const exec = promisify(execFile);
 const projectRoot = resolve(import.meta.dirname, "..");
@@ -31,13 +32,18 @@ const protocol = {
   memoryScope:
     "process.resourceUsage().maxRSS after fixture generation, warmup, and measured call" as const,
   correctnessGate:
-    "indexed and naive projection output SHA-256 digests must match per scenario" as const,
+    "indexed, naive, and adaptive projection output SHA-256 digests must match per scenario" as const,
   order:
-    "indexed/naive order alternates by repetition; scenarios use fixed ascending order" as const,
+    "projection condition order rotates by repetition; scenarios use fixed ascending order" as const,
   projection: {
     symbolCounts: defaults.symbolCounts,
     hunkCounts: defaults.hunkCounts,
-    conditions: ["indexed", "naive"] as const,
+    conditions: ["indexed", "naive", "adaptive"] as const,
+    adaptivePolicy: {
+      workRatio: "S*H / ((S+H)*log2(H+1))" as const,
+      threshold: SYMBOL_DIFF_PROJECTION_WORK_RATIO_THRESHOLD,
+      indexedWhen: "work ratio > threshold" as const,
+    },
   },
   symbolTree: {
     symbolCounts: defaults.symbolCounts,
@@ -56,8 +62,7 @@ const startedAt = new Date().toISOString();
 for (const symbolCount of defaults.symbolCounts) {
   for (const hunkCount of defaults.hunkCounts) {
     for (let repetition = 1; repetition <= repetitions; repetition += 1) {
-      const conditions =
-        repetition % 2 === 1 ? (["indexed", "naive"] as const) : (["naive", "indexed"] as const);
+      const conditions = rotate(protocol.projection.conditions, repetition - 1);
       for (const condition of conditions) {
         process.stderr.write(
           `[projection S=${symbolCount} H=${hunkCount} ${condition} ${repetition}/${repetitions}]\n`,
@@ -259,7 +264,15 @@ function renderMarkdown(result: {
       comparison.hunkCount,
       0,
     );
-    return `| ${comparison.symbolCount} | ${comparison.hunkCount} | ${formatMs(indexed.durationMs?.p50)} | ${formatMs(indexed.durationMs?.p95)} | ${formatMs(indexed.durationMs?.p99)} | ${formatMs(naive.durationMs?.p50)} | ${formatMs(naive.durationMs?.p95)} | ${formatMs(naive.durationMs?.p99)} | ${comparison.speedup.toFixed(2)}× | ${formatInteger(indexed.maxRssKb?.p50)} | ${formatInteger(naive.maxRssKb?.p50)} | ${indexed.failures + naive.failures} |`;
+    const adaptive = findGroup(
+      result.summary.groups,
+      "hunk-projection",
+      "adaptive",
+      comparison.symbolCount,
+      comparison.hunkCount,
+      0,
+    );
+    return `| ${comparison.symbolCount} | ${comparison.hunkCount} | ${formatMs(indexed.durationMs?.p50)} | ${formatMs(naive.durationMs?.p50)} | ${formatMs(adaptive.durationMs?.p50)} | ${comparison.adaptiveStrategy} | ${comparison.adaptiveOverBest.toFixed(2)}× | ${comparison.speedup.toFixed(2)}× | ${formatInteger(indexed.maxRssKb?.p50)} | ${formatInteger(naive.maxRssKb?.p50)} | ${formatInteger(adaptive.maxRssKb?.p50)} | ${indexed.failures + naive.failures + adaptive.failures} |`;
   });
   const treeRows = result.summary.groups
     .filter((group) => group.kernel === "symbol-tree")
@@ -282,11 +295,11 @@ Status: ${result.status}. This is a synthetic, single-machine exploratory measur
 
 ## Hunk projection
 
-| Symbols | Hunks | Indexed p50 | Indexed p95 | Indexed p99 | Naive p50 | Naive p95 | Naive p99 | p50 speedup | Indexed RSS p50 KiB | Naive RSS p50 KiB | Failures |
-|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|
+| Symbols | Hunks | Indexed p50 | Naive p50 | Adaptive p50 | Selected | Adaptive/best | Naive/indexed | Indexed RSS p50 KiB | Naive RSS p50 KiB | Adaptive RSS p50 KiB | Failures |
+|---:|---:|---:|---:|---:|:---|---:|---:|---:|---:|---:|---:|
 ${projectionRows.join("\n")}
 
-The indexed condition is the production piecewise prefix index. The naive condition is a semantic-equivalent reference that scans every hunk for every symbol. Fixture construction and process startup are excluded from duration; peak RSS includes the runtime, fixture, warmups, and measured call.
+The indexed and naive conditions force each kernel. Adaptive is the production facade with the development-fixed work-ratio threshold. Fixture construction and process startup are excluded from duration; peak RSS includes the runtime, fixture, warmups, and measured call.
 
 ## Symbol-tree diff
 
@@ -336,6 +349,12 @@ function profileDefaults(value: "smoke" | "pilot") {
         hunkCounts: [100, 500, 2_000],
         maxDepths: [1, 4, 16],
       };
+}
+
+function rotate<T>(items: readonly T[], offset: number): T[] {
+  if (items.length === 0) return [];
+  const normalized = ((offset % items.length) + items.length) % items.length;
+  return [...items.slice(normalized), ...items.slice(0, normalized)];
 }
 
 async function writeAtomic(path: string, value: string): Promise<void> {

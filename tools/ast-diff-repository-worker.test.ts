@@ -59,6 +59,8 @@ describe("AST diff repository worker", () => {
       beforeSymbolCount: 1,
       afterSymbolCount: 1,
       hunkCount: 1,
+      adaptiveNaiveFileCount: 1,
+      adaptiveIndexedFileCount: 0,
       status: "ok",
     });
     expect(indexed.outputDigest).toBe(naive.outputDigest);
