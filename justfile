@@ -48,6 +48,9 @@ assess-ast-diff-adaptive-validation *args:
 analyze-ast-diff-adaptive-compatibility *args:
     @pnpm tsx tools/analyze-ast-diff-adaptive-compatibility.ts {{ args }}
 
+scan-ast-diff-mixed-regime-feasibility *args:
+    @pnpm tsx tools/scan-ast-diff-mixed-regime-feasibility.ts {{ args }}
+
 build-ast-diff-repository-fixture *args:
     @pnpm tsx tools/build-ast-diff-repository-fixture.ts {{ args }}
 
