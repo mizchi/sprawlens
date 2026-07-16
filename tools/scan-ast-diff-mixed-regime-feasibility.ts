@@ -11,6 +11,7 @@ import {
   symbolDiffProjectionWorkRatio,
 } from "../packages/viz/src/diffStats.ts";
 import {
+  assertAstDiffMixedRegimeRepositoryPins,
   summarizeAstDiffMixedRegimeFeasibility,
   type AstDiffMixedRegimeCandidate,
   type AstDiffMixedRegimeRepositoryScan,
@@ -28,13 +29,16 @@ const markdownPath = resolve(
 const maximumCommits = integerOption("--max-commits", 200, 1);
 const maximumChangedFiles = integerOption("--max-files", 20, 1);
 const repositories = [
-  repository("openai/codex", "1624de399ea3f578c0545da062ddaf91250d6db5a"),
+  repository("openai/codex", "1624de399ea3f578c0545da062ddaf91250d6db5"),
   repository("bit-vcs/workspace", "4394e4b919a9eaf060318c1fd8f5455185f350de"),
   repository("bit-vcs/bithub", "55033bbf7df3794436d9809e1b082c44dfb43581"),
   repository("vadimdemedes/ink", "2aaa8b4eaba8edcbc0d151d37ffa75f65fa9478b"),
   repository("nrslib/takt", "78dead335de8ae6d5477eac82c581ce8273ccf35"),
   repository("ogulcancelik/herdr", "28cb93184e99405e8bd673821cbaf514ab65a17c"),
 ] as const;
+assertAstDiffMixedRegimeRepositoryPins(
+  repositories.map(({ fullName, pinnedHead }) => ({ repository: fullName, pinnedHead })),
+);
 const protocol = {
   version: "ast-diff-mixed-regime-feasibility-v1" as const,
   timing: "no benchmark kernel or wall-clock timing is executed" as const,

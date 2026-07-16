@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  assertAstDiffMixedRegimeRepositoryPins,
   summarizeAstDiffMixedRegimeFeasibility,
   type AstDiffMixedRegimeRepositoryScan,
 } from "./ast-diff-mixed-regime-feasibility.ts";
@@ -65,6 +66,14 @@ describe("summarizeAstDiffMixedRegimeFeasibility", () => {
     expect(
       summarizeAstDiffMixedRegimeFeasibility([boundary], 4.6917628829515525).repositories[0],
     ).toMatchObject({ pureNaive: 1, pureIndexed: 0, mixed: 0 });
+  });
+
+  it("rejects a mistyped commit pin before a repository scan starts", () => {
+    expect(() =>
+      assertAstDiffMixedRegimeRepositoryPins([
+        { repository: "alpha/one", pinnedHead: "a".repeat(41) },
+      ]),
+    ).toThrow(/full commit SHA/i);
   });
 });
 

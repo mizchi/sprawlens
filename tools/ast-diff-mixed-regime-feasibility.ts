@@ -120,6 +120,16 @@ export function summarizeAstDiffMixedRegimeFeasibility(
   };
 }
 
+export function assertAstDiffMixedRegimeRepositoryPins(
+  repositories: readonly { repository: string; pinnedHead: string }[],
+): void {
+  for (const { repository, pinnedHead } of repositories) {
+    if (!/^[0-9a-f]{40}$/.test(pinnedHead)) {
+      throw new Error(`pinnedHead must be a full commit SHA: ${repository}`);
+    }
+  }
+}
+
 function branchGate(
   repositories: AstDiffMixedRegimeFeasibility["repositories"],
   branch: "pureNaive" | "pureIndexed",
@@ -152,15 +162,13 @@ function validateScans(
   if (!Number.isFinite(threshold) || threshold <= 0) {
     throw new Error("mixed-regime threshold must be a positive finite number");
   }
+  assertAstDiffMixedRegimeRepositoryPins(scans);
   const repositories = new Set<string>();
   for (const scan of scans) {
     if (!scan.repository || !scan.owner) throw new Error("repository and owner must not be empty");
     if (repositories.has(scan.repository))
       throw new Error(`duplicate repository: ${scan.repository}`);
     repositories.add(scan.repository);
-    if (!/^[0-9a-f]{40}$/.test(scan.pinnedHead)) {
-      throw new Error(`pinnedHead must be a full commit SHA: ${scan.repository}`);
-    }
     const revisions = new Set<string>();
     for (const candidate of scan.candidates) {
       if (!candidate.afterRevision) throw new Error("candidate afterRevision must not be empty");
