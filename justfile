@@ -45,6 +45,9 @@ calibrate-ast-diff-adaptive-threshold *args:
 assess-ast-diff-adaptive-validation *args:
     @pnpm tsx tools/assess-ast-diff-adaptive-validation-result.ts {{ args }}
 
+analyze-ast-diff-adaptive-compatibility *args:
+    @pnpm tsx tools/analyze-ast-diff-adaptive-compatibility.ts {{ args }}
+
 build-ast-diff-repository-fixture *args:
     @pnpm tsx tools/build-ast-diff-repository-fixture.ts {{ args }}
 
