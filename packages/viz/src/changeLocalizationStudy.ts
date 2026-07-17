@@ -59,15 +59,19 @@ type TimedChangeLocalizationEvent<T extends string> = {
   monotonicMs: number;
 };
 
+const SIMPLE_CHANGE_LOCALIZATION_EVENT_TYPES = [
+  "task-started",
+  "navigation",
+  "relevant-symbol-opened",
+  "core-change-opened",
+  "dependent-symbol-opened",
+  "answer-submitted",
+] as const;
+
+type SimpleChangeLocalizationEventType = (typeof SIMPLE_CHANGE_LOCALIZATION_EVENT_TYPES)[number];
+
 export type ChangeLocalizationEvent =
-  | TimedChangeLocalizationEvent<
-      | "task-started"
-      | "navigation"
-      | "relevant-symbol-opened"
-      | "core-change-opened"
-      | "dependent-symbol-opened"
-      | "answer-submitted"
-    >
+  | TimedChangeLocalizationEvent<SimpleChangeLocalizationEventType>
   | (TimedChangeLocalizationEvent<"context-source-opened"> & {
       /** Session-local identifier. It must not encode a path, symbol name, or source text. */
       contextSourceOrdinal: number;
@@ -85,26 +89,19 @@ export type ChangeLocalizationEventSummary = {
 export function summarizeChangeLocalizationEvents(
   events: readonly ChangeLocalizationEvent[],
 ): ChangeLocalizationEventSummary {
-  for (let index = 0; index < events.length; index++) {
-    const event = events[index]!;
-    if (!Number.isFinite(event.monotonicMs)) throw new Error("event time must be finite");
-    if (
-      event.type === "context-source-opened" &&
-      (!Number.isInteger(event.contextSourceOrdinal) || event.contextSourceOrdinal < 0)
-    ) {
-      throw new Error("context source ordinal must be a non-negative integer");
-    }
-    if (index > 0 && event.monotonicMs < events[index - 1]!.monotonicMs) {
+  const validatedEvents = events.map(validateChangeLocalizationEvent);
+  for (let index = 1; index < validatedEvents.length; index++) {
+    if (validatedEvents[index]!.monotonicMs < validatedEvents[index - 1]!.monotonicMs) {
       throw new Error("event times must be monotonic");
     }
   }
-  const started = events.find((event) => event.type === "task-started");
+  const started = validatedEvents.find((event) => event.type === "task-started");
   if (!started) throw new Error("task-started event is required");
-  const submitted = events.find(
+  const submitted = validatedEvents.find(
     (event) => event.type === "answer-submitted" && event.monotonicMs >= started.monotonicMs,
   );
   if (!submitted) throw new Error("answer-submitted event is required");
-  const taskEvents = events.filter(
+  const taskEvents = validatedEvents.filter(
     (event) =>
       event.monotonicMs >= started.monotonicMs && event.monotonicMs <= submitted.monotonicMs,
   );
@@ -128,6 +125,45 @@ export function summarizeChangeLocalizationEvents(
     ).size,
     navigationCount: taskEvents.filter((event) => event.type === "navigation").length,
   };
+}
+
+function validateChangeLocalizationEvent(event: unknown): ChangeLocalizationEvent {
+  if (!isRecord(event)) throw new Error("event must be an object");
+  const type = event.type;
+  if (
+    typeof type !== "string" ||
+    (type !== "context-source-opened" &&
+      !SIMPLE_CHANGE_LOCALIZATION_EVENT_TYPES.includes(type as SimpleChangeLocalizationEventType))
+  ) {
+    throw new Error("event type is not recognized");
+  }
+  if (!Number.isFinite(event.monotonicMs)) throw new Error("event time must be finite");
+  const monotonicMs = event.monotonicMs as number;
+  if (type === "context-source-opened") {
+    if (!hasExactKeys(event, ["type", "monotonicMs", "contextSourceOrdinal"])) {
+      throw new Error("context-source-opened event fields are invalid");
+    }
+    if (
+      !Number.isInteger(event.contextSourceOrdinal) ||
+      (event.contextSourceOrdinal as number) < 0
+    ) {
+      throw new Error("context source ordinal must be a non-negative integer");
+    }
+    return { type, monotonicMs, contextSourceOrdinal: event.contextSourceOrdinal as number };
+  }
+  if (!hasExactKeys(event, ["type", "monotonicMs"])) {
+    throw new Error(`${type} event fields are invalid`);
+  }
+  return { type: type as SimpleChangeLocalizationEventType, monotonicMs };
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
+function hasExactKeys(record: Record<string, unknown>, expected: readonly string[]): boolean {
+  const keys = Object.keys(record);
+  return keys.length === expected.length && expected.every((key) => Object.hasOwn(record, key));
 }
 
 function firstEventElapsedMs(

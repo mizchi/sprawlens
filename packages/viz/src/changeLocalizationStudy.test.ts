@@ -100,4 +100,26 @@ describe("summarizeChangeLocalizationEvents", () => {
       ]),
     ).toThrow(/context source ordinal/);
   });
+
+  it("rejects unknown categories and payload fields that could leak source context", () => {
+    expect(() =>
+      summarizeChangeLocalizationEvents([
+        { type: "task-started", monotonicMs: 10 },
+        { type: "source-text-opened", monotonicMs: 11 },
+        { type: "answer-submitted", monotonicMs: 20 },
+      ] as never),
+    ).toThrow(/event type/);
+    expect(() =>
+      summarizeChangeLocalizationEvents([
+        { type: "task-started", monotonicMs: 10 },
+        {
+          type: "context-source-opened",
+          monotonicMs: 11,
+          contextSourceOrdinal: 0,
+          sourcePath: "/private/repository/file.ts",
+        },
+        { type: "answer-submitted", monotonicMs: 20 },
+      ] as never),
+    ).toThrow(/event fields/);
+  });
 });
