@@ -54,14 +54,31 @@ export function assignChangeLocalizationTasks(
   return assignments;
 }
 
-export type ChangeLocalizationEvent = {
-  type: "task-started" | "navigation" | "relevant-symbol-opened" | "answer-submitted";
+type TimedChangeLocalizationEvent<T extends string> = {
+  type: T;
   monotonicMs: number;
 };
+
+export type ChangeLocalizationEvent =
+  | TimedChangeLocalizationEvent<
+      | "task-started"
+      | "navigation"
+      | "relevant-symbol-opened"
+      | "core-change-opened"
+      | "dependent-symbol-opened"
+      | "answer-submitted"
+    >
+  | (TimedChangeLocalizationEvent<"context-source-opened"> & {
+      /** Session-local identifier. It must not encode a path, symbol name, or source text. */
+      contextSourceOrdinal: number;
+    });
 
 export type ChangeLocalizationEventSummary = {
   completionMs: number;
   firstRelevantSymbolMs: number | null;
+  firstCoreChangeMs: number | null;
+  firstDependentSymbolMs: number | null;
+  distinctContextSourceCount: number;
   navigationCount: number;
 };
 
@@ -71,6 +88,12 @@ export function summarizeChangeLocalizationEvents(
   for (let index = 0; index < events.length; index++) {
     const event = events[index]!;
     if (!Number.isFinite(event.monotonicMs)) throw new Error("event time must be finite");
+    if (
+      event.type === "context-source-opened" &&
+      (!Number.isInteger(event.contextSourceOrdinal) || event.contextSourceOrdinal < 0)
+    ) {
+      throw new Error("context source ordinal must be a non-negative integer");
+    }
     if (index > 0 && event.monotonicMs < events[index - 1]!.monotonicMs) {
       throw new Error("event times must be monotonic");
     }
@@ -81,22 +104,39 @@ export function summarizeChangeLocalizationEvents(
     (event) => event.type === "answer-submitted" && event.monotonicMs >= started.monotonicMs,
   );
   if (!submitted) throw new Error("answer-submitted event is required");
-  const relevant = events.find(
+  const taskEvents = events.filter(
     (event) =>
-      event.type === "relevant-symbol-opened" &&
-      event.monotonicMs >= started.monotonicMs &&
-      event.monotonicMs <= submitted.monotonicMs,
+      event.monotonicMs >= started.monotonicMs && event.monotonicMs <= submitted.monotonicMs,
   );
   return {
     completionMs: submitted.monotonicMs - started.monotonicMs,
-    firstRelevantSymbolMs: relevant ? relevant.monotonicMs - started.monotonicMs : null,
-    navigationCount: events.filter(
-      (event) =>
-        event.type === "navigation" &&
-        event.monotonicMs >= started.monotonicMs &&
-        event.monotonicMs <= submitted.monotonicMs,
-    ).length,
+    firstRelevantSymbolMs: firstEventElapsedMs(
+      taskEvents,
+      "relevant-symbol-opened",
+      started.monotonicMs,
+    ),
+    firstCoreChangeMs: firstEventElapsedMs(taskEvents, "core-change-opened", started.monotonicMs),
+    firstDependentSymbolMs: firstEventElapsedMs(
+      taskEvents,
+      "dependent-symbol-opened",
+      started.monotonicMs,
+    ),
+    distinctContextSourceCount: new Set(
+      taskEvents
+        .filter((event) => event.type === "context-source-opened")
+        .map((event) => event.contextSourceOrdinal),
+    ).size,
+    navigationCount: taskEvents.filter((event) => event.type === "navigation").length,
   };
+}
+
+function firstEventElapsedMs(
+  events: readonly ChangeLocalizationEvent[],
+  type: ChangeLocalizationEvent["type"],
+  startedAtMs: number,
+): number | null {
+  const event = events.find((candidate) => candidate.type === type);
+  return event ? event.monotonicMs - startedAtMs : null;
 }
 
 function modulo(value: number, divisor: number): number {

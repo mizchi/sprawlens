@@ -39,19 +39,43 @@ describe("assignChangeLocalizationTasks", () => {
 });
 
 describe("summarizeChangeLocalizationEvents", () => {
-  it("derives completion, first-relevant-symbol, and navigation counts", () => {
+  it("derives prerecruitment timing and distinct-context outcomes", () => {
     expect(
       summarizeChangeLocalizationEvents([
         { type: "task-started", monotonicMs: 100 },
+        { type: "context-source-opened", monotonicMs: 150, contextSourceOrdinal: 7 },
         { type: "navigation", monotonicMs: 250 },
+        { type: "core-change-opened", monotonicMs: 300 },
+        { type: "context-source-opened", monotonicMs: 350, contextSourceOrdinal: 7 },
+        { type: "context-source-opened", monotonicMs: 375, contextSourceOrdinal: 2 },
         { type: "relevant-symbol-opened", monotonicMs: 400 },
+        { type: "dependent-symbol-opened", monotonicMs: 500 },
         { type: "navigation", monotonicMs: 550 },
         { type: "answer-submitted", monotonicMs: 900 },
       ]),
     ).toEqual({
       completionMs: 800,
       firstRelevantSymbolMs: 300,
+      firstCoreChangeMs: 200,
+      firstDependentSymbolMs: 400,
+      distinctContextSourceCount: 2,
       navigationCount: 2,
+    });
+  });
+
+  it("returns null for optional milestones that were not reached", () => {
+    expect(
+      summarizeChangeLocalizationEvents([
+        { type: "task-started", monotonicMs: 10 },
+        { type: "answer-submitted", monotonicMs: 20 },
+      ]),
+    ).toEqual({
+      completionMs: 10,
+      firstRelevantSymbolMs: null,
+      firstCoreChangeMs: null,
+      firstDependentSymbolMs: null,
+      distinctContextSourceCount: 0,
+      navigationCount: 0,
     });
   });
 
@@ -65,5 +89,15 @@ describe("summarizeChangeLocalizationEvents", () => {
         { type: "answer-submitted", monotonicMs: 9 },
       ]),
     ).toThrow(/monotonic/);
+  });
+
+  it("rejects context identifiers that could not be anonymous ordinals", () => {
+    expect(() =>
+      summarizeChangeLocalizationEvents([
+        { type: "task-started", monotonicMs: 10 },
+        { type: "context-source-opened", monotonicMs: 11, contextSourceOrdinal: -1 },
+        { type: "answer-submitted", monotonicMs: 20 },
+      ]),
+    ).toThrow(/context source ordinal/);
   });
 });
