@@ -29,9 +29,9 @@ export type HistoryIndex = {
   nodeHistory: Map<string, NodeChange[]>;
 };
 
-/** Preserve the legacy cold history view unless the paper experiment is explicit. */
-export function historyCommitUpdateMode(stableLayout: boolean): "cold" | "warm-experiment" {
-  return stableLayout ? "warm-experiment" : "cold";
+/** Keep an explicit off-switch for comparing against the legacy cold history view. */
+export function historyCommitUpdateMode(stableLayout: boolean): "cold" | "stable-sequence" {
+  return stableLayout ? "stable-sequence" : "cold";
 }
 
 export type HistorySelectionState = {

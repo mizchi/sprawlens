@@ -88,6 +88,10 @@ experiment-stable-visual:
     pnpm --filter @sprawlens/viz build
     pnpm tsx tools/run-stable-visual-experiment.ts
 
+benchmark-stable-ui:
+    pnpm --filter @sprawlens/viz build
+    pnpm tsx tools/run-stable-visual-experiment.ts --default-view
+
 experiment-vector-constraint-visual:
     pnpm --filter @sprawlens/viz build
     pnpm tsx tools/run-stable-visual-experiment.ts --protect-path-max

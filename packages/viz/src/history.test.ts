@@ -93,9 +93,9 @@ describe("buildHistoryIndex", () => {
 });
 
 describe("historyCommitUpdateMode", () => {
-  it("uses a warm delta only for the explicit stable-layout experiment", () => {
+  it("uses the stable sequence path unless the legacy cold mode is requested", () => {
     expect(historyCommitUpdateMode(false)).toBe("cold");
-    expect(historyCommitUpdateMode(true)).toBe("warm-experiment");
+    expect(historyCommitUpdateMode(true)).toBe("stable-sequence");
   });
 });
 

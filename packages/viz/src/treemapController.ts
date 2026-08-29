@@ -27,9 +27,11 @@ import {
   type SubdivisionLevel,
 } from "./subdivision.ts";
 import {
+  INTERACTIVE_WARM_PRE_ROLL_STEPS,
   leafGraphKey,
   nodeInsertionHint,
   preRollCapacityLayout,
+  updateStableGroupLayout,
   updateLeafLayout,
   type LeafUpdateStrategy,
   type StableNeighborhoodUpdateConfig,
@@ -50,7 +52,7 @@ export type TreemapOptions = {
   lloydRate?: number;
   /** Dependency/temporal multi-objective refinement; false disables it. */
   delta?: DeltaGuidanceOptions | false;
-  /** Bounded stable-NPVT update for existing leaf groups; experimental. */
+  /** Sequence-stable feasible-envelope update for hierarchy groups. */
   stableNeighborhood?: StableNeighborhoodUpdateConfig | false;
   /**
    * Display boundary chain, outer → inner; defaults to a single module
@@ -76,6 +78,10 @@ export type TreemapState = {
   lastLeafUpdateStrategies: Map<string, LeafUpdateStrategy>;
   /** Full paper-envelope diagnostics for stable groups in the latest update. */
   lastStableNeighborhoodResults: Map<string, StableNeighborhoodResult>;
+  /** Update strategy used by top/intermediate hierarchy groups. */
+  lastBoundaryUpdateStrategies: Map<string, LeafUpdateStrategy>;
+  /** Paper-envelope diagnostics for top/intermediate hierarchy groups. */
+  lastBoundaryStableNeighborhoodResults: Map<string, StableNeighborhoodResult>;
   /** The top level's network (lifted + native edges). */
   topEdges: AtlasEdge[];
   /** Any id (group or leaf) → parent group id; top groups → null. */
@@ -84,8 +90,10 @@ export type TreemapState = {
   kindOf: Map<string, AtlasNodeKind>;
 };
 
+/** Stable diagnostic identity for the viewport-level boundary solve. */
+export const ROOT_LAYOUT_GROUP = "@sprawlens/root";
+
 const LEAF_CONVERGENCE = 0.005;
-const PRE_ROLL_STEPS = 8;
 
 export function createTreemapState(graph: AtlasGraph, options: TreemapOptions): TreemapState {
   const boundaries =
@@ -163,6 +171,10 @@ export function createTreemapState(graph: AtlasGraph, options: TreemapOptions): 
   const leafGraphKeys = new Map<string, string>();
   const lastLeafUpdateStrategies = new Map<string, LeafUpdateStrategy>();
   const lastStableNeighborhoodResults = new Map<string, StableNeighborhoodResult>();
+  const lastBoundaryUpdateStrategies = new Map<string, LeafUpdateStrategy>([
+    [ROOT_LAYOUT_GROUP, "cold"],
+  ]);
+  const lastBoundaryStableNeighborhoodResults = new Map<string, StableNeighborhoodResult>();
   for (const [groupId, leafClip] of sub.leafClips) {
     const leaves = tree.childrenOf.get(groupId) ?? [];
     if (leaves.length === 0) continue;
@@ -178,6 +190,8 @@ export function createTreemapState(graph: AtlasGraph, options: TreemapOptions): 
     leafGraphKeys,
     lastLeafUpdateStrategies,
     lastStableNeighborhoodResults,
+    lastBoundaryUpdateStrategies,
+    lastBoundaryStableNeighborhoodResults,
     topEdges: top.edges,
     parentOf: tree.parentOf,
     kindOf: tree.kindOf,
@@ -263,22 +277,40 @@ export function applyTreemapChanges(
     const previous = previousSiteOf(node.id);
     if (previous) topAnchors.set(node.id, previous);
   }
-  const topLayout = solveLevel(
-    guideLevel(
-      createCapacityLayout(
-        top.nodes.map((node) => ({
-          id: node.id,
-          weight: node.metrics.loc,
-          hint: nodeInsertionHint(node.id, top.edges, previousSiteOf),
-        })),
-        clip,
-        solver,
-      ),
-      top.edges,
-      solver,
-      topAnchors,
-    ),
+  const lastBoundaryUpdateStrategies = new Map<string, LeafUpdateStrategy>();
+  const lastBoundaryStableNeighborhoodResults = new Map<string, StableNeighborhoodResult>();
+  const stableTop = updateStableGroupLayout(
+    [...state.levels[0]!.cells.values()],
+    top.nodes,
+    top.edges,
+    clip,
+    {
+      seed: options.seed,
+      adaptationRate: options.adaptationRate,
+      lloydRate: options.lloydRate,
+      stableNeighborhood: options.stableNeighborhood,
+    },
   );
+  const topLayout = stableTop
+    ? stableTop.state
+    : solveLevel(
+        guideLevel(
+          createCapacityLayout(
+            top.nodes.map((node) => ({
+              id: node.id,
+              weight: node.metrics.loc,
+              hint: nodeInsertionHint(node.id, top.edges, previousSiteOf),
+            })),
+            clip,
+            solver,
+          ),
+          top.edges,
+          solver,
+          topAnchors,
+        ),
+      );
+  lastBoundaryUpdateStrategies.set(ROOT_LAYOUT_GROUP, stableTop ? "stableNeighborhood" : "warm");
+  if (stableTop) lastBoundaryStableNeighborhoodResults.set(ROOT_LAYOUT_GROUP, stableTop.result);
   const levels: TreemapLevelCells[] = [
     {
       kind: top.kind,
@@ -309,25 +341,44 @@ export function applyTreemapChanges(
         const previous = previousSiteOf(child.id);
         if (previous) anchors.set(child.id, previous);
       }
-      const layout = solveLevel(
-        guideLevel(
-          createCapacityLayout(
-            children.map((child) => {
-              const previous = nodeInsertionHint(child.id, tree.levels[k]!.edges, previousSiteOf);
-              return {
-                id: child.id,
-                weight: child.metrics.loc,
-                hint: previous && ring ? nearestPointInRing(ring, previous) : previous,
-              };
-            }),
-            parentClip,
-            solver,
-          ),
-          tree.levels[k]!.edges,
-          solver,
-          anchors,
-        ),
+      const groupEdges = tree.innerEdgesOf.get(parentId) ?? [];
+      const previousCells = [...(state.levels[k]?.cells.values() ?? [])].filter((cell) =>
+        children.some((child) => child.id === cell.id),
       );
+      const stableGroup = updateStableGroupLayout(previousCells, children, groupEdges, parentClip, {
+        seed: options.seed,
+        adaptationRate: options.adaptationRate,
+        lloydRate: options.lloydRate,
+        stableNeighborhood: options.stableNeighborhood,
+      });
+      const layout = stableGroup
+        ? stableGroup.state
+        : solveLevel(
+            guideLevel(
+              createCapacityLayout(
+                children.map((child) => {
+                  const previous = nodeInsertionHint(child.id, groupEdges, previousSiteOf);
+                  return {
+                    id: child.id,
+                    weight: child.metrics.loc,
+                    hint: previous && ring ? nearestPointInRing(ring, previous) : previous,
+                  };
+                }),
+                parentClip,
+                solver,
+              ),
+              groupEdges,
+              solver,
+              anchors,
+            ),
+          );
+      lastBoundaryUpdateStrategies.set(
+        parentId,
+        stableGroup ? "stableNeighborhood" : previousCells.length > 0 ? "warm" : "cold",
+      );
+      if (stableGroup) {
+        lastBoundaryStableNeighborhoodResults.set(parentId, stableGroup.result);
+      }
       for (const cell of layout.cells) {
         cells.set(cell.id, cell);
         if (cell.polygon.length >= 3) {
@@ -362,7 +413,9 @@ export function applyTreemapChanges(
         adaptationRate: options.adaptationRate,
         lloydRate: options.lloydRate,
         stableNeighborhood: state.leafGraphKeys.get(groupId) === graphKey ? false : stable,
-        preRollWarm: stable ? { steps: PRE_ROLL_STEPS, tolerance: LEAF_CONVERGENCE } : false,
+        preRollWarm: stable
+          ? { steps: INTERACTIVE_WARM_PRE_ROLL_STEPS, tolerance: LEAF_CONVERGENCE }
+          : false,
       });
       leafLayouts.set(groupId, update.state);
       lastLeafUpdateStrategies.set(groupId, update.strategy);
@@ -404,7 +457,7 @@ export function applyTreemapChanges(
             }),
           ),
         ),
-        { steps: PRE_ROLL_STEPS, tolerance: LEAF_CONVERGENCE },
+        { steps: INTERACTIVE_WARM_PRE_ROLL_STEPS, tolerance: LEAF_CONVERGENCE },
       ),
     );
     lastLeafUpdateStrategies.set(groupId, "cold");
@@ -416,6 +469,8 @@ export function applyTreemapChanges(
     leafGraphKeys,
     lastLeafUpdateStrategies,
     lastStableNeighborhoodResults,
+    lastBoundaryUpdateStrategies,
+    lastBoundaryStableNeighborhoodResults,
     topEdges: top.edges,
     parentOf: tree.parentOf,
     kindOf: tree.kindOf,

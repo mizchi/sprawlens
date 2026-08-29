@@ -6,18 +6,28 @@ import { chromium, type Page } from "playwright";
 
 const projectRoot = resolve(import.meta.dirname, "..");
 const protectPathMax = process.argv.includes("--protect-path-max");
+const defaultView = process.argv.includes("--default-view");
 const outputRoot = resolve(
   projectRoot,
-  protectPathMax ? "preview/stable-layout-vector-path-max" : "preview/stable-layout-experiment",
+  defaultView
+    ? "preview/stable-layout-ui-benchmark"
+    : protectPathMax
+      ? "preview/stable-layout-vector-path-max"
+      : "preview/stable-layout-experiment",
 );
 const port = 5181;
 const ownedBaseUrl = `http://127.0.0.1:${port}`;
 const baseUrl = process.env.STABLE_EXPERIMENT_BASE_URL ?? ownedBaseUrl;
-const experimentUrl = `${baseUrl}/?source=sprawlens-history&boundaries=module&displayLevels=module&changedPreview=false&dark=true&experimental=true${protectPathMax ? "&vectorPathMax=true" : ""}`;
+const viewParams = defaultView ? "" : "&boundaries=module&displayLevels=module";
+const experimentUrl = `${baseUrl}/?source=sprawlens-history${viewParams}&changedPreview=false&dark=true&experimental=true&stableLayout=false${protectPathMax ? "&vectorPathMax=true" : ""}`;
 
 type StepMetrics = {
   row: number;
   commit: string;
+  applyDurationMs: number;
+  projectionDurationMs: number;
+  layoutDurationMs: number;
+  durationMs: number;
   stableGroups: number;
   warmGroups: number;
   coldGroups: number;
@@ -78,7 +88,7 @@ const prepareOldestCommit = async (page: Page) => {
   await page.waitForTimeout(250);
   await page
     .locator("label")
-    .filter({ hasText: "stable delta" })
+    .filter({ hasText: "stable history" })
     .locator('input[type="checkbox"]')
     .check();
   await page.waitForTimeout(250);
@@ -87,14 +97,24 @@ const prepareOldestCommit = async (page: Page) => {
   return rowCount;
 };
 
-const readStep = async (page: Page, row: number): Promise<StepMetrics> => {
+const readStep = async (
+  page: Page,
+  row: number,
+  applyDurationMs: number,
+  durationMs: number,
+): Promise<StepMetrics> => {
   const data = await page.getByTestId("stable-layout-experiment").evaluate((element) => ({
     ...element.dataset,
   }));
   const number = (key: string) => Number(data[key] ?? 0);
+  const map = page.locator("[data-converged]").first();
   return {
     row,
     commit: (await page.getByTestId("commit-row").nth(row).innerText()).replaceAll(/\s+/g, " "),
+    applyDurationMs,
+    projectionDurationMs: Number((await map.getAttribute("data-update-projection-ms")) ?? 0),
+    layoutDurationMs: Number((await map.getAttribute("data-update-layout-ms")) ?? 0),
+    durationMs,
     stableGroups: number("stableGroups"),
     warmGroups: number("warmGroups"),
     coldGroups: number("coldGroups"),
@@ -147,12 +167,14 @@ try {
   const rows = page.getByTestId("commit-row");
   const steps: StepMetrics[] = [];
   for (let row = rowCount - 2; row >= 0; row--) {
+    const startedAt = performance.now();
     await rows.nth(row).click();
+    const applyDurationMs = performance.now() - startedAt;
     await waitForLayout(page);
-    const step = await readStep(page, row);
+    const step = await readStep(page, row, applyDurationMs, performance.now() - startedAt);
     steps.push(step);
     process.stderr.write(
-      `[stable visual ${steps.length}/${rowCount - 1}] S${step.stableGroups} W${step.warmGroups} C${step.coldGroups} displacement=${step.displacementReduction.toFixed(4)} adjacency=${step.adjacencyGain.toFixed(4)}\n`,
+      `[stable visual ${steps.length}/${rowCount - 1}] apply=${step.applyDurationMs.toFixed(1)}ms (projection=${step.projectionDurationMs.toFixed(1)} layout=${step.layoutDurationMs.toFixed(1)}) total=${step.durationMs.toFixed(1)}ms S${step.stableGroups} W${step.warmGroups} C${step.coldGroups} displacement=${step.displacementReduction.toFixed(4)} adjacency=${step.adjacencyGain.toFixed(4)}\n`,
     );
   }
   if (pageErrors.length > 0) throw new Error(`browser errors: ${pageErrors.join("; ")}`);
@@ -168,6 +190,16 @@ try {
     historyTransitions: steps.length,
     measuredTransitions: measured.length,
     stableGroupUpdates,
+    meanApplyDurationMs: steps.reduce((sum, step) => sum + step.applyDurationMs, 0) / steps.length,
+    maxApplyDurationMs: Math.max(...steps.map((step) => step.applyDurationMs)),
+    meanProjectionDurationMs:
+      steps.reduce((sum, step) => sum + step.projectionDurationMs, 0) / steps.length,
+    maxProjectionDurationMs: Math.max(...steps.map((step) => step.projectionDurationMs)),
+    meanLayoutDurationMs:
+      steps.reduce((sum, step) => sum + step.layoutDurationMs, 0) / steps.length,
+    maxLayoutDurationMs: Math.max(...steps.map((step) => step.layoutDurationMs)),
+    meanDurationMs: steps.reduce((sum, step) => sum + step.durationMs, 0) / steps.length,
+    maxDurationMs: Math.max(...steps.map((step) => step.durationMs)),
     improvedTransitions: measured.filter(
       ({ displacementReduction }) => displacementReduction > 1e-12,
     ).length,
@@ -187,20 +219,20 @@ try {
   await browser.close();
 
   const output = {
-    schemaVersion: 1,
+    schemaVersion: 2,
     status: "browser-level stable neighborhood visualization experiment",
     inferenceScope:
       "post-hoc path-dependent self-history visualization; not part of the preregistered repository inference",
     fixture: "packages/viz/public-atlas/fixtures/sprawlens-history.json",
     view: {
       layout: "treemap",
-      grouping: "module",
-      leaf: "file",
+      grouping: defaultView ? "module-class" : "module",
+      leaf: defaultView ? "symbol" : "file",
       direction: "oldest-to-newest",
-      anchorMixes: [0, 0.25, 0.5, 0.75, 1],
+      anchorMixes: [0, 1],
       swapPasses: [8],
-      maxNodes: 80,
-      maxSteps: 800,
+      maxNodes: 48,
+      maxSteps: 240,
       protectedConstraints: protectPathMax ? ["constraintPathMax"] : [],
     },
     commits: rowCount,

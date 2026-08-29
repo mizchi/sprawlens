@@ -7,8 +7,15 @@ import type { PlaygroundParams } from "../Controls.tsx";
 
 type Ref<T> = { current: T };
 
-/** Outer-layout steps per visible frame; hidden tabs get a larger multiple. */
-const STEPS_PER_FRAME = 2;
+/**
+ * Bound solver work by elapsed time first, with a generous step guard to keep
+ * tiny layouts from stretching a short solve across dozens of repaints.
+ */
+export function solverLoopBudget(hidden: boolean) {
+  return hidden
+    ? { solverMs: 150, innerMs: 60, maxSteps: 60 }
+    : { solverMs: 10, innerMs: 6, maxSteps: 16 };
+}
 
 export type SolverLoopContext = {
   ringsRef: Ref<RingsState | null>;
@@ -71,16 +78,18 @@ export function useSolverLoop(ctx: SolverLoopContext) {
       // seconds on monorepo-scale graphs. Hidden tabs get a bigger budget to
       // compensate for the ~1 tick/s timer throttling.
       const hidden = document.visibilityState === "hidden";
-      const solverBudget = hidden ? 150 : 10;
-      const innerBudget = hidden ? 60 : 6;
-      const maxSteps = STEPS_PER_FRAME * (hidden ? 30 : 1);
+      const budget = solverLoopBudget(hidden);
       const solverStart = performance.now();
       let outerActive = false;
       const outerCells: CellResult[] = [];
       if (ringsRef.current) {
         let steps = 0;
         let active = true;
-        while (active && steps < maxSteps && performance.now() - solverStart < solverBudget) {
+        while (
+          active &&
+          steps < budget.maxSteps &&
+          performance.now() - solverStart < budget.solverMs
+        ) {
           const result = stepRingsState(ringsRef.current, 1);
           ringsRef.current = result.state;
           active = result.active;
@@ -93,7 +102,11 @@ export function useSolverLoop(ctx: SolverLoopContext) {
       } else if (treemapRef.current) {
         let steps = 0;
         let active = true;
-        while (active && steps < maxSteps && performance.now() - solverStart < solverBudget) {
+        while (
+          active &&
+          steps < budget.maxSteps &&
+          performance.now() - solverStart < budget.solverMs
+        ) {
           const result = stepTreemapState(treemapRef.current, 1);
           treemapRef.current = result.state;
           active = result.active;
@@ -111,7 +124,7 @@ export function useSolverLoop(ctx: SolverLoopContext) {
           paramsRef.current.displayLevels.includes("cfg")) &&
         granularityOf(paramsRef.current.boundaries, paramsRef.current.displayLevels) === "file"
       ) {
-        syncInnerLayouts(outerCells, outerActive, innerBudget);
+        syncInnerLayouts(outerCells, outerActive, budget.innerMs);
         for (const layout of innerLayoutsRef.current.values()) {
           if (!isConverged(layout, convergenceTolerance)) {
             innerActive = true;

@@ -22,6 +22,7 @@ import {
   type SubdivisionLevel,
 } from "./subdivision.ts";
 import {
+  INTERACTIVE_WARM_PRE_ROLL_STEPS,
   leafGraphKey,
   preRollCapacityLayout,
   updateLeafLayout,
@@ -78,7 +79,6 @@ export type RingsState = {
 };
 
 const CONVERGENCE = 0.005;
-const PRE_ROLL_STEPS = 8;
 const CLIP_INSET = 0.94;
 
 function resolvedBoundaries(options: RingsOptions): readonly Grouping[] {
@@ -274,7 +274,9 @@ export function applyRingsChanges(
         adaptationRate: options.adaptationRate,
         lloydRate: options.lloydRate,
         stableNeighborhood: state.leafGraphKeys.get(groupId) === graphKey ? false : stable,
-        preRollWarm: stable ? { steps: PRE_ROLL_STEPS, tolerance: CONVERGENCE } : false,
+        preRollWarm: stable
+          ? { steps: INTERACTIVE_WARM_PRE_ROLL_STEPS, tolerance: CONVERGENCE }
+          : false,
       });
       leafLayouts.set(groupId, update.state);
       lastLeafUpdateStrategies.set(groupId, update.strategy);
@@ -287,7 +289,7 @@ export function applyRingsChanges(
       leafLayouts.set(
         groupId,
         preRollCapacityLayout(seedLeafLayout(leaves, edges, clip, positions, solver), {
-          steps: PRE_ROLL_STEPS,
+          steps: INTERACTIVE_WARM_PRE_ROLL_STEPS,
           tolerance: CONVERGENCE,
         }),
       );
@@ -311,7 +313,7 @@ export function applyRingsChanges(
           edges,
           solver,
         ),
-        { steps: PRE_ROLL_STEPS, tolerance: CONVERGENCE },
+        { steps: INTERACTIVE_WARM_PRE_ROLL_STEPS, tolerance: CONVERGENCE },
       ),
     );
     lastLeafUpdateStrategies.set(groupId, "cold");

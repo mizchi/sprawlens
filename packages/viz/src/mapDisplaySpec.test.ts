@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import type { FocusView } from "./useMapViewport.ts";
 import {
   liveDataUpdateLayoutPlan,
+  liveDataUpdateNeedsImmediateFrame,
   overlayLayoutSpec,
   resolveMapFocusView,
 } from "./mapDisplaySpec.ts";
@@ -134,5 +135,11 @@ describe("liveDataUpdateLayoutPlan", () => {
     expect(liveDataUpdateLayoutPlan({ layoutReady: false, displayChanged: true })).toBe(
       "cold-rebuild",
     );
+  });
+
+  it("defers warm rendering to the solver loop but paints a cold build immediately", () => {
+    expect(liveDataUpdateNeedsImmediateFrame("warm-apply")).toBe(false);
+    expect(liveDataUpdateNeedsImmediateFrame("cold-rebuild")).toBe(true);
+    expect(liveDataUpdateNeedsImmediateFrame("ignore")).toBe(false);
   });
 });

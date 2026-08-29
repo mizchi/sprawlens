@@ -6,6 +6,7 @@ import { containsPoint } from "@sprawlens/layout";
 import {
   applyTreemapChanges,
   createTreemapState,
+  ROOT_LAYOUT_GROUP,
   stepTreemapState,
   type TreemapState,
 } from "./treemapController.ts";
@@ -222,6 +223,30 @@ describe("stepTreemapState", () => {
 });
 
 describe("applyTreemapChanges", () => {
+  it("applies the sequence-stable envelope to the top boundary", () => {
+    const graph = sampleGraph();
+    const state = settled(createTreemapState(graph, OPTIONS));
+    const mutated = {
+      ...graph,
+      nodes: graph.nodes.map((node) =>
+        node.id === "src/alpha/a.ts" ? { ...node, metrics: { loc: 160 } } : node,
+      ),
+    };
+
+    const next = applyTreemapChanges(state, mutated, {
+      ...OPTIONS,
+      stableNeighborhood: { maxNodes: 16, anchorMixes: [0, 0.5, 1], maxSteps: 240 },
+    });
+
+    expect(next.lastBoundaryUpdateStrategies.get(ROOT_LAYOUT_GROUP)).toBe("stableNeighborhood");
+    const result = next.lastBoundaryStableNeighborhoodResults.get(ROOT_LAYOUT_GROUP);
+    expect(result).toBeDefined();
+    expect(result!.selected.adjacency + 1e-12).toBeGreaterThanOrEqual(result!.baseline.adjacency);
+    expect(result!.selected.displacement).toBeLessThanOrEqual(
+      result!.baseline.displacement + 1e-12,
+    );
+  });
+
   it("can apply the bounded stable-neighborhood strategy to changed leaf groups", () => {
     const graph = sampleGraph();
     const state = settled(createTreemapState(graph, OPTIONS));
@@ -389,8 +414,14 @@ describe("applyTreemapChanges", () => {
         n.id === "src/alpha/core/a.ts" ? { ...n, metrics: { loc: 180 } } : n,
       ),
     };
-    const next = applyTreemapChanges(state, mutated, { ...OPTIONS, boundaries });
+    const next = applyTreemapChanges(state, mutated, {
+      ...OPTIONS,
+      boundaries,
+      stableNeighborhood: { maxNodes: 16, anchorMixes: [0, 0.5, 1], maxSteps: 240 },
+    });
     expect(next.levels.map((l) => l.kind)).toEqual(["module", "directory"]);
+    expect(next.lastBoundaryUpdateStrategies.get("src/alpha")).toBe("stableNeighborhood");
+    expect(next.lastBoundaryStableNeighborhoodResults.get("src/alpha")).toBeDefined();
     for (const [dirId, dirCell] of next.levels[1]!.cells) {
       const moduleCell = next.levels[0]!.cells.get(next.parentOf.get(dirId)!)!;
       expect(containsPoint(moduleCell.polygon, dirCell.site)).toBe(true);

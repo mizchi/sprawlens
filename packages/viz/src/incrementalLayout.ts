@@ -18,6 +18,28 @@ export type StableNeighborhoodUpdateConfig = Omit<StableNeighborhoodOptions, "se
   maxNodes?: number;
 };
 
+/** First unstable warm steps hidden synchronously before yielding to frames. */
+export const INTERACTIVE_WARM_PRE_ROLL_STEPS = 2;
+
+/**
+ * Interactive budget for the sequence-stable update. The endpoint candidates
+ * retain the NPVT baseline and maximum-anchor alternative; the 240-step guard
+ * matches the production micro benchmark.
+ */
+export function interactiveStableNeighborhoodConfig(
+  protectPathMax = false,
+): StableNeighborhoodUpdateConfig {
+  return {
+    maxNodes: 48,
+    anchorMixes: [0, 1],
+    swapPasses: [8],
+    adjacencyTolerance: 0,
+    areaTolerance: 0.01,
+    maxSteps: 240,
+    ...(protectPathMax ? { protectedConstraints: ["constraintPathMax"] } : {}),
+  };
+}
+
 export type LeafUpdateOptions = {
   seed: number;
   adaptationRate?: number;
@@ -36,6 +58,8 @@ export type LeafUpdateResult =
     };
 
 export type LeafUpdateStrategy = "cold" | LeafUpdateResult["strategy"];
+
+export type StableGroupUpdate = Extract<LeafUpdateResult, { strategy: "stableNeighborhood" }>;
 
 export type LeafUpdateSummary = Record<LeafUpdateStrategy, number>;
 
@@ -165,9 +189,53 @@ export function preRollCapacityLayout(
 }
 
 /**
- * Update one existing innermost group. Stable neighborhood selection is an
- * explicit, bounded production experiment; all unsupported or non-converged
- * cases retain the previous animated warm-update behavior.
+ * Apply the sequence-stable feasible envelope to any hierarchy group.
+ *
+ * The research policy needs only the current graph and the previous sites of
+ * surviving identities. Keeping this adapter independent from the leaf warm
+ * solver lets boundary levels use the exact same candidate generator and
+ * baseline-relative selector instead of approximating temporal stability with
+ * hints.
+ */
+export function updateStableGroupLayout(
+  previousCells: readonly Pick<CapacityLayoutState["cells"][number], "id" | "site">[],
+  nodes: readonly AtlasNode[],
+  edges: readonly AtlasEdge[],
+  clip: ClipRegion,
+  options: Omit<LeafUpdateOptions, "preRollWarm">,
+): StableGroupUpdate | null {
+  const stable = options.stableNeighborhood;
+  const maxNodes = stable === false || stable === undefined ? 0 : (stable.maxNodes ?? 40);
+  if (!stable || nodes.length < 2 || nodes.length > maxNodes) return null;
+  const nodeIds = new Set(nodes.map((node) => node.id));
+  const anchors = new Map(
+    previousCells.flatMap((cell) =>
+      nodeIds.has(cell.id) ? [[cell.id, { ...cell.site }] as const] : [],
+    ),
+  );
+  if (anchors.size === 0) return null;
+  const { maxNodes: _, ...stableOptions } = stable;
+  const result = stableNeighborhoodUpdate(
+    nodes.map((node) => ({ id: node.id, weight: node.metrics.loc })),
+    edges,
+    clip,
+    {
+      ...stableOptions,
+      seed: options.seed,
+      anchors,
+      adaptationRate: stable.adaptationRate ?? options.adaptationRate,
+      lloydRate: stable.lloydRate ?? options.lloydRate,
+    },
+  );
+  return result.selected.converged
+    ? { strategy: "stableNeighborhood", state: result.state, result }
+    : null;
+}
+
+/**
+ * Update one existing innermost group. Stable neighborhood selection is the
+ * bounded production policy; all unsupported or non-converged cases retain
+ * the previous animated warm-update behavior.
  */
 export function updateLeafLayout(
   existing: CapacityLayoutState,
@@ -177,26 +245,8 @@ export function updateLeafLayout(
   options: LeafUpdateOptions,
 ): LeafUpdateResult {
   const previousSiteOf = (id: string) => existing.cells.find((cell) => cell.id === id)?.site;
-  const stable = options.stableNeighborhood;
-  const maxNodes = stable === false || stable === undefined ? 0 : (stable.maxNodes ?? 40);
-  if (stable && leaves.length >= 2 && leaves.length <= maxNodes && edges.length > 0) {
-    const { maxNodes: _, ...stableOptions } = stable;
-    const result = stableNeighborhoodUpdate(
-      leaves.map((leaf) => ({ id: leaf.id, weight: leaf.metrics.loc })),
-      edges,
-      clip,
-      {
-        ...stableOptions,
-        seed: options.seed,
-        anchors: new Map(existing.cells.map((cell) => [cell.id, { ...cell.site }] as const)),
-        adaptationRate: stable.adaptationRate ?? options.adaptationRate,
-        lloydRate: stable.lloydRate ?? options.lloydRate,
-      },
-    );
-    if (result.selected.converged) {
-      return { strategy: "stableNeighborhood", state: result.state, result };
-    }
-  }
+  const stableUpdate = updateStableGroupLayout(existing.cells, leaves, edges, clip, options);
+  if (stableUpdate) return stableUpdate;
 
   const leafIds = new Set(leaves.map((leaf) => leaf.id));
   const warm = applyGraphChanges(existing, {

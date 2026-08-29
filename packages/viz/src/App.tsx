@@ -14,6 +14,7 @@ import { centroid, containsPoint, type Ring, type Vec2 } from "@sprawlens/layout
 import { createRng, type Rng } from "@sprawlens/layout";
 import { Controls, type PlaygroundParams } from "./Controls.tsx";
 import {
+  interactiveStableNeighborhoodConfig,
   summarizeLeafUpdateStrategies,
   summarizeStableNeighborhoodExperiments,
 } from "./incrementalLayout.ts";
@@ -135,6 +136,7 @@ import {
 } from "./history.ts";
 import {
   liveDataUpdateLayoutPlan,
+  liveDataUpdateNeedsImmediateFrame,
   overlayLayoutSpec,
   resolveMapFocusView,
 } from "./mapDisplaySpec.ts";
@@ -763,17 +765,7 @@ export function App() {
   };
 
   const stableNeighborhoodOptions = (enabled: boolean) =>
-    enabled
-      ? {
-          maxNodes: 80,
-          anchorMixes: [0, 0.25, 0.5, 0.75, 1],
-          swapPasses: [8],
-          adjacencyTolerance: 0,
-          ...(PROTECT_PATH_MAX ? { protectedConstraints: ["constraintPathMax"] as const } : {}),
-          areaTolerance: 0.01,
-          maxSteps: 800,
-        }
-      : (false as const);
+    enabled ? interactiveStableNeighborhoodConfig(PROTECT_PATH_MAX) : (false as const);
 
   const ringsOptions = (p: PlaygroundParams) => ({
     width: WIDTH,
@@ -1304,7 +1296,9 @@ export function App() {
   };
 
   const warmApplyDisplayedGraph = (previousVisible: AtlasGraph): boolean => {
+    const startedAt = performance.now();
     const nextVisible = effectiveGraph(paramsRef.current);
+    const projectionMs = performance.now() - startedAt;
     const delta = diffGraphs(previousVisible, nextVisible);
     const plan = liveDataUpdateLayoutPlan({
       layoutReady: ringsRef.current !== null || treemapRef.current !== null,
@@ -1314,9 +1308,15 @@ export function App() {
     invalidateGraphDeltaLayouts(delta);
     if (plan === "cold-rebuild") {
       rebuild(paramsRef.current);
-      setFrame((f) => f + 1);
+      mapContainerRef.current?.setAttribute("data-update-projection-ms", String(projectionMs));
+      mapContainerRef.current?.setAttribute(
+        "data-update-layout-ms",
+        String(performance.now() - startedAt - projectionMs),
+      );
+      if (liveDataUpdateNeedsImmediateFrame(plan)) setFrame((f) => f + 1);
       return true;
     }
+    const layoutStartedAt = performance.now();
     if (ringsRef.current) {
       ringsRef.current = applyRingsChanges(
         ringsRef.current,
@@ -1330,7 +1330,17 @@ export function App() {
         treemapOptions(paramsRef.current),
       );
     }
-    setFrame((f) => f + 1);
+    mapContainerRef.current?.setAttribute("data-update-projection-ms", String(projectionMs));
+    mapContainerRef.current?.setAttribute(
+      "data-update-layout-ms",
+      String(performance.now() - layoutStartedAt),
+    );
+    // The solver loop owns warm repainting. Mark it unsettled immediately so
+    // automation cannot observe the previous settled state between the event
+    // and the next rAF; the first paint then contains already-advanced cells.
+    (window as unknown as { __sprawlensConverged?: boolean }).__sprawlensConverged = false;
+    mapContainerRef.current?.setAttribute("data-converged", "0");
+    if (liveDataUpdateNeedsImmediateFrame(plan)) setFrame((f) => f + 1);
     return true;
   };
 
@@ -1470,7 +1480,7 @@ export function App() {
     if (!history || index < 0 || index >= history.length) return;
     if (index === commitIndexRef.current) return;
     commitIndexRef.current = index;
-    if (historyCommitUpdateMode(paramsRef.current.stableLayout) === "warm-experiment") {
+    if (historyCommitUpdateMode(paramsRef.current.stableLayout) === "stable-sequence") {
       const previousVisible = displayGraphRef.current;
       const snapshot = history[index]!.snapshot;
       graphRef.current = snapshotToAtlasGraph(snapshot);
@@ -1483,9 +1493,9 @@ export function App() {
       if (!warmApplyDisplayedGraph(previousVisible)) setFrame((frame) => frame + 1);
       return;
     }
-    // The regular history browser retains its cold rebuild: it guarantees new
-    // symbols surface at full granularity. The explicit paper experiment above
-    // instead preserves the previous layout so temporal displacement exists.
+    // An explicit stableLayout=false keeps the legacy cold rebuild available
+    // as a visual control. The default path above carries its own previous
+    // geometry through the history sequence.
     rebuild(paramsRef.current);
     setFrame((f) => f + 1);
   };
@@ -1517,7 +1527,7 @@ export function App() {
     const hi = Math.max(fixedAnchor, endpoint);
     commitRangeRef.current = [lo, hi];
     commitIndexRef.current = endpoint;
-    if (historyCommitUpdateMode(paramsRef.current.stableLayout) === "warm-experiment") {
+    if (historyCommitUpdateMode(paramsRef.current.stableLayout) === "stable-sequence") {
       const previousVisible = displayGraphRef.current;
       const snapshot = history[endpoint]!.snapshot;
       graphRef.current = snapshotToAtlasGraph(snapshot);
@@ -1547,7 +1557,7 @@ export function App() {
         });
         commitRangeRef.current = cleared.range;
         commitRangeAnchorRef.current = cleared.rangeAnchor;
-        if (historyCommitUpdateMode(paramsRef.current.stableLayout) === "warm-experiment") {
+        if (historyCommitUpdateMode(paramsRef.current.stableLayout) === "stable-sequence") {
           const previousVisible = displayGraphRef.current;
           applyCommitDiff(cleared.index);
           if (!warmApplyDisplayedGraph(previousVisible)) setFrame((frame) => frame + 1);
@@ -2986,16 +2996,24 @@ export function App() {
   const hasChangedPreviewPanel = changedSignalIds.size > 0 || recentChangesRef.current.length > 0;
   const hasTraceTimelineControl = experimentalOn && timeline !== null;
   const hasTraceExtractControl = experimentalOn && !timeline && traceExtractCount > 0;
-  const leafUpdateSummary = summarizeLeafUpdateStrategies(
-    ringsRef.current?.lastLeafUpdateStrategies.values() ??
-      treemapRef.current?.lastLeafUpdateStrategies.values() ??
-      [],
-  );
-  const stableExperimentSummary = summarizeStableNeighborhoodExperiments(
-    ringsRef.current?.lastStableNeighborhoodResults.values() ??
-      treemapRef.current?.lastStableNeighborhoodResults.values() ??
-      [],
-  );
+  const layoutUpdateStrategies = ringsRef.current
+    ? [...ringsRef.current.lastLeafUpdateStrategies.values()]
+    : treemapRef.current
+      ? [
+          ...treemapRef.current.lastBoundaryUpdateStrategies.values(),
+          ...treemapRef.current.lastLeafUpdateStrategies.values(),
+        ]
+      : [];
+  const layoutUpdateSummary = summarizeLeafUpdateStrategies(layoutUpdateStrategies);
+  const stableLayoutResults = ringsRef.current
+    ? [...ringsRef.current.lastStableNeighborhoodResults.values()]
+    : treemapRef.current
+      ? [
+          ...treemapRef.current.lastBoundaryStableNeighborhoodResults.values(),
+          ...treemapRef.current.lastStableNeighborhoodResults.values(),
+        ]
+      : [];
+  const stableExperimentSummary = summarizeStableNeighborhoodExperiments(stableLayoutResults);
   const { mobileLayout, traceControlBottom, changedPreviewBottom, chatBottomOffset } =
     overlayLayoutSpec({
       mapWidth: mapSize.width,
@@ -3321,7 +3339,7 @@ export function App() {
             availableScopes={availableScopes}
             debug={DEBUG}
             changedCount={changedSignalIds.size}
-            leafUpdateSummary={leafUpdateSummary}
+            layoutUpdateSummary={layoutUpdateSummary}
             stableExperimentSummary={stableExperimentSummary}
             onChange={onControlsChange}
             onRegenerate={() => rebuild(paramsRef.current)}

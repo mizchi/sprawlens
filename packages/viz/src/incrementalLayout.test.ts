@@ -2,6 +2,8 @@ import { describe, expect, it } from "vitest";
 import type { AtlasEdge, AtlasNode } from "@sprawlens/schema";
 import { stableNeighborhoodUpdate } from "@sprawlens/layout";
 import {
+  INTERACTIVE_WARM_PRE_ROLL_STEPS,
+  interactiveStableNeighborhoodConfig,
   leafGraphKey,
   neighborSiteHint,
   nodeInsertionHint,
@@ -9,6 +11,30 @@ import {
   updateLeafLayout,
   summarizeLeafUpdateStrategies,
 } from "./incrementalLayout.ts";
+
+describe("interactiveStableNeighborhoodConfig", () => {
+  it("bounds synchronous warm fallback work before yielding to animation frames", () => {
+    expect(INTERACTIVE_WARM_PRE_ROLL_STEPS).toBe(2);
+  });
+
+  it("uses the bounded endpoint-candidate production budget", () => {
+    expect(interactiveStableNeighborhoodConfig()).toEqual({
+      maxNodes: 48,
+      anchorMixes: [0, 1],
+      swapPasses: [8],
+      adjacencyTolerance: 0,
+      areaTolerance: 0.01,
+      maxSteps: 240,
+    });
+  });
+
+  it("adds the optional path floor without changing the candidate budget", () => {
+    expect(interactiveStableNeighborhoodConfig(true)).toEqual({
+      ...interactiveStableNeighborhoodConfig(),
+      protectedConstraints: ["constraintPathMax"],
+    });
+  });
+});
 
 const edges: AtlasEdge[] = [
   { source: "new", target: "a" },

@@ -17,6 +17,7 @@ import { buildScene } from "../engine/buildScene.ts";
 import { fallbackChangedDiffStat } from "../diffStats.ts";
 import { SvgRenderer } from "../renderer/SvgRenderer.tsx";
 import type { MapScene } from "../renderer/contract.ts";
+import { sceneGeometryFingerprint } from "../renderer/sceneGeometry.ts";
 import { createRingsState, stepRingsState, type RingsState } from "../ringsController.ts";
 import { createTreemapState, stepTreemapState, type TreemapState } from "../treemapController.ts";
 import {
@@ -305,6 +306,11 @@ export function renderAtlasSvg(graph: AtlasGraph, options: AtlasSvgOptions = {})
   const body = renderToString(
     h(SvgRenderer, {
       scene,
+      // Persisted/headless artifacts need a content-derived golden key. The
+      // interactive renderer deliberately uses its cheap marker instead: a
+      // full canonical JSON + BigInt hash on every animation frame is pure
+      // verification overhead there.
+      geometryFingerprint: sceneGeometryFingerprint(scene),
       selectedId: view?.selection[0] ?? null,
       selectedIds: new Set(view?.selection ?? []),
       selectedEdges: [],

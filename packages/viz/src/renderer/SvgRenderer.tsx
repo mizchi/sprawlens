@@ -1,7 +1,6 @@
 import { RingsMapSvg } from "../RingsMapSvg.tsx";
 import { TreemapSvg } from "../TreemapSvg.tsx";
 import type { MapHandlers, MapScene } from "./contract.ts";
-import { sceneGeometryFingerprint } from "./sceneGeometry.ts";
 
 /**
  * The SVG implementation of the renderer boundary. Unpacks a {@link MapScene}
@@ -9,8 +8,11 @@ import { sceneGeometryFingerprint } from "./sceneGeometry.ts";
  * TUI or three.js renderer would take the same `{ scene, ...handlers }` and
  * draw it some other way.
  */
-export function SvgRenderer({ scene, ...handlers }: { scene: MapScene } & MapHandlers) {
-  const geometryFingerprint = sceneGeometryFingerprint(scene);
+export function SvgRenderer({
+  scene,
+  geometryFingerprint = "interactive",
+  ...handlers
+}: { scene: MapScene; geometryFingerprint?: string } & MapHandlers) {
   if (scene.kind === "rings") {
     return (
       <RingsMapSvg

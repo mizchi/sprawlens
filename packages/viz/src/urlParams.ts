@@ -101,8 +101,8 @@ export function makeUrlParamParsers(darkDefault: boolean) {
     weight: literal(WEIGHTS, "loc"),
     changedPreview: boolean(true),
     traceExtract: boolean(false),
-    /** Stable NPVT delta update; separate from unrelated experimental features. */
-    stableLayout: boolean(false),
+    /** Sequence-stable feasible-envelope update; enabled by default. */
+    stableLayout: boolean(true),
     showEdges: boolean(false),
     groupByService: boolean(false),
     dark: boolean(darkDefault),

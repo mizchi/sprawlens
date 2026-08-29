@@ -57,7 +57,7 @@ export type PlaygroundParams = {
   /** Top-level scopes excluded from the map ((root), src, e2e, ...). */
   omitModules: string[];
   weight: WeightKind;
-  /** Use the bounded stable-NPVT strategy for changed leaf groups. */
+  /** Use the sequence-stable feasible envelope for changed hierarchy groups. */
   stableLayout: boolean;
   /** Fly the camera to files as their working-tree changes appear. */
   followChanges: boolean;
@@ -87,7 +87,7 @@ type Props = {
   /** Experiment helpers (graph mutation buttons) show only when set. */
   debug?: boolean;
   changedCount?: number;
-  leafUpdateSummary?: LeafUpdateSummary;
+  layoutUpdateSummary?: LeafUpdateSummary;
   stableExperimentSummary?: StableNeighborhoodExperimentSummary;
   onChange: (params: PlaygroundParams) => void;
   onRegenerate: () => void;
@@ -192,16 +192,16 @@ export function Controls(props: Props) {
         style={row}
         title="run the paper envelope: retain the NPVT baseline and minimize changed-layout displacement"
       >
-        <span style={{ width: "110px" }}>stable delta</span>
+        <span style={{ width: "110px" }}>stable history</span>
         <input
           type="checkbox"
           checked={params.stableLayout}
           onInput={(e) => set("stableLayout", (e.target as HTMLInputElement).checked)}
         />
-        {props.leafUpdateSummary ? (
+        {props.layoutUpdateSummary ? (
           <small style={{ color: "#94a3b8" }}>
-            S{props.leafUpdateSummary.stableNeighborhood} W{props.leafUpdateSummary.warm} C
-            {props.leafUpdateSummary.cold}
+            S{props.layoutUpdateSummary.stableNeighborhood} W{props.layoutUpdateSummary.warm} C
+            {props.layoutUpdateSummary.cold}
           </small>
         ) : null}
       </label>
@@ -209,8 +209,8 @@ export function Controls(props: Props) {
         <div
           data-testid="stable-layout-experiment"
           data-stable-groups={props.stableExperimentSummary?.groups ?? 0}
-          data-warm-groups={props.leafUpdateSummary?.warm ?? 0}
-          data-cold-groups={props.leafUpdateSummary?.cold ?? 0}
+          data-warm-groups={props.layoutUpdateSummary?.warm ?? 0}
+          data-cold-groups={props.layoutUpdateSummary?.cold ?? 0}
           data-baseline-selections={props.stableExperimentSummary?.baselineSelections ?? 0}
           data-contract-violations={props.stableExperimentSummary?.contractViolations ?? 0}
           data-adjacency-gain={props.stableExperimentSummary?.meanAdjacencyGain ?? 0}
@@ -234,11 +234,11 @@ export function Controls(props: Props) {
         >
           <strong style={{ gridColumn: "1 / -1", color: "#38bdf8" }}>paper envelope</strong>
           <small style={{ gridColumn: "1 / -1", color: "#94a3b8" }}>
-            5 anchor mixes · 8 swaps · ≤80 nodes
+            2 candidates · NPVT topology floor · ≤48 nodes
           </small>
           {(props.stableExperimentSummary?.groups ?? 0) === 0 ? (
             <small style={{ gridColumn: "1 / -1", color: "#94a3b8" }}>
-              Use the modules-only preset, then advance history to measure a file delta.
+              Advance history to measure the next hierarchy update.
             </small>
           ) : (
             <>

@@ -34,13 +34,13 @@ function scenario(count: number) {
 }
 
 describe("stable neighborhood production budget", () => {
-  for (const count of [8, 16, 32]) {
+  for (const count of [8, 16, 32, 64, 80]) {
     const input = scenario(count);
     bench(`n=${count}`, () => {
       stableNeighborhoodUpdate(input.nodes, input.edges, clip, {
         seed: 7,
         anchors: input.anchors,
-        anchorMixes: [0, 0.5, 1],
+        anchorMixes: [0, 1],
         adjacencyTolerance: 0,
         areaTolerance: 0.01,
         maxSteps: 240,

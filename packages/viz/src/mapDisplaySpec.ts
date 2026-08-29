@@ -81,3 +81,10 @@ export function liveDataUpdateLayoutPlan(input: {
   if (!input.displayChanged) return "ignore";
   return input.layoutReady ? "warm-apply" : "cold-rebuild";
 }
+
+/** A warm layout is already owned by the animation loop. Painting its raw
+ * pre-solve geometry here would synchronously render the whole SVG once, only
+ * for the next animation frame to replace it. */
+export function liveDataUpdateNeedsImmediateFrame(plan: LiveDataUpdateLayoutPlan): boolean {
+  return plan === "cold-rebuild";
+}
