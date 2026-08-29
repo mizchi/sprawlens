@@ -1,6 +1,10 @@
 import { describe, expect, it } from "vitest";
 import type { AtlasGraph } from "@sprawlens/contracts";
-import { deltaBenchmarkCasesFromGraphPairs, runDeltaLayoutBenchmark } from "./deltaBenchmark.ts";
+import {
+  deltaBenchmarkCasesFromGraphPairs,
+  layoutSequencesFromGraphs,
+  runDeltaLayoutBenchmark,
+} from "./deltaBenchmark.ts";
 
 describe("delta layout benchmark", () => {
   it("reports reproducible vanilla-vs-guided quality metrics", () => {
@@ -202,5 +206,40 @@ describe("delta layout benchmark", () => {
     expect(result.scenarios[0]?.trials[0]?.conditions.cold.converged).toBe(true);
     expect(result.scenarios[0]?.trials[0]?.conditions.neighborhoodSwap.converged).toBe(true);
     expect(result.scenarios[0]?.trials[0]?.conditions.stableNeighborhood.converged).toBe(true);
+  });
+
+  it("forms bounded contiguous graph sequences without dropping unchanged intermediate states", () => {
+    const node = (id: string, loc: number) => ({
+      id,
+      kind: "file" as const,
+      label: id,
+      metrics: { loc },
+    });
+    const graphs: AtlasGraph[] = [1, 1, 4].map((loc) => ({
+      nodes: [node("a/1.ts", loc), node("a/2.ts", 2), node("b/1.ts", 1)],
+      edges: [{ source: "a/1.ts", target: "a/2.ts" }],
+    }));
+
+    const corpus = layoutSequencesFromGraphs(graphs, {
+      groupOf: (id) => id.split("/")[0]!,
+      minNodes: 2,
+      maxNodes: 10,
+      minSnapshots: 3,
+    });
+
+    expect(corpus.sequences).toHaveLength(1);
+    expect(corpus.sequences[0]?.name).toBe("a:0..2");
+    expect(corpus.sequences[0]?.snapshots).toHaveLength(3);
+    expect(corpus.sequences[0]?.snapshots[1]?.nodes[0]?.weight).toBe(1);
+    expect(corpus.selection).toEqual({
+      minNodes: 2,
+      maxNodes: 10,
+      minSnapshots: 3,
+      candidateGroups: 2,
+      includedSequences: 1,
+      includedSnapshots: 3,
+      excludedUnchanged: 0,
+      excludedShortRuns: 0,
+    });
   });
 });

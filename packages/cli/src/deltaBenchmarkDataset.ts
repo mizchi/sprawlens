@@ -2,6 +2,7 @@ import { readFile, readdir } from "node:fs/promises";
 import { basename, join, resolve } from "node:path";
 import {
   buildDeltaBenchmarkCorpus,
+  layoutSequencesFromGraphs,
   runDeltaLayoutBenchmark,
   summarizeSamples,
 } from "@sprawlens/layout";
@@ -151,6 +152,12 @@ export async function loadCodesprawlBenchmarkCases(
     minNodes: options.minNodes,
     maxNodes: options.maxNodes,
   });
+  const sequenceCorpus = layoutSequencesFromGraphs(graphs, {
+    groupOf,
+    minNodes: options.minNodes,
+    maxNodes: options.maxNodes,
+    minSnapshots: 3,
+  });
   const snapshotNodeCounts = graphs.map((graph) => graph.nodes.length);
   return {
     schemaVersion: 2 as const,
@@ -168,6 +175,8 @@ export async function loadCodesprawlBenchmarkCases(
     },
     cases: corpus.cases,
     selection: corpus.selection,
+    sequences: sequenceCorpus.sequences,
+    sequenceSelection: sequenceCorpus.selection,
   };
 }
 
@@ -236,7 +245,7 @@ const CONTRAST_METRICS: readonly ContrastMetric[] = [
 ];
 
 const publicDataset = (dataset: LoadedDataset) => {
-  const { cases: _, ...metadata } = dataset;
+  const { cases: _, sequences: __, ...metadata } = dataset;
   return metadata;
 };
 

@@ -29,6 +29,7 @@ export * from "./ringLayout.ts";
 export * from "./ringOrder.ts";
 export * from "./rng.ts";
 export * from "./scc.ts";
+export * from "./sequenceBenchmark.ts";
 export * from "./topoRank.ts";
 export * from "./transitiveWeight.ts";
 export * from "./vec.ts";

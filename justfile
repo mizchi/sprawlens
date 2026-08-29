@@ -27,6 +27,9 @@ collect-repository-evaluation *args:
 run-repository-evaluation *args:
     @pnpm tsx tools/run-repository-evaluation.ts {{ args }}
 
+run-sequence-evaluation *args:
+    @pnpm tsx tools/run-sequence-evaluation.ts {{ args }}
+
 benchmark-repository-evaluation-cost *args:
     @pnpm tsx tools/benchmark-repository-evaluation-cost.ts {{ args }}
 

@@ -139,6 +139,8 @@ describe("delta benchmark dataset", () => {
       maxSnapshotNodes: 3,
     });
     expect(loaded.cases).toHaveLength(1);
+    expect(loaded.sequences).toHaveLength(0);
+    expect(loaded.sequenceSelection.minSnapshots).toBe(3);
     expect(loaded.selection).toEqual({
       minNodes: 2,
       maxNodes: 10,

@@ -20,7 +20,7 @@ import {
 } from "./stableNeighborhood.ts";
 import { squarify } from "./squarify.ts";
 
-type BenchmarkGraph = { nodes: CellInputNode[]; edges: AtlasEdge[] };
+export type BenchmarkGraph = { nodes: CellInputNode[]; edges: AtlasEdge[] };
 export type DeltaBenchmarkCase = {
   name: string;
   before: BenchmarkGraph;
@@ -33,6 +33,8 @@ type CaseOptions = {
   minNodes?: number;
   maxNodes?: number;
 };
+type SequenceCorpusOptions = CaseOptions & { minSnapshots?: number };
+export type LayoutGraphSequence = { name: string; snapshots: BenchmarkGraph[] };
 type BenchmarkOptions = {
   seeds?: readonly number[];
   cases?: readonly DeltaBenchmarkCase[];
@@ -227,6 +229,77 @@ export function buildDeltaBenchmarkCorpus(pairs: readonly GraphPair[], options: 
   return {
     cases,
     selection: { minNodes, maxNodes, candidateGroups, included: cases.length, excluded },
+  };
+}
+
+/** Build contiguous bounded group histories, retaining unchanged intermediate snapshots. */
+export function layoutSequencesFromGraphs(
+  graphs: readonly AtlasGraph[],
+  options: SequenceCorpusOptions = {},
+) {
+  const groupOf = options.groupOf ?? (() => "all");
+  const minNodes = options.minNodes ?? 3;
+  const maxNodes = options.maxNodes ?? 80;
+  const minSnapshots = options.minSnapshots ?? 3;
+  if (!Number.isInteger(minSnapshots) || minSnapshots < 2) {
+    throw new Error("layout sequence minSnapshots must be an integer of at least 2");
+  }
+  const groups = new Set(graphs.flatMap((graph) => graph.nodes.map((node) => groupOf(node.id))));
+  const sequences: LayoutGraphSequence[] = [];
+  let excludedUnchanged = 0;
+  let excludedShortRuns = 0;
+  const fingerprint = (graph: BenchmarkGraph) =>
+    JSON.stringify({
+      nodes: graph.nodes.map((node) => [node.id, node.weight]),
+      edges: graph.edges.map(edgeKey).sort(),
+    });
+  for (const group of [...groups].sort()) {
+    let start = 0;
+    let run: BenchmarkGraph[] = [];
+    const flush = () => {
+      if (run.length === 0) return;
+      if (run.length < minSnapshots) {
+        excludedShortRuns++;
+      } else if (new Set(run.map(fingerprint)).size === 1) {
+        excludedUnchanged++;
+      } else {
+        sequences.push({ name: `${group}:${start}..${start + run.length - 1}`, snapshots: run });
+      }
+      run = [];
+    };
+    for (let index = 0; index < graphs.length; index++) {
+      const graph = graphs[index]!;
+      const ids = new Set(
+        graph.nodes.filter((node) => groupOf(node.id) === group).map((node) => node.id),
+      );
+      const nodes = graph.nodes
+        .filter((node) => ids.has(node.id))
+        .map((node) => ({ id: node.id, weight: node.metrics.loc }));
+      if (nodes.length < minNodes || nodes.length > maxNodes) {
+        flush();
+        start = index + 1;
+        continue;
+      }
+      if (run.length === 0) start = index;
+      run.push({
+        nodes,
+        edges: graph.edges.filter((edge) => ids.has(edge.source) && ids.has(edge.target)),
+      });
+    }
+    flush();
+  }
+  return {
+    sequences,
+    selection: {
+      minNodes,
+      maxNodes,
+      minSnapshots,
+      candidateGroups: groups.size,
+      includedSequences: sequences.length,
+      includedSnapshots: sequences.reduce((sum, sequence) => sum + sequence.snapshots.length, 0),
+      excludedUnchanged,
+      excludedShortRuns,
+    },
   };
 }
 
