@@ -2,8 +2,14 @@ import { describe, expect, it } from "vitest";
 import type {
   ExternalLayoutBaselineRequestV1,
   ExternalLayoutBaselineResponseV1,
+  ExternalLayoutSequenceImplementationV2,
+  ExternalLayoutSequenceRequestV2,
+  ExternalLayoutSequenceResponseV2,
 } from "@sprawlens/contracts";
-import { parseExternalLayoutBaselineResponse } from "./externalLayoutBaseline.ts";
+import {
+  parseExternalLayoutBaselineResponse,
+  parseExternalLayoutSequenceResponse,
+} from "./externalLayoutBaseline.ts";
 
 const request: ExternalLayoutBaselineRequestV1 = {
   schemaVersion: 1,
@@ -111,5 +117,86 @@ describe("external layout baseline response", () => {
       reason: { code: "hierarchy-depth", message: "only one level is supported" },
     };
     expect(parseExternalLayoutBaselineResponse(response, request)).toEqual(response);
+  });
+});
+
+const sequenceRequest: ExternalLayoutSequenceRequestV2 = {
+  schemaVersion: 2,
+  requestId: "sequence-a:3",
+  caseName: "sequence-a",
+  seed: 3,
+  boundary: request.boundary,
+  snapshots: [
+    { snapshotId: "g0", graph: request.before },
+    { snapshotId: "ga", graph: request.after },
+    { snapshotId: "g0-return", graph: request.before },
+  ],
+  semantics: request.semantics,
+  identitySemantics: "path-stable-id",
+  nodeOrderSemantics: "request-order",
+  initialization: { mode: "native" },
+  lifecycle: {
+    resetBeforeRequest: true,
+    hostDoesNotResetWithinRequest: true,
+    rngReset: "request-seed",
+  },
+};
+
+const sequenceCapabilities: ExternalLayoutSequenceImplementationV2["capabilities"] = {
+  initializationModes: ["native"],
+  nodeCount: { min: 2, max: 80 },
+  boundary: "convex-polygon",
+  cellGeometry: "convex-polygons",
+  siteSemantics: "native",
+  dependencySemantics: "ignored",
+  deterministicForFixedSeed: true,
+};
+
+const sequenceRun = {
+  cells: run.cells,
+  work: { nativeIterations: 42 },
+  nativeConverged: true,
+};
+
+describe("external layout sequence response", () => {
+  it("accepts ordered snapshot runs with explicit temporal provenance", () => {
+    const response: ExternalLayoutSequenceResponseV2 = {
+      schemaVersion: 2,
+      requestId: sequenceRequest.requestId,
+      status: "ok",
+      implementation: {
+        ...implementation,
+        temporalAccess: "current-only",
+        stateModel: "stateless",
+        capabilities: sequenceCapabilities,
+      },
+      runs: sequenceRequest.snapshots.map(({ snapshotId }) => ({ snapshotId, ...sequenceRun })),
+    };
+
+    expect(parseExternalLayoutSequenceResponse(response, sequenceRequest)).toEqual(response);
+  });
+
+  it("rejects reordered runs and node ids that do not match a snapshot", () => {
+    expect(() =>
+      parseExternalLayoutSequenceResponse(
+        {
+          schemaVersion: 2,
+          requestId: sequenceRequest.requestId,
+          status: "ok",
+          implementation: {
+            ...implementation,
+            temporalAccess: "past-and-present",
+            stateModel: "predecessor-layout",
+            capabilities: sequenceCapabilities,
+          },
+          runs: [
+            { snapshotId: "ga", ...sequenceRun },
+            { snapshotId: "g0", ...sequenceRun },
+            { snapshotId: "g0-return", ...sequenceRun },
+          ],
+        },
+        sequenceRequest,
+      ),
+    ).toThrow(/snapshot order/);
   });
 });

@@ -1,6 +1,12 @@
 import { describe, expect, it } from "vitest";
-import type { ExternalLayoutBaselineRequestV1 } from "@sprawlens/schema";
-import { runStableVoronoiAdapterRequest } from "./stableVoronoiExternalAdapter.ts";
+import type {
+  ExternalLayoutBaselineRequestV1,
+  ExternalLayoutSequenceRequestV2,
+} from "@sprawlens/schema";
+import {
+  runStableVoronoiAdapterRequest,
+  runStableVoronoiSequenceAdapterRequest,
+} from "./stableVoronoiExternalAdapter.ts";
 
 const graph = {
   nodes: [
@@ -62,5 +68,60 @@ describe("paper-derived stable Voronoi external adapter", () => {
         before: { nodes: [], edges: [] },
       }),
     ).toMatchObject({ status: "unsupported", reason: { code: "node-count" } });
+  });
+
+  it("declares current-only stateless semantics for an ordered sequence", () => {
+    const sequence: ExternalLayoutSequenceRequestV2 = {
+      schemaVersion: 2,
+      requestId: "stable-sequence:1",
+      caseName: "stable-sequence",
+      seed: 1,
+      boundary: request.boundary,
+      snapshots: [
+        { snapshotId: "g0", graph },
+        {
+          snapshotId: "g1",
+          graph: {
+            ...graph,
+            nodes: graph.nodes.map((node, index) => ({
+              ...node,
+              weight: node.weight + (index === 0 ? 1 : 0),
+            })),
+          },
+        },
+        { snapshotId: "g0-return", graph },
+      ],
+      semantics: request.semantics,
+      identitySemantics: "path-stable-id",
+      nodeOrderSemantics: "request-order",
+      initialization: { mode: "native" },
+      lifecycle: {
+        resetBeforeRequest: true,
+        hostDoesNotResetWithinRequest: true,
+        rngReset: "request-seed",
+      },
+    };
+
+    const response = runStableVoronoiSequenceAdapterRequest(sequence);
+
+    expect(response).toMatchObject({
+      schemaVersion: 2,
+      status: "ok",
+      implementation: {
+        temporalAccess: "current-only",
+        stateModel: "stateless",
+        capabilities: {
+          initializationModes: ["native"],
+          dependencySemantics: "ignored",
+        },
+      },
+      runs: [
+        { snapshotId: "g0", nativeConverged: true },
+        { snapshotId: "g1", nativeConverged: true },
+        { snapshotId: "g0-return", nativeConverged: true },
+      ],
+    });
+    if (response.status !== "ok") throw new Error("expected successful sequence response");
+    expect(response.runs[2]?.cells).toEqual(response.runs[0]?.cells);
   });
 });

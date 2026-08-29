@@ -5,7 +5,9 @@ import { describe, expect, it } from "vitest";
 import type { ExternalLayoutBaselineRequestV1 } from "@sprawlens/schema";
 import {
   createExternalLayoutBaselineRequest,
+  createExternalLayoutSequenceRequest,
   runExternalLayoutBaseline,
+  runExternalLayoutSequenceBaseline,
 } from "./externalLayoutBaseline.ts";
 
 const request: ExternalLayoutBaselineRequestV1 = {
@@ -98,6 +100,7 @@ process.stdin.on("end", () => {
     after: layout(request.after)
   }));
 });
+
 `,
     );
 
@@ -122,5 +125,83 @@ process.stdin.on("end", () => {
       status: "failed",
       failure: { code: "invalid-output" },
     });
+  });
+});
+
+describe("external layout sequence process bridge", () => {
+  it("converts ordered graphs without exposing implementation-specific state", () => {
+    const converted = createExternalLayoutSequenceRequest(
+      "controlled-weight",
+      [request.before, request.after, request.before],
+      7,
+    );
+
+    expect(converted).toMatchObject({
+      schemaVersion: 2,
+      requestId: "controlled-weight:7",
+      caseName: "controlled-weight",
+      seed: 7,
+      snapshots: [
+        { snapshotId: "snapshot-0", graph: request.before },
+        { snapshotId: "snapshot-1", graph: request.after },
+        { snapshotId: "snapshot-2", graph: request.before },
+      ],
+    });
+  });
+
+  it("validates a sequence response emitted by a separate process", async () => {
+    const sequence = createExternalLayoutSequenceRequest(
+      "controlled-weight",
+      [request.before, request.after, request.before],
+      7,
+    );
+    const script = `let input = "";
+process.stdin.setEncoding("utf8");
+process.stdin.on("data", (chunk) => input += chunk);
+process.stdin.on("end", () => {
+  const request = JSON.parse(input);
+  const layout = (snapshot) => ({
+    snapshotId: snapshot.snapshotId,
+    cells: snapshot.graph.nodes.map((node, index) => {
+      const x0 = index / snapshot.graph.nodes.length;
+      const x1 = (index + 1) / snapshot.graph.nodes.length;
+      return { id: node.id, site: { x: (x0 + x1) / 2, y: 0.5 }, polygon: [
+        { x: x0, y: 0 }, { x: x1, y: 0 }, { x: x1, y: 1 }, { x: x0, y: 1 }
+      ] };
+    }),
+    work: { nativeIterations: 1 },
+    nativeConverged: true
+  });
+  process.stdout.write(JSON.stringify({
+    schemaVersion: 2, requestId: request.requestId, status: "ok",
+    implementation: {
+      id: "fixture", revision: "fixture-2", sourceUrl: "https://example.test/fixture",
+      license: "MIT", adapterRevision: "2", parameters: {},
+      temporalAccess: "current-only", stateModel: "stateless",
+      capabilities: {
+        initializationModes: ["native"], nodeCount: { min: 1, max: 100 },
+        boundary: "convex-polygon", cellGeometry: "convex-polygons", siteSemantics: "native",
+        dependencySemantics: "ignored", deterministicForFixedSeed: true
+      }
+    },
+    runs: request.snapshots.map(layout)
+  }));
+});`;
+
+    const execution = await runExternalLayoutSequenceBaseline(
+      [process.execPath, "--eval", script],
+      sequence,
+      { timeoutMs: 5_000 },
+    );
+
+    expect(execution.status).toBe("completed");
+    if (execution.status !== "completed") throw new Error("expected completed sequence adapter");
+    expect(execution.response.status).toBe("ok");
+    if (execution.response.status !== "ok") throw new Error("expected successful sequence");
+    expect(execution.response.runs.map(({ snapshotId }) => snapshotId)).toEqual([
+      "snapshot-0",
+      "snapshot-1",
+      "snapshot-2",
+    ]);
   });
 });

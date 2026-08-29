@@ -58,3 +58,68 @@ export type ExternalLayoutBaselineResponseV1 =
       implementation: ExternalLayoutImplementationV1;
       reason: { code: string; message: string };
     };
+
+export type ExternalLayoutSequenceRequestV2 = {
+  schemaVersion: 2;
+  requestId: string;
+  caseName: string;
+  seed: number;
+  /** Convex normalized boundary shared by every snapshot and implementation. */
+  boundary: ExternalLayoutPointV1[];
+  snapshots: Array<{ snapshotId: string; graph: ExternalLayoutGraphV1 }>;
+  semantics: ExternalLayoutBaselineRequestV1["semantics"];
+  /** Node identity persists by id; array order is part of the adapter input contract. */
+  identitySemantics: "path-stable-id";
+  nodeOrderSemantics: "request-order";
+  initialization: { mode: "native" } | { mode: "common-cells"; cells: ExternalLayoutCellV1[] };
+  /** Each path is a fresh request/process; state may persist only inside that path. */
+  lifecycle: {
+    resetBeforeRequest: true;
+    hostDoesNotResetWithinRequest: true;
+    rngReset: "request-seed";
+  };
+};
+
+export type ExternalLayoutSequenceImplementationV2 = ExternalLayoutImplementationV1 & {
+  /** Declared and adapter-audited; whole-sequence JSON cannot enforce this boundary. */
+  temporalAccess: "current-only" | "past-and-present" | "full-sequence";
+  stateModel: "stateless" | "predecessor-layout" | "sequence-global";
+  capabilities: {
+    initializationModes: Array<"native" | "common-cells">;
+    nodeCount: { min: number; max: number };
+    boundary: "convex-polygon";
+    cellGeometry: "convex-polygons";
+    siteSemantics: "native" | "derived" | "none";
+    dependencySemantics: "ignored" | "undirected-constraints";
+    deterministicForFixedSeed: boolean;
+  };
+};
+
+export type ExternalLayoutSequenceRunV2 = {
+  snapshotId: string;
+  cells: Array<Omit<ExternalLayoutCellV1, "site"> & { site?: ExternalLayoutPointV1 }>;
+  /** Native work counters are descriptive and must not be compared as common units. */
+  work: {
+    nativeIterations?: number;
+    weightedSolves?: number;
+    candidateEvaluations?: number;
+    algorithmTimeMs?: number;
+  };
+  nativeConverged: boolean;
+};
+
+export type ExternalLayoutSequenceResponseV2 =
+  | {
+      schemaVersion: 2;
+      requestId: string;
+      status: "ok";
+      implementation: ExternalLayoutSequenceImplementationV2;
+      runs: ExternalLayoutSequenceRunV2[];
+    }
+  | {
+      schemaVersion: 2;
+      requestId: string;
+      status: "unsupported" | "failed";
+      implementation: ExternalLayoutSequenceImplementationV2;
+      reason: { code: string; message: string };
+    };

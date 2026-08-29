@@ -2,8 +2,12 @@ import { spawn } from "node:child_process";
 import { performance } from "node:perf_hooks";
 import {
   parseExternalLayoutBaselineResponse,
+  parseExternalLayoutSequenceResponse,
   type ExternalLayoutBaselineRequestV1,
   type ExternalLayoutBaselineResponseV1,
+  type ExternalLayoutGraphV1,
+  type ExternalLayoutSequenceRequestV2,
+  type ExternalLayoutSequenceResponseV2,
 } from "@sprawlens/schema";
 import type { DeltaBenchmarkCase } from "@sprawlens/layout";
 
@@ -37,6 +41,48 @@ export function createExternalLayoutBaselineRequest(
   };
 }
 
+/** Convert an ordered graph sequence to the implementation-neutral v2 contract. */
+export function createExternalLayoutSequenceRequest(
+  caseName: string,
+  graphs: readonly ExternalLayoutGraphV1[],
+  seed: number,
+): ExternalLayoutSequenceRequestV2 {
+  if (!caseName) throw new Error("external sequence caseName must be non-empty");
+  if (graphs.length < 2) throw new Error("external sequence requires at least two snapshots");
+  return {
+    schemaVersion: 2,
+    requestId: `${caseName}:${seed}`,
+    caseName,
+    seed,
+    boundary: [
+      { x: 0, y: 0 },
+      { x: 1, y: 0 },
+      { x: 1, y: 1 },
+      { x: 0, y: 1 },
+    ],
+    snapshots: graphs.map((graph, index) => ({
+      snapshotId: `snapshot-${index}`,
+      graph: {
+        nodes: graph.nodes.map(({ id, weight }) => ({ id, weight })),
+        edges: graph.edges.map(({ source, target, weight }) => ({
+          source,
+          target,
+          ...(weight === undefined ? {} : { weight }),
+        })),
+      },
+    })),
+    semantics: { nodeWeight: "loc", dependencyEdges: "undirected-constraints" },
+    identitySemantics: "path-stable-id",
+    nodeOrderSemantics: "request-order",
+    initialization: { mode: "native" },
+    lifecycle: {
+      resetBeforeRequest: true,
+      hostDoesNotResetWithinRequest: true,
+      rngReset: "request-seed",
+    },
+  };
+}
+
 type ExternalBaselineExecutionFailureCode =
   | "spawn-error"
   | "timeout"
@@ -48,10 +94,10 @@ type ExternalBaselineFailure = {
   message: string;
 };
 
-type ExternalBaselineExecution =
+export type ExternalBaselineExecution<Response> =
   | {
       status: "completed";
-      response: ExternalLayoutBaselineResponseV1;
+      response: Response;
       wallTimeMs: number;
       stderr: string;
     }
@@ -63,7 +109,7 @@ type ExternalBaselineExecution =
       exitCode: number | null;
     };
 
-type ExternalBaselineProcessOptions = {
+export type ExternalBaselineProcessOptions = {
   timeoutMs?: number;
   maxOutputBytes?: number;
   cwd?: string;
@@ -74,11 +120,12 @@ type ExternalBaselineProcessOptions = {
  * exactly one ExternalLayoutBaselineRequestV1 from stdin and writes one response
  * JSON value to stdout. Diagnostic output belongs on stderr.
  */
-export function runExternalLayoutBaseline(
+function runExternalLayoutProcess<Response>(
   command: readonly [string, ...string[]],
-  request: ExternalLayoutBaselineRequestV1,
+  request: ExternalLayoutBaselineRequestV1 | ExternalLayoutSequenceRequestV2,
+  parseResponse: (value: unknown) => Response,
   options: ExternalBaselineProcessOptions = {},
-): Promise<ExternalBaselineExecution> {
+): Promise<ExternalBaselineExecution<Response>> {
   const [executable, ...args] = command;
   const timeoutMs = options.timeoutMs ?? 120_000;
   const maxOutputBytes = options.maxOutputBytes ?? 16 * 1024 * 1024;
@@ -141,7 +188,7 @@ export function runExternalLayoutBaseline(
         return;
       }
       try {
-        const response = parseExternalLayoutBaselineResponse(JSON.parse(stdout), request);
+        const response = parseResponse(JSON.parse(stdout));
         settled = true;
         clearTimeout(timer);
         resolve({
@@ -162,4 +209,30 @@ export function runExternalLayoutBaseline(
     });
     child.stdin.end(JSON.stringify(request));
   });
+}
+
+export function runExternalLayoutBaseline(
+  command: readonly [string, ...string[]],
+  request: ExternalLayoutBaselineRequestV1,
+  options: ExternalBaselineProcessOptions = {},
+): Promise<ExternalBaselineExecution<ExternalLayoutBaselineResponseV1>> {
+  return runExternalLayoutProcess(
+    command,
+    request,
+    (value) => parseExternalLayoutBaselineResponse(value, request),
+    options,
+  );
+}
+
+export function runExternalLayoutSequenceBaseline(
+  command: readonly [string, ...string[]],
+  request: ExternalLayoutSequenceRequestV2,
+  options: ExternalBaselineProcessOptions = {},
+): Promise<ExternalBaselineExecution<ExternalLayoutSequenceResponseV2>> {
+  return runExternalLayoutProcess(
+    command,
+    request,
+    (value) => parseExternalLayoutSequenceResponse(value, request),
+    options,
+  );
 }

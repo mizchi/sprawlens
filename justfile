@@ -33,6 +33,9 @@ run-sequence-evaluation *args:
 run-controlled-sequence-experiment *args:
     @pnpm tsx tools/run-controlled-sequence-experiment.ts {{ args }}
 
+run-external-common-sequence-smoke:
+    @pnpm tsx tools/run-external-common-sequence-smoke.ts
+
 run-sequence-candidate-budget-experiment:
     @pnpm tsx tools/run-sequence-candidate-budget-experiment.ts
 

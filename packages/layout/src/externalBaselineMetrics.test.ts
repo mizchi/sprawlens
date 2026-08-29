@@ -2,8 +2,13 @@ import { describe, expect, it } from "vitest";
 import type {
   ExternalLayoutBaselineRequestV1,
   ExternalLayoutBaselineResponseV1,
+  ExternalLayoutSequenceRequestV2,
+  ExternalLayoutSequenceResponseV2,
 } from "@sprawlens/contracts";
-import { evaluateExternalLayoutBaselineResponse } from "./externalBaselineMetrics.ts";
+import {
+  evaluateExternalLayoutBaselineResponse,
+  evaluateExternalLayoutSequenceResponse,
+} from "./externalBaselineMetrics.ts";
 
 const request: ExternalLayoutBaselineRequestV1 = {
   schemaVersion: 1,
@@ -105,6 +110,87 @@ describe("external baseline common metrics", () => {
     expect(evaluated).toMatchObject({
       status: "unsupported",
       reason: { code: "node-count" },
+    });
+  });
+});
+
+describe("external sequence host-side metrics", () => {
+  const sequenceRequest: ExternalLayoutSequenceRequestV2 = {
+    schemaVersion: 2,
+    requestId: "sequence:3",
+    caseName: "sequence",
+    seed: 3,
+    boundary: request.boundary,
+    snapshots: [
+      { snapshotId: "g0", graph: request.before },
+      { snapshotId: "g0-return", graph: request.before },
+    ],
+    semantics: request.semantics,
+    identitySemantics: "path-stable-id",
+    nodeOrderSemantics: "request-order",
+    initialization: { mode: "native" },
+    lifecycle: {
+      resetBeforeRequest: true,
+      hostDoesNotResetWithinRequest: true,
+      rngReset: "request-seed",
+    },
+  };
+  const sequenceResponse: ExternalLayoutSequenceResponseV2 = {
+    schemaVersion: 2,
+    requestId: sequenceRequest.requestId,
+    status: "ok",
+    implementation: {
+      ...response.implementation,
+      temporalAccess: "current-only",
+      stateModel: "stateless",
+      capabilities: {
+        initializationModes: ["native"],
+        nodeCount: { min: 2, max: 80 },
+        boundary: "convex-polygon",
+        cellGeometry: "convex-polygons",
+        siteSemantics: "derived",
+        dependencySemantics: "ignored",
+        deterministicForFixedSeed: true,
+      },
+    },
+    runs: [
+      { snapshotId: "g0", cells, work: { nativeIterations: 2 }, nativeConverged: true },
+      {
+        snapshotId: "g0-return",
+        cells: cells.map(({ site: _, ...cell }) => cell),
+        work: { nativeIterations: 3 },
+        nativeConverged: true,
+      },
+    ],
+  };
+
+  it("derives absent sites and recomputes validity and recovery outside the adapter", () => {
+    const evaluated = evaluateExternalLayoutSequenceResponse(sequenceResponse, sequenceRequest);
+
+    expect(evaluated.status).toBe("ok");
+    if (evaluated.status !== "ok") throw new Error("expected sequence metrics");
+    expect(evaluated.runs[0]).toMatchObject({
+      snapshotId: "g0",
+      derivedSiteCount: 0,
+      validity: {
+        degenerateCellCount: 0,
+        nonConvexCellCount: 0,
+        areaCoverageError: 0,
+        overlapAreaRatio: 0,
+        outsideBoundaryAreaRatio: 0,
+      },
+      initialToCurrent: {
+        representativePointDisplacement: 0,
+        centroidDisplacement: 0,
+        boundaryDisplacement: 0,
+        polygonIoULoss: 0,
+      },
+    });
+    expect(evaluated.runs[1]).toMatchObject({
+      snapshotId: "g0-return",
+      derivedSiteCount: 2,
+      work: { nativeIterations: 3 },
+      nativeConverged: true,
     });
   });
 });

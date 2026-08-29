@@ -6,9 +6,12 @@ import type {
   ExternalLayoutGraphV1,
   ExternalLayoutPointV1,
   ExternalLayoutRunV1,
+  ExternalLayoutSequenceRequestV2,
+  ExternalLayoutSequenceResponseV2,
 } from "@sprawlens/contracts";
 import { realizedEdgeRate } from "./neighborhood.ts";
-import { signedArea } from "./polygon.ts";
+import { compareLayoutGeometry, type ComparableCell } from "./layoutComparison.ts";
+import { centroid, convexIntersection, signedArea } from "./polygon.ts";
 
 function segmentsOverlap(
   a: ExternalLayoutPointV1,
@@ -121,8 +124,6 @@ function commonMetrics(
     edgeLength,
     displacement,
     objective: meanAreaError + 2 * (1 - adjacency + 0.18 * edgeLength) + 0.7 * displacement,
-    steps: run.steps,
-    converged: run.converged,
   };
 }
 
@@ -146,7 +147,131 @@ export function evaluateExternalLayoutBaselineResponse(
   return {
     status: "ok" as const,
     implementation: response.implementation,
-    before: commonMetrics(response.before, request.before, beforeAnchors, boundaryArea, scale),
-    after: commonMetrics(response.after, request.after, beforeAnchors, boundaryArea, scale),
+    before: {
+      ...commonMetrics(response.before, request.before, beforeAnchors, boundaryArea, scale),
+      steps: response.before.steps,
+      converged: response.before.converged,
+    },
+    after: {
+      ...commonMetrics(response.after, request.after, beforeAnchors, boundaryArea, scale),
+      steps: response.after.steps,
+      converged: response.after.converged,
+    },
+  };
+}
+
+const comparableCells = (
+  cells: Extract<ExternalLayoutSequenceResponseV2, { status: "ok" }>["runs"][number]["cells"],
+): { cells: ComparableCell[]; derivedSiteCount: number } => {
+  let derivedSiteCount = 0;
+  return {
+    cells: cells.map((cell) => {
+      const site = cell.site ?? centroid(cell.polygon);
+      if (cell.site === undefined) derivedSiteCount++;
+      return { id: cell.id, site, polygon: cell.polygon };
+    }),
+    derivedSiteCount,
+  };
+};
+
+const sequenceValidity = (
+  cells: readonly ComparableCell[],
+  boundary: readonly ExternalLayoutPointV1[],
+  boundaryArea: number,
+) => {
+  const cellAreas = cells.map((cell) => Math.abs(signedArea(cell.polygon)));
+  const totalCellArea = cellAreas.reduce((sum, area) => sum + area, 0);
+  let overlapArea = 0;
+  let outsideBoundaryArea = 0;
+  const nonConvexCellCount = cells.filter((cell) => {
+    let orientation = 0;
+    for (let index = 0; index < cell.polygon.length; index++) {
+      const a = cell.polygon[index]!;
+      const b = cell.polygon[(index + 1) % cell.polygon.length]!;
+      const c = cell.polygon[(index + 2) % cell.polygon.length]!;
+      const cross = (b.x - a.x) * (c.y - b.y) - (b.y - a.y) * (c.x - b.x);
+      if (Math.abs(cross) <= 1e-12) continue;
+      const sign = Math.sign(cross);
+      if (orientation !== 0 && orientation !== sign) return true;
+      orientation = sign;
+    }
+    return orientation === 0;
+  }).length;
+  for (let left = 0; left < cells.length; left++) {
+    outsideBoundaryArea += Math.max(
+      0,
+      cellAreas[left]! - Math.abs(signedArea(convexIntersection(cells[left]!.polygon, boundary))),
+    );
+    for (let right = left + 1; right < cells.length; right++) {
+      overlapArea += Math.abs(
+        signedArea(convexIntersection(cells[left]!.polygon, cells[right]!.polygon)),
+      );
+    }
+  }
+  return {
+    degenerateCellCount: cellAreas.filter((area) => area <= Math.max(boundaryArea * 1e-12, 1e-15))
+      .length,
+    nonConvexCellCount,
+    areaCoverageError: Math.abs(totalCellArea - boundaryArea) / Math.max(boundaryArea, 1e-12),
+    overlapAreaRatio: overlapArea / Math.max(boundaryArea, 1e-12),
+    outsideBoundaryAreaRatio: outsideBoundaryArea / Math.max(boundaryArea, 1e-12),
+  };
+};
+
+const representativePointDisplacement = (
+  before: readonly ComparableCell[],
+  after: readonly ComparableCell[],
+  scale: number,
+) => {
+  const beforeById = new Map(before.map((cell) => [cell.id, cell.site] as const));
+  const distances = after.flatMap((cell) => {
+    const previous = beforeById.get(cell.id);
+    return previous
+      ? [Math.hypot(cell.site.x - previous.x, cell.site.y - previous.y) / Math.max(scale, 1e-12)]
+      : [];
+  });
+  return distances.reduce((sum, distance) => sum + distance, 0) / Math.max(1, distances.length);
+};
+
+/** Recompute sequence quality, validity, and temporal movement on the host side. */
+export function evaluateExternalLayoutSequenceResponse(
+  response: ExternalLayoutSequenceResponseV2,
+  request: ExternalLayoutSequenceRequestV2,
+) {
+  if (response.status !== "ok") {
+    return {
+      status: response.status,
+      implementation: response.implementation,
+      reason: response.reason,
+    } as const;
+  }
+  const boundaryArea = Math.abs(signedArea(request.boundary));
+  const xs = request.boundary.map(({ x }) => x);
+  const ys = request.boundary.map(({ y }) => y);
+  const scale = Math.max(Math.max(...xs) - Math.min(...xs), Math.max(...ys) - Math.min(...ys));
+  const normalized = response.runs.map((run) => ({ ...run, ...comparableCells(run.cells) }));
+  const initial = normalized[0]?.cells ?? [];
+  const initialAnchors = new Map(initial.map((cell) => [cell.id, cell.site] as const));
+  return {
+    status: "ok" as const,
+    implementation: response.implementation,
+    runs: normalized.map((run, index) => ({
+      snapshotId: run.snapshotId,
+      derivedSiteCount: run.derivedSiteCount,
+      validity: sequenceValidity(run.cells, request.boundary, boundaryArea),
+      ...commonMetrics(
+        { cells: run.cells, steps: 0, converged: run.nativeConverged },
+        request.snapshots[index]!.graph,
+        initialAnchors,
+        boundaryArea,
+        scale,
+      ),
+      initialToCurrent: {
+        representativePointDisplacement: representativePointDisplacement(initial, run.cells, scale),
+        ...compareLayoutGeometry(initial, run.cells, scale),
+      },
+      work: run.work,
+      nativeConverged: run.nativeConverged,
+    })),
   };
 }

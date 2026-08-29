@@ -4,6 +4,9 @@ import type {
   ExternalLayoutBaselineResponseV1,
   ExternalLayoutGraphV1,
   ExternalLayoutImplementationV1,
+  ExternalLayoutSequenceImplementationV2,
+  ExternalLayoutSequenceRequestV2,
+  ExternalLayoutSequenceResponseV2,
 } from "@sprawlens/schema";
 
 const PARAMETERS = {
@@ -29,6 +32,22 @@ const IMPLEMENTATION = {
   parameters: PARAMETERS,
 } satisfies ExternalLayoutImplementationV1;
 
+export const STABLE_VT_SEQUENCE_IMPLEMENTATION = {
+  ...IMPLEMENTATION,
+  adapterRevision: "3",
+  temporalAccess: "current-only",
+  stateModel: "stateless",
+  capabilities: {
+    initializationModes: ["native"],
+    nodeCount: { min: 2, max: 80 },
+    boundary: "convex-polygon",
+    cellGeometry: "convex-polygons",
+    siteSemantics: "native",
+    dependencySemantics: "ignored",
+    deterministicForFixedSeed: true,
+  },
+} satisfies ExternalLayoutSequenceImplementationV2;
+
 function unsupported(
   requestId: string,
   code: string,
@@ -47,7 +66,10 @@ function supportedGraph(graph: ExternalLayoutGraphV1): boolean {
   return graph.nodes.length >= 2 && graph.nodes.length <= 80;
 }
 
-function runGraph(graph: ExternalLayoutGraphV1, request: ExternalLayoutBaselineRequestV1) {
+function runGraph(
+  graph: ExternalLayoutGraphV1,
+  request: Pick<ExternalLayoutBaselineRequestV1, "boundary" | "seed">,
+) {
   const solved = solveStableVoronoi(
     graph.nodes,
     { kind: "polygon", ring: request.boundary },
@@ -66,6 +88,20 @@ function runGraph(graph: ExternalLayoutGraphV1, request: ExternalLayoutBaselineR
     })),
     steps: solved.state.iteration,
     converged: solved.converged,
+  };
+}
+
+function unsupportedSequence(
+  requestId: string,
+  code: string,
+  message: string,
+): ExternalLayoutSequenceResponseV2 {
+  return {
+    schemaVersion: 2,
+    requestId,
+    status: "unsupported",
+    implementation: STABLE_VT_SEQUENCE_IMPLEMENTATION,
+    reason: { code, message },
   };
 }
 
@@ -99,5 +135,76 @@ export function runStableVoronoiAdapterRequest(
     implementation: IMPLEMENTATION,
     before: runGraph(request.before, request),
     after: runGraph(request.after, request),
+  };
+}
+
+/**
+ * Run each snapshot from native initialization. This is an intentionally
+ * history-free comparison condition, not a native dynamic-layout baseline.
+ */
+export function runStableVoronoiSequenceAdapterRequest(
+  request: ExternalLayoutSequenceRequestV2,
+): ExternalLayoutSequenceResponseV2 {
+  if (request.schemaVersion !== 2) {
+    return unsupportedSequence(
+      request.requestId,
+      "schema-version",
+      "only schemaVersion 2 is supported",
+    );
+  }
+  if (!request.snapshots.every(({ graph }) => supportedGraph(graph))) {
+    return unsupportedSequence(
+      request.requestId,
+      "node-count",
+      "every snapshot requires 2 to 80 nodes",
+    );
+  }
+  if (request.boundary.length < 3) {
+    return unsupportedSequence(request.requestId, "boundary", "a convex boundary is required");
+  }
+  if (
+    request.semantics.nodeWeight !== "loc" ||
+    request.semantics.dependencyEdges !== "undirected-constraints"
+  ) {
+    return unsupportedSequence(
+      request.requestId,
+      "semantics",
+      "the shared LOC/constraint input semantics are required",
+    );
+  }
+  if (request.initialization.mode !== "native") {
+    return unsupportedSequence(
+      request.requestId,
+      "initialization",
+      "this adapter supports native initialization only",
+    );
+  }
+  if (
+    request.identitySemantics !== "path-stable-id" ||
+    request.nodeOrderSemantics !== "request-order" ||
+    request.lifecycle.resetBeforeRequest !== true ||
+    request.lifecycle.hostDoesNotResetWithinRequest !== true ||
+    request.lifecycle.rngReset !== "request-seed"
+  ) {
+    return unsupportedSequence(
+      request.requestId,
+      "lifecycle",
+      "the v2 identity, order, and lifecycle contract is required",
+    );
+  }
+  return {
+    schemaVersion: 2,
+    requestId: request.requestId,
+    status: "ok",
+    implementation: STABLE_VT_SEQUENCE_IMPLEMENTATION,
+    runs: request.snapshots.map(({ snapshotId, graph }) => {
+      const run = runGraph(graph, request);
+      return {
+        snapshotId,
+        cells: run.cells,
+        work: { nativeIterations: run.steps },
+        nativeConverged: run.converged,
+      };
+    }),
   };
 }
