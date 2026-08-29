@@ -29,6 +29,14 @@ export type SequenceBenchmarkOptions = {
   seed: number;
   clip?: ClipRegion;
   maxSteps?: number;
+  stableAnchorMixPolicy?: StableAnchorMixPolicy;
+};
+
+export type StableAnchorMixPolicy = {
+  /** Anchor mixes used when nodes or dependency edges are added or removed. */
+  structural: readonly number[];
+  /** Anchor mixes used for weight-only and unchanged transitions. */
+  nonStructural: readonly number[];
 };
 
 const CONDITION_NAMES = [
@@ -118,7 +126,10 @@ const warmUpdate = (state: CapacityLayoutState, graph: LayoutSequenceGraph, maxS
 
 const directedEdgeKey = (edge: AtlasEdge) => `${edge.source}\0${edge.target}`;
 
-const describeGraphChange = (before: LayoutSequenceGraph, after: LayoutSequenceGraph) => {
+export const describeLayoutGraphChange = (
+  before: LayoutSequenceGraph,
+  after: LayoutSequenceGraph,
+) => {
   const beforeNodes = new Map(before.nodes.map((node) => [node.id, node.weight] as const));
   const afterNodes = new Map(after.nodes.map((node) => [node.id, node.weight] as const));
   const addedNodes = [...afterNodes.keys()].filter((id) => !beforeNodes.has(id)).length;
@@ -146,6 +157,20 @@ const describeGraphChange = (before: LayoutSequenceGraph, after: LayoutSequenceG
   };
 };
 
+export type LayoutGraphChange = ReturnType<typeof describeLayoutGraphChange>;
+
+const validateAnchorMixPolicy = (policy: StableAnchorMixPolicy) => {
+  for (const [kind, mixes] of Object.entries(policy)) {
+    if (
+      mixes.length === 0 ||
+      mixes[0] !== 0 ||
+      mixes.some((mix) => !Number.isFinite(mix) || mix < 0 || mix > 1)
+    ) {
+      throw new Error(`sequence ${kind} anchor mixes must start with 0 and stay between 0 and 1`);
+    }
+  }
+};
+
 /**
  * Branch three update policies from one initial layout, then let every policy
  * carry only its own previous state through the sequence.
@@ -159,6 +184,7 @@ export function runStableNeighborhoodSequence(
   }
   const clip = options.clip ?? DEFAULT_CLIP;
   const maxSteps = options.maxSteps ?? 800;
+  if (options.stableAnchorMixPolicy) validateAnchorMixPolicy(options.stableAnchorMixPolicy);
   const initialGraph = snapshots[0]!;
   const initial = stableNeighborhoodUpdate(initialGraph.nodes, initialGraph.edges, clip, {
     seed: options.seed,
@@ -187,9 +213,9 @@ export function runStableNeighborhoodSequence(
   };
   const transitions = [] as Array<{
     index: number;
-    change: ReturnType<typeof describeGraphChange>;
+    change: LayoutGraphChange;
     baselineAdjacency: number;
-    stableSelection: { weightedSolves: number; anchorMix: number };
+    stableSelection: { candidateCount: number; weightedSolves: number; anchorMix: number };
     anchorOnlySelection: { weightedSolves: number; anchorMix: number; adjacency: number };
     warmStartSelection: { steps: number };
     computeMatchedSelection: {
@@ -204,6 +230,12 @@ export function runStableNeighborhoodSequence(
   for (let index = 1; index < snapshots.length; index++) {
     const previousGraph = snapshots[index - 1]!;
     const graph = snapshots[index]!;
+    const change = describeLayoutGraphChange(previousGraph, graph);
+    const stableAnchorMixes = options.stableAnchorMixPolicy
+      ? change.nodeChurn || change.dependencyRewire
+        ? options.stableAnchorMixPolicy.structural
+        : options.stableAnchorMixPolicy.nonStructural
+      : undefined;
     const baseline = stableNeighborhoodUpdate(graph.nodes, graph.edges, clip, {
       seed: options.seed,
       anchorMixes: [0],
@@ -212,6 +244,7 @@ export function runStableNeighborhoodSequence(
     const stable = stableNeighborhoodUpdate(graph.nodes, graph.edges, clip, {
       seed: options.seed,
       anchors: anchorsOf(previous.stableNeighborhood),
+      ...(stableAnchorMixes ? { anchorMixes: stableAnchorMixes } : {}),
       adjacencyTolerance: 0,
       maxSteps,
     });
@@ -238,9 +271,10 @@ export function runStableNeighborhoodSequence(
     };
     transitions.push({
       index,
-      change: describeGraphChange(previousGraph, graph),
+      change,
       baselineAdjacency: baseline.baseline.adjacency,
       stableSelection: {
+        candidateCount: stable.candidates.length,
         weightedSolves: stable.weightedSolves,
         anchorMix: stable.selected.anchorMix,
       },
@@ -348,7 +382,10 @@ export function runStableNeighborhoodSequence(
     (transition) => transition.computeMatchedSelection.budgetMatched,
   ).length;
   return {
-    schemaVersion: 3 as const,
+    schemaVersion: 4 as const,
+    configuration: {
+      stableAnchorMixPolicy: options.stableAnchorMixPolicy ?? null,
+    },
     seed: options.seed,
     snapshots: snapshots.length,
     initialCellSites,

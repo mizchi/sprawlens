@@ -27,7 +27,7 @@ describe("stateful stable-neighborhood sequence", () => {
   it("branches from one initial layout and carries each condition's own state", () => {
     const result = runStableNeighborhoodSequence(sequence, { seed: 7 });
 
-    expect(result.schemaVersion).toBe(3);
+    expect(result.schemaVersion).toBe(4);
     expect(result.transitions).toHaveLength(2);
     expect(result.initialCellSites.neighborhoodSwap).toEqual(
       result.initialCellSites.computeMatchedNeighborhood,
@@ -87,6 +87,29 @@ describe("stateful stable-neighborhood sequence", () => {
     }
   });
 
+  it("applies a declarative candidate budget by graph-change class", () => {
+    const result = runStableNeighborhoodSequence(sequence, {
+      seed: 13,
+      stableAnchorMixPolicy: {
+        structural: [0, 0.25, 0.5, 0.75, 1],
+        nonStructural: [0, 1],
+      },
+    });
+
+    expect(result.transitions[0]!.change).toEqual(
+      expect.objectContaining({ nodeChurn: false, dependencyRewire: false }),
+    );
+    expect(result.transitions[0]!.stableSelection.candidateCount).toBe(2);
+    expect(result.transitions[1]!.change).toEqual(
+      expect.objectContaining({ nodeChurn: true, dependencyRewire: true }),
+    );
+    expect(result.transitions[1]!.stableSelection.candidateCount).toBe(5);
+    expect(result.configuration.stableAnchorMixPolicy).toEqual({
+      structural: [0, 0.25, 0.5, 0.75, 1],
+      nonStructural: [0, 1],
+    });
+  });
+
   it("is deterministic and rejects a non-sequence", () => {
     expect(runStableNeighborhoodSequence(sequence, { seed: 17 })).toEqual(
       runStableNeighborhoodSequence(sequence, { seed: 17 }),
@@ -94,5 +117,11 @@ describe("stateful stable-neighborhood sequence", () => {
     expect(() => runStableNeighborhoodSequence(sequence.slice(0, 1), { seed: 3 })).toThrow(
       "at least two snapshots",
     );
+    expect(() =>
+      runStableNeighborhoodSequence(sequence, {
+        seed: 3,
+        stableAnchorMixPolicy: { structural: [0.25, 1], nonStructural: [0, 1] },
+      }),
+    ).toThrow("structural anchor mixes must start with 0");
   });
 });

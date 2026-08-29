@@ -303,7 +303,7 @@ export function runRepositorySequenceBenchmarkBatch(
     }
   >;
   return {
-    schemaVersion: 5 as const,
+    schemaVersion: 6 as const,
     seeds,
     repositories,
     summary: {

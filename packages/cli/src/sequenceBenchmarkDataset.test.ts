@@ -31,7 +31,7 @@ describe("repository sequence benchmark", () => {
       seeds: [3],
     });
 
-    expect(result.schemaVersion).toBe(5);
+    expect(result.schemaVersion).toBe(6);
     expect(result.summary.includedRepositories).toBe(2);
     expect(result.summary.sequences).toBe(2);
     expect(result.summary.transitions).toBe(10);
