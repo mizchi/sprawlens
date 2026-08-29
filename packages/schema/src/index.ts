@@ -14,6 +14,7 @@ export * from "./contracts/serviceRules.ts";
 export * from "./contracts/services.ts";
 export * from "./core/ai.ts";
 export * from "./core/diff.ts";
+export * from "./core/fileIdentity.ts";
 export * from "./core/metrics.ts";
 export * from "./core/symbolRefs.ts";
 export * from "./core/testTree.ts";

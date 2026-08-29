@@ -33,6 +33,9 @@ run-sequence-evaluation *args:
 run-sequence-candidate-budget-experiment:
     @pnpm tsx tools/run-sequence-candidate-budget-experiment.ts
 
+scan-file-identity-silver:
+    @pnpm tsx tools/run-file-identity-silver-scan.ts
+
 benchmark-repository-evaluation-cost *args:
     @pnpm tsx tools/benchmark-repository-evaluation-cost.ts {{ args }}
 
