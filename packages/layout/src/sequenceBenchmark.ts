@@ -116,6 +116,36 @@ const warmUpdate = (state: CapacityLayoutState, graph: LayoutSequenceGraph, maxS
   return { state: current, steps, converged: isConverged(current, 0.01) };
 };
 
+const directedEdgeKey = (edge: AtlasEdge) => `${edge.source}\0${edge.target}`;
+
+const describeGraphChange = (before: LayoutSequenceGraph, after: LayoutSequenceGraph) => {
+  const beforeNodes = new Map(before.nodes.map((node) => [node.id, node.weight] as const));
+  const afterNodes = new Map(after.nodes.map((node) => [node.id, node.weight] as const));
+  const addedNodes = [...afterNodes.keys()].filter((id) => !beforeNodes.has(id)).length;
+  const removedNodes = [...beforeNodes.keys()].filter((id) => !afterNodes.has(id)).length;
+  const changedWeights = [...afterNodes].filter(
+    ([id, weight]) => beforeNodes.has(id) && Math.abs(beforeNodes.get(id)! - weight) > 1e-12,
+  ).length;
+  const beforeEdges = new Set(before.edges.map(directedEdgeKey));
+  const afterEdges = new Set(after.edges.map(directedEdgeKey));
+  const addedEdges = [...afterEdges].filter((edge) => !beforeEdges.has(edge)).length;
+  const removedEdges = [...beforeEdges].filter((edge) => !afterEdges.has(edge)).length;
+  const nodeUnion = new Set([...beforeNodes.keys(), ...afterNodes.keys()]).size;
+  const edgeUnion = new Set([...beforeEdges, ...afterEdges]).size;
+  return {
+    addedNodes,
+    removedNodes,
+    changedWeights,
+    addedEdges,
+    removedEdges,
+    nodeJaccardDistance: (addedNodes + removedNodes) / Math.max(1, nodeUnion),
+    edgeJaccardDistance: (addedEdges + removedEdges) / Math.max(1, edgeUnion),
+    nodeChurn: addedNodes + removedNodes > 0,
+    weightChange: changedWeights > 0,
+    dependencyRewire: addedEdges + removedEdges > 0,
+  };
+};
+
 /**
  * Branch three update policies from one initial layout, then let every policy
  * carry only its own previous state through the sequence.
@@ -157,6 +187,7 @@ export function runStableNeighborhoodSequence(
   };
   const transitions = [] as Array<{
     index: number;
+    change: ReturnType<typeof describeGraphChange>;
     baselineAdjacency: number;
     stableSelection: { weightedSolves: number; anchorMix: number };
     anchorOnlySelection: { weightedSolves: number; anchorMix: number; adjacency: number };
@@ -207,6 +238,7 @@ export function runStableNeighborhoodSequence(
     };
     transitions.push({
       index,
+      change: describeGraphChange(previousGraph, graph),
       baselineAdjacency: baseline.baseline.adjacency,
       stableSelection: {
         weightedSolves: stable.weightedSolves,

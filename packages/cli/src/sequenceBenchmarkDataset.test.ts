@@ -31,7 +31,7 @@ describe("repository sequence benchmark", () => {
       seeds: [3],
     });
 
-    expect(result.schemaVersion).toBe(4);
+    expect(result.schemaVersion).toBe(5);
     expect(result.summary.includedRepositories).toBe(2);
     expect(result.summary.sequences).toBe(2);
     expect(result.summary.transitions).toBe(10);
@@ -57,12 +57,19 @@ describe("repository sequence benchmark", () => {
     expect(result.summary.contrasts.stableVsWarmStart.structure.meanAdjacencyGain.n).toBe(2);
     expect(result.summary.contrasts.stableVsAnchorOnly.structure.finalAdjacencyGain.n).toBe(2);
     expect(
+      result.summary.contrasts.stableVsComputeMatched.structure.constraintPathMedianReduction.n,
+    ).toBe(2);
+    expect(
       result.summary.contrasts.stableVsComputeMatched.perTransition.boundaryDisplacementReduction!
         .n,
     ).toBe(2);
     expect(
       result.summary.contrasts.stableVsComputeMatched.perTransition
         .distanceChangeFaithfulnessErrorReduction!.n,
+    ).toBe(2);
+    expect(
+      result.summary.changeStrata.weightChange.stableVsComputeMatched.boundaryDisplacementReduction
+        .n,
     ).toBe(2);
     expect(result.repositories.every((repository) => repository.budget.shortfallRuns === 0)).toBe(
       true,

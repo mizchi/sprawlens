@@ -12,6 +12,8 @@ const METRICS = [
 ] as const;
 type SequenceMetric = (typeof METRICS)[number];
 type SequenceRun = ReturnType<typeof runStableNeighborhoodSequence>;
+const CHANGE_STRATA = ["nodeChurn", "weightChange", "dependencyRewire"] as const;
+type ChangeStratum = (typeof CHANGE_STRATA)[number];
 
 const mean = (values: readonly number[]) =>
   values.reduce((sum, value) => sum + value, 0) / Math.max(1, values.length);
@@ -40,69 +42,116 @@ const summarizeEffects = (values: readonly number[]) => {
 const repositoryContrast = (
   runs: readonly SequenceRun[],
   baseline: "neighborhoodSwap" | "computeMatchedNeighborhood" | "warmStart" | "anchorOnly",
-) => ({
-  cumulative: Object.fromEntries(
-    METRICS.map((metric) => [
-      `${metric}Reduction`,
-      mean(
+) => {
+  const topologicalReduction = (
+    metric: "constraintPathMedian" | "constraintPathMax" | "constraintDisconnectedRate",
+  ) => {
+    const runMeans = runs.flatMap((run) => {
+      const values = run.transitions
+        .filter((transition) => transition.conditions[baseline].constraintEdgeCount > 0)
+        .map(
+          (transition) =>
+            transition.conditions[baseline][metric] -
+            transition.conditions.stableNeighborhood[metric],
+        );
+      return values.length > 0 ? [mean(values)] : [];
+    });
+    return runMeans.length > 0 ? mean(runMeans) : null;
+  };
+  return {
+    cumulative: Object.fromEntries(
+      METRICS.map((metric) => [
+        `${metric}Reduction`,
+        mean(
+          runs.map(
+            (run) =>
+              run.summary[baseline].cumulative[metric] -
+              run.summary.stableNeighborhood.cumulative[metric],
+          ),
+        ),
+      ]),
+    ) as Record<`${SequenceMetric}Reduction`, number>,
+    perTransition: Object.fromEntries(
+      METRICS.map((metric) => [
+        `${metric}Reduction`,
+        mean(
+          runs.map(
+            (run) =>
+              run.summary[baseline].mean[metric] - run.summary.stableNeighborhood.mean[metric],
+          ),
+        ),
+      ]),
+    ) as Record<`${SequenceMetric}Reduction`, number>,
+    initialToFinal: Object.fromEntries(
+      METRICS.map((metric) => [
+        `${metric}Reduction`,
+        mean(
+          runs.map(
+            (run) =>
+              run.summary[baseline].initialToFinal[metric] -
+              run.summary.stableNeighborhood.initialToFinal[metric],
+          ),
+        ),
+      ]),
+    ) as Record<`${SequenceMetric}Reduction`, number>,
+    structure: {
+      meanAdjacencyGain: mean(
         runs.map(
           (run) =>
-            run.summary[baseline].cumulative[metric] -
-            run.summary.stableNeighborhood.cumulative[metric],
+            run.summary.stableNeighborhood.meanAdjacency - run.summary[baseline].meanAdjacency,
         ),
       ),
-    ]),
-  ) as Record<`${SequenceMetric}Reduction`, number>,
-  perTransition: Object.fromEntries(
-    METRICS.map((metric) => [
-      `${metric}Reduction`,
-      mean(
-        runs.map(
-          (run) => run.summary[baseline].mean[metric] - run.summary.stableNeighborhood.mean[metric],
-        ),
-      ),
-    ]),
-  ) as Record<`${SequenceMetric}Reduction`, number>,
-  initialToFinal: Object.fromEntries(
-    METRICS.map((metric) => [
-      `${metric}Reduction`,
-      mean(
+      minimumAdjacencyGain: mean(
         runs.map(
           (run) =>
-            run.summary[baseline].initialToFinal[metric] -
-            run.summary.stableNeighborhood.initialToFinal[metric],
+            run.summary.stableNeighborhood.minimumAdjacency -
+            run.summary[baseline].minimumAdjacency,
+        ),
+      ),
+      finalAdjacencyGain: mean(
+        runs.map(
+          (run) =>
+            run.summary.stableNeighborhood.finalAdjacency - run.summary[baseline].finalAdjacency,
+        ),
+      ),
+      nonconvergedRateReduction: mean(
+        runs.map(
+          (run) =>
+            (run.summary[baseline].nonconvergedTransitions -
+              run.summary.stableNeighborhood.nonconvergedTransitions) /
+            Math.max(1, run.snapshots - 1),
+        ),
+      ),
+      constraintPathMedianReduction: topologicalReduction("constraintPathMedian"),
+      constraintPathMaxReduction: topologicalReduction("constraintPathMax"),
+      constraintDisconnectedRateReduction: topologicalReduction("constraintDisconnectedRate"),
+    },
+  };
+};
+
+const repositoryStratumContrast = (runs: readonly SequenceRun[], stratum: ChangeStratum) => {
+  const selectedRuns = runs.flatMap((run) => {
+    const transitions = run.transitions.filter((transition) => transition.change[stratum]);
+    return transitions.length > 0 ? [transitions] : [];
+  });
+  if (selectedRuns.length === 0) return null;
+  return Object.fromEntries(
+    METRICS.map((metric) => [
+      `${metric}Reduction`,
+      mean(
+        selectedRuns.map((transitions) =>
+          mean(
+            transitions.map(
+              (transition) =>
+                transition.conditions.computeMatchedNeighborhood[metric] -
+                transition.conditions.stableNeighborhood[metric],
+            ),
+          ),
         ),
       ),
     ]),
-  ) as Record<`${SequenceMetric}Reduction`, number>,
-  structure: {
-    meanAdjacencyGain: mean(
-      runs.map(
-        (run) => run.summary.stableNeighborhood.meanAdjacency - run.summary[baseline].meanAdjacency,
-      ),
-    ),
-    minimumAdjacencyGain: mean(
-      runs.map(
-        (run) =>
-          run.summary.stableNeighborhood.minimumAdjacency - run.summary[baseline].minimumAdjacency,
-      ),
-    ),
-    finalAdjacencyGain: mean(
-      runs.map(
-        (run) =>
-          run.summary.stableNeighborhood.finalAdjacency - run.summary[baseline].finalAdjacency,
-      ),
-    ),
-    nonconvergedRateReduction: mean(
-      runs.map(
-        (run) =>
-          (run.summary[baseline].nonconvergedTransitions -
-            run.summary.stableNeighborhood.nonconvergedTransitions) /
-          Math.max(1, run.snapshots - 1),
-      ),
-    ),
-  },
-});
+  ) as Record<`${SequenceMetric}Reduction`, number>;
+};
 
 export function runRepositorySequenceBenchmarkBatch(
   datasets: readonly LoadedDataset[],
@@ -134,6 +183,12 @@ export function runRepositorySequenceBenchmarkBatch(
         matchedRuns: matchedRuns.length,
         shortfallRuns: runs.length - matchedRuns.length,
       },
+      changeStrata: Object.fromEntries(
+        CHANGE_STRATA.map((stratum) => [
+          stratum,
+          matchedRuns.length === 0 ? null : repositoryStratumContrast(matchedRuns, stratum),
+        ]),
+      ) as Record<ChangeStratum, ReturnType<typeof repositoryStratumContrast>>,
       runs,
       contrasts:
         allRuns.length === 0
@@ -194,12 +249,17 @@ export function runRepositorySequenceBenchmarkBatch(
         "minimumAdjacencyGain",
         "finalAdjacencyGain",
         "nonconvergedRateReduction",
+        "constraintPathMedianReduction",
+        "constraintPathMaxReduction",
+        "constraintDisconnectedRateReduction",
       ].map((key) => [
         key,
         summarizeEffects(
           analyzed.flatMap((repository) => {
             const contrast = repository.contrasts[name];
-            return contrast ? [contrast.structure[key as keyof typeof contrast.structure]] : [];
+            if (!contrast) return [];
+            const value = contrast.structure[key as keyof typeof contrast.structure];
+            return value === null ? [] : [value];
           }),
         ),
       ]),
@@ -207,11 +267,43 @@ export function runRepositorySequenceBenchmarkBatch(
       | "meanAdjacencyGain"
       | "minimumAdjacencyGain"
       | "finalAdjacencyGain"
-      | "nonconvergedRateReduction",
+      | "nonconvergedRateReduction"
+      | "constraintPathMedianReduction"
+      | "constraintPathMaxReduction"
+      | "constraintDisconnectedRateReduction",
       ReturnType<typeof summarizeEffects>
     >;
+  const changeStrata = Object.fromEntries(
+    CHANGE_STRATA.map((stratum) => [
+      stratum,
+      {
+        stableVsComputeMatched: Object.fromEntries(
+          METRICS.map((metric) => {
+            const key = `${metric}Reduction` as const;
+            return [
+              key,
+              summarizeEffects(
+                repositories.flatMap((repository) => {
+                  const contrast = repository.changeStrata[stratum];
+                  return contrast ? [contrast[key]] : [];
+                }),
+              ),
+            ];
+          }),
+        ),
+      },
+    ]),
+  ) as Record<
+    ChangeStratum,
+    {
+      stableVsComputeMatched: Record<
+        `${SequenceMetric}Reduction`,
+        ReturnType<typeof summarizeEffects>
+      >;
+    }
+  >;
   return {
-    schemaVersion: 4 as const,
+    schemaVersion: 5 as const,
     seeds,
     repositories,
     summary: {
@@ -222,6 +314,7 @@ export function runRepositorySequenceBenchmarkBatch(
       transitions: repositories.reduce((sum, repository) => sum + repository.transitions, 0),
       longSequenceRepositories,
       goGateCorpusSatisfied: longSequenceRepositories >= 10,
+      changeStrata,
       contrasts: {
         stableVsNeighborhoodSwap: {
           cumulative: summarizeContrast("stableVsNeighborhoodSwap", "cumulative"),

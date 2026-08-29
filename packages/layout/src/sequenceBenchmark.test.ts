@@ -39,6 +39,12 @@ describe("stateful stable-neighborhood sequence", () => {
     expect(result.initialCellSites.neighborhoodSwap).toEqual(result.initialCellSites.anchorOnly);
     expect(result.budget.matchedTransitions).toBe(2);
     expect(result.budget.shortfallTransitions).toBe(0);
+    expect(result.transitions[0]!.change).toEqual(
+      expect.objectContaining({ nodeChurn: false, weightChange: true, dependencyRewire: false }),
+    );
+    expect(result.transitions[1]!.change).toEqual(
+      expect.objectContaining({ nodeChurn: true, dependencyRewire: true }),
+    );
     for (const transition of result.transitions) {
       expect(transition.conditions.stableNeighborhood.adjacency + 1e-12).toBeGreaterThanOrEqual(
         transition.baselineAdjacency,
