@@ -5,8 +5,10 @@ const DEFAULT_SEEDS = [3, 7, 11] as const;
 const METRICS = [
   "siteDisplacement",
   "centroidDisplacement",
+  "boundaryDisplacement",
   "polygonIoULoss",
   "relativeDirectionChange",
+  "distanceChangeFaithfulnessError",
 ] as const;
 type SequenceMetric = (typeof METRICS)[number];
 type SequenceRun = ReturnType<typeof runStableNeighborhoodSequence>;
@@ -37,7 +39,7 @@ const summarizeEffects = (values: readonly number[]) => {
 
 const repositoryContrast = (
   runs: readonly SequenceRun[],
-  baseline: "neighborhoodSwap" | "computeMatchedNeighborhood",
+  baseline: "neighborhoodSwap" | "computeMatchedNeighborhood" | "warmStart" | "anchorOnly",
 ) => ({
   cumulative: Object.fromEntries(
     METRICS.map((metric) => [
@@ -73,6 +75,33 @@ const repositoryContrast = (
       ),
     ]),
   ) as Record<`${SequenceMetric}Reduction`, number>,
+  structure: {
+    meanAdjacencyGain: mean(
+      runs.map(
+        (run) => run.summary.stableNeighborhood.meanAdjacency - run.summary[baseline].meanAdjacency,
+      ),
+    ),
+    minimumAdjacencyGain: mean(
+      runs.map(
+        (run) =>
+          run.summary.stableNeighborhood.minimumAdjacency - run.summary[baseline].minimumAdjacency,
+      ),
+    ),
+    finalAdjacencyGain: mean(
+      runs.map(
+        (run) =>
+          run.summary.stableNeighborhood.finalAdjacency - run.summary[baseline].finalAdjacency,
+      ),
+    ),
+    nonconvergedRateReduction: mean(
+      runs.map(
+        (run) =>
+          (run.summary[baseline].nonconvergedTransitions -
+            run.summary.stableNeighborhood.nonconvergedTransitions) /
+          Math.max(1, run.snapshots - 1),
+      ),
+    ),
+  },
 });
 
 export function runRepositorySequenceBenchmarkBatch(
@@ -115,6 +144,8 @@ export function runRepositorySequenceBenchmarkBatch(
                 matchedRuns.length === 0
                   ? null
                   : repositoryContrast(matchedRuns, "computeMatchedNeighborhood"),
+              stableVsWarmStart: repositoryContrast(allRuns, "warmStart"),
+              stableVsAnchorOnly: repositoryContrast(allRuns, "anchorOnly"),
             },
     };
   });
@@ -126,7 +157,11 @@ export function runRepositorySequenceBenchmarkBatch(
     } => repository.contrasts !== null,
   );
   const summarizeContrast = (
-    name: "stableVsNeighborhoodSwap" | "stableVsComputeMatched",
+    name:
+      | "stableVsNeighborhoodSwap"
+      | "stableVsComputeMatched"
+      | "stableVsWarmStart"
+      | "stableVsAnchorOnly",
     scope: "cumulative" | "perTransition" | "initialToFinal",
   ) =>
     Object.fromEntries(
@@ -146,8 +181,37 @@ export function runRepositorySequenceBenchmarkBatch(
   const longSequenceRepositories = repositories.filter(
     (repository) => repository.longSequences > 0,
   ).length;
+  const summarizeStructure = (
+    name:
+      | "stableVsNeighborhoodSwap"
+      | "stableVsComputeMatched"
+      | "stableVsWarmStart"
+      | "stableVsAnchorOnly",
+  ) =>
+    Object.fromEntries(
+      [
+        "meanAdjacencyGain",
+        "minimumAdjacencyGain",
+        "finalAdjacencyGain",
+        "nonconvergedRateReduction",
+      ].map((key) => [
+        key,
+        summarizeEffects(
+          analyzed.flatMap((repository) => {
+            const contrast = repository.contrasts[name];
+            return contrast ? [contrast.structure[key as keyof typeof contrast.structure]] : [];
+          }),
+        ),
+      ]),
+    ) as Record<
+      | "meanAdjacencyGain"
+      | "minimumAdjacencyGain"
+      | "finalAdjacencyGain"
+      | "nonconvergedRateReduction",
+      ReturnType<typeof summarizeEffects>
+    >;
   return {
-    schemaVersion: 2 as const,
+    schemaVersion: 4 as const,
     seeds,
     repositories,
     summary: {
@@ -163,11 +227,25 @@ export function runRepositorySequenceBenchmarkBatch(
           cumulative: summarizeContrast("stableVsNeighborhoodSwap", "cumulative"),
           perTransition: summarizeContrast("stableVsNeighborhoodSwap", "perTransition"),
           initialToFinal: summarizeContrast("stableVsNeighborhoodSwap", "initialToFinal"),
+          structure: summarizeStructure("stableVsNeighborhoodSwap"),
         },
         stableVsComputeMatched: {
           cumulative: summarizeContrast("stableVsComputeMatched", "cumulative"),
           perTransition: summarizeContrast("stableVsComputeMatched", "perTransition"),
           initialToFinal: summarizeContrast("stableVsComputeMatched", "initialToFinal"),
+          structure: summarizeStructure("stableVsComputeMatched"),
+        },
+        stableVsWarmStart: {
+          cumulative: summarizeContrast("stableVsWarmStart", "cumulative"),
+          perTransition: summarizeContrast("stableVsWarmStart", "perTransition"),
+          initialToFinal: summarizeContrast("stableVsWarmStart", "initialToFinal"),
+          structure: summarizeStructure("stableVsWarmStart"),
+        },
+        stableVsAnchorOnly: {
+          cumulative: summarizeContrast("stableVsAnchorOnly", "cumulative"),
+          perTransition: summarizeContrast("stableVsAnchorOnly", "perTransition"),
+          initialToFinal: summarizeContrast("stableVsAnchorOnly", "initialToFinal"),
+          structure: summarizeStructure("stableVsAnchorOnly"),
         },
       },
     },

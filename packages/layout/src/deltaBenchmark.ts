@@ -12,7 +12,11 @@ import {
 import { clipScale } from "./clip.ts";
 import { attachDeltaGuidance, deltaAwareStep, isDeltaConverged } from "./deltaLayout.ts";
 import type { DeltaGuidanceOptions } from "./deltaTypes.ts";
-import { compareLayoutGeometry, constraintGraphDistance } from "./layoutComparison.ts";
+import {
+  compareLayoutGeometry,
+  constraintGraphDistance,
+  distanceChangeFaithfulness,
+} from "./layoutComparison.ts";
 import { cellAdjacency, realizedEdgeRate } from "./neighborhood.ts";
 import {
   computeMatchedNeighborhoodUpdate,
@@ -47,8 +51,11 @@ type Metrics = {
   edgeLength: number;
   displacement: number;
   centroidDisplacement: number;
+  boundaryDisplacement: number;
   polygonIoULoss: number;
   relativeDirectionChange: number;
+  distanceChangeFaithfulnessError: number;
+  distanceChangePairCount: number;
   constraintPathMedian: number;
   constraintPathMax: number;
   constraintDisconnectedRate: number;
@@ -109,8 +116,11 @@ const METRICS: readonly MetricName[] = [
   "edgeLength",
   "displacement",
   "centroidDisplacement",
+  "boundaryDisplacement",
   "polygonIoULoss",
   "relativeDirectionChange",
+  "distanceChangeFaithfulnessError",
+  "distanceChangePairCount",
   "constraintPathMedian",
   "constraintPathMax",
   "constraintDisconnectedRate",
@@ -452,6 +462,7 @@ function squarifiedGeometry(nodes: readonly CellInputNode[]): Geometry {
 function metrics(
   geometry: Geometry,
   edges: readonly AtlasEdge[],
+  previousEdges: readonly AtlasEdge[],
   previous: Geometry,
 ): TrialMetrics {
   let meanAreaError = 0;
@@ -486,6 +497,12 @@ function metrics(
   }
   displacement /= Math.max(1, surviving);
   const temporal = compareLayoutGeometry(previous.cells, geometry.cells, scale);
+  const changeFaithfulness = distanceChangeFaithfulness(
+    previous.cells,
+    geometry.cells,
+    previousEdges,
+    edges,
+  );
   const topology = constraintGraphDistance(geometry.adjacency, edges);
   const objective =
     meanAreaError +
@@ -498,6 +515,7 @@ function metrics(
     edgeLength,
     displacement,
     ...temporal,
+    ...changeFaithfulness,
     ...topology,
     objective,
     steps: geometry.steps,
@@ -572,7 +590,12 @@ function runTrial(
   });
   const guided = guidedFrom({});
   const measured = (result: { state: CapacityLayoutState; steps: number }, converged: boolean) =>
-    metrics(powerGeometry(result, converged), input.after.edges, beforeGeometry);
+    metrics(
+      powerGeometry(result, converged),
+      input.after.edges,
+      input.before.edges,
+      beforeGeometry,
+    );
   return {
     seed,
     stableSelection: {
@@ -595,7 +618,7 @@ function runTrial(
       minimumAdjacency: computeMatchedAfter.minimumAdjacency,
     },
     conditions: {
-      squarified: metrics(squarifiedAfter, input.after.edges, squarifiedBefore),
+      squarified: metrics(squarifiedAfter, input.after.edges, input.before.edges, squarifiedBefore),
       cold: measured(cold, isConverged(cold.state, AREA_TOLERANCE)),
       warm: measured(warm, isConverged(warm.state, AREA_TOLERANCE)),
       neighborhoodSwap: metrics(
@@ -604,6 +627,7 @@ function runTrial(
           neighborhoodAfter.baseline.converged,
         ),
         input.after.edges,
+        input.before.edges,
         neighborhoodBeforeGeometry,
       ),
       stableNeighborhood: metrics(
@@ -612,6 +636,7 @@ function runTrial(
           neighborhoodAfter.selected.converged,
         ),
         input.after.edges,
+        input.before.edges,
         neighborhoodBeforeGeometry,
       ),
       computeMatchedNeighborhood: metrics(
@@ -620,6 +645,7 @@ function runTrial(
           computeMatchedAfter.selected.converged,
         ),
         input.after.edges,
+        input.before.edges,
         neighborhoodBeforeGeometry,
       ),
       adjacencyOnly: measured(adjacencyOnly, isDeltaConverged(adjacencyOnly.state, AREA_TOLERANCE)),
@@ -685,6 +711,11 @@ function contrastSummary(
         trial.conditions[baseline].centroidDisplacement -
         trial.conditions[candidate].centroidDisplacement,
     ),
+    boundaryDisplacementReduction: paired(
+      (trial) =>
+        trial.conditions[baseline].boundaryDisplacement -
+        trial.conditions[candidate].boundaryDisplacement,
+    ),
     polygonIoULossReduction: paired(
       (trial) =>
         trial.conditions[baseline].polygonIoULoss - trial.conditions[candidate].polygonIoULoss,
@@ -693,6 +724,11 @@ function contrastSummary(
       (trial) =>
         trial.conditions[baseline].relativeDirectionChange -
         trial.conditions[candidate].relativeDirectionChange,
+    ),
+    distanceChangeFaithfulnessErrorReduction: paired(
+      (trial) =>
+        trial.conditions[baseline].distanceChangeFaithfulnessError -
+        trial.conditions[candidate].distanceChangeFaithfulnessError,
     ),
     constraintPathMedianReduction: topologicalPaired(
       (trial) =>
@@ -781,7 +817,7 @@ export function runDeltaLayoutBenchmark(options: BenchmarkOptions = {}) {
   });
   const allTrials = scenarios.flatMap((scenario) => scenario.trials);
   return {
-    schemaVersion: 8 as const,
+    schemaVersion: 9 as const,
     seeds,
     configuration: { stableSwapPasses },
     areaTolerance: AREA_TOLERANCE,

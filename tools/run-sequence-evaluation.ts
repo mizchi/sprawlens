@@ -57,7 +57,7 @@ const timing = {
   maxRssKb: process.resourceUsage().maxRSS,
 };
 const artifact = {
-  schemaVersion: 2 as const,
+  schemaVersion: 4 as const,
   kind: "post-hoc-stateful-sequence-rollout" as const,
   manifestHash,
   startedAt,
@@ -66,7 +66,7 @@ const artifact = {
   batch,
 };
 const summary = {
-  schemaVersion: 2 as const,
+  schemaVersion: 4 as const,
   status: "post-hoc stateful sequence rollout" as const,
   manifestHash,
   seeds: batch.seeds,

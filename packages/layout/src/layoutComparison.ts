@@ -10,9 +10,67 @@ export type ComparableCell = {
 
 export type TemporalGeometryMetrics = {
   centroidDisplacement: number;
+  boundaryDisplacement: number;
   polygonIoULoss: number;
   relativeDirectionChange: number;
 };
+
+const pointSegmentDistance = (point: Vec2, start: Vec2, end: Vec2) => {
+  const dx = end.x - start.x;
+  const dy = end.y - start.y;
+  const lengthSquared = dx * dx + dy * dy;
+  if (lengthSquared <= 1e-24) return Math.hypot(point.x - start.x, point.y - start.y);
+  const projection = Math.max(
+    0,
+    Math.min(1, ((point.x - start.x) * dx + (point.y - start.y) * dy) / lengthSquared),
+  );
+  return Math.hypot(point.x - (start.x + projection * dx), point.y - (start.y + projection * dy));
+};
+
+const sampleBoundary = (ring: Ring, count = 32): Vec2[] => {
+  if (ring.length === 0) return [];
+  const segments = ring.map((start, index) => {
+    const end = ring[(index + 1) % ring.length]!;
+    return { start, end, length: Math.hypot(end.x - start.x, end.y - start.y) };
+  });
+  const perimeter = segments.reduce((sum, segment) => sum + segment.length, 0);
+  if (perimeter <= 1e-12) return Array.from({ length: count }, () => ({ ...ring[0]! }));
+  return Array.from({ length: count }, (_, sampleIndex) => {
+    let distance = (sampleIndex * perimeter) / count;
+    for (const segment of segments) {
+      if (distance <= segment.length || segment === segments.at(-1)) {
+        const ratio = segment.length <= 1e-12 ? 0 : distance / segment.length;
+        return {
+          x: segment.start.x + (segment.end.x - segment.start.x) * ratio,
+          y: segment.start.y + (segment.end.y - segment.start.y) * ratio,
+        };
+      }
+      distance -= segment.length;
+    }
+    return { ...ring[0]! };
+  });
+};
+
+const directedBoundaryDistance = (samples: readonly Vec2[], target: Ring) => {
+  if (samples.length === 0 || target.length === 0) return 0;
+  return (
+    samples.reduce((sum, point) => {
+      let nearest = Infinity;
+      for (let index = 0; index < target.length; index++) {
+        nearest = Math.min(
+          nearest,
+          pointSegmentDistance(point, target[index]!, target[(index + 1) % target.length]!),
+        );
+      }
+      return sum + nearest;
+    }, 0) / samples.length
+  );
+};
+
+const boundaryDistance = (before: Ring, after: Ring) =>
+  (directedBoundaryDistance(sampleBoundary(before), after) +
+    directedBoundaryDistance(sampleBoundary(after), before)) /
+  2;
 
 export type ConstraintGraphDistanceMetrics = {
   constraintPathMedian: number;
@@ -35,6 +93,7 @@ export function compareLayoutGeometry(
     })
     .sort((left, right) => left.after.id.localeCompare(right.after.id));
   let centroidDisplacement = 0;
+  let boundaryDisplacement = 0;
   let polygonIoULoss = 0;
   for (const pair of surviving) {
     const previousCentroid = centroid(pair.before.polygon);
@@ -42,9 +101,12 @@ export function compareLayoutGeometry(
     centroidDisplacement +=
       Math.hypot(currentCentroid.x - previousCentroid.x, currentCentroid.y - previousCentroid.y) /
       Math.max(scale, 1e-12);
+    boundaryDisplacement +=
+      boundaryDistance(pair.before.polygon, pair.after.polygon) / Math.max(scale, 1e-12);
     polygonIoULoss += 1 - polygonIoU(pair.before.polygon, pair.after.polygon);
   }
   centroidDisplacement /= Math.max(1, surviving.length);
+  boundaryDisplacement /= Math.max(1, surviving.length);
   polygonIoULoss /= Math.max(1, surviving.length);
 
   let relativeDirectionChange = 0;
@@ -72,7 +134,106 @@ export function compareLayoutGeometry(
     }
   }
   relativeDirectionChange /= Math.max(1, relativePairs);
-  return { centroidDisplacement, polygonIoULoss, relativeDirectionChange };
+  return {
+    centroidDisplacement,
+    boundaryDisplacement,
+    polygonIoULoss,
+    relativeDirectionChange,
+  };
+}
+
+const graphAdjacency = (ids: ReadonlySet<string>, edges: readonly AtlasEdge[]) => {
+  const adjacency = new Map([...ids].map((id) => [id, new Set<string>()] as const));
+  for (const edge of edges) {
+    if (edge.source === edge.target || !ids.has(edge.source) || !ids.has(edge.target)) continue;
+    adjacency.get(edge.source)!.add(edge.target);
+    adjacency.get(edge.target)!.add(edge.source);
+  }
+  return adjacency;
+};
+
+const distancesFrom = (adjacency: ReadonlyMap<string, ReadonlySet<string>>, source: string) => {
+  const distances = new Map([[source, 0]]);
+  let frontier = [source];
+  while (frontier.length > 0) {
+    const next: string[] = [];
+    for (const id of frontier) {
+      const distance = distances.get(id)! + 1;
+      for (const neighbor of adjacency.get(id) ?? []) {
+        if (distances.has(neighbor)) continue;
+        distances.set(neighbor, distance);
+        next.push(neighbor);
+      }
+    }
+    frontier = next;
+  }
+  return distances;
+};
+
+/**
+ * DCQ2-inspired error for persistent cell pairs. Lower is better: graph-distance
+ * change and geometric-distance change agree. Disconnected pairs use the unit
+ * sentinel so topology loss remains observable.
+ */
+export function distanceChangeFaithfulness(
+  before: readonly ComparableCell[],
+  after: readonly ComparableCell[],
+  beforeEdges: readonly AtlasEdge[],
+  afterEdges: readonly AtlasEdge[],
+) {
+  const beforeById = new Map(before.map((cell) => [cell.id, cell] as const));
+  const afterById = new Map(after.map((cell) => [cell.id, cell] as const));
+  const ids = [...beforeById.keys()]
+    .filter((id) => afterById.has(id))
+    .sort((left, right) => left.localeCompare(right));
+  const idSet = new Set(ids);
+  const beforeAdjacency = graphAdjacency(idSet, beforeEdges);
+  const afterAdjacency = graphAdjacency(idSet, afterEdges);
+  const beforePaths = new Map(ids.map((id) => [id, distancesFrom(beforeAdjacency, id)] as const));
+  const afterPaths = new Map(ids.map((id) => [id, distancesFrom(afterAdjacency, id)] as const));
+  const pairs: Array<{
+    source: string;
+    target: string;
+    beforeGeometry: number;
+    afterGeometry: number;
+  }> = [];
+  let geometricScale = 0;
+  for (let left = 0; left < ids.length; left++) {
+    for (let right = left + 1; right < ids.length; right++) {
+      const source = ids[left]!;
+      const target = ids[right]!;
+      const beforeSource = centroid(beforeById.get(source)!.polygon);
+      const beforeTarget = centroid(beforeById.get(target)!.polygon);
+      const afterSource = centroid(afterById.get(source)!.polygon);
+      const afterTarget = centroid(afterById.get(target)!.polygon);
+      const beforeGeometry = Math.hypot(
+        beforeTarget.x - beforeSource.x,
+        beforeTarget.y - beforeSource.y,
+      );
+      const afterGeometry = Math.hypot(
+        afterTarget.x - afterSource.x,
+        afterTarget.y - afterSource.y,
+      );
+      geometricScale = Math.max(geometricScale, beforeGeometry, afterGeometry);
+      pairs.push({ source, target, beforeGeometry, afterGeometry });
+    }
+  }
+  const graphScale = Math.max(1, ids.length - 1);
+  const error =
+    pairs.reduce((sum, pair) => {
+      const beforePath = beforePaths.get(pair.source)!.get(pair.target);
+      const afterPath = afterPaths.get(pair.source)!.get(pair.target);
+      const beforeGraph = beforePath === undefined ? 1 : beforePath / graphScale;
+      const afterGraph = afterPath === undefined ? 1 : afterPath / graphScale;
+      const graphChange = Math.abs(beforeGraph - afterGraph);
+      const geometryChange =
+        Math.abs(pair.beforeGeometry - pair.afterGeometry) / Math.max(geometricScale, 1e-12);
+      return sum + Math.abs(graphChange - geometryChange);
+    }, 0) / Math.max(1, pairs.length);
+  return {
+    distanceChangeFaithfulnessError: Math.abs(error) <= 1e-12 ? 0 : error,
+    distanceChangePairCount: pairs.length,
+  };
 }
 
 const shortestPath = (

@@ -222,8 +222,10 @@ type ContrastMetric =
   | "edgeLengthReduction"
   | "displacementReduction"
   | "centroidDisplacementReduction"
+  | "boundaryDisplacementReduction"
   | "polygonIoULossReduction"
   | "relativeDirectionChangeReduction"
+  | "distanceChangeFaithfulnessErrorReduction"
   | "constraintPathMedianReduction"
   | "constraintPathMaxReduction"
   | "constraintDisconnectedRateReduction"
@@ -235,8 +237,10 @@ const CONTRAST_METRICS: readonly ContrastMetric[] = [
   "edgeLengthReduction",
   "displacementReduction",
   "centroidDisplacementReduction",
+  "boundaryDisplacementReduction",
   "polygonIoULossReduction",
   "relativeDirectionChangeReduction",
+  "distanceChangeFaithfulnessErrorReduction",
   "constraintPathMedianReduction",
   "constraintPathMaxReduction",
   "constraintDisconnectedRateReduction",
@@ -412,7 +416,7 @@ export function runRepositoryBenchmarkBatch(
     ),
   };
   return {
-    schemaVersion: 2 as const,
+    schemaVersion: 3 as const,
     repositories,
     repositorySummary: {
       unit: "repository mean paired difference" as const,
@@ -446,8 +450,11 @@ export function benchmarkResultToCsv(result: BenchmarkResult): string {
     "edge_length",
     "displacement",
     "centroid_displacement",
+    "boundary_displacement",
     "polygon_iou_loss",
     "relative_direction_change",
+    "distance_change_faithfulness_error",
+    "distance_change_pair_count",
     "constraint_path_median",
     "constraint_path_max",
     "constraint_disconnected_rate",
@@ -487,8 +494,11 @@ export function benchmarkResultToCsv(result: BenchmarkResult): string {
           metrics.edgeLength,
           metrics.displacement,
           metrics.centroidDisplacement,
+          metrics.boundaryDisplacement,
           metrics.polygonIoULoss,
           metrics.relativeDirectionChange,
+          metrics.distanceChangeFaithfulnessError,
+          metrics.distanceChangePairCount,
           metrics.constraintPathMedian,
           metrics.constraintPathMax,
           metrics.constraintDisconnectedRate,

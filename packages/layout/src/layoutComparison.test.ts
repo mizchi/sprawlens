@@ -3,6 +3,7 @@ import type { AtlasEdge } from "@sprawlens/contracts";
 import {
   compareLayoutGeometry,
   constraintGraphDistance,
+  distanceChangeFaithfulness,
   type ComparableCell,
 } from "./layoutComparison.ts";
 
@@ -23,6 +24,7 @@ describe("independent temporal layout metrics", () => {
 
     expect(compareLayoutGeometry(cells, cells, 10)).toEqual({
       centroidDisplacement: 0,
+      boundaryDisplacement: 0,
       polygonIoULoss: 0,
       relativeDirectionChange: 0,
     });
@@ -34,6 +36,7 @@ describe("independent temporal layout metrics", () => {
     const result = compareLayoutGeometry(before, after, 10);
 
     expect(result.centroidDisplacement).toBeCloseTo(Math.SQRT2 / 10, 12);
+    expect(result.boundaryDisplacement).toBeGreaterThan(0);
     expect(result.polygonIoULoss).toBe(1);
     expect(result.relativeDirectionChange).toBeCloseTo(0, 12);
   });
@@ -43,6 +46,36 @@ describe("independent temporal layout metrics", () => {
     const after = [square("a", 2, 0), square("b", 0, 0)];
 
     expect(compareLayoutGeometry(before, after, 10).relativeDirectionChange).toBeCloseTo(1, 12);
+  });
+});
+
+describe("distance change faithfulness", () => {
+  const path: AtlasEdge[] = [
+    { source: "a", target: "b" },
+    { source: "b", target: "c" },
+  ];
+  const triangle = [...path, { source: "a", target: "c" }];
+  const pointCell = (id: string, x: number, y: number) => square(id, x - 0.5, y - 0.5);
+  const before = [pointCell("a", -1, 0), pointCell("b", 0, Math.sqrt(3)), pointCell("c", 1, 0)];
+
+  it("returns zero when graph-distance and geometric-distance changes agree", () => {
+    const after = [
+      pointCell("a", -0.5, 0),
+      pointCell("b", 0, Math.sqrt(3.75)),
+      pointCell("c", 0.5, 0),
+    ];
+
+    expect(distanceChangeFaithfulness(before, after, path, triangle)).toEqual({
+      distanceChangeFaithfulnessError: 0,
+      distanceChangePairCount: 3,
+    });
+  });
+
+  it("penalizes a structural change hidden by unchanged geometry", () => {
+    const result = distanceChangeFaithfulness(before, before, path, triangle);
+
+    expect(result.distanceChangeFaithfulnessError).toBeCloseTo(1 / 6, 12);
+    expect(result.distanceChangePairCount).toBe(3);
   });
 });
 

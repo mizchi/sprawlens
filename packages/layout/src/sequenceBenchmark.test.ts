@@ -27,7 +27,7 @@ describe("stateful stable-neighborhood sequence", () => {
   it("branches from one initial layout and carries each condition's own state", () => {
     const result = runStableNeighborhoodSequence(sequence, { seed: 7 });
 
-    expect(result.schemaVersion).toBe(1);
+    expect(result.schemaVersion).toBe(3);
     expect(result.transitions).toHaveLength(2);
     expect(result.initialCellSites.neighborhoodSwap).toEqual(
       result.initialCellSites.computeMatchedNeighborhood,
@@ -35,6 +35,8 @@ describe("stateful stable-neighborhood sequence", () => {
     expect(result.initialCellSites.neighborhoodSwap).toEqual(
       result.initialCellSites.stableNeighborhood,
     );
+    expect(result.initialCellSites.neighborhoodSwap).toEqual(result.initialCellSites.warmStart);
+    expect(result.initialCellSites.neighborhoodSwap).toEqual(result.initialCellSites.anchorOnly);
     expect(result.budget.matchedTransitions).toBe(2);
     expect(result.budget.shortfallTransitions).toBe(0);
     for (const transition of result.transitions) {
@@ -44,6 +46,12 @@ describe("stateful stable-neighborhood sequence", () => {
       expect(transition.computeMatchedSelection.weightedSolves).toBe(
         transition.stableSelection.weightedSolves,
       );
+      expect(transition.warmStartSelection.steps).toBeGreaterThanOrEqual(0);
+      expect(transition.anchorOnlySelection.weightedSolves).toBeGreaterThan(0);
+      expect(transition.conditions.stableNeighborhood.boundaryDisplacement).toBeGreaterThanOrEqual(
+        0,
+      );
+      expect(transition.conditions.stableNeighborhood.distanceChangePairCount).toBeGreaterThan(0);
     }
   });
 
@@ -52,6 +60,8 @@ describe("stateful stable-neighborhood sequence", () => {
     for (const condition of [
       "neighborhoodSwap",
       "computeMatchedNeighborhood",
+      "warmStart",
+      "anchorOnly",
       "stableNeighborhood",
     ] as const) {
       const expected = result.transitions.reduce(
@@ -59,6 +69,15 @@ describe("stateful stable-neighborhood sequence", () => {
         0,
       );
       expect(result.summary[condition].cumulative.centroidDisplacement).toBeCloseTo(expected, 12);
+      const expectedAdjacency =
+        result.transitions.reduce(
+          (sum, transition) => sum + transition.conditions[condition].adjacency,
+          0,
+        ) / result.transitions.length;
+      expect(result.summary[condition].meanAdjacency).toBeCloseTo(expectedAdjacency, 12);
+      expect(result.summary[condition].mean.distanceChangeFaithfulnessError).toBeGreaterThanOrEqual(
+        0,
+      );
     }
   });
 
