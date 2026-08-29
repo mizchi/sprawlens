@@ -30,6 +30,9 @@ run-repository-evaluation *args:
 run-sequence-evaluation *args:
     @pnpm tsx tools/run-sequence-evaluation.ts {{ args }}
 
+run-controlled-sequence-experiment *args:
+    @pnpm tsx tools/run-controlled-sequence-experiment.ts {{ args }}
+
 run-sequence-candidate-budget-experiment:
     @pnpm tsx tools/run-sequence-candidate-budget-experiment.ts
 

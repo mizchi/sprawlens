@@ -19,6 +19,13 @@ const summaryOutput = option(
   "--summary-output",
   resolve(projectRoot, "research/results/sequence-rollout-posthoc.json"),
 );
+const numberOption = (name: string, fallback: number) => {
+  const index = process.argv.indexOf(name);
+  const value = index < 0 ? fallback : Number(process.argv[index + 1]);
+  if (!Number.isFinite(value) || value < 0) throw new Error(`${name} must be non-negative`);
+  return value;
+};
+const historyFreeReferenceWeight = numberOption("--history-free-weight", 0);
 const writeJsonAtomic = async (path: string, value: unknown) => {
   await mkdir(resolve(path, ".."), { recursive: true });
   const temporary = `${path}.tmp`;
@@ -51,6 +58,7 @@ const startedAt = new Date().toISOString();
 const started = performance.now();
 const batch = runRepositorySequenceBenchmarkBatch(datasets, {
   seeds: manifest.selectionProtocol.benchmark.seeds,
+  stableHistoryFreeReferenceWeight: historyFreeReferenceWeight,
 });
 const timing = {
   wallClockMs: performance.now() - started,
@@ -70,6 +78,7 @@ const summary = {
   status: "post-hoc stateful sequence rollout" as const,
   manifestHash,
   seeds: batch.seeds,
+  stableHistoryFreeReferenceWeight: batch.stableHistoryFreeReferenceWeight,
   timing,
   ...batch.summary,
 };

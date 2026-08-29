@@ -139,4 +139,18 @@ describe("stateful stable-neighborhood sequence", () => {
       }),
     ).toThrow("structural anchor mixes must start with 0");
   });
+
+  it("captures final geometry only when explicitly requested", () => {
+    const compact = runStableNeighborhoodSequence(sequence, { seed: 23 });
+    const captured = runStableNeighborhoodSequence(sequence, {
+      seed: 23,
+      captureFinalGeometry: true,
+    });
+
+    expect(compact.finalCellGeometry).toBeNull();
+    expect(captured.finalCellGeometry?.stableNeighborhood).toHaveLength(7);
+    expect(captured.finalCellGeometry?.stableNeighborhood[0]).toEqual(
+      expect.objectContaining({ id: expect.any(String), site: expect.any(Object) }),
+    );
+  });
 });

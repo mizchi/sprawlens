@@ -31,9 +31,12 @@ export type SequenceBenchmarkOptions = {
   seed: number;
   clip?: ClipRegion;
   maxSteps?: number;
+  /** Include final polygons for controlled experiments and visual artifacts. */
+  captureFinalGeometry?: boolean;
   stableAnchorMixPolicy?: StableAnchorMixPolicy;
   stableProtectedConstraints?: readonly StableNeighborhoodProtectedConstraint[];
   stableCandidateGenerators?: readonly StableNeighborhoodCandidateGenerator[];
+  stableHistoryFreeReferenceWeight?: number;
 };
 
 export type StableAnchorMixPolicy = {
@@ -43,14 +46,14 @@ export type StableAnchorMixPolicy = {
   nonStructural: readonly number[];
 };
 
-const CONDITION_NAMES = [
+export const SEQUENCE_CONDITION_NAMES = [
   "neighborhoodSwap",
   "computeMatchedNeighborhood",
   "warmStart",
   "anchorOnly",
   "stableNeighborhood",
 ] as const;
-type SequenceConditionName = (typeof CONDITION_NAMES)[number];
+export type SequenceConditionName = (typeof SEQUENCE_CONDITION_NAMES)[number];
 
 type SequenceMetrics = TemporalGeometryMetrics &
   ConstraintGraphDistanceMetrics & {
@@ -61,7 +64,13 @@ type SequenceMetrics = TemporalGeometryMetrics &
     converged: boolean;
   };
 
-const DEFAULT_CLIP = { kind: "rect" as const, x: 0, y: 0, width: 1000, height: 700 };
+export const DEFAULT_SEQUENCE_CLIP = {
+  kind: "rect" as const,
+  x: 0,
+  y: 0,
+  width: 1000,
+  height: 700,
+};
 
 const anchorsOf = (state: CapacityLayoutState) =>
   new Map(state.cells.map((cell) => [cell.id, cell.site] as const));
@@ -176,7 +185,7 @@ const validateAnchorMixPolicy = (policy: StableAnchorMixPolicy) => {
 };
 
 /**
- * Branch three update policies from one initial layout, then let every policy
+ * Branch all update policies from one initial layout, then let every policy
  * carry only its own previous state through the sequence.
  */
 export function runStableNeighborhoodSequence(
@@ -186,7 +195,7 @@ export function runStableNeighborhoodSequence(
   if (snapshots.length < 2) {
     throw new Error("stable neighborhood sequence requires at least two snapshots");
   }
-  const clip = options.clip ?? DEFAULT_CLIP;
+  const clip = options.clip ?? DEFAULT_SEQUENCE_CLIP;
   const maxSteps = options.maxSteps ?? 800;
   if (options.stableAnchorMixPolicy) validateAnchorMixPolicy(options.stableAnchorMixPolicy);
   const initialGraph = snapshots[0]!;
@@ -280,6 +289,7 @@ export function runStableNeighborhoodSequence(
       protectedConstraints: options.stableProtectedConstraints,
       additionalCandidateGenerators: options.stableCandidateGenerators,
       adjacencyTolerance: 0,
+      historyFreeReferenceWeight: options.stableHistoryFreeReferenceWeight,
       maxSteps,
     });
     const anchorOnly = stableNeighborhoodUpdate(graph.nodes, graph.edges, clip, {
@@ -389,7 +399,7 @@ export function runStableNeighborhoodSequence(
   }
 
   const summary = Object.fromEntries(
-    CONDITION_NAMES.map((condition) => {
+    SEQUENCE_CONDITION_NAMES.map((condition) => {
       const values = transitions.map((transition) => transition.conditions[condition]);
       const cumulative = sumMetrics(values);
       return [
@@ -446,6 +456,7 @@ export function runStableNeighborhoodSequence(
       stableCandidateGenerators: (options.stableCandidateGenerators ?? []).map(
         ({ id, revision, parameters }) => ({ id, revision, parameters }),
       ),
+      stableHistoryFreeReferenceWeight: options.stableHistoryFreeReferenceWeight ?? 0,
     },
     seed: options.seed,
     snapshots: snapshots.length,
@@ -469,6 +480,21 @@ export function runStableNeighborhoodSequence(
             1e-12,
       ),
     ).length,
+    finalCellGeometry: options.captureFinalGeometry
+      ? (Object.fromEntries(
+          SEQUENCE_CONDITION_NAMES.map((condition) => [
+            condition,
+            previous[condition].cells.map(({ id, site, polygon }) => ({ id, site, polygon })),
+          ]),
+        ) as Record<
+          SequenceConditionName,
+          Array<{
+            id: string;
+            site: { x: number; y: number };
+            polygon: Array<{ x: number; y: number }>;
+          }>
+        >)
+      : null,
     summary,
   };
 }

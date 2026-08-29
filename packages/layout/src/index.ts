@@ -5,6 +5,7 @@ export * from "./bundling.ts";
 export * from "./capacityLayout.ts";
 export * from "./candidateGenerator.ts";
 export * from "./centrality.ts";
+export * from "./controlledSequence.ts";
 export * from "./deltaLayout.ts";
 export * from "./deltaTypes.ts";
 export * from "./deltaBenchmark.ts";

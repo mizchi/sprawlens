@@ -87,4 +87,39 @@ describe("repository evaluation preregistration manifest", () => {
     wrongBand.repositories[0]!.sizeKb = 10_000;
     expect(() => parseRepositoryEvaluationManifest(wrongBand)).toThrow(/outside small size band/);
   });
+
+  it("accepts a balanced confirmatory subset of registered languages", () => {
+    const subset = fixture();
+    subset.selectionProtocol.languages = [
+      "TypeScript",
+      "Go",
+      "Rust",
+    ] as unknown as typeof languages;
+    subset.repositories = subset.repositories.filter(
+      (repository) => repository.language !== "MoonBit",
+    );
+
+    const parsed = parseRepositoryEvaluationManifest(subset);
+
+    expect(parsed.selectionProtocol.languages).toEqual(["TypeScript", "Go", "Rust"]);
+    expect(parsed.repositories).toHaveLength(18);
+  });
+
+  it("rejects duplicate or empty registered-language selections", () => {
+    const duplicate = fixture();
+    duplicate.selectionProtocol.languages = [
+      "TypeScript",
+      "Go",
+      "TypeScript",
+    ] as unknown as typeof languages;
+    duplicate.repositories = duplicate.repositories.filter(
+      (repository) => repository.language !== "MoonBit",
+    );
+    expect(() => parseRepositoryEvaluationManifest(duplicate)).toThrow(/unique/);
+
+    const empty = fixture();
+    empty.selectionProtocol.languages = [] as unknown as typeof languages;
+    empty.repositories = [];
+    expect(() => parseRepositoryEvaluationManifest(empty)).toThrow(/at least one/);
+  });
 });

@@ -78,11 +78,11 @@ export function parseRepositoryEvaluationManifest(value: unknown): RepositoryEva
   const languages = protocol.languages.map((entry, index) =>
     oneOf(entry, REPOSITORY_LANGUAGES, `selectionProtocol.languages[${index}]`),
   );
-  if (
-    new Set(languages).size !== REPOSITORY_LANGUAGES.length ||
-    REPOSITORY_LANGUAGES.some((language) => !languages.includes(language))
-  ) {
-    throw new Error("selectionProtocol.languages must contain each registered language once");
+  if (languages.length === 0) {
+    throw new Error("selectionProtocol.languages must contain at least one registered language");
+  }
+  if (new Set(languages).size !== languages.length) {
+    throw new Error("selectionProtocol.languages must be unique");
   }
   const rawBands = record(protocol.sizeBands, "selectionProtocol.sizeBands");
   const sizeBands = Object.fromEntries(
@@ -160,6 +160,9 @@ export function parseRepositoryEvaluationManifest(value: unknown): RepositoryEva
       throw new Error(`repositories[${index}].fullName must be owner/name`);
     }
     const language = oneOf(raw.language, REPOSITORY_LANGUAGES, `repositories[${index}].language`);
+    if (!languages.includes(language)) {
+      throw new Error(`repositories[${index}].language is outside the selected languages`);
+    }
     const sizeBand = oneOf(raw.sizeBand, REPOSITORY_SIZE_BANDS, `repositories[${index}].sizeBand`);
     const sizeKb = integer(raw.sizeKb, `repositories[${index}].sizeKb`, 1);
     const range = sizeBands[sizeBand];

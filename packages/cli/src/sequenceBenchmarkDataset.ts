@@ -155,7 +155,7 @@ const repositoryStratumContrast = (runs: readonly SequenceRun[], stratum: Change
 
 export function runRepositorySequenceBenchmarkBatch(
   datasets: readonly LoadedDataset[],
-  options: { seeds?: readonly number[] } = {},
+  options: { seeds?: readonly number[]; stableHistoryFreeReferenceWeight?: number } = {},
 ) {
   const seeds = [...(options.seeds ?? DEFAULT_SEEDS)];
   if (seeds.length === 0) throw new Error("sequence benchmark requires at least one seed");
@@ -164,7 +164,10 @@ export function runRepositorySequenceBenchmarkBatch(
       seeds.map((seed) => ({
         sequence: sequence.name,
         snapshots: sequence.snapshots.length,
-        result: runStableNeighborhoodSequence(sequence.snapshots, { seed }),
+        result: runStableNeighborhoodSequence(sequence.snapshots, {
+          seed,
+          stableHistoryFreeReferenceWeight: options.stableHistoryFreeReferenceWeight,
+        }),
       })),
     );
     const matchedRuns = runs
@@ -305,6 +308,7 @@ export function runRepositorySequenceBenchmarkBatch(
   return {
     schemaVersion: 6 as const,
     seeds,
+    stableHistoryFreeReferenceWeight: options.stableHistoryFreeReferenceWeight ?? 0,
     repositories,
     summary: {
       unit: "repository mean sequence-seed difference" as const,
@@ -314,6 +318,43 @@ export function runRepositorySequenceBenchmarkBatch(
       transitions: repositories.reduce((sum, repository) => sum + repository.transitions, 0),
       longSequenceRepositories,
       goGateCorpusSatisfied: longSequenceRepositories >= 10,
+      adjacencyFloorViolations: repositories.reduce(
+        (sum, repository) =>
+          sum +
+          repository.runs.reduce((runSum, run) => runSum + run.result.adjacencyFloorViolations, 0),
+        0,
+      ),
+      topologyFloorViolations: repositories.reduce(
+        (sum, repository) =>
+          sum +
+          repository.runs.reduce((runSum, run) => runSum + run.result.topologyFloorViolations, 0),
+        0,
+      ),
+      budgetShortfallRuns: repositories.reduce(
+        (sum, repository) => sum + repository.budget.shortfallRuns,
+        0,
+      ),
+      nonconvergedTransitions: {
+        neighborhoodSwap: repositories.reduce(
+          (sum, repository) =>
+            sum +
+            repository.runs.reduce(
+              (runSum, run) => runSum + run.result.summary.neighborhoodSwap.nonconvergedTransitions,
+              0,
+            ),
+          0,
+        ),
+        stableNeighborhood: repositories.reduce(
+          (sum, repository) =>
+            sum +
+            repository.runs.reduce(
+              (runSum, run) =>
+                runSum + run.result.summary.stableNeighborhood.nonconvergedTransitions,
+              0,
+            ),
+          0,
+        ),
+      },
       changeStrata,
       contrasts: {
         stableVsNeighborhoodSwap: {

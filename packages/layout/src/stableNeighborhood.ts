@@ -36,6 +36,11 @@ export type StableNeighborhoodOptions = {
   maxSteps?: number;
   adaptationRate?: number;
   lloydRate?: number;
+  /**
+   * Penalize deviation from the deterministic history-free baseline inside
+   * the feasible set. Zero preserves the one-step policy.
+   */
+  historyFreeReferenceWeight?: number;
   /** Extra geometry sources evaluated by the same host metrics and selector. */
   additionalCandidateGenerators?: readonly StableNeighborhoodCandidateGenerator[];
 };
@@ -244,6 +249,18 @@ function candidateMetrics(
   };
 }
 
+function stateSiteDisplacement(state: CapacityLayoutState, reference: CapacityLayoutState): number {
+  const referenceById = new Map(reference.cells.map((cell) => [cell.id, cell.site] as const));
+  const scale = clipScale(state.clip);
+  const values = state.cells.flatMap((cell) => {
+    const anchor = referenceById.get(cell.id);
+    return anchor
+      ? [Math.hypot(cell.site.x - anchor.x, cell.site.y - anchor.y) / Math.max(scale, 1e-12)]
+      : [];
+  });
+  return values.reduce((sum, value) => sum + value, 0) / Math.max(1, values.length);
+}
+
 const envelopeConstraints = <
   T extends Pick<
     StableNeighborhoodCandidate,
@@ -280,6 +297,10 @@ export function stableNeighborhoodUpdate(
   const maxSteps = options.maxSteps ?? 800;
   const adaptationRate = options.adaptationRate;
   const lloydRate = options.lloydRate ?? 0.25;
+  const historyFreeReferenceWeight = options.historyFreeReferenceWeight ?? 0;
+  if (!Number.isFinite(historyFreeReferenceWeight) || historyFreeReferenceWeight < 0) {
+    throw new Error("history-free reference weight must be finite and non-negative");
+  }
   const additionalCandidateGenerators = [...(options.additionalCandidateGenerators ?? [])];
   validateAdditionalCandidateGenerators(additionalCandidateGenerators);
   const anchors = options.anchors ?? new Map<string, Vec2>();
@@ -429,7 +450,9 @@ export function stableNeighborhoodUpdate(
       options.protectedConstraints,
     ),
     isValid: (candidate) => candidate.converged,
-    selectionCost: (candidate) => candidate.displacement,
+    selectionCost: (candidate) =>
+      candidate.displacement +
+      historyFreeReferenceWeight * stateSiteDisplacement(candidate.state, baseline.state),
     compareTieBreak: (a, b) =>
       b.adjacency - a.adjacency ||
       a.objective - b.objective ||

@@ -37,6 +37,13 @@ describe("repository sequence benchmark", () => {
     expect(result.summary.transitions).toBe(10);
     expect(result.summary.longSequenceRepositories).toBe(2);
     expect(result.summary.goGateCorpusSatisfied).toBe(false);
+    expect(result.summary.adjacencyFloorViolations).toBe(0);
+    expect(result.summary.topologyFloorViolations).toBe(0);
+    expect(result.summary.budgetShortfallRuns).toBe(0);
+    expect(result.summary.nonconvergedTransitions).toEqual({
+      neighborhoodSwap: 0,
+      stableNeighborhood: 0,
+    });
     expect(
       result.summary.contrasts.stableVsComputeMatched.cumulative.centroidDisplacementReduction!.n,
     ).toBe(2);
