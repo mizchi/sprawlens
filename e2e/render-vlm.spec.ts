@@ -1,4 +1,5 @@
-import { test, expect } from "@playwright/test";
+import { test } from "@playwright/test";
+import { nlAssert } from "@mizchi/vlmkit/playwright";
 import { hasVlmKey, openRouterReviewer, vlmModel } from "./vlmReview.ts";
 
 // Layer 2: judge the converged render against a natural-language expectation
@@ -46,10 +47,11 @@ for (const c of CASES) {
       null,
       { timeout: 90_000 },
     );
-    const png = await page.screenshot();
-    const verdict = await reviewer({ assertion: c.assertion, image: png });
-    expect(verdict.pass, `${verdict.reasoning} (confidence ${verdict.confidence ?? "?"})`).toBe(
-      true,
-    );
+    await nlAssert({
+      assertion: c.assertion,
+      target: page,
+      reviewer,
+      metadata: { source: c.source, layout: c.layout, model: vlmModel() },
+    });
   });
 }

@@ -5,6 +5,7 @@ dist/
 .DS_Store
 *.log
 .playwright-mcp/
+.vlmkit/
 codesprawl-*.png
 test-results/
 perf-results/

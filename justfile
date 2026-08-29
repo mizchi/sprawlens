@@ -64,6 +64,10 @@ experiment-stable-visual:
     pnpm --filter @sprawlens/viz build
     pnpm tsx tools/run-stable-visual-experiment.ts
 
+capture-bulletin-figures:
+    pnpm --filter @sprawlens/viz build
+    pnpm tsx tools/capture-bulletin-figures.ts
+
 evaluate-ast-diff-gold *args:
     @pnpm tsx tools/evaluate-ast-symbol-diff.ts {{ args }}
 
