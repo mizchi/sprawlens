@@ -8,7 +8,7 @@ describe("delta layout benchmark", () => {
     const second = runDeltaLayoutBenchmark({ seeds: [3, 7, 11] });
 
     expect(second).toEqual(first);
-    expect(first.schemaVersion).toBe(6);
+    expect(first.schemaVersion).toBe(7);
     expect(first.configuration.stableSwapPasses).toEqual([8]);
     expect(first.seeds).toEqual([3, 7, 11]);
     expect(first.statistics).toEqual({
@@ -29,6 +29,7 @@ describe("delta layout benchmark", () => {
         "warm",
         "neighborhoodSwap",
         "stableNeighborhood",
+        "computeMatchedNeighborhood",
         "adjacencyOnly",
         "stabilityOnly",
         "guided",
@@ -49,9 +50,14 @@ describe("delta layout benchmark", () => {
         squarified: 0,
         neighborhoodSwap: 0,
         stableNeighborhood: 0,
+        computeMatchedNeighborhood: 0,
         adjacencyOnly: 0,
         stabilityOnly: 0,
         guided: 0,
+      });
+      expect(scenario.summary.computeMatchedBudget).toEqual({
+        matchedTrials: 3,
+        shortfallTrials: 0,
       });
       for (const trial of scenario.trials) {
         const baseline = trial.conditions.neighborhoodSwap;
@@ -63,6 +69,16 @@ describe("delta layout benchmark", () => {
         expect(trial.stableSelection.eligibleCandidates).toBeGreaterThanOrEqual(1);
         expect([0, 0.25, 0.5, 0.75, 1]).toContain(trial.stableSelection.anchorMix);
         expect(trial.stableSelection.baselineAdjacency).toBe(baseline.adjacency);
+        expect(trial.computeMatchedSelection.requestedWeightedSolves).toBe(
+          trial.stableSelection.weightedSolves,
+        );
+        expect(trial.computeMatchedSelection.weightedSolves).toBe(
+          trial.stableSelection.weightedSolves,
+        );
+        expect(trial.computeMatchedSelection.budgetMatched).toBe(true);
+        expect(
+          trial.conditions.computeMatchedNeighborhood.adjacency + 1e-12,
+        ).toBeGreaterThanOrEqual(baseline.adjacency);
       }
     }
     expect(first.aggregate.conditions.guided.objective.n).toBe(9);
@@ -73,6 +89,10 @@ describe("delta layout benchmark", () => {
     expect(
       first.aggregate.contrasts.stableNeighborhoodVsNeighborhoodSwap.displacementReduction.n,
     ).toBe(9);
+    expect(
+      first.aggregate.contrasts.stableNeighborhoodVsComputeMatched.displacementReduction.n,
+    ).toBe(9);
+    expect(first.aggregate.computeMatchedBudget).toEqual({ matchedTrials: 9, shortfallTrials: 0 });
   });
 
   it("can explore bounded-swap assignment variants without replacing the NPVT baseline", () => {

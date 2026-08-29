@@ -13,7 +13,10 @@ import { clipScale } from "./clip.ts";
 import { attachDeltaGuidance, deltaAwareStep, isDeltaConverged } from "./deltaLayout.ts";
 import type { DeltaGuidanceOptions } from "./deltaTypes.ts";
 import { cellAdjacency, realizedEdgeRate } from "./neighborhood.ts";
-import { stableNeighborhoodUpdate } from "./stableNeighborhood.ts";
+import {
+  computeMatchedNeighborhoodUpdate,
+  stableNeighborhoodUpdate,
+} from "./stableNeighborhood.ts";
 import { squarify } from "./squarify.ts";
 import type { Vec2 } from "./vec.ts";
 
@@ -52,6 +55,7 @@ const CONDITIONS = [
   "warm",
   "neighborhoodSwap",
   "stableNeighborhood",
+  "computeMatchedNeighborhood",
   "adjacencyOnly",
   "stabilityOnly",
   "guided",
@@ -66,6 +70,16 @@ type Trial = {
     weightedSolves: number;
     eligibleCandidates: number;
     swapPasses: number;
+    baselineAdjacency: number;
+    minimumAdjacency: number;
+  };
+  computeMatchedSelection: {
+    variant: number;
+    candidateCount: number;
+    weightedSolves: number;
+    requestedWeightedSolves: number;
+    budgetMatched: boolean;
+    eligibleCandidates: number;
     baselineAdjacency: number;
     minimumAdjacency: number;
   };
@@ -430,6 +444,18 @@ function runTrial(
     swapPasses: stableSwapPasses,
     maxSteps: MAX_BASE_STEPS,
   });
+  const computeMatchedAfter = computeMatchedNeighborhoodUpdate(
+    input.after.nodes,
+    input.after.edges,
+    CLIP,
+    {
+      seed,
+      anchors: neighborhoodAnchors,
+      weightedSolveBudget: neighborhoodAfter.weightedSolves,
+      adjacencyTolerance: 0,
+      maxSteps: MAX_BASE_STEPS,
+    },
+  );
   const warmStart = applyGraphChanges(before, graphChanges(input));
   const cold = settleVanilla(
     createCapacityLayout(input.after.nodes, CLIP, { seed, lloydRate: 0.25 }),
@@ -465,6 +491,16 @@ function runTrial(
       baselineAdjacency: neighborhoodAfter.baseline.adjacency,
       minimumAdjacency: neighborhoodAfter.minimumAdjacency,
     },
+    computeMatchedSelection: {
+      variant: computeMatchedAfter.selected.variant,
+      candidateCount: computeMatchedAfter.candidates.length,
+      weightedSolves: computeMatchedAfter.weightedSolves,
+      requestedWeightedSolves: computeMatchedAfter.requestedWeightedSolves,
+      budgetMatched: computeMatchedAfter.budgetMatched,
+      eligibleCandidates: computeMatchedAfter.eligibleCandidates,
+      baselineAdjacency: computeMatchedAfter.baseline.adjacency,
+      minimumAdjacency: computeMatchedAfter.minimumAdjacency,
+    },
     conditions: {
       squarified: metrics(squarifiedAfter, input.after.edges, squarifiedAnchors),
       cold: measured(cold, isConverged(cold.state, AREA_TOLERANCE)),
@@ -481,6 +517,14 @@ function runTrial(
         powerGeometry(
           { state: neighborhoodAfter.state, steps: neighborhoodAfter.totalSteps },
           neighborhoodAfter.selected.converged,
+        ),
+        input.after.edges,
+        neighborhoodAnchors,
+      ),
+      computeMatchedNeighborhood: metrics(
+        powerGeometry(
+          { state: computeMatchedAfter.state, steps: computeMatchedAfter.totalSteps },
+          computeMatchedAfter.selected.converged,
         ),
         input.after.edges,
         neighborhoodAnchors,
@@ -553,6 +597,10 @@ const failures = (trials: readonly Trial[]) =>
       trials.filter((trial) => !trial.conditions[condition].converged).length,
     ]),
   ) as Record<ConditionName, number>;
+const computeMatchedBudget = (trials: readonly Trial[]) => ({
+  matchedTrials: trials.filter((trial) => trial.computeMatchedSelection.budgetMatched).length,
+  shortfallTrials: trials.filter((trial) => !trial.computeMatchedSelection.budgetMatched).length,
+});
 const contrasts = (trials: readonly Trial[]) => ({
   guidedVsSquarified: contrastSummary(trials, "guided", "squarified"),
   guidedVsWarm: contrastSummary(trials, "guided", "warm"),
@@ -562,6 +610,11 @@ const contrasts = (trials: readonly Trial[]) => ({
     trials,
     "stableNeighborhood",
     "neighborhoodSwap",
+  ),
+  stableNeighborhoodVsComputeMatched: contrastSummary(
+    trials.filter((trial) => trial.computeMatchedSelection.budgetMatched),
+    "stableNeighborhood",
+    "computeMatchedNeighborhood",
   ),
   stableNeighborhoodVsGuided: contrastSummary(trials, "stableNeighborhood", "guided"),
   guidedVsAdjacencyOnly: contrastSummary(trials, "guided", "adjacencyOnly"),
@@ -590,12 +643,13 @@ export function runDeltaLayoutBenchmark(options: BenchmarkOptions = {}) {
         conditions: conditionSummaries(trials),
         contrasts: contrasts(trials),
         failures: failures(trials),
+        computeMatchedBudget: computeMatchedBudget(trials),
       },
     };
   });
   const allTrials = scenarios.flatMap((scenario) => scenario.trials);
   return {
-    schemaVersion: 6 as const,
+    schemaVersion: 7 as const,
     seeds,
     configuration: { stableSwapPasses },
     areaTolerance: AREA_TOLERANCE,
@@ -609,6 +663,7 @@ export function runDeltaLayoutBenchmark(options: BenchmarkOptions = {}) {
       conditions: conditionSummaries(allTrials),
       contrasts: contrasts(allTrials),
       failures: failures(allTrials),
+      computeMatchedBudget: computeMatchedBudget(allTrials),
     },
   };
 }

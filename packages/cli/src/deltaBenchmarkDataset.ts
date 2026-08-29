@@ -346,9 +346,10 @@ export function runRepositoryBenchmarkBatch(
         CONTRAST_METRICS.map((metric) => [
           metric,
           summarizeSamples(
-            analyzed.map(
-              (repository) => repository.benchmark.aggregate.contrasts[contrast][metric].mean,
-            ),
+            analyzed.flatMap((repository) => {
+              const sample = repository.benchmark.aggregate.contrasts[contrast][metric];
+              return sample.n > 0 ? [sample.mean] : [];
+            }),
           ),
         ]),
       ),
@@ -430,6 +431,12 @@ export function benchmarkResultToCsv(result: BenchmarkResult): string {
     "stable_candidate_count",
     "stable_eligible_candidates",
     "stable_weighted_solves",
+    "compute_matched_variant",
+    "compute_matched_candidate_count",
+    "compute_matched_eligible_candidates",
+    "compute_matched_weighted_solves",
+    "compute_matched_requested_weighted_solves",
+    "compute_matched_budget_matched",
   ];
   const rows: Array<Array<string | number | boolean>> = [header];
   for (const scenario of result.scenarios) {
@@ -458,6 +465,12 @@ export function benchmarkResultToCsv(result: BenchmarkResult): string {
           trial.stableSelection.candidateCount,
           trial.stableSelection.eligibleCandidates,
           trial.stableSelection.weightedSolves,
+          trial.computeMatchedSelection.variant,
+          trial.computeMatchedSelection.candidateCount,
+          trial.computeMatchedSelection.eligibleCandidates,
+          trial.computeMatchedSelection.weightedSolves,
+          trial.computeMatchedSelection.requestedWeightedSolves,
+          trial.computeMatchedSelection.budgetMatched,
         ]);
       }
     }

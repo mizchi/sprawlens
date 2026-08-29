@@ -134,7 +134,7 @@ const wallClockMs = performance.now() - benchmarkStarted;
 const finishedAt = new Date().toISOString();
 const timing = {
   scope:
-    "single Node.js process including all eight conditions, excluding snapshot loading" as const,
+    "single Node.js process including all nine conditions, excluding snapshot loading" as const,
   wallClockMs,
   maxRssKb: process.resourceUsage().maxRSS,
 };

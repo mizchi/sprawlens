@@ -373,15 +373,17 @@ describe("delta benchmark dataset", () => {
     const rows = csv.trim().split("\n");
 
     expect(rows[0]).toBe(
-      "scenario,seed,condition,converged,nodes_before,nodes_after,edges_after,max_area_error,mean_area_error,adjacency,edge_length,displacement,objective,steps,stable_anchor_mix,stable_swap_passes,stable_candidate_count,stable_eligible_candidates,stable_weighted_solves",
+      "scenario,seed,condition,converged,nodes_before,nodes_after,edges_after,max_area_error,mean_area_error,adjacency,edge_length,displacement,objective,steps,stable_anchor_mix,stable_swap_passes,stable_candidate_count,stable_eligible_candidates,stable_weighted_solves,compute_matched_variant,compute_matched_candidate_count,compute_matched_eligible_candidates,compute_matched_weighted_solves,compute_matched_requested_weighted_solves,compute_matched_budget_matched",
     );
-    expect(rows).toHaveLength(1 + 3 * 2 * 8);
+    expect(rows).toHaveLength(1 + 3 * 2 * 9);
     expect(rows[1]).toContain("weight-shift,3,squarified,true");
     expect(rows[2]).toContain("weight-shift,3,cold,true");
     expect(rows[3]).toContain("weight-shift,3,warm,true");
     expect(rows[4]).toContain("weight-shift,3,neighborhoodSwap,true");
     expect(rows[5]).toContain("weight-shift,3,stableNeighborhood,true");
-    expect(rows[8]).toContain("weight-shift,3,guided,true");
+    expect(rows[6]).toContain("weight-shift,3,computeMatchedNeighborhood,true");
+    expect(rows[9]).toContain("weight-shift,3,guided,true");
+    expect(rows[6]?.split(",").at(-1)).toBe("true");
   });
 
   it("parses reproducible CLI options and rejects malformed seeds", () => {
