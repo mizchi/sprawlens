@@ -8,6 +8,7 @@ import {
   type CellInputNode,
 } from "./capacityLayout.ts";
 import { clipScale, type ClipRegion } from "./clip.ts";
+import { selectFeasibleEnvelope } from "./feasibleEnvelope.ts";
 import { cellAdjacency, greedySwapAssignment, realizedEdgeRate } from "./neighborhood.ts";
 import { createRng } from "./rng.ts";
 import type { Vec2 } from "./vec.ts";
@@ -259,18 +260,17 @@ export function stableNeighborhoodUpdate(
     };
   });
   const baseline = candidates[0]!;
-  const minimumAdjacency = baseline.adjacency - (options.adjacencyTolerance ?? 0);
-  const eligible = candidates.filter(
-    (candidate) => candidate.converged && candidate.adjacency + 1e-12 >= minimumAdjacency,
-  );
-  const selected = [...(eligible.length > 0 ? eligible : [baseline])].sort(
-    (a, b) =>
-      a.displacement - b.displacement ||
-      b.adjacency - a.adjacency ||
-      a.objective - b.objective ||
-      b.anchorMix - a.anchorMix ||
-      b.swapPasses - a.swapPasses,
-  )[0]!;
+  const envelope = selectFeasibleEnvelope({
+    baseline,
+    candidates,
+    tolerance: options.adjacencyTolerance,
+    isValid: (candidate) => candidate.converged,
+    constraintScore: (candidate) => candidate.adjacency,
+    selectionCost: (candidate) => candidate.displacement,
+    compareTieBreak: (a, b) =>
+      a.objective - b.objective || b.anchorMix - a.anchorMix || b.swapPasses - a.swapPasses,
+  });
+  const selected = envelope.selected;
   return {
     state: selected.state,
     selected,
@@ -278,8 +278,8 @@ export function stableNeighborhoodUpdate(
     candidates,
     totalSteps,
     weightedSolves: weightedByAssignment.size,
-    eligibleCandidates: eligible.length,
-    minimumAdjacency,
+    eligibleCandidates: envelope.eligible.length,
+    minimumAdjacency: envelope.minimumConstraint,
   };
 }
 
@@ -401,17 +401,16 @@ export function computeMatchedNeighborhoodUpdate(
   }
 
   const baseline = candidates[0]!;
-  const minimumAdjacency = baseline.adjacency - (options.adjacencyTolerance ?? 0);
-  const eligible = candidates.filter(
-    (candidate) => candidate.converged && candidate.adjacency + 1e-12 >= minimumAdjacency,
-  );
-  const selected = [...(eligible.length > 0 ? eligible : [baseline])].sort(
-    (a, b) =>
-      a.displacement - b.displacement ||
-      b.adjacency - a.adjacency ||
-      a.objective - b.objective ||
-      a.variant - b.variant,
-  )[0]!;
+  const envelope = selectFeasibleEnvelope({
+    baseline,
+    candidates,
+    tolerance: options.adjacencyTolerance,
+    isValid: (candidate) => candidate.converged,
+    constraintScore: (candidate) => candidate.adjacency,
+    selectionCost: (candidate) => candidate.displacement,
+    compareTieBreak: (a, b) => a.objective - b.objective || a.variant - b.variant,
+  });
+  const selected = envelope.selected;
   return {
     state: selected.state,
     selected,
@@ -421,7 +420,7 @@ export function computeMatchedNeighborhoodUpdate(
     weightedSolves: candidates.length,
     requestedWeightedSolves: options.weightedSolveBudget,
     budgetMatched: candidates.length === options.weightedSolveBudget,
-    eligibleCandidates: eligible.length,
-    minimumAdjacency,
+    eligibleCandidates: envelope.eligible.length,
+    minimumAdjacency: envelope.minimumConstraint,
   };
 }

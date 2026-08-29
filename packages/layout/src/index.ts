@@ -14,6 +14,7 @@ export * from "./clip.ts";
 export * from "./embed.ts";
 export * from "./elevation.ts";
 export * from "./externalBaselineMetrics.ts";
+export * from "./feasibleEnvelope.ts";
 export * from "./forceLayout.ts";
 export * from "./geojson.ts";
 export * from "./hierarchyColor.ts";

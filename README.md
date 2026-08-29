@@ -109,7 +109,7 @@ root — knows the concrete analyzers.
 | -------------- | ----------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------- |
 | L0 contract    | `@sprawlens/contracts`        | language-neutral data shapes only: `Snapshot`, `AtlasGraph`, versioned `AtlasEvidence`, the detail graph, and provider interfaces. Zero dependencies |
 | L1 domain      | `@sprawlens/schema`           | neutral computation over the contracts: metrics, diff, the snapshot→graph adapter, hierarchy / layer / module / overlay / delta derivations          |
-| L1 domain      | `@sprawlens/layout`           | geometry + graph layout kernel (rings, treemap, power diagram, force, ...)                                                                           |
+| L1 domain      | `@sprawlens/layout`           | geometry + graph layout kernel, including the solver-independent [feasible-envelope selector](./docs/feasible-envelope.md)                           |
 | L2 domain      | `@sprawlens/agent`            | deterministic graph queries, intents, and the versioned human/agent `ViewState` wire contract; no renderer                                           |
 | L2 capability  | `@sprawlens/analyzer-ts`      | TypeScript/JS provider — TS compiler for structure, LSP for CFG / call hierarchy                                                                     |
 | L2 capability  | `@sprawlens/analyzer-go`      | Go provider — tree-sitter                                                                                                                            |
