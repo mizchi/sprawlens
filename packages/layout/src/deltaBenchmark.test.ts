@@ -136,9 +136,9 @@ describe("delta layout benchmark", () => {
 
     expect(result.configuration.stableSwapPasses).toEqual([0, 1, 8]);
     expect(trials.every((trial) => trial.stableSelection.candidateCount === 15)).toBe(true);
-    expect(trials.every((trial) => [0, 1, 8].includes(trial.stableSelection.swapPasses))).toBe(
-      true,
-    );
+    expect(
+      trials.every((trial) => [0, 1, 8].includes(trial.stableSelection.swapPasses ?? -1)),
+    ).toBe(true);
     expect(
       trials.every(
         (trial) =>

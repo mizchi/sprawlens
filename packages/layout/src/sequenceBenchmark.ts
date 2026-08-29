@@ -1,4 +1,5 @@
 import type { AtlasEdge } from "@sprawlens/contracts";
+import type { StableNeighborhoodCandidateGenerator } from "./candidateGenerator.ts";
 import {
   applyGraphChanges,
   capacityStep,
@@ -32,6 +33,7 @@ export type SequenceBenchmarkOptions = {
   maxSteps?: number;
   stableAnchorMixPolicy?: StableAnchorMixPolicy;
   stableProtectedConstraints?: readonly StableNeighborhoodProtectedConstraint[];
+  stableCandidateGenerators?: readonly StableNeighborhoodCandidateGenerator[];
 };
 
 export type StableAnchorMixPolicy = {
@@ -224,10 +226,29 @@ export function runStableNeighborhoodSequence(
       eligibleCandidates: number;
       usedFallback: boolean;
       weightedSolves: number;
-      anchorMix: number;
-      swapPasses: number;
+      generatorId: string;
+      candidateId: string;
+      eligibleCandidateKeys: string[];
+      candidateDiagnostics: Array<{
+        key: string;
+        generatorId: string;
+        candidateId: string;
+        eligible: boolean;
+        converged: boolean;
+        displacement: number;
+        adjacency: number;
+        constraintPathMax: number;
+      }>;
+      anchorMix: number | null;
+      swapPasses: number | null;
     };
-    anchorOnlySelection: { weightedSolves: number; anchorMix: number; adjacency: number };
+    anchorOnlySelection: {
+      weightedSolves: number;
+      generatorId: string;
+      candidateId: string;
+      anchorMix: number | null;
+      adjacency: number;
+    };
     warmStartSelection: { steps: number };
     computeMatchedSelection: {
       weightedSolves: number;
@@ -257,6 +278,7 @@ export function runStableNeighborhoodSequence(
       anchors: anchorsOf(previous.stableNeighborhood),
       ...(stableAnchorMixes ? { anchorMixes: stableAnchorMixes } : {}),
       protectedConstraints: options.stableProtectedConstraints,
+      additionalCandidateGenerators: options.stableCandidateGenerators,
       adjacencyTolerance: 0,
       maxSteps,
     });
@@ -292,11 +314,29 @@ export function runStableNeighborhoodSequence(
         eligibleCandidates: stable.eligibleCandidates,
         usedFallback: stable.usedFallback,
         weightedSolves: stable.weightedSolves,
+        generatorId: stable.selected.generator.id,
+        candidateId: stable.selected.candidateId,
+        eligibleCandidateKeys: stable.eligibleCandidateKeys,
+        candidateDiagnostics: stable.candidates.map((candidate) => {
+          const key = `${candidate.generator.id}:${candidate.candidateId}`;
+          return {
+            key,
+            generatorId: candidate.generator.id,
+            candidateId: candidate.candidateId,
+            eligible: stable.eligibleCandidateKeys.includes(key),
+            converged: candidate.converged,
+            displacement: candidate.displacement,
+            adjacency: candidate.adjacency,
+            constraintPathMax: candidate.constraintPathMax,
+          };
+        }),
         anchorMix: stable.selected.anchorMix,
         swapPasses: stable.selected.swapPasses,
       },
       anchorOnlySelection: {
         weightedSolves: anchorOnly.weightedSolves,
+        generatorId: anchorOnly.selected.generator.id,
+        candidateId: anchorOnly.selected.candidateId,
         anchorMix: anchorOnly.selected.anchorMix,
         adjacency: anchorOnly.selected.adjacency,
       },
@@ -399,10 +439,13 @@ export function runStableNeighborhoodSequence(
     (transition) => transition.computeMatchedSelection.budgetMatched,
   ).length;
   return {
-    schemaVersion: 5 as const,
+    schemaVersion: 6 as const,
     configuration: {
       stableAnchorMixPolicy: options.stableAnchorMixPolicy ?? null,
       stableProtectedConstraints: options.stableProtectedConstraints ?? [],
+      stableCandidateGenerators: (options.stableCandidateGenerators ?? []).map(
+        ({ id, revision, parameters }) => ({ id, revision, parameters }),
+      ),
     },
     seed: options.seed,
     snapshots: snapshots.length,

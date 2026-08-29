@@ -7,6 +7,11 @@ import {
   type CapacityLayoutState,
   type CellInputNode,
 } from "./capacityLayout.ts";
+import type {
+  LayoutCandidateGeneratorMetadata,
+  StableNeighborhoodGeneratedCandidate,
+  StableNeighborhoodCandidateGenerator,
+} from "./candidateGenerator.ts";
 import { clipScale, type ClipRegion } from "./clip.ts";
 import { selectVectorFeasibleEnvelope } from "./feasibleEnvelope.ts";
 import {
@@ -31,6 +36,8 @@ export type StableNeighborhoodOptions = {
   maxSteps?: number;
   adaptationRate?: number;
   lloydRate?: number;
+  /** Extra geometry sources evaluated by the same host metrics and selector. */
+  additionalCandidateGenerators?: readonly StableNeighborhoodCandidateGenerator[];
 };
 
 export type StableNeighborhoodProtectedConstraint =
@@ -38,8 +45,10 @@ export type StableNeighborhoodProtectedConstraint =
   | "constraintPathMax";
 
 export type StableNeighborhoodCandidate = ConstraintGraphDistanceMetrics & {
-  anchorMix: number;
-  swapPasses: number;
+  generator: LayoutCandidateGeneratorMetadata;
+  candidateId: string;
+  anchorMix: number | null;
+  swapPasses: number | null;
   state: CapacityLayoutState;
   converged: boolean;
   steps: number;
@@ -50,6 +59,74 @@ export type StableNeighborhoodCandidate = ConstraintGraphDistanceMetrics & {
   objective: number;
 };
 
+const DEFAULT_GENERATOR = {
+  id: "npvt-anchor-assignment",
+  revision: "stable-neighborhood-v1",
+  parameters: {
+    slotLayout: "equal-area-capacity-power-diagram",
+    assignment: "hungarian-anchor-mix",
+    neighborhoodRepair: "greedy-swap",
+  },
+} satisfies LayoutCandidateGeneratorMetadata;
+
+function validateAdditionalCandidateGenerators(
+  generators: readonly StableNeighborhoodCandidateGenerator[],
+) {
+  const generatorIds = new Set([DEFAULT_GENERATOR.id]);
+  for (const generator of generators) {
+    if (!generator.id || !generator.revision || generatorIds.has(generator.id)) {
+      throw new Error("candidate generator ids and revisions must be non-empty and unique");
+    }
+    generatorIds.add(generator.id);
+    for (const value of Object.values(generator.parameters)) {
+      if (typeof value !== "string" && typeof value !== "number" && typeof value !== "boolean") {
+        throw new Error("candidate generator parameters must be JSON primitives");
+      }
+      if (typeof value === "number" && !Number.isFinite(value)) {
+        throw new Error("candidate generator numeric parameters must be finite");
+      }
+    }
+  }
+}
+
+function validateGeneratedCandidates(
+  generated: readonly StableNeighborhoodGeneratedCandidate[],
+  expectedIds: readonly string[],
+) {
+  if (generated.length === 0)
+    throw new Error("candidate generator must return at least one candidate");
+  const candidateIds = new Set<string>();
+  const expected = [...expectedIds].sort().join("\0");
+  for (const candidate of generated) {
+    if (!candidate.candidateId || candidateIds.has(candidate.candidateId)) {
+      throw new Error("candidate ids must be unique within a generator");
+    }
+    candidateIds.add(candidate.candidateId);
+    const actualIds = candidate.state.cells.map(({ id }) => id);
+    if (
+      new Set(actualIds).size !== actualIds.length ||
+      [...actualIds].sort().join("\0") !== expected
+    ) {
+      throw new Error("candidate cell ids must exactly match the graph");
+    }
+    if (
+      candidate.state.cells.some(
+        (cell) =>
+          !Number.isFinite(cell.site.x) ||
+          !Number.isFinite(cell.site.y) ||
+          cell.polygon.length < 3 ||
+          cell.polygon.some((point) => !Number.isFinite(point.x) || !Number.isFinite(point.y)),
+      )
+    ) {
+      throw new Error("candidate geometry must be finite and polygonal");
+    }
+    if (!Number.isInteger(candidate.steps) || candidate.steps < 0) {
+      throw new Error("candidate steps must be a non-negative integer");
+    }
+  }
+  return generated;
+}
+
 export type StableNeighborhoodResult = {
   state: CapacityLayoutState;
   selected: StableNeighborhoodCandidate;
@@ -58,6 +135,7 @@ export type StableNeighborhoodResult = {
   totalSteps: number;
   weightedSolves: number;
   eligibleCandidates: number;
+  eligibleCandidateKeys: string[];
   usedFallback: boolean;
   minimumAdjacency: number;
   minimumConstraints: Record<string, number>;
@@ -202,6 +280,8 @@ export function stableNeighborhoodUpdate(
   const maxSteps = options.maxSteps ?? 800;
   const adaptationRate = options.adaptationRate;
   const lloydRate = options.lloydRate ?? 0.25;
+  const additionalCandidateGenerators = [...(options.additionalCandidateGenerators ?? [])];
+  validateAdditionalCandidateGenerators(additionalCandidateGenerators);
   const anchors = options.anchors ?? new Map<string, Vec2>();
   const mixes = [...(options.anchorMixes ?? DEFAULT_MIXES)];
   const swapPasses = [...(options.swapPasses ?? [8])];
@@ -252,57 +332,95 @@ export function stableNeighborhoodUpdate(
     string,
     { state: CapacityLayoutState; steps: number; converged: boolean }
   >();
-  const candidates = descriptors.map(({ anchorMix, swapPasses: passes }) => {
-    const cost = nodes.map((node) => {
-      const cold = similarity.get(node.id)!;
-      const anchor = anchors.get(node.id);
-      const target = anchor
-        ? {
-            x: cold.x + (anchor.x - cold.x) * anchorMix,
-            y: cold.y + (anchor.y - cold.y) * anchorMix,
-          }
-        : cold;
-      return slots.state.cells.map(
-        (slot) => (target.x - slot.site.x) ** 2 + (target.y - slot.site.y) ** 2,
+  const candidates: StableNeighborhoodCandidate[] = descriptors.map(
+    ({ anchorMix, swapPasses: passes }, descriptorIndex) => {
+      const cost = nodes.map((node) => {
+        const cold = similarity.get(node.id)!;
+        const anchor = anchors.get(node.id);
+        const target = anchor
+          ? {
+              x: cold.x + (anchor.x - cold.x) * anchorMix,
+              y: cold.y + (anchor.y - cold.y) * anchorMix,
+            }
+          : cold;
+        return slots.state.cells.map(
+          (slot) => (target.x - slot.site.x) ** 2 + (target.y - slot.site.y) ** 2,
+        );
+      });
+      const matched = minCostAssignment(cost);
+      const swapped = greedySwapAssignment(
+        matched,
+        nodes.map((node) => node.id),
+        slotAdjacency,
+        edges,
+        passes,
       );
-    });
-    const matched = minCostAssignment(cost);
-    const swapped = greedySwapAssignment(
-      matched,
-      nodes.map((node) => node.id),
-      slotAdjacency,
-      edges,
-      passes,
-    );
-    const assignmentKey = swapped.join(",");
-    let weighted = weightedByAssignment.get(assignmentKey);
-    if (!weighted) {
-      weighted = settle(
-        createCapacityLayout(
-          nodes.map((node, index) => ({
-            id: node.id,
-            weight: node.weight,
-            hint: { ...slots.state.cells[swapped[index]!]!.site },
-          })),
-          clip,
-          { seed: options.seed, adaptationRate, lloydRate },
-        ),
+      const assignmentKey = swapped.join(",");
+      let weighted = weightedByAssignment.get(assignmentKey);
+      if (!weighted) {
+        weighted = settle(
+          createCapacityLayout(
+            nodes.map((node, index) => ({
+              id: node.id,
+              weight: node.weight,
+              hint: { ...slots.state.cells[swapped[index]!]!.site },
+            })),
+            clip,
+            { seed: options.seed, adaptationRate, lloydRate },
+          ),
+          areaTolerance,
+          maxSteps,
+        );
+        weightedByAssignment.set(assignmentKey, weighted);
+        totalSteps += weighted.steps;
+      }
+      return {
+        generator: DEFAULT_GENERATOR,
+        candidateId: `anchor-${descriptorIndex}`,
+        anchorMix,
+        swapPasses: passes,
+        state: weighted.state,
+        converged: slots.converged && weighted.converged,
+        steps: slots.steps + weighted.steps,
+        ...candidateMetrics(weighted.state, edges, anchors),
+      };
+    },
+  );
+  const baseline = candidates[0]!;
+  for (const generator of additionalCandidateGenerators) {
+    const generated = validateGeneratedCandidates(
+      generator.generate({
+        nodes,
+        edges,
+        clip,
+        seed: options.seed,
+        anchors,
+        baselineState: baseline.state,
         areaTolerance,
         maxSteps,
-      );
-      weightedByAssignment.set(assignmentKey, weighted);
-      totalSteps += weighted.steps;
+        adaptationRate,
+        lloydRate,
+      }),
+      nodes.map(({ id }) => id),
+    );
+    for (const candidate of generated) {
+      totalSteps += candidate.steps;
+      candidates.push({
+        generator: {
+          id: generator.id,
+          revision: generator.revision,
+          parameters: generator.parameters,
+        },
+        candidateId: candidate.candidateId,
+        anchorMix: null,
+        swapPasses: null,
+        state: candidate.state,
+        converged: candidate.converged,
+        steps: candidate.steps,
+        ...candidateMetrics(candidate.state, edges, anchors),
+      });
     }
-    return {
-      anchorMix,
-      swapPasses: passes,
-      state: weighted.state,
-      converged: slots.converged && weighted.converged,
-      steps: slots.steps + weighted.steps,
-      ...candidateMetrics(weighted.state, edges, anchors),
-    };
-  });
-  const baseline = candidates[0]!;
+  }
   const envelope = selectVectorFeasibleEnvelope({
     baseline,
     candidates,
@@ -315,8 +433,8 @@ export function stableNeighborhoodUpdate(
     compareTieBreak: (a, b) =>
       b.adjacency - a.adjacency ||
       a.objective - b.objective ||
-      b.anchorMix - a.anchorMix ||
-      b.swapPasses - a.swapPasses,
+      (b.anchorMix ?? -1) - (a.anchorMix ?? -1) ||
+      (b.swapPasses ?? -1) - (a.swapPasses ?? -1),
   });
   const selected = envelope.selected;
   return {
@@ -327,6 +445,9 @@ export function stableNeighborhoodUpdate(
     totalSteps,
     weightedSolves: weightedByAssignment.size,
     eligibleCandidates: envelope.eligible.length,
+    eligibleCandidateKeys: envelope.eligible.map(
+      (candidate) => `${candidate.generator.id}:${candidate.candidateId}`,
+    ),
     usedFallback: envelope.usedFallback,
     minimumAdjacency: envelope.minimumConstraints.adjacency!,
     minimumConstraints: envelope.minimumConstraints,

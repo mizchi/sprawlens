@@ -81,6 +81,8 @@ type Trial = {
   seed: number;
   conditions: Record<ConditionName, TrialMetrics>;
   stableSelection: {
+    generatorId: string;
+    candidateId: string;
     anchorMix: number;
     candidateCount: number;
     weightedSolves: number;
@@ -599,11 +601,13 @@ function runTrial(
   return {
     seed,
     stableSelection: {
-      anchorMix: neighborhoodAfter.selected.anchorMix,
+      generatorId: neighborhoodAfter.selected.generator.id,
+      candidateId: neighborhoodAfter.selected.candidateId,
+      anchorMix: neighborhoodAfter.selected.anchorMix!,
       candidateCount: neighborhoodAfter.candidates.length,
       weightedSolves: neighborhoodAfter.weightedSolves,
       eligibleCandidates: neighborhoodAfter.eligibleCandidates,
-      swapPasses: neighborhoodAfter.selected.swapPasses,
+      swapPasses: neighborhoodAfter.selected.swapPasses!,
       baselineAdjacency: neighborhoodAfter.baseline.adjacency,
       minimumAdjacency: neighborhoodAfter.minimumAdjacency,
     },

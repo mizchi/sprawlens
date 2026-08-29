@@ -27,7 +27,7 @@ describe("stateful stable-neighborhood sequence", () => {
   it("branches from one initial layout and carries each condition's own state", () => {
     const result = runStableNeighborhoodSequence(sequence, { seed: 7 });
 
-    expect(result.schemaVersion).toBe(5);
+    expect(result.schemaVersion).toBe(6);
     expect(result.transitions).toHaveLength(2);
     expect(result.initialCellSites.neighborhoodSwap).toEqual(
       result.initialCellSites.computeMatchedNeighborhood,

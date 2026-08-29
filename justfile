@@ -39,6 +39,12 @@ scan-file-identity-silver:
 run-sequence-vector-constraint-experiment:
     @pnpm tsx tools/run-sequence-vector-constraint-experiment.ts
 
+run-sequence-candidate-generator-experiment:
+    @pnpm tsx tools/run-sequence-candidate-generator-experiment.ts
+
+run-sequence-candidate-generator-algorithm6-experiment:
+    @pnpm tsx tools/run-sequence-candidate-generator-experiment.ts --algorithm-6-fixed
+
 benchmark-repository-evaluation-cost *args:
     @pnpm tsx tools/benchmark-repository-evaluation-cost.ts {{ args }}
 

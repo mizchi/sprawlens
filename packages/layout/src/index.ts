@@ -3,6 +3,7 @@ export * from "./affine.ts";
 export * from "./assignment.ts";
 export * from "./bundling.ts";
 export * from "./capacityLayout.ts";
+export * from "./candidateGenerator.ts";
 export * from "./centrality.ts";
 export * from "./deltaLayout.ts";
 export * from "./deltaTypes.ts";
