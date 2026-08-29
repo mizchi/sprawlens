@@ -18,6 +18,7 @@ export * from "./forceLayout.ts";
 export * from "./geojson.ts";
 export * from "./hierarchyColor.ts";
 export * from "./index.ts";
+export * from "./layoutComparison.ts";
 export * from "./louvain.ts";
 export * from "./neighborhood.ts";
 export * from "./pipeline.ts";

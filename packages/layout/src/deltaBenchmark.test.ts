@@ -8,7 +8,7 @@ describe("delta layout benchmark", () => {
     const second = runDeltaLayoutBenchmark({ seeds: [3, 7, 11] });
 
     expect(second).toEqual(first);
-    expect(first.schemaVersion).toBe(7);
+    expect(first.schemaVersion).toBe(8);
     expect(first.configuration.stableSwapPasses).toEqual([8]);
     expect(first.seeds).toEqual([3, 7, 11]);
     expect(first.statistics).toEqual({
@@ -37,6 +37,12 @@ describe("delta layout benchmark", () => {
       expect(scenario.summary.conditions.warm.maxAreaError.mean).toBeLessThan(0.03);
       expect(scenario.summary.conditions.guided.maxAreaError.mean).toBeLessThan(0.03);
       expect(scenario.summary.conditions.guided.objective.n).toBe(3);
+      expect(scenario.summary.conditions.guided.centroidDisplacement.n).toBe(3);
+      expect(scenario.summary.conditions.guided.polygonIoULoss.n).toBe(3);
+      expect(scenario.summary.conditions.guided.relativeDirectionChange.n).toBe(3);
+      expect(scenario.summary.conditions.guided.constraintPathMedian.n).toBe(3);
+      expect(scenario.summary.conditions.guided.constraintPathMax.n).toBe(3);
+      expect(scenario.summary.conditions.guided.constraintDisconnectedRate.n).toBe(3);
       expect(scenario.summary.conditions.squarified.maxAreaError.mean).toBeLessThan(1e-9);
       expect(scenario.summary.conditions.guided.objective.ci95[0]).toBeLessThanOrEqual(
         scenario.summary.conditions.guided.objective.mean,
@@ -79,6 +85,20 @@ describe("delta layout benchmark", () => {
         expect(
           trial.conditions.computeMatchedNeighborhood.adjacency + 1e-12,
         ).toBeGreaterThanOrEqual(baseline.adjacency);
+        for (const condition of Object.values(trial.conditions)) {
+          expect(condition.centroidDisplacement).toBeGreaterThanOrEqual(0);
+          expect(condition.polygonIoULoss).toBeGreaterThanOrEqual(0);
+          expect(condition.polygonIoULoss).toBeLessThanOrEqual(1);
+          expect(condition.relativeDirectionChange).toBeGreaterThanOrEqual(0);
+          expect(condition.relativeDirectionChange).toBeLessThanOrEqual(1);
+          expect(condition.constraintPathMedian).toBeGreaterThanOrEqual(0);
+          expect(condition.constraintPathMax).toBeGreaterThanOrEqual(
+            condition.constraintPathMedian,
+          );
+          expect(condition.constraintDisconnectedRate).toBeGreaterThanOrEqual(0);
+          expect(condition.constraintDisconnectedRate).toBeLessThanOrEqual(1);
+          expect(condition.constraintEdgeCount).toBeGreaterThanOrEqual(0);
+        }
       }
     }
     expect(first.aggregate.conditions.guided.objective.n).toBe(9);
@@ -93,6 +113,13 @@ describe("delta layout benchmark", () => {
       first.aggregate.contrasts.stableNeighborhoodVsComputeMatched.displacementReduction.n,
     ).toBe(9);
     expect(first.aggregate.computeMatchedBudget).toEqual({ matchedTrials: 9, shortfallTrials: 0 });
+    expect(
+      first.aggregate.contrasts.stableNeighborhoodVsNeighborhoodSwap.polygonIoULossReduction.n,
+    ).toBe(9);
+    expect(
+      first.aggregate.contrasts.stableNeighborhoodVsComputeMatched.relativeDirectionChangeReduction
+        .n,
+    ).toBe(9);
   });
 
   it("can explore bounded-swap assignment variants without replacing the NPVT baseline", () => {

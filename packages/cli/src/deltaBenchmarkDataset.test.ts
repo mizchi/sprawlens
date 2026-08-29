@@ -293,6 +293,14 @@ describe("delta benchmark dataset", () => {
       batch.repositorySummary.contrasts!.stableNeighborhoodVsNeighborhoodSwap.displacementReduction
         .n,
     ).toBe(2);
+    expect(
+      batch.repositorySummary.contrasts!.stableNeighborhoodVsNeighborhoodSwap
+        .centroidDisplacementReduction.n,
+    ).toBe(2);
+    expect(
+      batch.repositorySummary.contrasts!.stableNeighborhoodVsNeighborhoodSwap
+        .polygonIoULossReduction.n,
+    ).toBe(2);
     expect(batch.repositorySummary.unit).toBe("repository mean paired difference");
     expect(batch.repositories[0]!.stableSelection!.trials).toBeGreaterThan(0);
     expect(batch.repositories[0]!.stableSelection!.anchorMixCounts).toEqual(
@@ -373,7 +381,7 @@ describe("delta benchmark dataset", () => {
     const rows = csv.trim().split("\n");
 
     expect(rows[0]).toBe(
-      "scenario,seed,condition,converged,nodes_before,nodes_after,edges_after,max_area_error,mean_area_error,adjacency,edge_length,displacement,objective,steps,stable_anchor_mix,stable_swap_passes,stable_candidate_count,stable_eligible_candidates,stable_weighted_solves,compute_matched_variant,compute_matched_candidate_count,compute_matched_eligible_candidates,compute_matched_weighted_solves,compute_matched_requested_weighted_solves,compute_matched_budget_matched",
+      "scenario,seed,condition,converged,nodes_before,nodes_after,edges_after,max_area_error,mean_area_error,adjacency,edge_length,displacement,centroid_displacement,polygon_iou_loss,relative_direction_change,constraint_path_median,constraint_path_max,constraint_disconnected_rate,constraint_edge_count,objective,steps,stable_anchor_mix,stable_swap_passes,stable_candidate_count,stable_eligible_candidates,stable_weighted_solves,compute_matched_variant,compute_matched_candidate_count,compute_matched_eligible_candidates,compute_matched_weighted_solves,compute_matched_requested_weighted_solves,compute_matched_budget_matched",
     );
     expect(rows).toHaveLength(1 + 3 * 2 * 9);
     expect(rows[1]).toContain("weight-shift,3,squarified,true");

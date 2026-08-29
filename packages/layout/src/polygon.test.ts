@@ -3,8 +3,10 @@ import {
   centroid,
   circleToPolygon,
   clipHalfPlane,
+  convexIntersection,
   convexHull,
   nearestPointInRing,
+  polygonIoU,
   signedArea,
 } from "./polygon.ts";
 
@@ -125,6 +127,25 @@ describe("convexHull", () => {
 
   it("passes tiny inputs through", () => {
     expect(convexHull([{ x: 3, y: 4 }])).toEqual([{ x: 3, y: 4 }]);
+  });
+});
+
+describe("convex polygon overlap", () => {
+  it("computes intersection and IoU for partially overlapping squares", () => {
+    const shifted = unitSquare.map((point) => ({ x: point.x + 0.5, y: point.y }));
+
+    expect(Math.abs(signedArea(convexIntersection(unitSquare, shifted)))).toBeCloseTo(0.5, 12);
+    expect(polygonIoU(unitSquare, shifted)).toBeCloseTo(1 / 3, 12);
+  });
+
+  it("is independent of ring orientation and returns zero for disjoint polygons", () => {
+    expect(polygonIoU([...unitSquare].reverse(), unitSquare)).toBeCloseTo(1, 12);
+    expect(
+      polygonIoU(
+        unitSquare,
+        unitSquare.map((point) => ({ x: point.x + 2, y: point.y })),
+      ),
+    ).toBe(0);
   });
 });
 

@@ -212,6 +212,12 @@ type ContrastMetric =
   | "adjacencyGain"
   | "edgeLengthReduction"
   | "displacementReduction"
+  | "centroidDisplacementReduction"
+  | "polygonIoULossReduction"
+  | "relativeDirectionChangeReduction"
+  | "constraintPathMedianReduction"
+  | "constraintPathMaxReduction"
+  | "constraintDisconnectedRateReduction"
   | "objectiveReduction"
   | "stepReduction";
 type BenchmarkContrasts = BenchmarkResult["aggregate"]["contrasts"];
@@ -219,6 +225,12 @@ const CONTRAST_METRICS: readonly ContrastMetric[] = [
   "adjacencyGain",
   "edgeLengthReduction",
   "displacementReduction",
+  "centroidDisplacementReduction",
+  "polygonIoULossReduction",
+  "relativeDirectionChangeReduction",
+  "constraintPathMedianReduction",
+  "constraintPathMaxReduction",
+  "constraintDisconnectedRateReduction",
   "objectiveReduction",
   "stepReduction",
 ];
@@ -424,6 +436,13 @@ export function benchmarkResultToCsv(result: BenchmarkResult): string {
     "adjacency",
     "edge_length",
     "displacement",
+    "centroid_displacement",
+    "polygon_iou_loss",
+    "relative_direction_change",
+    "constraint_path_median",
+    "constraint_path_max",
+    "constraint_disconnected_rate",
+    "constraint_edge_count",
     "objective",
     "steps",
     "stable_anchor_mix",
@@ -458,6 +477,13 @@ export function benchmarkResultToCsv(result: BenchmarkResult): string {
           metrics.adjacency,
           metrics.edgeLength,
           metrics.displacement,
+          metrics.centroidDisplacement,
+          metrics.polygonIoULoss,
+          metrics.relativeDirectionChange,
+          metrics.constraintPathMedian,
+          metrics.constraintPathMax,
+          metrics.constraintDisconnectedRate,
+          metrics.constraintEdgeCount,
           metrics.objective,
           metrics.steps,
           trial.stableSelection.anchorMix,

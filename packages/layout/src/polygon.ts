@@ -66,6 +66,37 @@ export function clipHalfPlane(ring: Ring, nx: number, ny: number, c: number): Ri
   return out.length < 3 ? [] : out;
 }
 
+const counterClockwise = (ring: readonly Vec2[]): Ring => {
+  const copy = ring.map((point) => ({ ...point }));
+  return signedArea(copy) < 0 ? copy.reverse() : copy;
+};
+
+/** Intersection of two convex rings. Input orientation may be CW or CCW. */
+export function convexIntersection(subject: readonly Vec2[], clip: readonly Vec2[]): Ring {
+  let intersection = counterClockwise(subject);
+  const boundary = counterClockwise(clip);
+  if (intersection.length < 3 || boundary.length < 3) return [];
+  for (let index = 0; index < boundary.length; index++) {
+    const a = boundary[index]!;
+    const b = boundary[(index + 1) % boundary.length]!;
+    const dx = b.x - a.x;
+    const dy = b.y - a.y;
+    intersection = clipHalfPlane(intersection, dy, -dx, dy * a.x - dx * a.y);
+    if (intersection.length === 0) break;
+  }
+  return intersection;
+}
+
+/** Intersection over union for two convex rings, in [0, 1]. */
+export function polygonIoU(a: readonly Vec2[], b: readonly Vec2[]): number {
+  const areaA = Math.abs(signedArea([...a]));
+  const areaB = Math.abs(signedArea([...b]));
+  const intersectionArea = Math.abs(signedArea(convexIntersection(a, b)));
+  const union = areaA + areaB - intersectionArea;
+  if (union <= 1e-12) return areaA <= 1e-12 && areaB <= 1e-12 ? 1 : 0;
+  return Math.max(0, Math.min(1, intersectionArea / union));
+}
+
 /** Point-in-polygon for convex CCW rings. */
 export function containsPoint(ring: Ring, p: Vec2): boolean {
   if (ring.length < 3) return false;
