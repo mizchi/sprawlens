@@ -18,6 +18,7 @@ import { cellAdjacency, realizedEdgeRate } from "./neighborhood.ts";
 import {
   computeMatchedNeighborhoodUpdate,
   stableNeighborhoodUpdate,
+  type StableNeighborhoodProtectedConstraint,
 } from "./stableNeighborhood.ts";
 
 export type LayoutSequenceGraph = {
@@ -30,6 +31,7 @@ export type SequenceBenchmarkOptions = {
   clip?: ClipRegion;
   maxSteps?: number;
   stableAnchorMixPolicy?: StableAnchorMixPolicy;
+  stableProtectedConstraints?: readonly StableNeighborhoodProtectedConstraint[];
 };
 
 export type StableAnchorMixPolicy = {
@@ -215,7 +217,16 @@ export function runStableNeighborhoodSequence(
     index: number;
     change: LayoutGraphChange;
     baselineAdjacency: number;
-    stableSelection: { candidateCount: number; weightedSolves: number; anchorMix: number };
+    baselineConstraintDisconnectedRate: number;
+    baselineConstraintPathMax: number;
+    stableSelection: {
+      candidateCount: number;
+      eligibleCandidates: number;
+      usedFallback: boolean;
+      weightedSolves: number;
+      anchorMix: number;
+      swapPasses: number;
+    };
     anchorOnlySelection: { weightedSolves: number; anchorMix: number; adjacency: number };
     warmStartSelection: { steps: number };
     computeMatchedSelection: {
@@ -245,6 +256,7 @@ export function runStableNeighborhoodSequence(
       seed: options.seed,
       anchors: anchorsOf(previous.stableNeighborhood),
       ...(stableAnchorMixes ? { anchorMixes: stableAnchorMixes } : {}),
+      protectedConstraints: options.stableProtectedConstraints,
       adjacencyTolerance: 0,
       maxSteps,
     });
@@ -273,10 +285,15 @@ export function runStableNeighborhoodSequence(
       index,
       change,
       baselineAdjacency: baseline.baseline.adjacency,
+      baselineConstraintDisconnectedRate: baseline.baseline.constraintDisconnectedRate,
+      baselineConstraintPathMax: baseline.baseline.constraintPathMax,
       stableSelection: {
         candidateCount: stable.candidates.length,
+        eligibleCandidates: stable.eligibleCandidates,
+        usedFallback: stable.usedFallback,
         weightedSolves: stable.weightedSolves,
         anchorMix: stable.selected.anchorMix,
+        swapPasses: stable.selected.swapPasses,
       },
       anchorOnlySelection: {
         weightedSolves: anchorOnly.weightedSolves,
@@ -382,9 +399,10 @@ export function runStableNeighborhoodSequence(
     (transition) => transition.computeMatchedSelection.budgetMatched,
   ).length;
   return {
-    schemaVersion: 4 as const,
+    schemaVersion: 5 as const,
     configuration: {
       stableAnchorMixPolicy: options.stableAnchorMixPolicy ?? null,
+      stableProtectedConstraints: options.stableProtectedConstraints ?? [],
     },
     seed: options.seed,
     snapshots: snapshots.length,
@@ -397,6 +415,16 @@ export function runStableNeighborhoodSequence(
     adjacencyFloorViolations: transitions.filter(
       (transition) =>
         transition.conditions.stableNeighborhood.adjacency + 1e-12 < transition.baselineAdjacency,
+    ).length,
+    topologyFloorViolations: transitions.filter((transition) =>
+      (options.stableProtectedConstraints ?? []).some(
+        (constraint) =>
+          transition.conditions.stableNeighborhood[constraint] >
+          (constraint === "constraintDisconnectedRate"
+            ? transition.baselineConstraintDisconnectedRate
+            : transition.baselineConstraintPathMax) +
+            1e-12,
+      ),
     ).length,
     summary,
   };

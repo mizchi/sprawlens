@@ -8,7 +8,11 @@ import {
   type CellInputNode,
 } from "./capacityLayout.ts";
 import { clipScale, type ClipRegion } from "./clip.ts";
-import { selectFeasibleEnvelope } from "./feasibleEnvelope.ts";
+import { selectVectorFeasibleEnvelope } from "./feasibleEnvelope.ts";
+import {
+  constraintGraphDistance,
+  type ConstraintGraphDistanceMetrics,
+} from "./layoutComparison.ts";
 import { cellAdjacency, greedySwapAssignment, realizedEdgeRate } from "./neighborhood.ts";
 import { createRng } from "./rng.ts";
 import type { Vec2 } from "./vec.ts";
@@ -21,13 +25,19 @@ export type StableNeighborhoodOptions = {
   swapPasses?: readonly number[];
   /** Absolute adjacency-rate loss allowed relative to the pure NPVT candidate. */
   adjacencyTolerance?: number;
+  /** Additional lower-is-better topology metrics protected at the baseline value. */
+  protectedConstraints?: readonly StableNeighborhoodProtectedConstraint[];
   areaTolerance?: number;
   maxSteps?: number;
   adaptationRate?: number;
   lloydRate?: number;
 };
 
-export type StableNeighborhoodCandidate = {
+export type StableNeighborhoodProtectedConstraint =
+  | "constraintDisconnectedRate"
+  | "constraintPathMax";
+
+export type StableNeighborhoodCandidate = ConstraintGraphDistanceMetrics & {
   anchorMix: number;
   swapPasses: number;
   state: CapacityLayoutState;
@@ -48,7 +58,9 @@ export type StableNeighborhoodResult = {
   totalSteps: number;
   weightedSolves: number;
   eligibleCandidates: number;
+  usedFallback: boolean;
   minimumAdjacency: number;
+  minimumConstraints: Record<string, number>;
 };
 
 export type ComputeMatchedNeighborhoodOptions = {
@@ -58,13 +70,14 @@ export type ComputeMatchedNeighborhoodOptions = {
   /** Finite guard for finding unique current-only assignments. */
   maxVariants?: number;
   adjacencyTolerance?: number;
+  protectedConstraints?: readonly StableNeighborhoodProtectedConstraint[];
   areaTolerance?: number;
   maxSteps?: number;
   adaptationRate?: number;
   lloydRate?: number;
 };
 
-export type ComputeMatchedNeighborhoodCandidate = {
+export type ComputeMatchedNeighborhoodCandidate = ConstraintGraphDistanceMetrics & {
   variant: number;
   swapPasses: 8;
   state: CapacityLayoutState;
@@ -87,7 +100,9 @@ export type ComputeMatchedNeighborhoodResult = {
   requestedWeightedSolves: number;
   budgetMatched: boolean;
   eligibleCandidates: number;
+  usedFallback: boolean;
   minimumAdjacency: number;
+  minimumConstraints: Record<string, number>;
 };
 
 const DEFAULT_MIXES = [0, 0.25, 0.5, 0.75, 1] as const;
@@ -111,7 +126,8 @@ function candidateMetrics(
   edges: readonly AtlasEdge[],
   anchors: ReadonlyMap<string, Vec2>,
 ) {
-  const adjacency = realizedEdgeRate(cellAdjacency(state.cells), edges);
+  const cellGraph = cellAdjacency(state.cells);
+  const adjacency = realizedEdgeRate(cellGraph, edges);
   const scale = clipScale(state.clip);
   const siteOf = new Map(state.cells.map((cell) => [cell.id, cell.site] as const));
   let displacement = 0;
@@ -140,8 +156,35 @@ function candidateMetrics(
   }
   meanAreaError /= Math.max(1, state.cells.length);
   const objective = meanAreaError + 2 * (1 - adjacency + 0.18 * edgeLength) + 0.7 * displacement;
-  return { adjacency, displacement, edgeLength, meanAreaError, objective };
+  return {
+    adjacency,
+    displacement,
+    edgeLength,
+    meanAreaError,
+    objective,
+    ...constraintGraphDistance(cellGraph, edges),
+  };
 }
+
+const envelopeConstraints = <
+  T extends Pick<
+    StableNeighborhoodCandidate,
+    "adjacency" | "constraintDisconnectedRate" | "constraintPathMax"
+  >,
+>(
+  adjacencyTolerance: number | undefined,
+  protectedConstraints: readonly StableNeighborhoodProtectedConstraint[] | undefined,
+) => [
+  {
+    name: "adjacency",
+    score: (candidate: T) => candidate.adjacency,
+    tolerance: adjacencyTolerance,
+  },
+  ...(protectedConstraints ?? []).map((name) => ({
+    name,
+    score: (candidate: T) => -candidate[name],
+  })),
+];
 
 /**
  * Stable NPVT-style update. It keeps the pure similarity-based NPVT candidate,
@@ -260,15 +303,20 @@ export function stableNeighborhoodUpdate(
     };
   });
   const baseline = candidates[0]!;
-  const envelope = selectFeasibleEnvelope({
+  const envelope = selectVectorFeasibleEnvelope({
     baseline,
     candidates,
-    tolerance: options.adjacencyTolerance,
+    constraints: envelopeConstraints<StableNeighborhoodCandidate>(
+      options.adjacencyTolerance,
+      options.protectedConstraints,
+    ),
     isValid: (candidate) => candidate.converged,
-    constraintScore: (candidate) => candidate.adjacency,
     selectionCost: (candidate) => candidate.displacement,
     compareTieBreak: (a, b) =>
-      a.objective - b.objective || b.anchorMix - a.anchorMix || b.swapPasses - a.swapPasses,
+      b.adjacency - a.adjacency ||
+      a.objective - b.objective ||
+      b.anchorMix - a.anchorMix ||
+      b.swapPasses - a.swapPasses,
   });
   const selected = envelope.selected;
   return {
@@ -279,7 +327,9 @@ export function stableNeighborhoodUpdate(
     totalSteps,
     weightedSolves: weightedByAssignment.size,
     eligibleCandidates: envelope.eligible.length,
-    minimumAdjacency: envelope.minimumConstraint,
+    usedFallback: envelope.usedFallback,
+    minimumAdjacency: envelope.minimumConstraints.adjacency!,
+    minimumConstraints: envelope.minimumConstraints,
   };
 }
 
@@ -401,14 +451,17 @@ export function computeMatchedNeighborhoodUpdate(
   }
 
   const baseline = candidates[0]!;
-  const envelope = selectFeasibleEnvelope({
+  const envelope = selectVectorFeasibleEnvelope({
     baseline,
     candidates,
-    tolerance: options.adjacencyTolerance,
+    constraints: envelopeConstraints<ComputeMatchedNeighborhoodCandidate>(
+      options.adjacencyTolerance,
+      options.protectedConstraints,
+    ),
     isValid: (candidate) => candidate.converged,
-    constraintScore: (candidate) => candidate.adjacency,
     selectionCost: (candidate) => candidate.displacement,
-    compareTieBreak: (a, b) => a.objective - b.objective || a.variant - b.variant,
+    compareTieBreak: (a, b) =>
+      b.adjacency - a.adjacency || a.objective - b.objective || a.variant - b.variant,
   });
   const selected = envelope.selected;
   return {
@@ -421,6 +474,8 @@ export function computeMatchedNeighborhoodUpdate(
     requestedWeightedSolves: options.weightedSolveBudget,
     budgetMatched: candidates.length === options.weightedSolveBudget,
     eligibleCandidates: envelope.eligible.length,
-    minimumAdjacency: envelope.minimumConstraint,
+    usedFallback: envelope.usedFallback,
+    minimumAdjacency: envelope.minimumConstraints.adjacency!,
+    minimumConstraints: envelope.minimumConstraints,
   };
 }

@@ -27,7 +27,7 @@ describe("stateful stable-neighborhood sequence", () => {
   it("branches from one initial layout and carries each condition's own state", () => {
     const result = runStableNeighborhoodSequence(sequence, { seed: 7 });
 
-    expect(result.schemaVersion).toBe(4);
+    expect(result.schemaVersion).toBe(5);
     expect(result.transitions).toHaveLength(2);
     expect(result.initialCellSites.neighborhoodSwap).toEqual(
       result.initialCellSites.computeMatchedNeighborhood,
@@ -108,6 +108,21 @@ describe("stateful stable-neighborhood sequence", () => {
       structural: [0, 0.25, 0.5, 0.75, 1],
       nonStructural: [0, 1],
     });
+  });
+
+  it("carries a vector topology floor through a stateful rollout", () => {
+    const result = runStableNeighborhoodSequence(sequence, {
+      seed: 19,
+      stableProtectedConstraints: ["constraintDisconnectedRate"],
+    });
+
+    expect(result.configuration.stableProtectedConstraints).toEqual(["constraintDisconnectedRate"]);
+    expect(result.topologyFloorViolations).toBe(0);
+    for (const transition of result.transitions) {
+      expect(
+        transition.conditions.stableNeighborhood.constraintDisconnectedRate,
+      ).toBeLessThanOrEqual(transition.baselineConstraintDisconnectedRate + 1e-12);
+    }
   });
 
   it("is deterministic and rejects a non-sequence", () => {

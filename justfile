@@ -36,6 +36,9 @@ run-sequence-candidate-budget-experiment:
 scan-file-identity-silver:
     @pnpm tsx tools/run-file-identity-silver-scan.ts
 
+run-sequence-vector-constraint-experiment:
+    @pnpm tsx tools/run-sequence-vector-constraint-experiment.ts
+
 benchmark-repository-evaluation-cost *args:
     @pnpm tsx tools/benchmark-repository-evaluation-cost.ts {{ args }}
 
@@ -72,6 +75,10 @@ benchmark-ast-diff-repository profile="smoke" *args:
 experiment-stable-visual:
     pnpm --filter @sprawlens/viz build
     pnpm tsx tools/run-stable-visual-experiment.ts
+
+experiment-vector-constraint-visual:
+    pnpm --filter @sprawlens/viz build
+    pnpm tsx tools/run-stable-visual-experiment.ts --protect-path-max
 
 capture-bulletin-figures:
     pnpm --filter @sprawlens/viz build

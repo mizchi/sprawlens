@@ -26,4 +26,3 @@ just scan-file-identity-silver
 ```
 
 Git rename detection is used only as a silver comparison. Git's default 50% similarity threshold is a content-based heuristic, while this matcher uses analyzer structure; agreement is useful corroboration but is not human-ground-truth precision or recall.
-

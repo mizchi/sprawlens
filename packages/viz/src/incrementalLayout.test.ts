@@ -98,6 +98,24 @@ describe("updateLeafLayout", () => {
     });
   });
 
+  it("counts a named vector-floor violation in experiment diagnostics", () => {
+    const result = stableNeighborhoodUpdate(
+      leaves(7).map((leaf) => ({ id: leaf.id, weight: leaf.metrics.loc })),
+      chain(7),
+      clip,
+      { seed: 7, protectedConstraints: ["constraintPathMax"] },
+    );
+    const impossibleFloor = {
+      ...result,
+      minimumConstraints: {
+        ...result.minimumConstraints,
+        constraintPathMax: -result.selected.constraintPathMax + 1,
+      },
+    };
+
+    expect(summarizeStableNeighborhoodExperiments([impossibleFloor]).contractViolations).toBe(1);
+  });
+
   it("falls back to the animated warm update above the stable node budget", () => {
     const graphLeaves = leaves(7);
     const graphEdges = chain(7);

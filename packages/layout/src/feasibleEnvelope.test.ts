@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { selectFeasibleEnvelope } from "./feasibleEnvelope.ts";
+import { selectFeasibleEnvelope, selectVectorFeasibleEnvelope } from "./feasibleEnvelope.ts";
 
 type Candidate = {
   id: string;
@@ -99,6 +99,92 @@ describe("feasible-envelope candidate selection", () => {
       const result = select(baseline, candidates);
       expect(result.selected.constraint + 1e-12).toBeGreaterThanOrEqual(result.minimumConstraint);
       expect(result.selected.valid).toBe(true);
+      expect(result.selected.cost).toBe(Math.min(...result.eligible.map((value) => value.cost)));
+    }
+  });
+});
+
+describe("vector feasible-envelope candidate selection", () => {
+  it("intersects independent baseline-relative constraints", () => {
+    const baseline = candidate("baseline", 0.8, 0.8, { quality: 0.1 });
+    const losesAdjacency = candidate("loses-adjacency", 0.79, 0.1, { quality: 0.2 });
+    const losesTopology = candidate("loses-topology", 0.9, 0.1, { quality: 0.09 });
+    const feasible = candidate("feasible", 0.82, 0.3, { quality: 0.11 });
+
+    const result = selectVectorFeasibleEnvelope({
+      baseline,
+      candidates: [baseline, losesAdjacency, losesTopology, feasible],
+      constraints: [
+        { name: "adjacency", score: (value) => value.constraint },
+        { name: "topology", score: (value) => value.quality },
+      ],
+      isValid: (value) => value.valid,
+      selectionCost: (value) => value.cost,
+    });
+
+    expect(result.minimumConstraints).toEqual({ adjacency: 0.8, topology: 0.1 });
+    expect(result.eligible).toEqual([baseline, feasible]);
+    expect(result.selected).toBe(feasible);
+  });
+
+  it("validates vector constraint names, scores, and tolerances", () => {
+    const baseline = candidate("baseline", 0.8, 0.5);
+    const common = {
+      baseline,
+      candidates: [baseline],
+      isValid: (value: Candidate) => value.valid,
+      selectionCost: (value: Candidate) => value.cost,
+    };
+
+    expect(() => selectVectorFeasibleEnvelope({ ...common, constraints: [] })).toThrow(
+      "at least one constraint",
+    );
+    expect(() =>
+      selectVectorFeasibleEnvelope({
+        ...common,
+        constraints: [
+          { name: "same", score: (value) => value.constraint },
+          { name: "same", score: (value) => value.quality },
+        ],
+      }),
+    ).toThrow("unique");
+    expect(() =>
+      selectVectorFeasibleEnvelope({
+        ...common,
+        constraints: [{ name: "bad", score: () => Number.NaN }],
+      }),
+    ).toThrow("score must be finite");
+    expect(() =>
+      selectVectorFeasibleEnvelope({
+        ...common,
+        constraints: [{ name: "bad", score: (value) => value.constraint, tolerance: -1 }],
+      }),
+    ).toThrow("tolerance");
+  });
+
+  it("satisfies every floor over finite two-constraint combinations", () => {
+    const baseline = candidate("baseline", 0.5, 3, { quality: 0.5 });
+    const universe = [
+      candidate("a", 0.4, 0, { quality: 0.7 }),
+      candidate("b", 0.7, 2, { quality: 0.4 }),
+      candidate("c", 0.6, 1, { quality: 0.6 }),
+      candidate("d", 0.8, 0, { quality: 0.8, valid: false }),
+    ];
+
+    for (let mask = 0; mask < 1 << universe.length; mask++) {
+      const candidates = [baseline, ...universe.filter((_, index) => (mask & (1 << index)) !== 0)];
+      const result = selectVectorFeasibleEnvelope({
+        baseline,
+        candidates,
+        constraints: [
+          { name: "adjacency", score: (value) => value.constraint },
+          { name: "topology", score: (value) => value.quality },
+        ],
+        isValid: (value) => value.valid,
+        selectionCost: (value) => value.cost,
+      });
+      expect(result.selected.constraint + 1e-12).toBeGreaterThanOrEqual(0.5);
+      expect(result.selected.quality + 1e-12).toBeGreaterThanOrEqual(0.5);
       expect(result.selected.cost).toBe(Math.min(...result.eligible.map((value) => value.cost)));
     }
   });

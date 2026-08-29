@@ -5,11 +5,15 @@ import { setTimeout as sleep } from "node:timers/promises";
 import { chromium, type Page } from "playwright";
 
 const projectRoot = resolve(import.meta.dirname, "..");
-const outputRoot = resolve(projectRoot, "preview/stable-layout-experiment");
+const protectPathMax = process.argv.includes("--protect-path-max");
+const outputRoot = resolve(
+  projectRoot,
+  protectPathMax ? "preview/stable-layout-vector-path-max" : "preview/stable-layout-experiment",
+);
 const port = 5181;
 const ownedBaseUrl = `http://127.0.0.1:${port}`;
 const baseUrl = process.env.STABLE_EXPERIMENT_BASE_URL ?? ownedBaseUrl;
-const experimentUrl = `${baseUrl}/?source=sprawlens-history&boundaries=module&displayLevels=module&changedPreview=false&dark=true&experimental=true`;
+const experimentUrl = `${baseUrl}/?source=sprawlens-history&boundaries=module&displayLevels=module&changedPreview=false&dark=true&experimental=true${protectPathMax ? "&vectorPathMax=true" : ""}`;
 
 type StepMetrics = {
   row: number;
@@ -197,6 +201,7 @@ try {
       swapPasses: [8],
       maxNodes: 80,
       maxSteps: 800,
+      protectedConstraints: protectPathMax ? ["constraintPathMax"] : [],
     },
     commits: rowCount,
     measuredSteps: measured.length,

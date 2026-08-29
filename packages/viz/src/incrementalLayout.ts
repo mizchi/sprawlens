@@ -76,10 +76,16 @@ export function summarizeStableNeighborhoodExperiments(
     if (result.selected.anchorMix === 0 && result.selected.swapPasses === 8) {
       summary.baselineSelections++;
     }
-    if (
-      result.selected.adjacency + 1e-12 < result.minimumAdjacency ||
-      result.selected.displacement > result.baseline.displacement + 1e-12
-    ) {
+    const selectedConstraintScores = {
+      adjacency: result.selected.adjacency,
+      constraintDisconnectedRate: -result.selected.constraintDisconnectedRate,
+      constraintPathMax: -result.selected.constraintPathMax,
+    };
+    const violatesFloor = Object.entries(result.minimumConstraints).some(
+      ([name, floor]) =>
+        selectedConstraintScores[name as keyof typeof selectedConstraintScores] + 1e-12 < floor,
+    );
+    if (violatesFloor || result.selected.displacement > result.baseline.displacement + 1e-12) {
       summary.contractViolations++;
     }
     summary.meanAdjacencyGain += result.selected.adjacency - result.baseline.adjacency;

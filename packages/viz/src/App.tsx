@@ -201,6 +201,9 @@ function scopeOf(id: string): string {
 
 /** ?debug=1 reveals the graph-mutation experiment buttons. */
 const DEBUG = typeof location !== "undefined" && new URLSearchParams(location.search).has("debug");
+const PROTECT_PATH_MAX =
+  typeof location !== "undefined" &&
+  new URLSearchParams(location.search).get("vectorPathMax") === "true";
 
 /** Shrink a convex ring toward its centroid so nested cells stay visually inside. */
 function insetRing(ring: Ring, factor: number): Ring {
@@ -766,6 +769,7 @@ export function App() {
           anchorMixes: [0, 0.25, 0.5, 0.75, 1],
           swapPasses: [8],
           adjacencyTolerance: 0,
+          ...(PROTECT_PATH_MAX ? { protectedConstraints: ["constraintPathMax"] as const } : {}),
           areaTolerance: 0.01,
           maxSteps: 800,
         }

@@ -101,6 +101,25 @@ describe("stable neighborhood update", () => {
     expect(result.selected.adjacency + 1e-12).toBeGreaterThanOrEqual(result.baseline.adjacency);
     expect(result.selected.displacement).toBeLessThanOrEqual(result.baseline.displacement + 1e-12);
   });
+
+  it("can protect disconnected dependency constraints as a second floor", () => {
+    const before = stableNeighborhoodUpdate(nodes(9), chain(9), clip, { seed: 29 });
+    const anchors = new Map(before.state.cells.map((cell) => [cell.id, cell.site] as const));
+    const result = stableNeighborhoodUpdate(nodes(9), chain(9), clip, {
+      seed: 29,
+      anchors,
+      protectedConstraints: ["constraintDisconnectedRate"],
+    });
+
+    expect(result.minimumConstraints).toEqual({
+      adjacency: result.baseline.adjacency,
+      constraintDisconnectedRate: -result.baseline.constraintDisconnectedRate,
+    });
+    expect(result.selected.adjacency + 1e-12).toBeGreaterThanOrEqual(result.baseline.adjacency);
+    expect(result.selected.constraintDisconnectedRate).toBeLessThanOrEqual(
+      result.baseline.constraintDisconnectedRate + 1e-12,
+    );
+  });
 });
 
 describe("compute-matched current-only neighborhood update", () => {
