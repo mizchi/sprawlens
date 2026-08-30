@@ -53,6 +53,130 @@ def outputPoints (plane : HalfPlane R) (current next : Vec2 R) : List (Vec2 R) :
       if nextDistance = 0 then [next] else [boundaryPoint plane current next]
   | .outside => []
 
+/-- Conventional Sutherland–Hodgman output before adjacent-duplicate normalization. -/
+def idealOutputPoints (plane : HalfPlane R) (current next : Vec2 R) : List (Vec2 R) :=
+  let currentDistance := signedDistance plane current
+  let nextDistance := signedDistance plane next
+  match classify currentDistance nextDistance with
+  | .inside => [current]
+  | .leaving => [current, boundaryPoint plane current next]
+  | .entering => [boundaryPoint plane current next]
+  | .outside => []
+
+omit [IsStrictOrderedRing R] in
+@[simp] theorem idealOutputPoints_of_inside_inside
+    (plane : HalfPlane R) (current next : Vec2 R)
+    (currentInside : signedDistance plane current ≤ 0)
+    (nextInside : signedDistance plane next ≤ 0) :
+    idealOutputPoints plane current next = [current] := by
+  have classified := classify_inside_iff.mpr ⟨currentInside, nextInside⟩
+  simp [idealOutputPoints, classified]
+
+omit [IsStrictOrderedRing R] in
+@[simp] theorem idealOutputPoints_of_inside_outside
+    (plane : HalfPlane R) (current next : Vec2 R)
+    (currentInside : signedDistance plane current ≤ 0)
+    (nextOutside : 0 < signedDistance plane next) :
+    idealOutputPoints plane current next = [current, boundaryPoint plane current next] := by
+  have classified := classify_leaving_iff.mpr ⟨currentInside, nextOutside⟩
+  simp [idealOutputPoints, classified]
+
+omit [IsStrictOrderedRing R] in
+@[simp] theorem idealOutputPoints_of_outside_inside
+    (plane : HalfPlane R) (current next : Vec2 R)
+    (currentOutside : 0 < signedDistance plane current)
+    (nextInside : signedDistance plane next ≤ 0) :
+    idealOutputPoints plane current next = [boundaryPoint plane current next] := by
+  have classified := classify_entering_iff.mpr ⟨currentOutside, nextInside⟩
+  simp [idealOutputPoints, classified]
+
+omit [IsStrictOrderedRing R] in
+@[simp] theorem idealOutputPoints_of_outside_outside
+    (plane : HalfPlane R) (current next : Vec2 R)
+    (currentOutside : 0 < signedDistance plane current)
+    (nextOutside : 0 < signedDistance plane next) :
+    idealOutputPoints plane current next = [] := by
+  have classified := classify_outside_iff.mpr ⟨currentOutside, nextOutside⟩
+  simp [idealOutputPoints, classified]
+
+omit [LinearOrder R] [IsStrictOrderedRing R] in
+theorem boundaryPoint_eq_current_of_current_boundary
+    (plane : HalfPlane R) (current next : Vec2 R)
+    (currentBoundary : signedDistance plane current = 0) :
+    boundaryPoint plane current next = current := by
+  simp [boundaryPoint, boundaryParameter, currentBoundary]
+
+omit [LinearOrder R] [IsStrictOrderedRing R] in
+theorem boundaryPoint_eq_next_of_next_boundary
+    (plane : HalfPlane R) (current next : Vec2 R)
+    (currentNotBoundary : signedDistance plane current ≠ 0)
+    (nextBoundary : signedDistance plane next = 0) :
+    boundaryPoint plane current next = next := by
+  simp [boundaryPoint, boundaryParameter, nextBoundary, currentNotBoundary]
+
+/-- The implementation emitter is the ideal emitter with local stutters removed. -/
+theorem outputPoints_eq_destutter_ideal
+    (plane : HalfPlane R) (current next : Vec2 R) :
+    outputPoints plane current next =
+      (idealOutputPoints plane current next).destutter (· ≠ ·) := by
+  generalize classificationEq :
+    classify (signedDistance plane current) (signedDistance plane next) = classification
+  cases classification with
+  | inside => simp [outputPoints, idealOutputPoints, classificationEq]
+  | outside => simp [outputPoints, idealOutputPoints, classificationEq]
+  | leaving =>
+      have classified := classify_leaving_iff.mp classificationEq
+      have leavingClass := classify_leaving_iff.mpr classified
+      by_cases currentBoundary : signedDistance plane current = 0
+      · have boundaryEq := boundaryPoint_eq_current_of_current_boundary
+          plane current next currentBoundary
+        have leavingAtBoundary :
+            classify 0 (signedDistance plane next) = .leaving :=
+          classify_leaving_iff.mpr ⟨le_rfl, classified.2⟩
+        simp [outputPoints, idealOutputPoints, currentBoundary,
+          leavingAtBoundary,
+          boundaryEq]
+      · have distancesDistinct :
+          signedDistance plane current ≠ signedDistance plane next := by
+          linarith [classified.2]
+        have boundaryDistance :
+            signedDistance plane (boundaryPoint plane current next) = 0 :=
+          signedDistance_boundaryPoint plane current next distancesDistinct
+        have pointDistinct : current ≠ boundaryPoint plane current next := by
+          intro equal
+          have : signedDistance plane current = 0 := by
+            rw [equal]
+            exact boundaryDistance
+          exact currentBoundary this
+        simp [outputPoints, idealOutputPoints, leavingClass,
+          currentBoundary, pointDistinct]
+  | entering =>
+      have classified := classify_entering_iff.mp classificationEq
+      have enteringClass := classify_entering_iff.mpr classified
+      have currentNotBoundary : signedDistance plane current ≠ 0 := by
+        linarith [classified.1]
+      by_cases nextBoundary : signedDistance plane next = 0
+      · have boundaryEq := boundaryPoint_eq_next_of_next_boundary
+          plane current next currentNotBoundary nextBoundary
+        have enteringAtBoundary :
+            classify (signedDistance plane current) 0 = .entering :=
+          classify_entering_iff.mpr ⟨classified.1, le_rfl⟩
+        simp [outputPoints, idealOutputPoints, nextBoundary,
+          enteringAtBoundary,
+          boundaryEq]
+      · simp [outputPoints, idealOutputPoints, enteringClass, nextBoundary]
+
+omit [IsStrictOrderedRing R] in
+theorem outputPoints_eq_singleton_of_inside
+    (plane : HalfPlane R) (current next : Vec2 R)
+    (currentInside : signedDistance plane current ≤ 0)
+    (nextInside : signedDistance plane next ≤ 0) :
+    outputPoints plane current next = [current] := by
+  have classified :
+      classify (signedDistance plane current) (signedDistance plane next) = .inside :=
+    classify_inside_iff.mpr ⟨currentInside, nextInside⟩
+  simp [outputPoints, classified]
+
 omit [IsStrictOrderedRing R] in
 theorem outputPoints_eq_singleton_of_strict_entering
     (plane : HalfPlane R) (current next : Vec2 R)

@@ -222,6 +222,32 @@ theorem linearlyOrdered_orientation_nonneg_of_le {extraVertices : Nat}
   exact ordered first second third (by omega) (by omega)
 
 omit [IsStrictOrderedRing R] in
+theorem IsLinearlyOrderedCCW.weak {extraVertices : Nat}
+    {vertex : RingIndex extraVertices → Vec2 R}
+    (ordered : IsLinearlyOrderedCCW vertex) : IsWeaklyConvexCCW vertex := by
+  intro edgeIndex pointIndex
+  by_cases nextInRange : edgeIndex.val + 1 < extraVertices + 3
+  · let next : RingIndex extraVertices := ⟨edgeIndex.val + 1, nextInRange⟩
+    have nextEq : nextIndex edgeIndex = next := by
+      apply Fin.ext
+      simp [nextIndex, next, Nat.mod_eq_of_lt nextInRange]
+    rw [nextEq]
+    by_cases pointBefore : pointIndex.val ≤ edgeIndex.val
+    · rw [orientation_cycle]
+      exact linearlyOrdered_orientation_nonneg_of_le ordered
+        pointIndex edgeIndex next pointBefore (by simp [next])
+    · exact linearlyOrdered_orientation_nonneg_of_le ordered
+        edgeIndex next pointIndex (by simp [next]) (by simp [next]; omega)
+  · have edgeIsLast : edgeIndex.val + 1 = extraVertices + 3 := by omega
+    let zero : RingIndex extraVertices := ⟨0, by omega⟩
+    have nextEq : nextIndex edgeIndex = zero := by
+      apply Fin.ext
+      simp [nextIndex, zero, edgeIsLast]
+    rw [nextEq, orientation_cycle, orientation_cycle]
+    exact linearlyOrdered_orientation_nonneg_of_le ordered
+      zero pointIndex edgeIndex (by simp [zero]) (by omega)
+
+omit [IsStrictOrderedRing R] in
 theorem weaklyConvex_triangle_linearlyOrdered
     (vertex : RingIndex 0 → Vec2 R)
     (convex : IsWeaklyConvexCCW vertex) :
@@ -364,22 +390,22 @@ theorem weaklyConvex_hexagon_does_not_imply_linearlyOrdered :
     repeatedTriangleHexagon_weaklyConvex,
     repeatedTriangleHexagon_not_linearlyOrdered⟩
 
-/-- Supporting half-planes plus explicit global vertex order. -/
+/-- Explicit global vertex order; supporting half-planes follow from it. -/
 def IsVertexOrderedConvexCCW {extraVertices : Nat}
     (vertex : RingIndex extraVertices → Vec2 R) : Prop :=
-  IsWeaklyConvexCCW vertex ∧ IsLinearlyOrderedCCW vertex
+  IsLinearlyOrderedCCW vertex
 
 omit [IsStrictOrderedRing R] in
 theorem IsVertexOrderedConvexCCW.weak {extraVertices : Nat}
     {vertex : RingIndex extraVertices → Vec2 R}
     (ordered : IsVertexOrderedConvexCCW vertex) : IsWeaklyConvexCCW vertex :=
-  ordered.1
+  IsLinearlyOrderedCCW.weak ordered
 
 omit [IsStrictOrderedRing R] in
 theorem IsVertexOrderedConvexCCW.linear {extraVertices : Nat}
     {vertex : RingIndex extraVertices → Vec2 R}
     (ordered : IsVertexOrderedConvexCCW vertex) : IsLinearlyOrderedCCW vertex :=
-  ordered.2
+  ordered
 
 /-- Weak supporting half-planes plus the cyclic traversal order needed by the emitter fold. -/
 def IsTraversalConvexCCW {extraVertices : Nat}

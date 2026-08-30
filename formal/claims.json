@@ -363,6 +363,109 @@
       "implementationCorrespondence": "shared-exact-integer-fixture-conformance-9-cases-not-a-proof-of-floating-point-summation-or-clipping-area-monotonicity"
     },
     {
+      "id": "infrastructure.exact-geometry.polygon-area-rewrite",
+      "paper": null,
+      "protocol": "research/lean-formalization-plan.md#L3",
+      "typescript": [
+        "packages/layout/src/polygon.ts",
+        "packages/layout/src/polygonArea.test.ts"
+      ],
+      "leanModule": "Sprawlens.PolygonAreaRewrite",
+      "theorems": [
+        "closedEdgeCrossSum_triangle",
+        "pathEdgeCrossSum_append_singleton",
+        "closedEdgeCrossSum_rotate_one",
+        "closedEdgeCrossSum_rotate",
+        "closedEdgeCrossSum_append_comm",
+        "closedEdgeCrossSum_flatten_rotate",
+        "closedEdgeCrossSum_append_head",
+        "closedEdgeCrossSum_erase_adjacent_duplicate",
+        "closedEdgeCrossSum_destutter_ne",
+        "closedEdgeCrossSum_destutter_ne_between",
+        "closedEdgeCrossSum_flatten_map_destutter_ne",
+        "closedEdgeCrossSum_normalizeClosure",
+        "closedEdgeCrossSum_eq_zero_of_length_le_two",
+        "pathEdgeCrossSum_interpolate_corner",
+        "closedEdgeCrossSum_interpolate_corner",
+        "pathEdgeCrossSum_interpolate_corner_le",
+        "pathEdgeCrossSum_interpolate_corner_le_of_mem_Icc",
+        "closedEdgeCrossSum_interpolate_corner_le_of_mem_Icc",
+        "closedEdgeCrossSum_delete_corner",
+        "closedEdgeCrossSum_delete_corner_le",
+        "closedEdgeCrossSum_nonnegative_of_triplewise",
+        "fanTurnsNonnegative_of_triplewise",
+        "closedEdgeCrossSum_delete_chain_le",
+        "closedEdgeCrossSum_delete_chain_le_of_triplewise",
+        "closedEdgeCrossSum_delete_middle_chain_le",
+        "closedEdgeCrossSum_two_boundary_replacement_le",
+        "closedEdgeCrossSum_canonical_clip_le",
+        "closedEdgeCrossSum_singleton_inside_clip_le"
+      ],
+      "status": "proved-list-shoelace-rotation-degenerate-and-canonical-clip-rewrite-standard-mathematics-not-novelty",
+      "implementationCorrespondence": "proof-only-list-shoelace-rewrite-two-incident-edge-intersections-remove-exactly-the-signed-ear-triangle-triplewise-ccw-supports-monotone-contiguous-chain-deletion-cyclic-rotation-and-the-canonical-mixed-clip-rewrite-are-proved-the-universal-ideal-emitter-materialization-is-consumed-by-the-convex-clip-area-claim-floating-point-refinement-remains-unproved"
+    },
+    {
+      "id": "infrastructure.exact-geometry.convex-clip-area",
+      "paper": null,
+      "protocol": "research/lean-formalization-plan.md#L3",
+      "typescript": [
+        "packages/layout/src/polygon.ts",
+        "packages/layout/src/polygonArea.test.ts",
+        "packages/layout/src/cyclicRingOutput.ts"
+      ],
+      "leanModule": "Sprawlens.ConvexClipArea",
+      "theorems": [
+        "clippedSignedTwiceArea_eq_outputPointFlatten",
+        "clippedSignedTwiceArea_eq_idealOutputPointFlatten",
+        "closedEdgeCrossSum_idealOutputPointFlatten_rotate",
+        "indexedSignedTwiceArea_rotateVertex",
+        "clippedSignedTwiceArea_rotateVertex",
+        "idealIndexedChunks_eq_of_rotatedBlock",
+        "indexedVertices_eq_block",
+        "idealIndexedChunkFlatten_eq_block",
+        "outsideBlockVertices_triplewise",
+        "clippedSignedTwiceArea_le_of_rotatedBlock",
+        "idealIndexedChunks_eq_of_singleton_inside_block",
+        "clippedSignedTwiceArea_le_of_singleton_inside_block",
+        "indexedVertices_nodup_of_strict",
+        "indexedSignedTwiceArea_nonnegative",
+        "clippedSignedTwiceArea_le_of_length_le_two",
+        "clipIndexedRing_eq_nil_of_all_outside",
+        "clippedSignedTwiceArea_le_of_all_outside",
+        "outputPointFlatten_eq_indexedVertices_of_all_inside",
+        "clipIndexedRing_eq_indexedVertices_of_all_inside",
+        "clippedSignedTwiceArea_eq_of_all_inside",
+        "closedEdgeCrossSum_le_of_mixed_decomposition",
+        "closedEdgeCrossSum_le_of_singleton_outside_decomposition",
+        "closedEdgeCrossSum_le_of_singleton_inside_decomposition",
+        "clippedSignedTwiceArea_le_of_certificate",
+        "singletonInsideTriangle_not_general_mixed",
+        "singletonInsideTriangle_area_nonincrease",
+        "singletonOutsideTriangle_area_nonincrease",
+        "clippedSignedTwiceArea_le"
+      ],
+      "status": "proved-unconditional-strict-convex-clip-area-monotonicity-standard-mathematics-not-novelty",
+      "implementationCorrespondence": "the-unconditional-exact-theorem-covers-all-inside-all-outside-singleton-inside-singleton-outside-and-general-canonical-mixed-decompositions-cyclic-sign-contiguity-is-converted-to-a-rotated-block-and-materialized-into-list-ofFn-indexed-edges-and-the-ideal-emitter-flatten-output-destutter-and-closure-normalization-are-proved-area-preserving-the-former-general-shape-failure-on-a-three-vertex-singleton-inside-cut-is-locked-as-a-lean-regression-the-certificate-checked-path-remains-an-optional-auditable-contract-typescript-floating-point-refinement-remains-unproved"
+    },
+    {
+      "id": "infrastructure.exact-geometry.convex-half-plane-sign-block",
+      "paper": null,
+      "protocol": "research/lean-formalization-plan.md#L3",
+      "typescript": [],
+      "leanModule": "Sprawlens.CyclicBinaryBlocks and Sprawlens.ConvexHalfPlaneSigns",
+      "theorems": [
+        "linearInterval_or_complement_of_no_alternation",
+        "signedDistance_four_point_circuit",
+        "not_outside_inside_outside_inside",
+        "not_inside_outside_inside_outside",
+        "outside_or_inside_linear_interval",
+        "rotatedBlock_of_linearInterval_or_complement",
+        "outside_rotatedBlock"
+      ],
+      "status": "proved-cyclic-sign-block-contiguity-standard-affine-geometry-not-novelty",
+      "implementationCorrespondence": "proof-only-the-affine-four-point-circuit-excludes-both-four-term-alternating-sign-patterns-and-implies-that-outside-or-inside-vertices-form-a-linear-interval-the-interval-or-its-complement-is-converted-to-a-cyclic-rotated-block-and-consumed-by-the-convex-clip-area-materialization"
+    },
+    {
       "id": "infrastructure.exact-geometry.half-plane-boundary-parameter",
       "paper": null,
       "protocol": "research/lean-formalization-plan.md#L3",
@@ -429,6 +532,10 @@
       "theorems": [
         "signedDistance_interpolatePoint",
         "signedDistance_boundaryPoint",
+        "boundaryPoint_eq_current_of_current_boundary",
+        "boundaryPoint_eq_next_of_next_boundary",
+        "outputPoints_eq_destutter_ideal",
+        "outputPoints_eq_singleton_of_inside",
         "outputPoints_eq_parameter_map",
         "outputPoints_eq_singleton_of_strict_entering",
         "outputPoints_eq_pair_of_strict_leaving",
@@ -459,7 +566,7 @@
         "distance_fold_collapses_the_boundary_edge"
       ],
       "status": "proved-exact-point-emission-and-ring-membership-contract-standard-mathematics-not-novelty",
-      "implementationCorrespondence": "lean-edge-checker-executes-the-point-emitter-plus-shared-step-and-fold-fixtures-cyclic-orientation-is-proved-under-the-explicit-all-ordered-triples-input-contract-not-yet-from-weak-convexity-alone-and-area-monotonicity-remains-unproved"
+      "implementationCorrespondence": "lean-edge-checker-executes-the-point-emitter-plus-shared-step-and-fold-fixtures-cyclic-orientation-is-proved-under-the-explicit-all-ordered-triples-input-contract-and-area-monotonicity-is-certificate-checked-universal-mixed-decomposition-certificate-construction-remains-unproved"
     },
     {
       "id": "infrastructure.exact-geometry.ordered-triple-normalization",
@@ -572,6 +679,7 @@
         "indexedEdges_pairwise_segmentPairCCW",
         "linearlyOrdered_iff_indexedVertices_triplewise",
         "linearlyOrdered_orientation_nonneg_of_le",
+        "IsLinearlyOrderedCCW.weak",
         "weaklyConvex_triangle_linearlyOrdered",
         "weaklyConvex_ordered_of_adjacent_pair",
         "weaklyConvex_ordered_of_cyclic_adjacent_pair",
@@ -605,7 +713,30 @@
         "clipIndexedRing_cyclicTurnsNonnegative_of_strict_crossing_edge_order"
       ],
       "status": "proved-indexed-convex-ring-to-local-seam-contract-standard-mathematics-not-novelty",
-      "implementationCorrespondence": "fin-indexed-edges-and-per-edge-output-chunks-use-the-same-abstract-point-fold-linear-vertex-triplewise-order-is-proved-to-imply-edge-traversal-support-including-adjacent-duplicates-and-final-edge-wrap-cyclic-orientation-then-follows-without-crossing-or-alignment-assumptions-weak-supporting-half-planes-imply-linear-vertex-order-for-three-through-five-vertices-but-the-implication-is-refuted-at-six-by-a-twice-traversed-triangle-so-global-vertex-order-or-a-stronger-simple-ring-contract-and-typescript-refinement-are-required"
+      "implementationCorrespondence": "fin-indexed-edges-and-per-edge-output-chunks-use-the-same-abstract-point-fold-linear-vertex-triplewise-order-itself-is-proved-to-imply-all-edge-support-including-the-final-edge-wrap-and-edge-traversal-support-cyclic-orientation-then-follows-without-crossing-or-alignment-assumptions-the-reverse-implication-from-weak-support-holds-for-three-through-five-vertices-but-is-refuted-at-six-by-a-twice-traversed-triangle-so-global-vertex-order-or-a-stronger-simple-ring-contract-and-typescript-refinement-are-required"
+    },
+    {
+      "id": "infrastructure.exact-geometry.strict-convex-contract",
+      "paper": null,
+      "protocol": "research/lean-formalization-plan.md#L3",
+      "typescript": [
+        "packages/layout/src/polygon.ts",
+        "packages/layout/src/polygon.test.ts"
+      ],
+      "leanModule": "Sprawlens.StrictConvexContract",
+      "theorems": [
+        "strictlyLinearlyOrdered_iff_indexedVertices_triplewise",
+        "IsStrictlyLinearlyOrderedCCW.weak",
+        "IsStrictlyLinearlyOrderedCCW.vertex_ne_of_lt",
+        "IsStrictlyLinearlyOrderedCCW.injective",
+        "IsStrictVertexOrderedConvexCCW.weak",
+        "IsStrictVertexOrderedConvexCCW.strict",
+        "IsStrictVertexOrderedConvexCCW.injective",
+        "IsStrictVertexOrderedConvexCCW.vertexOrdered",
+        "clipIndexedRing_cyclicTurnsNonnegative_of_strict_vertex_ordered"
+      ],
+      "status": "proved-strict-global-vertex-order-to-clipping-orientation-standard-mathematics-not-novelty",
+      "implementationCorrespondence": "proof-level-primary-input-contract-strict-global-index-order-implies-vertex-injectivity-weak-global-order-all-edge-support-and-post-clipping-cyclic-turn-preservation-typescript-runtime-validation-and-floating-point-refinement-remain-unproved"
     },
     {
       "id": "infrastructure.exact-geometry.hexagon-chord",
@@ -677,6 +808,7 @@
         "normalizeClosure_singleton",
         "normalizeClosure_eq_dropLast_of_closing",
         "normalizeClosure_eq_self_of_open",
+        "normalizeClosure_eq_self_of_nodup",
         "mem_original_of_mem_normalizeClosure",
         "normalizeClosure_length_le",
         "normalizeClosure_sublist",

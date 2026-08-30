@@ -11,6 +11,7 @@ import Sprawlens.SegmentContact
 import Sprawlens.CollinearOverlap
 import Sprawlens.SimpleRing
 import Sprawlens.PolygonArea
+import Sprawlens.PolygonAreaRewrite
 import Sprawlens.HalfPlaneIntersection
 import Sprawlens.HalfPlaneClipStep
 import Sprawlens.HalfPlaneClipPoints
@@ -19,6 +20,10 @@ import Sprawlens.OrderedTriples
 import Sprawlens.SegmentTripleOrientation
 import Sprawlens.HalfPlaneBoundaryGeometry
 import Sprawlens.ConvexClipContract
+import Sprawlens.StrictConvexContract
+import Sprawlens.ConvexClipArea
+import Sprawlens.CyclicBinaryBlocks
+import Sprawlens.ConvexHalfPlaneSigns
 import Sprawlens.HexagonChord
 import Sprawlens.HalfPlaneClipFold
 import Sprawlens.CyclicClosure

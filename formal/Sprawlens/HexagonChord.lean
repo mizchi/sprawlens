@@ -316,7 +316,6 @@ theorem clipIndexedHexagon_cyclicTurnsNonnegative_of_injective
     (injective : Function.Injective vertex) :
     CyclicTurnsNonnegative (clipIndexedRing plane vertex) := by
   apply clipIndexedRing_cyclicTurnsNonnegative_of_vertex_ordered
-  exact ⟨convex,
-    weaklyConvex_injective_hexagon_linearlyOrdered vertex convex injective⟩
+  exact weaklyConvex_injective_hexagon_linearlyOrdered vertex convex injective
 
 end Sprawlens.HexagonChord

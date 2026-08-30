@@ -47,6 +47,26 @@ theorem normalizeClosure_eq_self_of_open
     exact (openOutput (by simpa using closingTail)).elim
   · rfl
 
+theorem normalizeClosure_eq_self_of_nodup
+    {α : Type u} [DecidableEq α] (output : List α)
+    (nodup : output.Nodup) : normalizeClosure output = output := by
+  cases output with
+  | nil => rfl
+  | cons first rest =>
+      cases rest with
+      | nil => rfl
+      | cons second rest =>
+          apply normalizeClosure_eq_self_of_open
+          intro closing
+          have firstInLast : first ∈ (second :: rest).getLast? := by
+            simpa using closing
+          obtain ⟨nonempty, firstIsLast⟩ :=
+            List.mem_getLast?_eq_getLast firstInLast
+          have firstInTail : first ∈ second :: rest := by
+            rw [firstIsLast]
+            exact List.getLast_mem nonempty
+          exact (List.nodup_cons.mp nodup).1 firstInTail
+
 theorem mem_original_of_mem_normalizeClosure
     {α : Type u} [DecidableEq α] {output : List α} {value : α}
     (member : value ∈ normalizeClosure output) : value ∈ output := by
