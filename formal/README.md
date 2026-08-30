@@ -34,6 +34,8 @@ eligible集合が空の場合はbaselineへfallbackする。baseline自身がinv
 
 現段階で証明したのはabstract selection relationであり、TypeScriptのsort実装、floating-point score、candidate生成、solver convergenceの正しさではない。
 
+`Sprawlens.Paper1Contract`はこの一般relationを第一論文のprimary policyへ特殊化する。candidateはexact rational adjacency、exact rational displacement、convergence flagを持ち、zero-tolerance adjacency floorとdisplacement costを使う。baseline membershipとbaseline convergenceの下で、selected convergence、selected adjacencyがbaseline以上、selected displacementがbaseline以下になることを個別に証明した。論文中のdominance contractはこの三定理に対応する。
+
 `Sprawlens.ControlledPaths`は第二論文のcontrolled sequenceを離散graphとして一般化する。no-op / reversalの始終端同値性、weight変更とleaf追加、weight変更とedge rewireの可換性を証明した。graphはlistで保持するため、AB/BAの終端同値性はnode、weight、edge、request orderの完全一致である。これは同じ入力graphへ至ったlayout geometryが一致するという主張ではなく、その差をpath dependenceとして識別できるための前提だけを証明する。
 
 `Sprawlens.ExternalSupport`はrequest / frozen capabilityからのexpected-support判定、responseのtotal classification、confirmatory effect gateを扱う。expected-supportedへの`unsupported`とexpected-unsupportedへの`ok`をそれぞれfailureへ分類し、一つでもpath gateが落ちればeffectを生成できないことを証明した。TypeScript側では`externalSequenceGate.ts`を純粋moduleとして分離し、探索用`calibration`と全gate通過後の`confirmatoryEffect`を別フィールドにした。

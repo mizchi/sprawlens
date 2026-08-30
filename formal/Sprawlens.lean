@@ -1,4 +1,5 @@
 import Sprawlens.FeasibleEnvelope
+import Sprawlens.Paper1Contract
 import Sprawlens.ControlledPaths
 import Sprawlens.ExternalSupport
 import Sprawlens.TemporalBarycenter

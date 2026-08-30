@@ -40,6 +40,26 @@
       "implementationCorrespondence": "covered-by-shared-fixture"
     },
     {
+      "id": "paper1.feasible-envelope.primary-policy",
+      "paper": 1,
+      "protocol": "research/paper/main.tex#dominance-contract",
+      "typescript": [
+        "packages/layout/src/feasibleEnvelope.ts",
+        "packages/layout/src/stableNeighborhood.ts",
+        "packages/layout/src/feasibleEnvelopeConformance.test.ts"
+      ],
+      "fixtures": ["formal/TestVectors/feasible-envelope.json"],
+      "leanModule": "Sprawlens.Paper1Contract",
+      "theorems": [
+        "baseline_eligible",
+        "selected_converged",
+        "selected_adjacency_ge_baseline",
+        "selected_displacement_le_baseline"
+      ],
+      "status": "proved-paper-specialization-exact-rational-observations",
+      "implementationCorrespondence": "shared-fixture-conformance-6-cases-and-empirical-trial-audit-not-a-typescript-refinement-proof"
+    },
+    {
       "id": "paper2.controlled-path.exact-endpoints",
       "paper": 2,
       "protocol": "research/sequence-stable-code-cartography-paper-plan.md",
