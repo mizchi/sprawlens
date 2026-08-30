@@ -11,6 +11,11 @@ import type {
 } from "@sprawlens/contracts";
 import { realizedEdgeRate } from "./neighborhood.ts";
 import { compareLayoutGeometry, type ComparableCell } from "./layoutComparison.ts";
+import {
+  assessRingValidity,
+  containsPointInConvexRing,
+  convexPolygonUnionArea,
+} from "./externalPolygonValidity.ts";
 import { centroid, convexIntersection, signedArea } from "./polygon.ts";
 
 function segmentsOverlap(
@@ -162,41 +167,36 @@ export function evaluateExternalLayoutBaselineResponse(
 
 const comparableCells = (
   cells: Extract<ExternalLayoutSequenceResponseV2, { status: "ok" }>["runs"][number]["cells"],
-): { cells: ComparableCell[]; derivedSiteCount: number } => {
+): {
+  cells: Array<ComparableCell & { nativeSite: ExternalLayoutPointV1 | null }>;
+  derivedSiteCount: number;
+} => {
   let derivedSiteCount = 0;
   return {
     cells: cells.map((cell) => {
       const site = cell.site ?? centroid(cell.polygon);
       if (cell.site === undefined) derivedSiteCount++;
-      return { id: cell.id, site, polygon: cell.polygon };
+      return { id: cell.id, site, nativeSite: cell.site ?? null, polygon: cell.polygon };
     }),
     derivedSiteCount,
   };
 };
 
 const sequenceValidity = (
-  cells: readonly ComparableCell[],
+  cells: readonly (ComparableCell & { nativeSite: ExternalLayoutPointV1 | null })[],
   boundary: readonly ExternalLayoutPointV1[],
   boundaryArea: number,
+  requireNativeSite: boolean,
 ) => {
   const cellAreas = cells.map((cell) => Math.abs(signedArea(cell.polygon)));
+  const cellValidity = cells.map((cell) => assessRingValidity(cell.polygon));
   const totalCellArea = cellAreas.reduce((sum, area) => sum + area, 0);
   let overlapArea = 0;
   let outsideBoundaryArea = 0;
-  const nonConvexCellCount = cells.filter((cell) => {
-    let orientation = 0;
-    for (let index = 0; index < cell.polygon.length; index++) {
-      const a = cell.polygon[index]!;
-      const b = cell.polygon[(index + 1) % cell.polygon.length]!;
-      const c = cell.polygon[(index + 2) % cell.polygon.length]!;
-      const cross = (b.x - a.x) * (c.y - b.y) - (b.y - a.y) * (c.x - b.x);
-      if (Math.abs(cross) <= 1e-12) continue;
-      const sign = Math.sign(cross);
-      if (orientation !== 0 && orientation !== sign) return true;
-      orientation = sign;
-    }
-    return orientation === 0;
-  }).length;
+  const unionArea = convexPolygonUnionArea(
+    cells.map(({ polygon }) => polygon),
+    boundary,
+  );
   for (let left = 0; left < cells.length; left++) {
     outsideBoundaryArea += Math.max(
       0,
@@ -211,8 +211,25 @@ const sequenceValidity = (
   return {
     degenerateCellCount: cellAreas.filter((area) => area <= Math.max(boundaryArea * 1e-12, 1e-15))
       .length,
-    nonConvexCellCount,
+    nonConvexCellCount: cellValidity.filter(({ nonConvex }) => nonConvex).length,
+    selfIntersectingCellCount: cellValidity.filter(({ selfIntersecting }) => selfIntersecting)
+      .length,
+    duplicateVertexCellCount: cellValidity.filter(({ duplicateVertex }) => duplicateVertex).length,
+    zeroLengthEdgeCellCount: cellValidity.filter(({ zeroLengthEdge }) => zeroLengthEdge).length,
+    nativeSiteMissingCount: requireNativeSite
+      ? cells.filter(({ nativeSite }) => nativeSite === null).length
+      : 0,
+    nativeSiteOutsideCellCount: requireNativeSite
+      ? cells.filter(
+          ({ nativeSite, polygon }) =>
+            nativeSite !== null && !containsPointInConvexRing(polygon, nativeSite),
+        ).length
+      : 0,
     areaCoverageError: Math.abs(totalCellArea - boundaryArea) / Math.max(boundaryArea, 1e-12),
+    boundaryGapAreaRatio:
+      unionArea === null
+        ? null
+        : Math.max(0, boundaryArea - unionArea) / Math.max(boundaryArea, 1e-12),
     overlapAreaRatio: overlapArea / Math.max(boundaryArea, 1e-12),
     outsideBoundaryAreaRatio: outsideBoundaryArea / Math.max(boundaryArea, 1e-12),
   };
@@ -255,10 +272,16 @@ export function evaluateExternalLayoutSequenceResponse(
   return {
     status: "ok" as const,
     implementation: response.implementation,
+    boundaryValidity: assessRingValidity(request.boundary),
     runs: normalized.map((run, index) => ({
       snapshotId: run.snapshotId,
       derivedSiteCount: run.derivedSiteCount,
-      validity: sequenceValidity(run.cells, request.boundary, boundaryArea),
+      validity: sequenceValidity(
+        run.cells,
+        request.boundary,
+        boundaryArea,
+        response.implementation.capabilities.siteSemantics === "native",
+      ),
       ...commonMetrics(
         { cells: run.cells, steps: 0, converged: run.nativeConverged },
         request.snapshots[index]!.graph,

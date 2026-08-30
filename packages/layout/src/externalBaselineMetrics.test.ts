@@ -193,4 +193,91 @@ describe("external sequence host-side metrics", () => {
       nativeConverged: true,
     });
   });
+
+  it("measures boundary gap from polygon union when overlap cancels total-area error", () => {
+    const gapAndOverlap = [
+      {
+        id: "a",
+        site: { x: 0.3, y: 0.5 },
+        polygon: [
+          { x: 0, y: 0 },
+          { x: 0.6, y: 0 },
+          { x: 0.6, y: 1 },
+          { x: 0, y: 1 },
+        ],
+      },
+      {
+        id: "b",
+        site: { x: 0.6, y: 0.5 },
+        polygon: [
+          { x: 0.4, y: 0 },
+          { x: 0.8, y: 0 },
+          { x: 0.8, y: 1 },
+          { x: 0.4, y: 1 },
+        ],
+      },
+    ];
+    const evaluated = evaluateExternalLayoutSequenceResponse(
+      {
+        ...sequenceResponse,
+        runs: sequenceResponse.runs.map((run) => ({ ...run, cells: gapAndOverlap })),
+      },
+      sequenceRequest,
+    );
+
+    expect(evaluated.status).toBe("ok");
+    if (evaluated.status !== "ok") throw new Error("expected sequence metrics");
+    expect(evaluated.runs[0]!.validity.areaCoverageError).toBeCloseTo(0, 12);
+    expect(evaluated.runs[0]!.validity.overlapAreaRatio).toBeCloseTo(0.2, 12);
+    expect(evaluated.runs[0]!.validity.boundaryGapAreaRatio).toBeCloseTo(0.2, 12);
+  });
+
+  it("reports structural polygon and native-site violations", () => {
+    const malformed = [
+      {
+        id: "a",
+        site: { x: 0.9, y: 0.9 },
+        polygon: [
+          { x: 0, y: 0 },
+          { x: 0.5, y: 1 },
+          { x: 0, y: 1 },
+          { x: 0.5, y: 0 },
+        ],
+      },
+      {
+        id: "b",
+        site: { x: 0.75, y: 0.5 },
+        polygon: [
+          { x: 0.5, y: 0 },
+          { x: 1, y: 0 },
+          { x: 1, y: 1 },
+          { x: 1, y: 1 },
+          { x: 0.5, y: 1 },
+        ],
+      },
+    ];
+    const evaluated = evaluateExternalLayoutSequenceResponse(
+      {
+        ...sequenceResponse,
+        implementation: {
+          ...sequenceResponse.implementation,
+          capabilities: {
+            ...sequenceResponse.implementation.capabilities,
+            siteSemantics: "native",
+          },
+        },
+        runs: sequenceResponse.runs.map((run) => ({ ...run, cells: malformed })),
+      },
+      sequenceRequest,
+    );
+
+    expect(evaluated.status).toBe("ok");
+    if (evaluated.status !== "ok") throw new Error("expected sequence metrics");
+    expect(evaluated.runs[0]!.validity).toMatchObject({
+      selfIntersectingCellCount: 1,
+      duplicateVertexCellCount: 1,
+      zeroLengthEdgeCellCount: 1,
+      nativeSiteOutsideCellCount: 1,
+    });
+  });
 });

@@ -26,6 +26,7 @@ const result = await runExternalCommonSequenceProbe(
     validityThresholds: {
       maxRelativeAreaError: 0.01,
       maxAreaCoverageError: 1e-8,
+      maxBoundaryGapAreaRatio: 1e-8,
       maxOverlapAreaRatio: 1e-8,
       maxOutsideBoundaryAreaRatio: 1e-8,
       requireNativeConverged: true,
@@ -58,6 +59,11 @@ const summary = {
                 maxAreaCoverageError: Math.max(
                   ...path.evaluation.runs.map((run) => run.validity.areaCoverageError),
                 ),
+                maxBoundaryGapAreaRatio: Math.max(
+                  ...path.evaluation.runs.map(
+                    (run) => run.validity.boundaryGapAreaRatio ?? Number.POSITIVE_INFINITY,
+                  ),
+                ),
                 maxOverlapAreaRatio: Math.max(
                   ...path.evaluation.runs.map((run) => run.validity.overlapAreaRatio),
                 ),
@@ -73,7 +79,11 @@ const summary = {
         : [],
     ),
   ),
+  expectedSupport: Object.fromEntries(
+    Object.entries(result.paths).map(([name, path]) => [name, path.expectedSupport]),
+  ),
   calibration: result.calibration,
+  confirmatoryEffect: result.confirmatoryEffect,
   runEligibilityGatesApplied: result.runEligibilityGatesApplied,
 };
 

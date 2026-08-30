@@ -1,6 +1,7 @@
 import type { AtlasEdge, AtlasNode } from "@sprawlens/schema";
 import {
   applyGraphChanges,
+  weightedBarycenter,
   capacityStep,
   deltaAwareStep,
   isConverged,
@@ -147,19 +148,15 @@ export function neighborSiteHint(
   edges: readonly AtlasEdge[],
   siteOf: (id: string) => Vec2 | undefined,
 ): Vec2 | undefined {
-  let sx = 0;
-  let sy = 0;
-  let count = 0;
+  const neighbors: Array<{ point: Vec2; weight: number }> = [];
   for (const edge of edges) {
     const other = edge.source === id ? edge.target : edge.target === id ? edge.source : undefined;
     if (!other || other === id) continue;
     const site = siteOf(other);
     if (!site) continue;
-    sx += site.x;
-    sy += site.y;
-    count++;
+    neighbors.push({ point: site, weight: 1 });
   }
-  return count === 0 ? undefined : { x: sx / count, y: sy / count };
+  return weightedBarycenter(neighbors);
 }
 
 export function nodeInsertionHint(

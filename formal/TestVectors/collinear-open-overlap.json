@@ -1,0 +1,85 @@
+{
+  "schemaVersion": 1,
+  "cases": [
+    {
+      "name": "partial-overlap",
+      "a": { "x": 0, "y": 0 },
+      "b": { "x": 3, "y": 0 },
+      "c": { "x": 1, "y": 0 },
+      "d": { "x": 4, "y": 0 },
+      "expected": true
+    },
+    {
+      "name": "contained",
+      "a": { "x": 0, "y": 0 },
+      "b": { "x": 5, "y": 0 },
+      "c": { "x": 1, "y": 0 },
+      "d": { "x": 2, "y": 0 },
+      "expected": true
+    },
+    {
+      "name": "identical",
+      "a": { "x": 0, "y": 0 },
+      "b": { "x": 3, "y": 0 },
+      "c": { "x": 0, "y": 0 },
+      "d": { "x": 3, "y": 0 },
+      "expected": true
+    },
+    {
+      "name": "reversed-identical",
+      "a": { "x": 0, "y": 0 },
+      "b": { "x": 3, "y": 0 },
+      "c": { "x": 3, "y": 0 },
+      "d": { "x": 0, "y": 0 },
+      "expected": true
+    },
+    {
+      "name": "vertical-overlap",
+      "a": { "x": 2, "y": -2 },
+      "b": { "x": 2, "y": 4 },
+      "c": { "x": 2, "y": 1 },
+      "d": { "x": 2, "y": 6 },
+      "expected": true
+    },
+    {
+      "name": "endpoint-contact",
+      "a": { "x": 0, "y": 0 },
+      "b": { "x": 2, "y": 0 },
+      "c": { "x": 2, "y": 0 },
+      "d": { "x": 4, "y": 0 },
+      "expected": false
+    },
+    {
+      "name": "disjoint",
+      "a": { "x": 0, "y": 0 },
+      "b": { "x": 1, "y": 0 },
+      "c": { "x": 2, "y": 0 },
+      "d": { "x": 3, "y": 0 },
+      "expected": false
+    },
+    {
+      "name": "parallel-offset",
+      "a": { "x": 0, "y": 0 },
+      "b": { "x": 3, "y": 0 },
+      "c": { "x": 1, "y": 1 },
+      "d": { "x": 2, "y": 1 },
+      "expected": false
+    },
+    {
+      "name": "proper-crossing",
+      "a": { "x": 0, "y": 0 },
+      "b": { "x": 3, "y": 3 },
+      "c": { "x": 0, "y": 3 },
+      "d": { "x": 3, "y": 0 },
+      "expected": false
+    },
+    {
+      "name": "degenerate-first",
+      "a": { "x": 1, "y": 0 },
+      "b": { "x": 1, "y": 0 },
+      "c": { "x": 0, "y": 0 },
+      "d": { "x": 2, "y": 0 },
+      "expected": false
+    }
+  ]
+}

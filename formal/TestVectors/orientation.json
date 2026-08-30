@@ -1,0 +1,47 @@
+{
+  "schemaVersion": 1,
+  "cases": [
+    {
+      "name": "strict-left-turn",
+      "a": { "x": 1, "y": 2 },
+      "b": { "x": 5, "y": 3 },
+      "c": { "x": 2, "y": 7 },
+      "expected": 19
+    },
+    {
+      "name": "strict-right-turn",
+      "a": { "x": 1, "y": 2 },
+      "b": { "x": 2, "y": 7 },
+      "c": { "x": 5, "y": 3 },
+      "expected": -19
+    },
+    {
+      "name": "collinear",
+      "a": { "x": -2, "y": -1 },
+      "b": { "x": 0, "y": 3 },
+      "c": { "x": 4, "y": 11 },
+      "expected": 0
+    },
+    {
+      "name": "duplicate-start",
+      "a": { "x": 3, "y": -4 },
+      "b": { "x": 3, "y": -4 },
+      "c": { "x": 8, "y": 2 },
+      "expected": 0
+    },
+    {
+      "name": "translated-left-turn",
+      "a": { "x": 11, "y": -2 },
+      "b": { "x": 15, "y": -1 },
+      "c": { "x": 12, "y": 3 },
+      "expected": 19
+    },
+    {
+      "name": "large-integer-coordinate",
+      "a": { "x": -1000, "y": 2000 },
+      "b": { "x": 3000, "y": 2001 },
+      "c": { "x": -999, "y": 6000 },
+      "expected": 15999999
+    }
+  ]
+}

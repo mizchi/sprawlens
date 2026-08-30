@@ -199,4 +199,23 @@ describe("external layout sequence response", () => {
       ),
     ).toThrow(/snapshot order/);
   });
+
+  it("preserves an implementation's axis-aligned rectangle boundary restriction", () => {
+    const response = {
+      schemaVersion: 2,
+      requestId: sequenceRequest.requestId,
+      status: "ok",
+      implementation: {
+        ...implementation,
+        temporalAccess: "full-sequence",
+        stateModel: "sequence-global",
+        capabilities: { ...sequenceCapabilities, boundary: "axis-aligned-rectangle" },
+      },
+      runs: sequenceRequest.snapshots.map(({ snapshotId }) => ({ snapshotId, ...sequenceRun })),
+    };
+
+    expect(parseExternalLayoutSequenceResponse(response, sequenceRequest)).toMatchObject({
+      implementation: { capabilities: { boundary: "axis-aligned-rectangle" } },
+    });
+  });
 });

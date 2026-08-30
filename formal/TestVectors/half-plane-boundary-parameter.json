@@ -1,0 +1,47 @@
+{
+  "schemaVersion": 1,
+  "cases": [
+    {
+      "name": "inside-to-outside",
+      "currentDistance": -2,
+      "nextDistance": 3,
+      "expectedNumerator": 2,
+      "expectedDenominator": 5
+    },
+    {
+      "name": "outside-to-inside",
+      "currentDistance": 3,
+      "nextDistance": -2,
+      "expectedNumerator": 3,
+      "expectedDenominator": 5
+    },
+    {
+      "name": "current-on-boundary",
+      "currentDistance": 0,
+      "nextDistance": 3,
+      "expectedNumerator": 0,
+      "expectedDenominator": 1
+    },
+    {
+      "name": "next-on-boundary",
+      "currentDistance": 3,
+      "nextDistance": 0,
+      "expectedNumerator": 1,
+      "expectedDenominator": 1
+    },
+    {
+      "name": "asymmetric-inside-to-outside",
+      "currentDistance": -7,
+      "nextDistance": 2,
+      "expectedNumerator": 7,
+      "expectedDenominator": 9
+    },
+    {
+      "name": "asymmetric-outside-to-inside",
+      "currentDistance": 5,
+      "nextDistance": -3,
+      "expectedNumerator": 5,
+      "expectedDenominator": 8
+    }
+  ]
+}

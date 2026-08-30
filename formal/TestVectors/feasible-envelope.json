@@ -1,0 +1,74 @@
+{
+  "schemaVersion": 1,
+  "cases": [
+    {
+      "name": "minimum-cost-inside-floor",
+      "baselineId": "baseline",
+      "constraints": [{ "name": "adjacency", "tolerance": 0, "epsilon": 0 }],
+      "candidates": [
+        { "id": "baseline", "valid": true, "scores": [80], "cost": 70, "tieBreak": 0 },
+        { "id": "invalid", "valid": false, "scores": [100], "cost": 1, "tieBreak": 0 },
+        { "id": "below", "valid": true, "scores": [79], "cost": 2, "tieBreak": 0 },
+        { "id": "eligible", "valid": true, "scores": [80], "cost": 30, "tieBreak": 0 }
+      ],
+      "expected": { "selectedId": "eligible", "eligibleIds": ["baseline", "eligible"], "usedFallback": false }
+    },
+    {
+      "name": "vector-floor-intersection",
+      "baselineId": "baseline",
+      "constraints": [
+        { "name": "adjacency", "tolerance": 0, "epsilon": 0 },
+        { "name": "topology", "tolerance": 0, "epsilon": 0 }
+      ],
+      "candidates": [
+        { "id": "baseline", "valid": true, "scores": [80, 10], "cost": 80, "tieBreak": 0 },
+        { "id": "loses-adjacency", "valid": true, "scores": [79, 20], "cost": 10, "tieBreak": 0 },
+        { "id": "loses-topology", "valid": true, "scores": [90, 9], "cost": 10, "tieBreak": 0 },
+        { "id": "feasible", "valid": true, "scores": [82, 11], "cost": 30, "tieBreak": 0 }
+      ],
+      "expected": { "selectedId": "feasible", "eligibleIds": ["baseline", "feasible"], "usedFallback": false }
+    },
+    {
+      "name": "tolerance-and-epsilon",
+      "baselineId": "baseline",
+      "constraints": [{ "name": "adjacency", "tolerance": 5, "epsilon": 1 }],
+      "candidates": [
+        { "id": "baseline", "valid": true, "scores": [80], "cost": 50, "tieBreak": 0 },
+        { "id": "boundary", "valid": true, "scores": [74], "cost": 10, "tieBreak": 0 }
+      ],
+      "expected": { "selectedId": "boundary", "eligibleIds": ["baseline", "boundary"], "usedFallback": false }
+    },
+    {
+      "name": "invalid-baseline-fallback",
+      "baselineId": "baseline",
+      "constraints": [{ "name": "adjacency", "tolerance": 0, "epsilon": 0 }],
+      "candidates": [
+        { "id": "baseline", "valid": false, "scores": [80], "cost": 50, "tieBreak": 0 },
+        { "id": "other", "valid": false, "scores": [100], "cost": 10, "tieBreak": 0 }
+      ],
+      "expected": { "selectedId": "baseline", "eligibleIds": [], "usedFallback": true }
+    },
+    {
+      "name": "explicit-tie-break",
+      "baselineId": "baseline",
+      "constraints": [{ "name": "adjacency", "tolerance": 0, "epsilon": 0 }],
+      "candidates": [
+        { "id": "baseline", "valid": true, "scores": [80], "cost": 90, "tieBreak": 0 },
+        { "id": "z", "valid": true, "scores": [80], "cost": 20, "tieBreak": 2 },
+        { "id": "a", "valid": true, "scores": [80], "cost": 20, "tieBreak": 1 }
+      ],
+      "expected": { "selectedId": "a", "eligibleIds": ["baseline", "z", "a"], "usedFallback": false }
+    },
+    {
+      "name": "input-order-final-tie-break",
+      "baselineId": "baseline",
+      "constraints": [{ "name": "adjacency", "tolerance": 0, "epsilon": 0 }],
+      "candidates": [
+        { "id": "baseline", "valid": true, "scores": [80], "cost": 90, "tieBreak": 0 },
+        { "id": "first", "valid": true, "scores": [80], "cost": 20, "tieBreak": 1 },
+        { "id": "second", "valid": true, "scores": [80], "cost": 20, "tieBreak": 1 }
+      ],
+      "expected": { "selectedId": "first", "eligibleIds": ["baseline", "first", "second"], "usedFallback": false }
+    }
+  ]
+}

@@ -87,7 +87,7 @@ export type ExternalLayoutSequenceImplementationV2 = ExternalLayoutImplementatio
   capabilities: {
     initializationModes: Array<"native" | "common-cells">;
     nodeCount: { min: number; max: number };
-    boundary: "convex-polygon";
+    boundary: "convex-polygon" | "axis-aligned-rectangle";
     cellGeometry: "convex-polygons";
     siteSemantics: "native" | "derived" | "none";
     dependencySemantics: "ignored" | "undirected-constraints";

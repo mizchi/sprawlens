@@ -160,6 +160,48 @@ service's `source` collect in a `(no service)` bucket.
 
 - Node.js >= 24
 
+## Research-only GIT author adapter
+
+The repository contains a process adapter for the fixed Java author implementation
+of Greedy Insertion Treemap. The upstream source is not vendored or modified.
+Check out `EduardoVernier/greedy-insertion-treemap` at
+`19b0f52c268838b31db32a200cf7b340a4b705fe`, then run:
+
+```bash
+just run-git-author-sequence-smoke /absolute/path/to/greedy-insertion-treemap /absolute/java/home
+```
+
+The harness compiles the verified revision once outside the measured path
+processes, then runs each controlled sequence in a fresh JVM through the author's
+official non-interactive `Main` entrypoint. Linux environments can pass an
+`xvfb-run` executable as the third argument because the fixed batch entrypoint
+still constructs an invisible `JFrame`.
+
+The adapter deliberately reports `full-sequence` access: the fixed parser reads
+all revision files to discover the global identity set before it constructs the
+initial layout. It supports only native initialization, the author's fixed seed
+42, positive weights, and a normalized axis-aligned rectangle. Dependencies are
+ignored and rectangle centers are reported as derived sites. The fixed revision
+has no `LICENSE` file, so generated artifacts contain the source URL, revision,
+adapter metadata, and input/output hashes but never redistribute upstream source.
+
+The paper-result gate uses the fixed supplemental repository and deliberately
+exits non-zero while the published result cannot be reproduced:
+
+```bash
+just reproduce-git-paper-aspect-ratio \
+  /absolute/path/to/greedy-insertion-treemap \
+  /absolute/path/to/sibgrapi18/treemaps \
+  /absolute/java/home
+```
+
+Its acceptance rule is fixed before author execution: the `standard` dataset,
+pooled active leaf-revision aspect ratio, and absolute tolerance `1e-9`. The
+current author output has 203 observations over 29 revisions, matching Table I,
+but differs from the supplemental AR table by about `1.415e-3`. This remains a
+failed reproduction rather than a widened tolerance. An equal-revision mean is
+recorded only as a post-hoc diagnostic.
+
 ## License
 
 MIT

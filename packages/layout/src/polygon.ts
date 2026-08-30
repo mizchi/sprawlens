@@ -1,11 +1,13 @@
 import type { Vec2 } from "./vec.ts";
+import { orientationDeterminant } from "./orientation.ts";
+import { halfPlaneBoundaryParameter } from "./halfPlaneIntersection.ts";
 
 /** Open ring (last vertex implicitly connects to the first), CCW for positive area. */
 export type Ring = Vec2[];
 
 export type Circle = { cx: number; cy: number; r: number };
 
-export function signedArea(ring: Ring): number {
+export function signedTwiceArea(ring: readonly Vec2[]): number {
   if (ring.length < 3) return 0;
   let sum = 0;
   for (let i = 0; i < ring.length; i++) {
@@ -13,7 +15,11 @@ export function signedArea(ring: Ring): number {
     const b = ring[(i + 1) % ring.length]!;
     sum += a.x * b.y - b.x * a.y;
   }
-  return sum / 2;
+  return sum;
+}
+
+export function signedArea(ring: Ring): number {
+  return signedTwiceArea(ring) / 2;
 }
 
 export function centroid(ring: Ring): Vec2 {
@@ -56,7 +62,7 @@ export function clipHalfPlane(ring: Ring, nx: number, ny: number, c: number): Ri
     const nextInside = nextDist <= 0;
     if (curInside) out.push(cur);
     if (curInside !== nextInside) {
-      const t = curDist / (curDist - nextDist);
+      const t = halfPlaneBoundaryParameter(curDist, nextDist);
       out.push({
         x: cur.x + (next.x - cur.x) * t,
         y: cur.y + (next.y - cur.y) * t,
@@ -167,11 +173,12 @@ export function nearestPointInRing(ring: Ring, p: Vec2): Vec2 {
 export function convexHull(points: readonly Vec2[]): Ring {
   if (points.length < 3) return points.map((p) => ({ ...p }));
   const sorted = [...points].sort((a, b) => a.x - b.x || a.y - b.y);
-  const cross = (o: Vec2, a: Vec2, b: Vec2) =>
-    (a.x - o.x) * (b.y - o.y) - (a.y - o.y) * (b.x - o.x);
   const lower: Vec2[] = [];
   for (const p of sorted) {
-    while (lower.length >= 2 && cross(lower[lower.length - 2]!, lower[lower.length - 1]!, p) <= 0) {
+    while (
+      lower.length >= 2 &&
+      orientationDeterminant(lower[lower.length - 2]!, lower[lower.length - 1]!, p) <= 0
+    ) {
       lower.pop();
     }
     lower.push(p);
@@ -179,7 +186,10 @@ export function convexHull(points: readonly Vec2[]): Ring {
   const upper: Vec2[] = [];
   for (let i = sorted.length - 1; i >= 0; i--) {
     const p = sorted[i]!;
-    while (upper.length >= 2 && cross(upper[upper.length - 2]!, upper[upper.length - 1]!, p) <= 0) {
+    while (
+      upper.length >= 2 &&
+      orientationDeterminant(upper[upper.length - 2]!, upper[upper.length - 1]!, p) <= 0
+    ) {
       upper.pop();
     }
     upper.push(p);

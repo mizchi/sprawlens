@@ -1,0 +1,51 @@
+name = "sprawlens-formal"
+version = "0.1.0"
+defaultTargets = ["Sprawlens"]
+
+[[require]]
+name = "mathlib"
+git = "https://github.com/leanprover-community/mathlib4.git"
+rev = "v4.33.0"
+
+[[lean_lib]]
+name = "Sprawlens"
+
+[[lean_exe]]
+name = "check-fixtures"
+root = "Sprawlens.CheckFixtures"
+
+[[lean_exe]]
+name = "check-external-support-fixtures"
+root = "Sprawlens.CheckExternalSupportFixtures"
+
+[[lean_exe]]
+name = "check-barycenter-fixtures"
+root = "Sprawlens.CheckBarycenterFixtures"
+
+[[lean_exe]]
+name = "check-orientation-fixtures"
+root = "Sprawlens.CheckOrientationFixtures"
+
+[[lean_exe]]
+name = "check-segment-intersection-fixtures"
+root = "Sprawlens.CheckSegmentIntersectionFixtures"
+
+[[lean_exe]]
+name = "check-segment-contact-fixtures"
+root = "Sprawlens.CheckSegmentContactFixtures"
+
+[[lean_exe]]
+name = "check-collinear-overlap-fixtures"
+root = "Sprawlens.CheckCollinearOverlapFixtures"
+
+[[lean_exe]]
+name = "check-simple-ring-fixtures"
+root = "Sprawlens.CheckSimpleRingFixtures"
+
+[[lean_exe]]
+name = "check-polygon-area-fixtures"
+root = "Sprawlens.CheckPolygonAreaFixtures"
+
+[[lean_exe]]
+name = "check-half-plane-intersection-fixtures"
+root = "Sprawlens.CheckHalfPlaneIntersectionFixtures"

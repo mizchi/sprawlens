@@ -17,7 +17,10 @@ const cloneGraph = (graph: LayoutSequenceGraph): LayoutSequenceGraph => ({
 });
 
 const insertedIdentity = (existing: ReadonlySet<string>) => {
-  const stem = "__sprawlens_inserted_leaf__";
+  // Avoid suffixes reserved by external implementations. GIT's fixed author
+  // writer drops every leaf whose id ends in `_` because that suffix marks its
+  // internal helper containers.
+  const stem = "sprawlens-inserted-leaf";
   if (!existing.has(stem)) return stem;
   let suffix = 2;
   while (existing.has(`${stem}-${suffix}`)) suffix++;

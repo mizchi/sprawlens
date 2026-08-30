@@ -1,0 +1,54 @@
+{
+  "schemaVersion": 1,
+  "weightedCases": [
+    {
+      "name": "non-negative weighted center",
+      "samples": [
+        { "x": 0, "y": 3, "weight": 1 },
+        { "x": 6, "y": 0, "weight": 2 },
+        { "x": 3, "y": 6, "weight": 3 }
+      ],
+      "expected": { "xNumerator": 7, "xDenominator": 2, "yNumerator": 7, "yDenominator": 2 }
+    },
+    {
+      "name": "permuted weighted center",
+      "samples": [
+        { "x": 3, "y": 6, "weight": 3 },
+        { "x": 0, "y": 3, "weight": 1 },
+        { "x": 6, "y": 0, "weight": 2 }
+      ],
+      "expected": { "xNumerator": 7, "xDenominator": 2, "yNumerator": 7, "yDenominator": 2 }
+    },
+    {
+      "name": "zero total has no center",
+      "samples": [{ "x": 8, "y": -3, "weight": 0 }],
+      "expected": null
+    }
+  ],
+  "affineCases": [
+    {
+      "name": "quarter history mix",
+      "current": { "x": 0, "y": 10 },
+      "previous": { "x": 20, "y": 0 },
+      "mixNumerator": 1,
+      "mixDenominator": 4,
+      "expected": { "xNumerator": 5, "xDenominator": 1, "yNumerator": 15, "yDenominator": 2 }
+    },
+    {
+      "name": "current endpoint",
+      "current": { "x": -2, "y": 7 },
+      "previous": { "x": 9, "y": 1 },
+      "mixNumerator": 0,
+      "mixDenominator": 1,
+      "expected": { "xNumerator": -2, "xDenominator": 1, "yNumerator": 7, "yDenominator": 1 }
+    },
+    {
+      "name": "previous endpoint",
+      "current": { "x": -2, "y": 7 },
+      "previous": { "x": 9, "y": 1 },
+      "mixNumerator": 1,
+      "mixDenominator": 1,
+      "expected": { "xNumerator": 9, "xDenominator": 1, "yNumerator": 1, "yDenominator": 1 }
+    }
+  ]
+}

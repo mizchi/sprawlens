@@ -6,6 +6,31 @@ test:
 typecheck:
     pnpm typecheck
 
+lean-check:
+    cd formal && lake build
+
+lean-conformance: lean-check
+    cd formal && lake exe check-fixtures TestVectors/feasible-envelope.json
+    pnpm vitest run packages/layout/src/feasibleEnvelopeConformance.test.ts
+    cd formal && lake exe check-external-support-fixtures TestVectors/external-sequence-gate.json
+    pnpm vitest run packages/layout/src/externalSequenceGateConformance.test.ts
+    cd formal && lake exe check-barycenter-fixtures TestVectors/temporal-barycenter.json
+    pnpm vitest run packages/layout/src/barycenterConformance.test.ts
+    cd formal && lake exe check-orientation-fixtures TestVectors/orientation.json
+    pnpm vitest run packages/layout/src/orientationConformance.test.ts
+    cd formal && lake exe check-segment-intersection-fixtures TestVectors/proper-segment-intersection.json
+    pnpm vitest run packages/layout/src/properSegmentIntersectionConformance.test.ts
+    cd formal && lake exe check-segment-contact-fixtures TestVectors/point-in-open-segment.json
+    pnpm vitest run packages/layout/src/pointOnSegmentConformance.test.ts
+    cd formal && lake exe check-collinear-overlap-fixtures TestVectors/collinear-open-overlap.json
+    pnpm vitest run packages/layout/src/collinearOverlapConformance.test.ts
+    cd formal && lake exe check-simple-ring-fixtures TestVectors/simple-open-ring.json
+    pnpm vitest run packages/layout/src/simpleRingConformance.test.ts
+    cd formal && lake exe check-polygon-area-fixtures TestVectors/polygon-signed-area.json
+    pnpm vitest run packages/layout/src/polygonAreaConformance.test.ts
+    cd formal && lake exe check-half-plane-intersection-fixtures TestVectors/half-plane-boundary-parameter.json
+    pnpm vitest run packages/layout/src/halfPlaneIntersectionConformance.test.ts
+
 build:
     pnpm build
 
@@ -35,6 +60,12 @@ run-controlled-sequence-experiment *args:
 
 run-external-common-sequence-smoke:
     @pnpm tsx tools/run-external-common-sequence-smoke.ts
+
+run-git-author-sequence-smoke upstream java_home="" xvfb_run="" output="research/results/git-author-external-common-smoke.json":
+    @pnpm tsx tools/run-git-author-sequence-smoke.ts "{{ upstream }}" "{{ java_home }}" "{{ xvfb_run }}" "{{ output }}"
+
+reproduce-git-paper-aspect-ratio author supplement java_home="" xvfb_run="" output="research/results/git-paper-standard-aspect-ratio-reproduction.json":
+    @pnpm tsx tools/reproduce-git-paper-aspect-ratio.ts "{{ author }}" "{{ supplement }}" "{{ java_home }}" "{{ xvfb_run }}" "{{ output }}"
 
 run-sequence-candidate-budget-experiment:
     @pnpm tsx tools/run-sequence-candidate-budget-experiment.ts

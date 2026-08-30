@@ -16,7 +16,7 @@ describe("external-common controlled sequence", () => {
 
     expect(probe.weightReversal[1].nodes.find(({ id }) => id === "a")?.weight).toBe(6);
     expect(probe.leafInsertionReversal[1].nodes.at(-1)).toEqual({
-      id: "__sprawlens_inserted_leaf__",
+      id: "sprawlens-inserted-leaf",
       weight: 2,
     });
     expect(probe.leafInsertionReversal[2]).toEqual(probe.leafInsertionReversal[0]);
@@ -27,9 +27,9 @@ describe("external-common controlled sequence", () => {
   it("chooses a collision-free inserted identity", () => {
     const probe = buildExternalCommonSequenceProbe({
       ...graph,
-      nodes: [...graph.nodes, { id: "__sprawlens_inserted_leaf__", weight: 1 }],
+      nodes: [...graph.nodes, { id: "sprawlens-inserted-leaf", weight: 1 }],
     });
 
-    expect(probe.orderAB[2].nodes.at(-1)?.id).toBe("__sprawlens_inserted_leaf__-2");
+    expect(probe.orderAB[2].nodes.at(-1)?.id).toBe("sprawlens-inserted-leaf-2");
   });
 });

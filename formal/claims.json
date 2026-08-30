@@ -1,0 +1,315 @@
+{
+  "schemaVersion": 1,
+  "leanVersion": "v4.33.0",
+  "mathlib": {
+    "version": "v4.33.0",
+    "revision": "db584cd6d46c92f209a44c0f1c829460d327499d",
+    "scope": "L3 finite center of mass, convex hull, and ordered-field algebra"
+  },
+  "claims": [
+    {
+      "id": "paper1.feasible-envelope.abstract-contract",
+      "paper": 1,
+      "protocol": "research/paper-contract.md#C1",
+      "typescript": [
+        "packages/layout/src/feasibleEnvelope.ts",
+        "packages/layout/src/stableNeighborhood.ts",
+        "packages/layout/src/feasibleEnvelopeConformance.test.ts"
+      ],
+      "fixtures": ["formal/TestVectors/feasible-envelope.json"],
+      "leanModule": "Sprawlens.FeasibleEnvelope",
+      "theorems": [
+        "result_mem",
+        "result_valid_or_fallback",
+        "result_optimal_of_baseline_eligible",
+        "selected_valid_of_baseline_eligible",
+        "selected_preserves_floor",
+        "selected_cost_le_baseline"
+      ],
+      "status": "proved-abstract-model",
+      "implementationCorrespondence": "shared-fixture-conformance-6-cases-not-a-universal-proof"
+    },
+    {
+      "id": "paper1.feasible-envelope.invalid-fallback-counterexample",
+      "paper": 1,
+      "protocol": "baseline fallback is total but not unconditionally valid",
+      "typescript": ["packages/layout/src/feasibleEnvelope.ts"],
+      "leanModule": "Sprawlens.FeasibleEnvelope",
+      "theorems": [],
+      "status": "counterexample-witness",
+      "implementationCorrespondence": "covered-by-shared-fixture"
+    },
+    {
+      "id": "paper2.controlled-path.exact-endpoints",
+      "paper": 2,
+      "protocol": "research/sequence-stable-code-cartography-paper-plan.md",
+      "typescript": [
+        "packages/layout/src/controlledSequence.ts",
+        "packages/layout/src/controlledSequence.test.ts",
+        "packages/layout/src/externalCommonSequence.ts",
+        "packages/layout/src/externalCommonSequence.test.ts"
+      ],
+      "leanModule": "Sprawlens.ControlledPaths",
+      "theorems": [
+        "noOp_endpoint",
+        "reversal_endpoint",
+        "changeWeight_insertLeaf_commute",
+        "changeWeight_rewire_commute",
+        "external_order_endpoint_equivalent",
+        "dependency_order_endpoint_equivalent",
+        "insertLeaf_preserves_unique_ids",
+        "insertLeaf_preserves_positive_weights",
+        "changeWeight_preserves_positive_weights"
+      ],
+      "status": "proved-abstract-model",
+      "implementationCorrespondence": "typescript-exact-endpoint-unit-tests-not-a-universal-proof"
+    },
+    {
+      "id": "paper2.external-sequence.support-and-effect-gate",
+      "paper": 2,
+      "protocol": "research/geometric-memory-external-baseline-protocol.md#3",
+      "typescript": [
+        "packages/layout/src/externalSequenceSupport.ts",
+        "packages/layout/src/externalSequenceGate.ts",
+        "packages/layout/src/externalSequenceGate.test.ts",
+        "packages/cli/src/externalControlledSequence.ts"
+      ],
+      "fixtures": ["formal/TestVectors/external-sequence-gate.json"],
+      "leanModule": "Sprawlens.ExternalSupport",
+      "theorems": [
+        "expectedSupported_iff",
+        "expected_unsupported_is_unexpected",
+        "unexpected_ok_is_capability_violation",
+        "expected_missingness_is_retained",
+        "failed_is_retained",
+        "execution_failed_is_retained",
+        "canProduceEffect_iff",
+        "canProduceEffect_requires_every_path",
+        "one_failed_path_blocks_effect"
+      ],
+      "status": "proved-abstract-model",
+      "implementationCorrespondence": "shared-fixture-conformance-10-cases-plus-integration-tests-not-a-universal-proof"
+    },
+    {
+      "id": "infrastructure.temporal-barycenter.affine-laws",
+      "paper": null,
+      "protocol": "research/lean-formalization-plan.md#L3",
+      "typescript": [
+        "packages/layout/src/barycenter.ts",
+        "packages/layout/src/barycenter.test.ts",
+        "packages/layout/src/barycenterConformance.test.ts",
+        "packages/layout/src/stableNeighborhood.ts",
+        "packages/viz/src/incrementalLayout.ts"
+      ],
+      "fixtures": ["formal/TestVectors/temporal-barycenter.json"],
+      "leanModule": "Sprawlens.TemporalBarycenter",
+      "theorems": [
+        "barycenter_reindex",
+        "barycenter_translate",
+        "barycenter_scale",
+        "barycenter_mem_convexHull",
+        "affineBarycenter_zero",
+        "affineBarycenter_one",
+        "affineBarycenter_formula",
+        "affineBarycenter_swap",
+        "affineBarycenter_translate",
+        "affineBarycenter_scale",
+        "affineBarycenter_mem_convexHull"
+      ],
+      "status": "proved-abstract-model-standard-mathematics-not-novelty",
+      "implementationCorrespondence": "shared-rational-fixture-conformance-6-cases-plus-floating-tolerance-tests-not-a-universal-proof"
+    },
+    {
+      "id": "infrastructure.exact-geometry.orientation-laws",
+      "paper": null,
+      "protocol": "research/lean-formalization-plan.md#L3",
+      "typescript": [
+        "packages/layout/src/orientation.ts",
+        "packages/layout/src/orientation.test.ts",
+        "packages/layout/src/orientationConformance.test.ts",
+        "packages/layout/src/externalPolygonValidity.ts",
+        "packages/layout/src/polygon.ts"
+      ],
+      "fixtures": ["formal/TestVectors/orientation.json"],
+      "leanModule": "Sprawlens.ExactGeometry",
+      "theorems": [
+        "orientation_translate",
+        "orientation_scale",
+        "orientation_scale_pos_iff",
+        "orientation_scale_neg_iff",
+        "orientation_cycle",
+        "orientation_reverse",
+        "orientation_swap_start_middle",
+        "orientation_duplicate_start",
+        "orientation_duplicate_end",
+        "orientation_duplicate_middle_end",
+        "strict_left_turn_start_ne_middle",
+        "strict_left_turn_start_ne_end",
+        "strict_left_turn_middle_ne_end"
+      ],
+      "status": "proved-orientation-kernel-standard-mathematics-not-novelty",
+      "implementationCorrespondence": "shared-integer-fixture-conformance-6-cases-not-a-universal-proof-of-floating-point-or-polygon-validity"
+    },
+    {
+      "id": "infrastructure.exact-geometry.proper-segment-intersection",
+      "paper": null,
+      "protocol": "research/lean-formalization-plan.md#L3",
+      "typescript": [
+        "packages/layout/src/properSegmentIntersection.ts",
+        "packages/layout/src/properSegmentIntersection.test.ts",
+        "packages/layout/src/properSegmentIntersectionConformance.test.ts",
+        "packages/layout/src/externalPolygonValidity.ts"
+      ],
+      "fixtures": ["formal/TestVectors/proper-segment-intersection.json"],
+      "leanModule": "Sprawlens.SegmentIntersection",
+      "theorems": [
+        "strictOppositeSidesBool_eq_true",
+        "properlyIntersectBool_eq_true",
+        "strictOppositeSides_swap_points",
+        "strictOppositeSides_reverse_line",
+        "strictOppositeSides_translate",
+        "strictOppositeSides_scale",
+        "properlyIntersect_swap_segments",
+        "properlyIntersect_reverse_first",
+        "properlyIntersect_reverse_second",
+        "properlyIntersect_translate",
+        "properlyIntersect_scale",
+        "properlyIntersect_first_segment_nondegenerate",
+        "properlyIntersect_second_segment_nondegenerate",
+        "properlyIntersect_no_shared_start",
+        "properlyIntersect_no_first_end_second_start",
+        "properlyIntersect_no_first_start_second_end",
+        "properlyIntersect_no_shared_end"
+      ],
+      "status": "proved-proper-intersection-kernel-standard-mathematics-not-novelty",
+      "implementationCorrespondence": "shared-exact-integer-fixture-conformance-8-cases-not-a-proof-of-epsilon-or-whole-ring-self-intersection"
+    },
+    {
+      "id": "infrastructure.exact-geometry.open-segment-contact",
+      "paper": null,
+      "protocol": "research/lean-formalization-plan.md#L3",
+      "typescript": [
+        "packages/layout/src/pointOnSegment.ts",
+        "packages/layout/src/pointOnSegment.test.ts",
+        "packages/layout/src/pointOnSegmentConformance.test.ts",
+        "packages/layout/src/externalPolygonValidity.ts",
+        "packages/layout/src/externalPolygonValidity.test.ts"
+      ],
+      "fixtures": ["formal/TestVectors/point-in-open-segment.json"],
+      "leanModule": "Sprawlens.SegmentContact",
+      "theorems": [
+        "strictBetweenBool_eq_true",
+        "betweenInclusiveBool_eq_true",
+        "pointInOpenSegmentBool_eq_true",
+        "strictBetween_swap",
+        "betweenInclusive_swap",
+        "pointInOpenSegment_reverse",
+        "pointInOpenSegment_start_ne_point",
+        "pointInOpenSegment_end_ne_point",
+        "pointInOpenSegment_segment_nondegenerate",
+        "strictBetween_add_iff",
+        "betweenInclusive_add_iff",
+        "pointInOpenSegment_translate",
+        "strictBetween_mul_iff",
+        "betweenInclusive_mul_iff",
+        "pointInOpenSegment_scale"
+      ],
+      "status": "proved-open-segment-contact-kernel-standard-mathematics-not-novelty",
+      "implementationCorrespondence": "shared-exact-integer-fixture-conformance-11-cases-not-a-proof-of-floating-point-tolerances"
+    },
+    {
+      "id": "infrastructure.exact-geometry.collinear-open-overlap",
+      "paper": null,
+      "protocol": "research/lean-formalization-plan.md#L3",
+      "typescript": [
+        "packages/layout/src/collinearOverlap.ts",
+        "packages/layout/src/collinearOverlap.test.ts",
+        "packages/layout/src/collinearOverlapConformance.test.ts",
+        "packages/layout/src/externalPolygonValidity.ts"
+      ],
+      "fixtures": ["formal/TestVectors/collinear-open-overlap.json"],
+      "leanModule": "Sprawlens.CollinearOverlap",
+      "theorems": [
+        "openSegmentsOverlapBool_eq_true",
+        "openSegmentsOverlap_first_nondegenerate",
+        "openSegmentsOverlap_second_nondegenerate",
+        "openSegmentsOverlap_swap_segments",
+        "openSegmentsOverlap_identical",
+        "openSegmentsOverlap_reversed"
+      ],
+      "status": "proved-collinear-overlap-kernel-standard-mathematics-not-novelty",
+      "implementationCorrespondence": "shared-exact-integer-fixture-conformance-10-cases-not-a-universal-proof-of-min-max-or-floating-point-tolerances"
+    },
+    {
+      "id": "infrastructure.exact-geometry.simple-open-ring",
+      "paper": null,
+      "protocol": "research/lean-formalization-plan.md#L3",
+      "typescript": [
+        "packages/layout/src/simpleRing.ts",
+        "packages/layout/src/simpleRing.test.ts",
+        "packages/layout/src/simpleRingConformance.test.ts",
+        "packages/layout/src/externalPolygonValidity.ts",
+        "packages/layout/src/externalPolygonValidity.test.ts"
+      ],
+      "fixtures": ["formal/TestVectors/simple-open-ring.json"],
+      "leanModule": "Sprawlens.SimpleRing",
+      "theorems": [
+        "segmentsConflictBool_eq_true",
+        "edgesAdjacent_refl",
+        "edgesAdjacent_next",
+        "edgesAdjacent_symm",
+        "nonadjacent_indices_ne",
+        "simpleRing_vertices_injective",
+        "simpleRing_edge_nondegenerate",
+        "simpleRing_nonadjacent_no_conflict",
+        "simpleRing_nonadjacent_no_proper_intersection",
+        "simpleRing_nonadjacent_no_collinear_overlap"
+      ],
+      "status": "proved-abstract-simple-ring-contract-standard-mathematics-not-novelty",
+      "implementationCorrespondence": "shared-exact-integer-ring-fixture-conformance-8-cases-not-a-universal-proof-of-cyclic-loop-or-floating-point-tolerances"
+    },
+    {
+      "id": "infrastructure.exact-geometry.polygon-signed-area",
+      "paper": null,
+      "protocol": "research/lean-formalization-plan.md#L3",
+      "typescript": [
+        "packages/layout/src/polygon.ts",
+        "packages/layout/src/polygonArea.test.ts",
+        "packages/layout/src/polygonAreaConformance.test.ts"
+      ],
+      "fixtures": ["formal/TestVectors/polygon-signed-area.json"],
+      "leanModule": "Sprawlens.PolygonArea",
+      "theorems": [
+        "edgeCross_swap",
+        "signedTwiceArea_scale",
+        "signedTwiceArea_translate",
+        "signedTwiceArea_reverse",
+        "triangleSignedTwiceArea_eq_orientation"
+      ],
+      "status": "proved-abstract-shoelace-contract-standard-mathematics-not-novelty",
+      "implementationCorrespondence": "shared-exact-integer-fixture-conformance-9-cases-not-a-proof-of-floating-point-summation-or-clipping-area-monotonicity"
+    },
+    {
+      "id": "infrastructure.exact-geometry.half-plane-boundary-parameter",
+      "paper": null,
+      "protocol": "research/lean-formalization-plan.md#L3",
+      "typescript": [
+        "packages/layout/src/halfPlaneIntersection.ts",
+        "packages/layout/src/halfPlaneIntersection.test.ts",
+        "packages/layout/src/halfPlaneIntersectionConformance.test.ts",
+        "packages/layout/src/polygon.ts"
+      ],
+      "fixtures": ["formal/TestVectors/half-plane-boundary-parameter.json"],
+      "leanModule": "Sprawlens.HalfPlaneIntersection",
+      "theorems": [
+        "denominator_ne_zero_of_inside_outside",
+        "denominator_ne_zero_of_outside_inside",
+        "boundaryParameter_mem_Icc_of_inside_outside",
+        "boundaryParameter_mem_Icc_of_outside_inside",
+        "interpolateDistance_boundaryParameter"
+      ],
+      "status": "proved-local-half-plane-intersection-contract-standard-mathematics-not-novelty",
+      "implementationCorrespondence": "shared-exact-rational-fixture-conformance-6-cases-and-live-clipHalfPlane-call-site-not-a-proof-of-cyclic-output-or-area-monotonicity"
+    }
+  ]
+}

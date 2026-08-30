@@ -1,0 +1,53 @@
+{
+  "schemaVersion": 1,
+  "supportCases": [
+    {
+      "name": "all request facts pass",
+      "facts": {
+        "validBoundary": true,
+        "validGraph": true,
+        "boundaryCovered": true,
+        "initializationCovered": true,
+        "nodeCountCovered": true
+      },
+      "expected": true
+    },
+    {
+      "name": "one request fact blocks support",
+      "facts": {
+        "validBoundary": true,
+        "validGraph": false,
+        "boundaryCovered": true,
+        "initializationCovered": true,
+        "nodeCountCovered": true
+      },
+      "expected": false
+    }
+  ],
+  "responseCases": [
+    { "name": "accepted", "expectedSupported": true, "status": "ok", "expected": "accepted" },
+    { "name": "unexpected unsupported", "expectedSupported": true, "status": "unsupported", "expected": "unexpected-unsupported" },
+    { "name": "expected missingness", "expectedSupported": false, "status": "unsupported", "expected": "expected-missingness" },
+    { "name": "capability violation", "expectedSupported": false, "status": "ok", "expected": "capability-violation" },
+    { "name": "adapter failure retained", "expectedSupported": true, "status": "failed", "expected": "failed" },
+    { "name": "execution failure retained", "expectedSupported": false, "status": "execution-failed", "expected": "execution-failed" }
+  ],
+  "effectCases": [
+    {
+      "name": "all paths pass",
+      "paths": [
+        { "responseOk": true, "hostValid": true, "expectedSupported": true, "metadataMatches": true },
+        { "responseOk": true, "hostValid": true, "expectedSupported": true, "metadataMatches": true }
+      ],
+      "expected": true
+    },
+    {
+      "name": "one host-invalid path blocks effect",
+      "paths": [
+        { "responseOk": true, "hostValid": true, "expectedSupported": true, "metadataMatches": true },
+        { "responseOk": true, "hostValid": false, "expectedSupported": true, "metadataMatches": true }
+      ],
+      "expected": false
+    }
+  ]
+}

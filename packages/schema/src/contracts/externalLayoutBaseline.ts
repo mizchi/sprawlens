@@ -93,7 +93,8 @@ function parseSequenceImplementation(value: unknown): ExternalLayoutSequenceImpl
   if (nodeCount.min > nodeCount.max) {
     throw new Error("implementation.capabilities.nodeCount min must not exceed max");
   }
-  if (capabilitiesInput.boundary !== "convex-polygon") {
+  const boundary = capabilitiesInput.boundary;
+  if (boundary !== "convex-polygon" && boundary !== "axis-aligned-rectangle") {
     throw new Error("implementation.capabilities.boundary is invalid");
   }
   if (capabilitiesInput.cellGeometry !== "convex-polygons") {
@@ -117,7 +118,7 @@ function parseSequenceImplementation(value: unknown): ExternalLayoutSequenceImpl
     capabilities: {
       initializationModes,
       nodeCount,
-      boundary: "convex-polygon",
+      boundary,
       cellGeometry: "convex-polygons",
       siteSemantics,
       dependencySemantics,

@@ -1,0 +1,82 @@
+{
+  "schemaVersion": 1,
+  "cases": [
+    {
+      "name": "horizontal-interior",
+      "a": { "x": 0, "y": 0 },
+      "b": { "x": 4, "y": 0 },
+      "point": { "x": 2, "y": 0 },
+      "expected": true
+    },
+    {
+      "name": "vertical-interior",
+      "a": { "x": 2, "y": -2 },
+      "b": { "x": 2, "y": 4 },
+      "point": { "x": 2, "y": 1 },
+      "expected": true
+    },
+    {
+      "name": "diagonal-interior",
+      "a": { "x": 0, "y": 0 },
+      "b": { "x": 4, "y": 4 },
+      "point": { "x": 1, "y": 1 },
+      "expected": true
+    },
+    {
+      "name": "start-endpoint",
+      "a": { "x": 0, "y": 0 },
+      "b": { "x": 4, "y": 0 },
+      "point": { "x": 0, "y": 0 },
+      "expected": false
+    },
+    {
+      "name": "end-endpoint",
+      "a": { "x": 0, "y": 0 },
+      "b": { "x": 4, "y": 0 },
+      "point": { "x": 4, "y": 0 },
+      "expected": false
+    },
+    {
+      "name": "collinear-outside",
+      "a": { "x": 0, "y": 0 },
+      "b": { "x": 4, "y": 0 },
+      "point": { "x": 5, "y": 0 },
+      "expected": false
+    },
+    {
+      "name": "off-line",
+      "a": { "x": 0, "y": 0 },
+      "b": { "x": 4, "y": 4 },
+      "point": { "x": 1, "y": 2 },
+      "expected": false
+    },
+    {
+      "name": "degenerate-segment",
+      "a": { "x": 1, "y": 1 },
+      "b": { "x": 1, "y": 1 },
+      "point": { "x": 1, "y": 1 },
+      "expected": false
+    },
+    {
+      "name": "reversed-endpoints",
+      "a": { "x": 4, "y": 4 },
+      "b": { "x": 0, "y": 0 },
+      "point": { "x": 1, "y": 1 },
+      "expected": true
+    },
+    {
+      "name": "translated-interior",
+      "a": { "x": 10, "y": -3 },
+      "b": { "x": 14, "y": 1 },
+      "point": { "x": 11, "y": -2 },
+      "expected": true
+    },
+    {
+      "name": "negative-uniform-scale",
+      "a": { "x": 0, "y": 0 },
+      "b": { "x": -8, "y": -8 },
+      "point": { "x": -2, "y": -2 },
+      "expected": true
+    }
+  ]
+}

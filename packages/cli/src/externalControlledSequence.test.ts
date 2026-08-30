@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { buildExternalCommonSequenceProbe } from "@sprawlens/layout";
+import type { ExternalLayoutSequenceImplementationV2 } from "@sprawlens/schema";
 import { runExternalCommonSequenceProbe } from "./externalControlledSequence.ts";
 
 const probe = buildExternalCommonSequenceProbe({
@@ -49,6 +50,31 @@ process.stdin.on("end", () => {
   }));
 });`;
 
+const expectedImplementation: ExternalLayoutSequenceImplementationV2 = {
+  id: "fixture",
+  revision: "fixture-1",
+  sourceUrl: "https://example.test/fixture",
+  license: "MIT",
+  adapterRevision: "1",
+  parameters: {},
+  temporalAccess: "current-only",
+  stateModel: "stateless",
+  capabilities: {
+    initializationModes: ["native"],
+    nodeCount: { min: 1, max: 100 },
+    boundary: "convex-polygon",
+    cellGeometry: "convex-polygons",
+    siteSemantics: "derived",
+    dependencySemantics: "ignored",
+    deterministicForFixedSeed: true,
+  },
+};
+
+const unsupportedScript = script.replace(
+  'status: "ok",',
+  'status: "unsupported", reason: { code: "fixture", message: "not supported" },',
+);
+
 describe("external controlled-sequence runner", () => {
   it("runs every path in a fresh process and computes no-op/reversal/order calibration", async () => {
     const result = await runExternalCommonSequenceProbe(
@@ -83,6 +109,31 @@ describe("external controlled-sequence runner", () => {
       orderABvsBA: { polygonIoULoss: 0 },
       duplicateABNoise: { polygonIoULoss: 0 },
     });
+    expect(result.confirmatoryEffect).toBeNull();
+  });
+
+  it("emits a confirmatory effect only after manifest and host-validity gates pass", async () => {
+    const result = await runExternalCommonSequenceProbe(
+      [process.execPath, "--eval", script],
+      probe,
+      {
+        seed: 7,
+        timeoutMs: 5_000,
+        expectedImplementation,
+        validityThresholds: {
+          maxRelativeAreaError: 2,
+          maxAreaCoverageError: 1e-8,
+          maxBoundaryGapAreaRatio: 1e-8,
+          maxOverlapAreaRatio: 1e-8,
+          maxOutsideBoundaryAreaRatio: 1e-8,
+          requireNativeConverged: true,
+        },
+      },
+    );
+
+    expect(result.runEligibilityGatesApplied).toBe(true);
+    expect(result.failures).toEqual([]);
+    expect(result.confirmatoryEffect).toEqual(result.calibration);
   });
 
   it("fails closed when host-side validity exceeds a frozen threshold", async () => {
@@ -95,6 +146,7 @@ describe("external controlled-sequence runner", () => {
         validityThresholds: {
           maxRelativeAreaError: 0.01,
           maxAreaCoverageError: 1e-8,
+          maxBoundaryGapAreaRatio: 1e-8,
           maxOverlapAreaRatio: 1e-8,
           maxOutsideBoundaryAreaRatio: 1e-8,
           requireNativeConverged: true,
@@ -129,5 +181,69 @@ describe("external controlled-sequence runner", () => {
     expect(result.calibration).toBeNull();
     expect(result.failures).toHaveLength(7);
     expect(result.failures.every(({ status }) => status === "implementation-mismatch")).toBe(true);
+  });
+
+  it("promotes unsupported responses inside the manifest to unexpected failures", async () => {
+    const result = await runExternalCommonSequenceProbe(
+      [process.execPath, "--eval", unsupportedScript],
+      probe,
+      { seed: 7, timeoutMs: 5_000, expectedImplementation },
+    );
+
+    expect(result.calibration).toBeNull();
+    expect(result.paths.noOp.expectedSupport).toMatchObject({ expectedSupported: true });
+    expect(result.failures).toHaveLength(7);
+    expect(result.failures.every(({ status }) => status === "unexpected-unsupported")).toBe(true);
+  });
+
+  it("keeps unsupported responses outside the manifest as expected missingness", async () => {
+    const limitedImplementation = {
+      ...expectedImplementation,
+      capabilities: {
+        ...expectedImplementation.capabilities,
+        nodeCount: { min: 1, max: 2 },
+      },
+    };
+    const limitedScript = unsupportedScript.replace(
+      "nodeCount: { min: 1, max: 100 }",
+      "nodeCount: { min: 1, max: 2 }",
+    );
+    const result = await runExternalCommonSequenceProbe(
+      [process.execPath, "--eval", limitedScript],
+      probe,
+      { seed: 7, timeoutMs: 5_000, expectedImplementation: limitedImplementation },
+    );
+
+    expect(result.calibration).toBeNull();
+    expect(result.paths.noOp.expectedSupport?.expectedSupported).toBe(false);
+    expect(result.paths.noOp.expectedSupport?.reasons.map(({ code }) => code)).toEqual([
+      "node-count",
+      "node-count",
+      "node-count",
+    ]);
+    expect(result.failures).toEqual([]);
+  });
+
+  it("rejects successful output for a request outside declared capabilities", async () => {
+    const limitedImplementation = {
+      ...expectedImplementation,
+      capabilities: {
+        ...expectedImplementation.capabilities,
+        nodeCount: { min: 1, max: 2 },
+      },
+    };
+    const limitedScript = script.replace(
+      "nodeCount: { min: 1, max: 100 }",
+      "nodeCount: { min: 1, max: 2 }",
+    );
+    const result = await runExternalCommonSequenceProbe(
+      [process.execPath, "--eval", limitedScript],
+      probe,
+      { seed: 7, timeoutMs: 5_000, expectedImplementation: limitedImplementation },
+    );
+
+    expect(result.calibration).toBeNull();
+    expect(result.failures).toHaveLength(7);
+    expect(result.failures.every(({ status }) => status === "capability-violation")).toBe(true);
   });
 });

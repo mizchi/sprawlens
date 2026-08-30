@@ -1,0 +1,69 @@
+{
+  "schemaVersion": 1,
+  "cases": [
+    {
+      "name": "interior-crossing",
+      "a": { "x": 0, "y": 0 },
+      "b": { "x": 4, "y": 4 },
+      "c": { "x": 0, "y": 4 },
+      "d": { "x": 4, "y": 0 },
+      "expected": true
+    },
+    {
+      "name": "disjoint",
+      "a": { "x": 0, "y": 0 },
+      "b": { "x": 1, "y": 0 },
+      "c": { "x": 2, "y": -1 },
+      "d": { "x": 2, "y": 1 },
+      "expected": false
+    },
+    {
+      "name": "endpoint-touch",
+      "a": { "x": 0, "y": 0 },
+      "b": { "x": 2, "y": 0 },
+      "c": { "x": 2, "y": 0 },
+      "d": { "x": 2, "y": 2 },
+      "expected": false
+    },
+    {
+      "name": "t-junction",
+      "a": { "x": 0, "y": 0 },
+      "b": { "x": 4, "y": 0 },
+      "c": { "x": 2, "y": 0 },
+      "d": { "x": 2, "y": 3 },
+      "expected": false
+    },
+    {
+      "name": "collinear-overlap",
+      "a": { "x": 0, "y": 0 },
+      "b": { "x": 3, "y": 0 },
+      "c": { "x": 1, "y": 0 },
+      "d": { "x": 4, "y": 0 },
+      "expected": false
+    },
+    {
+      "name": "segment-order-swapped",
+      "a": { "x": 0, "y": 4 },
+      "b": { "x": 4, "y": 0 },
+      "c": { "x": 0, "y": 0 },
+      "d": { "x": 4, "y": 4 },
+      "expected": true
+    },
+    {
+      "name": "translated-crossing",
+      "a": { "x": 10, "y": -3 },
+      "b": { "x": 14, "y": 1 },
+      "c": { "x": 10, "y": 1 },
+      "d": { "x": 14, "y": -3 },
+      "expected": true
+    },
+    {
+      "name": "negative-uniform-scale",
+      "a": { "x": 0, "y": 0 },
+      "b": { "x": -8, "y": -8 },
+      "c": { "x": 0, "y": -8 },
+      "d": { "x": -8, "y": 0 },
+      "expected": true
+    }
+  ]
+}

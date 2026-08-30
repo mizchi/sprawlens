@@ -1,5 +1,6 @@
 import type { AtlasEdge } from "@sprawlens/contracts";
 import { minCostAssignment } from "./assignment.ts";
+import { affineBarycenter } from "./barycenter.ts";
 import {
   capacityStep,
   createCapacityLayout,
@@ -358,12 +359,7 @@ export function stableNeighborhoodUpdate(
       const cost = nodes.map((node) => {
         const cold = similarity.get(node.id)!;
         const anchor = anchors.get(node.id);
-        const target = anchor
-          ? {
-              x: cold.x + (anchor.x - cold.x) * anchorMix,
-              y: cold.y + (anchor.y - cold.y) * anchorMix,
-            }
-          : cold;
+        const target = anchor ? affineBarycenter(cold, anchor, anchorMix) : cold;
         return slots.state.cells.map(
           (slot) => (target.x - slot.site.x) ** 2 + (target.y - slot.site.y) ** 2,
         );
