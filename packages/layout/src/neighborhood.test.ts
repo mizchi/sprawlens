@@ -1,5 +1,11 @@
 import { describe, expect, it } from "vitest";
-import { cellAdjacency, greedySwapAssignment, realizedEdgeRate } from "./neighborhood.ts";
+import {
+  cellAdjacency,
+  eligibleEdgeCount,
+  greedySwapAssignment,
+  realizedEdgeCounts,
+  realizedEdgeRate,
+} from "./neighborhood.ts";
 import { computePowerDiagram } from "./powerDiagram.ts";
 
 const unitSquare = [
@@ -43,11 +49,35 @@ describe("realizedEdgeRate", () => {
 
   it("counts the fraction of edges realized as adjacencies", () => {
     expect(
+      realizedEdgeCounts(adjacency, [
+        { source: "a", target: "b" },
+        { source: "a", target: "c" },
+      ]),
+    ).toEqual({ eligible: 2, realized: 1 });
+    expect(
       realizedEdgeRate(adjacency, [
         { source: "a", target: "b" },
         { source: "a", target: "c" },
       ]),
     ).toBe(0.5);
+  });
+
+  it("derives the eligible denominator only from the shared node domain", () => {
+    const edges = [
+      { source: "a", target: "b" },
+      { source: "a", target: "c" },
+      { source: "a", target: "missing" },
+      { source: "b", target: "b" },
+    ];
+    const sameDomainWithoutRealizedEdges = new Map([
+      ["a", new Set<string>()],
+      ["b", new Set<string>()],
+      ["c", new Set<string>()],
+    ]);
+
+    expect(eligibleEdgeCount(adjacency, edges)).toBe(2);
+    expect(realizedEdgeCounts(adjacency, edges).eligible).toBe(2);
+    expect(realizedEdgeCounts(sameDomainWithoutRealizedEdges, edges).eligible).toBe(2);
   });
 
   it("ignores edges with endpoints outside the map and self loops", () => {

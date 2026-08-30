@@ -1,5 +1,9 @@
 import { describe, expect, it } from "vitest";
-import { selectFeasibleEnvelope, selectVectorFeasibleEnvelope } from "./feasibleEnvelope.ts";
+import {
+  DEFAULT_CONSTRAINT_EPSILON,
+  selectFeasibleEnvelope,
+  selectVectorFeasibleEnvelope,
+} from "./feasibleEnvelope.ts";
 
 type Candidate = {
   id: string;
@@ -64,6 +68,17 @@ describe("feasible-envelope candidate selection", () => {
     expect(result.selected).toBe(tolerated);
   });
 
+  it("cannot hide one discrete edge loss below the documented epsilon denominator bound", () => {
+    const eligibleEdges = 1_000_000_000_000 - 1;
+    const baseline = candidate("baseline", 1 / eligibleEdges, 1);
+    const losesOneEdge = candidate("loses-one", 0, 0);
+
+    expect(select(baseline, [baseline, losesOneEdge]).selected).toBe(baseline);
+
+    const boundaryBaseline = candidate("boundary", DEFAULT_CONSTRAINT_EPSILON, 1);
+    expect(select(boundaryBaseline, [boundaryBaseline, losesOneEdge]).selected).toBe(losesOneEdge);
+  });
+
   it("falls back to the declared baseline when no candidate is valid", () => {
     const baseline = candidate("baseline", 0.8, 0.5, { valid: false });
     const other = candidate("other", 1, 0.1, { valid: false });
@@ -97,7 +112,9 @@ describe("feasible-envelope candidate selection", () => {
     for (let mask = 0; mask < 1 << universe.length; mask++) {
       const candidates = [baseline, ...universe.filter((_, index) => (mask & (1 << index)) !== 0)];
       const result = select(baseline, candidates);
-      expect(result.selected.constraint + 1e-12).toBeGreaterThanOrEqual(result.minimumConstraint);
+      expect(result.selected.constraint + DEFAULT_CONSTRAINT_EPSILON).toBeGreaterThanOrEqual(
+        result.minimumConstraint,
+      );
       expect(result.selected.valid).toBe(true);
       expect(result.selected.cost).toBe(Math.min(...result.eligible.map((value) => value.cost)));
     }
@@ -183,8 +200,8 @@ describe("vector feasible-envelope candidate selection", () => {
         isValid: (value) => value.valid,
         selectionCost: (value) => value.cost,
       });
-      expect(result.selected.constraint + 1e-12).toBeGreaterThanOrEqual(0.5);
-      expect(result.selected.quality + 1e-12).toBeGreaterThanOrEqual(0.5);
+      expect(result.selected.constraint + DEFAULT_CONSTRAINT_EPSILON).toBeGreaterThanOrEqual(0.5);
+      expect(result.selected.quality + DEFAULT_CONSTRAINT_EPSILON).toBeGreaterThanOrEqual(0.5);
       expect(result.selected.cost).toBe(Math.min(...result.eligible.map((value) => value.cost)));
     }
   });

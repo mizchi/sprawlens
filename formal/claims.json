@@ -4,7 +4,7 @@
   "mathlib": {
     "version": "v4.33.0",
     "revision": "db584cd6d46c92f209a44c0f1c829460d327499d",
-    "scope": "L3 finite center of mass, convex hull, and ordered-field algebra"
+    "scope": "executable finite selection, exact rational adjacency slack, and L3 finite geometry/algebra"
   },
   "claims": [
     {
@@ -28,6 +28,26 @@
       ],
       "status": "proved-abstract-model",
       "implementationCorrespondence": "shared-fixture-conformance-6-cases-not-a-universal-proof"
+    },
+    {
+      "id": "paper1.feasible-envelope.executable-selector",
+      "paper": 1,
+      "protocol": "research/paper/main.tex#dominance-contract",
+      "typescript": [
+        "packages/layout/src/feasibleEnvelope.ts",
+        "packages/layout/src/feasibleEnvelopeConformance.test.ts"
+      ],
+      "fixtures": ["formal/TestVectors/feasible-envelope.json"],
+      "leanModule": "Sprawlens.FeasibleEnvelopeSelector",
+      "theorems": [
+        "prefer_eq_left_of_equal_key",
+        "minimum?_eq_none_iff",
+        "mem_of_minimum?_eq_some",
+        "minimum?_cost_le_of_mem",
+        "select_is_result"
+      ],
+      "status": "proved-executable-selector-refines-abstract-result-relation",
+      "implementationCorrespondence": "lean-fixture-checker-uses-proved-selector-and-typescript-shares-6-cases-not-a-universal-refinement-proof"
     },
     {
       "id": "paper1.feasible-envelope.invalid-fallback-counterexample",
@@ -54,10 +74,34 @@
         "baseline_eligible",
         "selected_converged",
         "selected_adjacency_ge_baseline",
-        "selected_displacement_le_baseline"
+        "selected_displacement_le_baseline",
+        "selectCandidate_is_result",
+        "executable_selected_converged",
+        "executable_selected_adjacency_ge_baseline",
+        "executable_selected_displacement_le_baseline",
+        "javascript_slack_selected_realized_ge_baseline"
       ],
-      "status": "proved-paper-specialization-exact-rational-observations",
+      "status": "proved-executable-paper-specialization-exact-rational-observations",
       "implementationCorrespondence": "shared-fixture-conformance-6-cases-and-empirical-trial-audit-not-a-typescript-refinement-proof"
+    },
+    {
+      "id": "paper1.feasible-envelope.javascript-adjacency-slack",
+      "paper": 1,
+      "protocol": "research/paper/main.tex#dominance-contract",
+      "typescript": [
+        "packages/layout/src/feasibleEnvelope.ts",
+        "packages/layout/src/feasibleEnvelope.test.ts",
+        "packages/layout/src/neighborhood.ts",
+        "packages/layout/src/neighborhood.test.ts"
+      ],
+      "leanModule": "Sprawlens.AdjacencyRate",
+      "theorems": [
+        "realized_ge_of_rate_add_slack_ge",
+        "javascriptSlack_below_quantum",
+        "javascript_acceptance_preserves_realized_count"
+      ],
+      "status": "proved-discrete-observation-bridge-with-explicit-denominator-premises",
+      "implementationCorrespondence": "typescript-exact-count-observation-and-boundary-tests-not-an-ieee754-refinement-proof"
     },
     {
       "id": "paper2.controlled-path.exact-endpoints",

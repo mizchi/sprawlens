@@ -51,6 +51,9 @@ export type VectorFeasibleEnvelopeSelection<T> = {
   usedFallback: boolean;
 };
 
+/** Numeric comparison slack mirrored by the exact Lean adjacency-rate contract. */
+export const DEFAULT_CONSTRAINT_EPSILON = 1e-12;
+
 /**
  * Selects the minimum-cost candidate in the intersection of independent,
  * baseline-relative constraint floors. The baseline remains a total fallback.
@@ -76,7 +79,7 @@ export function selectVectorFeasibleEnvelope<T>(
         `vector feasible-envelope constraint tolerance must be finite and non-negative (${constraint.name})`,
       );
     }
-    const epsilon = constraint.epsilon ?? 1e-12;
+    const epsilon = constraint.epsilon ?? DEFAULT_CONSTRAINT_EPSILON;
     if (!Number.isFinite(epsilon) || epsilon < 0) {
       throw new Error(
         `vector feasible-envelope constraint epsilon must be finite and non-negative (${constraint.name})`,
@@ -147,7 +150,7 @@ export function selectFeasibleEnvelope<T>(
   if (!Number.isFinite(tolerance) || tolerance < 0) {
     throw new Error("feasible-envelope tolerance must be a finite non-negative number");
   }
-  const constraintEpsilon = policy.constraintEpsilon ?? 1e-12;
+  const constraintEpsilon = policy.constraintEpsilon ?? DEFAULT_CONSTRAINT_EPSILON;
   if (!Number.isFinite(constraintEpsilon) || constraintEpsilon < 0) {
     throw new Error("feasible-envelope constraint epsilon must be a finite non-negative number");
   }

@@ -6,8 +6,8 @@ Sprawlensの実行実装はTypeScript / JavaScriptに置き、ここでは論文
 
 - Lean: `v4.33.0`
 - Mathlib: `v4.33.0` (`db584cd6d46c92f209a44c0f1c829460d327499d`)
-  - L0–L2はMathlib非依存。
-  - L3のfinite center of mass、convex hull、ordered-field algebraだけに使用する。
+  - L0の抽象relationとL1–L2はMathlib非依存。
+  - 実行可能な有限selector、exact rational adjacency slack、L3のfinite geometry / algebraに使用する。
 
 ## Commands
 
@@ -32,9 +32,11 @@ baselineがeligibleなら、任意のselection resultについて次を証明済
 
 eligible集合が空の場合はbaselineへfallbackする。baseline自身がinvalidならresultもinvalidになりうるため、「全resultがvalid」は成り立たない。この反例をLean file内のwitnessとして保持する。
 
-現段階で証明したのはabstract selection relationであり、TypeScriptのsort実装、floating-point score、candidate生成、solver convergenceの正しさではない。
+`Sprawlens.FeasibleEnvelopeSelector`は、costとtie-break keyの全順序から有限候補を決定的に選ぶ実行可能関数を定義する。eligible候補があればその最小要素、なければbaselineへfallbackし、その戻り値が常に上記abstract relationの`IsResult`を構成することを証明した。共有fixtureを読むLean checkerもこのselectorを使う。TypeScriptのsort実装全体、candidate生成、solver convergenceの正しさを証明したものではない。
 
-`Sprawlens.Paper1Contract`はこの一般relationを第一論文のprimary policyへ特殊化する。candidateはexact rational adjacency、exact rational displacement、convergence flagを持ち、zero-tolerance adjacency floorとdisplacement costを使う。baseline membershipとbaseline convergenceの下で、selected convergence、selected adjacencyがbaseline以上、selected displacementがbaseline以下になることを個別に証明した。論文中のdominance contractはこの三定理に対応する。
+`Sprawlens.Paper1Contract`はこの一般relationと実行可能selectorを第一論文のprimary policyへ特殊化する。candidateはexact rational adjacency、exact rational displacement、convergence flagを持ち、zero-tolerance adjacency floorとdisplacement costを使う。baseline membershipとbaseline convergenceの下で、selectorが返すcandidateの収束、baseline以上のadjacency、baseline以下のdisplacementを個別に証明した。論文中のdominance contractはこの三定理に対応する。
+
+`Sprawlens.AdjacencyRate`はTypeScriptの`realizedEdgeRate`を、eligible edge数とrealized edge数のexact rational比としてモデル化する。比較用の数値slack `10^-12`が一辺分のscore量子より小さければ、slack付き判定を通ったcandidateはbaselineよりrealized edge数を減らせない。したがって両candidateが同じ正のeligible edge分母を持ち、その分母が`10^12`未満なら、この離散的な非劣化を証明できる。TypeScriptでは分母計算を`eligibleEdgeCount`へ分離し、同じedge listとnode domainならcandidate geometryに依存しないことを回帰testで固定した。分母がちょうど`10^12`なら一辺の損失がslackと同値になる反例も保持する。これはIEEE-754演算一般のrefinement proofではない。
 
 `Sprawlens.ControlledPaths`は第二論文のcontrolled sequenceを離散graphとして一般化する。no-op / reversalの始終端同値性、weight変更とleaf追加、weight変更とedge rewireの可換性を証明した。graphはlistで保持するため、AB/BAの終端同値性はnode、weight、edge、request orderの完全一致である。これは同じ入力graphへ至ったlayout geometryが一致するという主張ではなく、その差をpath dependenceとして識別できるための前提だけを証明する。
 

@@ -1,4 +1,6 @@
 import Lean.Data.Json
+import Mathlib.Data.Int.Order.Basic
+import Sprawlens.FeasibleEnvelopeSelector
 
 open Lean
 
@@ -50,13 +52,6 @@ private def eligible
   candidate.valid &&
     meetsFloors testCase.constraints.toList baseline.scores.toList candidate.scores.toList
 
-/-- Lower cost wins, then lower explicit tie-break; exact ties preserve input order. -/
-private def prefer (left right : CandidateFixture) : CandidateFixture :=
-  if right.cost < left.cost then right
-  else if left.cost < right.cost then left
-  else if right.tieBreak < left.tieBreak then right
-  else left
-
 private def selectCase (testCase : CaseFixture) : Except String ExpectedFixture := do
   if testCase.constraints.isEmpty then
     throw s!"{testCase.name}: at least one constraint is required"
@@ -66,9 +61,11 @@ private def selectCase (testCase : CaseFixture) : Except String ExpectedFixture 
     | none => throw s!"{testCase.name}: baseline is missing"
   let eligibleCandidates :=
     testCase.candidates.toList.filter (eligible testCase baseline)
-  let selected := match eligibleCandidates with
-    | [] => baseline
-    | first :: rest => rest.foldl prefer first
+  let selected :=
+    match Sprawlens.FeasibleEnvelopeSelector.minimum?
+      CandidateFixture.cost CandidateFixture.tieBreak eligibleCandidates with
+    | none => baseline
+    | some candidate => candidate
   return {
     selectedId := selected.id
     eligibleIds := eligibleCandidates.map (·.id) |>.toArray

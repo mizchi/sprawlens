@@ -28,6 +28,46 @@ export function cellAdjacency(cells: readonly CellResult[]): Map<string, Set<str
 }
 
 /**
+ * Number of graph edges eligible for the adjacency metric. This denominator
+ * depends only on the node domain, not on candidate geometry.
+ */
+function isEligibleEdge(nodeDomain: { has(id: string): boolean }, edge: AtlasEdge): boolean {
+  return edge.source !== edge.target && nodeDomain.has(edge.source) && nodeDomain.has(edge.target);
+}
+
+export function eligibleEdgeCount(
+  nodeDomain: { has(id: string): boolean },
+  edges: readonly AtlasEdge[],
+): number {
+  let eligible = 0;
+  for (const edge of edges) {
+    if (!isEligibleEdge(nodeDomain, edge)) continue;
+    eligible++;
+  }
+  return eligible;
+}
+
+/**
+ * Exact integer observations underlying the realized-edge rate. Keeping these
+ * counts visible makes the score's discrete denominator auditable. Its
+ * `eligible` field equals `eligibleEdgeCount(adjacency, edges)`.
+ */
+export function realizedEdgeCounts(
+  adjacency: ReadonlyMap<string, ReadonlySet<string>>,
+  edges: readonly AtlasEdge[],
+): { eligible: number; realized: number } {
+  let eligible = 0;
+  let realized = 0;
+  for (const edge of edges) {
+    if (!isEligibleEdge(adjacency, edge)) continue;
+    const neighbors = adjacency.get(edge.source)!;
+    eligible++;
+    if (neighbors.has(edge.target)) realized++;
+  }
+  return { eligible, realized };
+}
+
+/**
  * Fraction of edges whose endpoints ended up as adjacent cells. Edges with
  * endpoints outside the adjacency map and self loops are skipped; with no
  * eligible edges the constraint set is vacuously satisfied (rate 1).
@@ -36,15 +76,7 @@ export function realizedEdgeRate(
   adjacency: ReadonlyMap<string, ReadonlySet<string>>,
   edges: readonly AtlasEdge[],
 ): number {
-  let eligible = 0;
-  let realized = 0;
-  for (const edge of edges) {
-    if (edge.source === edge.target) continue;
-    const neighbors = adjacency.get(edge.source);
-    if (!neighbors || !adjacency.has(edge.target)) continue;
-    eligible++;
-    if (neighbors.has(edge.target)) realized++;
-  }
+  const { eligible, realized } = realizedEdgeCounts(adjacency, edges);
   return eligible === 0 ? 1 : realized / eligible;
 }
 
