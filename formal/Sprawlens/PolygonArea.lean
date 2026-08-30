@@ -1,5 +1,6 @@
 import Mathlib.Algebra.BigOperators.Ring.Finset
 import Sprawlens.ExactGeometry
+import Sprawlens.HalfPlaneIntersection
 
 namespace Sprawlens.PolygonArea
 
@@ -94,5 +95,14 @@ theorem triangleSignedTwiceArea_eq_orientation (a b c : Vec2 R) :
     triangleSignedTwiceArea a b c = orientation a b c := by
   simp only [triangleSignedTwiceArea, edgeCross, orientation]
   ring
+
+theorem triangleSignedTwiceArea_interpolate_both
+    (a b c : Vec2 R) (startParameter finishParameter : R) :
+    triangleSignedTwiceArea (HalfPlaneIntersection.interpolatePoint a b startParameter) b
+        (HalfPlaneIntersection.interpolatePoint b c finishParameter) =
+      (1 - startParameter) * finishParameter * triangleSignedTwiceArea a b c := by
+  rw [triangleSignedTwiceArea_eq_orientation, triangleSignedTwiceArea_eq_orientation]
+  exact HalfPlaneIntersection.orientation_interpolate_both
+    a b c startParameter finishParameter
 
 end Sprawlens.PolygonArea

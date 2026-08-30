@@ -40,5 +40,8 @@ describe("Lean/TypeScript segment interpolation orientation conformance", () => 
     expect(orientationDeterminant(testCase.a, finishPoint, testCase.c)).toBeCloseTo(
       (1 - parameter) * base,
     );
+    expect(orientationDeterminant(startPoint, testCase.b, finishPoint)).toBeCloseTo(
+      (1 - parameter) * parameter * base,
+    );
   });
 });

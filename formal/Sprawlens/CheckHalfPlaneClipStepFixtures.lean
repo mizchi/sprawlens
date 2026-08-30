@@ -1,9 +1,13 @@
 import Lean.Data.Json
-import Sprawlens.HalfPlaneClipStep
+import Sprawlens.HalfPlaneClipPoints
 
 open Lean
 
 namespace Sprawlens.CheckHalfPlaneClipStepFixtures
+
+open Sprawlens.ExactGeometry
+open Sprawlens.HalfPlaneClipStep
+open Sprawlens.HalfPlaneClipPoints
 
 structure EdgeCase where
   name : String
@@ -18,24 +22,32 @@ structure Fixture where
   cases : Array EdgeCase
   deriving Repr, FromJson
 
-private def classify (current next : Int) : String :=
-  if current ≤ 0 then
-    if next ≤ 0 then "inside" else "leaving"
-  else if next ≤ 0 then "entering" else "outside"
+private def className : EdgeClass → String
+  | .inside => "inside"
+  | .leaving => "leaving"
+  | .entering => "entering"
+  | .outside => "outside"
 
-private def outputDistances (current next : Int) : Array Int :=
-  match classify current next with
-  | "inside" => #[current]
-  | "leaving" => if current = 0 then #[current] else #[current, 0]
-  | "entering" => #[0]
-  | _ => #[]
+private def xNonpos : HalfPlane Rat where
+  normalX := 1
+  normalY := 0
+  offset := 0
+
+private def pointAtDistance (distance : Int) : Vec2 Rat where
+  x := distance
+  y := 1
 
 private def checkCase (testCase : EdgeCase) : Except String Unit := do
-  let actual := classify testCase.currentDistance testCase.nextDistance
+  let current := pointAtDistance testCase.currentDistance
+  let next := pointAtDistance testCase.nextDistance
+  let currentDistance := signedDistance xNonpos current
+  let nextDistance := signedDistance xNonpos next
+  let actual := className (classify currentDistance nextDistance)
   if actual != testCase.expectedClass then
     throw s!"{testCase.name}: expected {testCase.expectedClass}, received {actual}"
-  let actualOutput := outputDistances testCase.currentDistance testCase.nextDistance
-  if actualOutput != testCase.expectedOutputDistances then
+  let actualOutput := (outputPoints xNonpos current next).map (signedDistance xNonpos)
+  let expectedOutput := testCase.expectedOutputDistances.toList.map (fun value => (value : Rat))
+  if actualOutput != expectedOutput then
     throw s!"{testCase.name}: emitted distances differ"
 
 def decodeFixture (path : String) : IO Fixture := do

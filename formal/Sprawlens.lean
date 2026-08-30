@@ -13,5 +13,12 @@ import Sprawlens.SimpleRing
 import Sprawlens.PolygonArea
 import Sprawlens.HalfPlaneIntersection
 import Sprawlens.HalfPlaneClipStep
+import Sprawlens.HalfPlaneClipPoints
+import Sprawlens.HalfPlaneClipRing
+import Sprawlens.OrderedTriples
+import Sprawlens.SegmentTripleOrientation
+import Sprawlens.HalfPlaneBoundaryGeometry
+import Sprawlens.ConvexClipContract
+import Sprawlens.HexagonChord
 import Sprawlens.HalfPlaneClipFold
 import Sprawlens.CyclicClosure

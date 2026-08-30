@@ -49,6 +49,11 @@ private def rationalMiddleOrientationNumerator
   (bNumerator.x - a.x * denominator) * (c.y - a.y) -
     (bNumerator.y - a.y * denominator) * (c.x - a.x)
 
+private def rationalBothOrientationNumerator
+    (aNumerator b cNumerator : PointFixture) (denominator : Int) : Int :=
+  (b.x * denominator - aNumerator.x) * (cNumerator.y - aNumerator.y) -
+    (b.y * denominator - aNumerator.y) * (cNumerator.x - aNumerator.x)
+
 private def checkCase (testCase : OrientationCase) : Except String Unit := do
   if testCase.parameterDenominator ≤ 0 then
     throw s!"{testCase.name}: parameter denominator must be positive"
@@ -74,6 +79,12 @@ private def checkCase (testCase : OrientationCase) : Except String Unit := do
     testCase.parameterDenominator
   if middleOrientation != (testCase.parameterDenominator - testCase.parameterNumerator) * base then
     throw s!"{testCase.name}: middle interpolation orientation differs"
+  let bothOrientation := rationalBothOrientationNumerator startPoint testCase.b finishPoint
+    testCase.parameterDenominator
+  if bothOrientation !=
+      (testCase.parameterDenominator - testCase.parameterNumerator) *
+        testCase.parameterNumerator * base then
+    throw s!"{testCase.name}: two-sided interpolation orientation differs"
 
 def decodeFixture (path : String) : IO Fixture := do
   let contents ← IO.FS.readFile path

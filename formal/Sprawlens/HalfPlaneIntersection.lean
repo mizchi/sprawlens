@@ -59,6 +59,42 @@ theorem orientation_interpolate_middle (a b c : Vec2 R) (parameter : R) :
   simp only [orientation, interpolatePoint]
   ring
 
+/-- Replacing both outer vertices by points on their incident edges scales the turn. -/
+theorem orientation_interpolate_both
+    (a b c : Vec2 R) (startParameter finishParameter : R) :
+    orientation (interpolatePoint a b startParameter) b
+        (interpolatePoint b c finishParameter) =
+      (1 - startParameter) * finishParameter * orientation a b c := by
+  simp only [orientation, interpolatePoint]
+  ring
+
+/-- Orientation is affine when its third point moves along an arbitrary segment. -/
+theorem orientation_interpolate_third
+    (a b start finish : Vec2 R) (parameter : R) :
+    orientation a b (interpolatePoint start finish parameter) =
+      (1 - parameter) * orientation a b start +
+        parameter * orientation a b finish := by
+  simp only [orientation, interpolatePoint]
+  ring
+
+/-- Orientation is affine when its first point moves along an arbitrary segment. -/
+theorem orientation_interpolate_first
+    (start finish b c : Vec2 R) (parameter : R) :
+    orientation (interpolatePoint start finish parameter) b c =
+      (1 - parameter) * orientation start b c +
+        parameter * orientation finish b c := by
+  simp only [orientation, interpolatePoint]
+  ring
+
+/-- Orientation is affine when its second point moves along an arbitrary segment. -/
+theorem orientation_interpolate_second
+    (a start finish c : Vec2 R) (parameter : R) :
+    orientation a (interpolatePoint start finish parameter) c =
+      (1 - parameter) * orientation a start c +
+        parameter * orientation a finish c := by
+  simp only [orientation, interpolatePoint]
+  ring
+
 theorem denominator_ne_zero_of_inside_outside
     [LinearOrder R] [IsStrictOrderedRing R]
     {current next : R} (currentInside : current ≤ 0) (nextOutside : 0 < next) :
@@ -121,5 +157,77 @@ theorem orientation_interpolate_middle_nonneg
     0 ≤ orientation a (interpolatePoint b c parameter) c := by
   rw [orientation_interpolate_middle]
   exact mul_nonneg (sub_nonneg.mpr parameterAtMostOne) turnNonnegative
+
+theorem orientation_interpolate_both_nonneg
+    [LinearOrder R] [IsStrictOrderedRing R]
+    (a b c : Vec2 R) {startParameter finishParameter : R}
+    (startAtMostOne : startParameter ≤ 1)
+    (finishNonnegative : 0 ≤ finishParameter)
+    (turnNonnegative : 0 ≤ orientation a b c) :
+    0 ≤ orientation (interpolatePoint a b startParameter) b
+      (interpolatePoint b c finishParameter) := by
+  rw [orientation_interpolate_both]
+  exact mul_nonneg
+    (mul_nonneg (sub_nonneg.mpr startAtMostOne) finishNonnegative)
+    turnNonnegative
+
+theorem orientation_interpolate_both_le_original
+    [LinearOrder R] [IsStrictOrderedRing R]
+    (a b c : Vec2 R) {startParameter finishParameter : R}
+    (startNonnegative : 0 ≤ startParameter)
+    (startAtMostOne : startParameter ≤ 1)
+    (finishNonnegative : 0 ≤ finishParameter)
+    (finishAtMostOne : finishParameter ≤ 1)
+    (turnNonnegative : 0 ≤ orientation a b c) :
+    orientation (interpolatePoint a b startParameter) b
+        (interpolatePoint b c finishParameter) ≤ orientation a b c := by
+  rw [orientation_interpolate_both]
+  have oneMinusStartNonnegative : 0 ≤ 1 - startParameter := sub_nonneg.mpr startAtMostOne
+  have oneMinusStartAtMostOne : 1 - startParameter ≤ 1 := by linarith
+  have coefficientAtMostFinish :
+      (1 - startParameter) * finishParameter ≤ finishParameter := by
+    exact mul_le_of_le_one_left finishNonnegative oneMinusStartAtMostOne
+  have coefficientAtMostOne : (1 - startParameter) * finishParameter ≤ 1 :=
+    coefficientAtMostFinish.trans finishAtMostOne
+  exact mul_le_of_le_one_left turnNonnegative coefficientAtMostOne
+
+theorem orientation_interpolate_third_nonneg
+    [LinearOrder R] [IsStrictOrderedRing R]
+    (a b start finish : Vec2 R) {parameter : R}
+    (parameterNonnegative : 0 ≤ parameter)
+    (parameterAtMostOne : parameter ≤ 1)
+    (startLeft : 0 ≤ orientation a b start)
+    (finishLeft : 0 ≤ orientation a b finish) :
+    0 ≤ orientation a b (interpolatePoint start finish parameter) := by
+  rw [orientation_interpolate_third]
+  exact add_nonneg
+    (mul_nonneg (sub_nonneg.mpr parameterAtMostOne) startLeft)
+    (mul_nonneg parameterNonnegative finishLeft)
+
+theorem orientation_interpolate_first_nonneg
+    [LinearOrder R] [IsStrictOrderedRing R]
+    (start finish b c : Vec2 R) {parameter : R}
+    (parameterNonnegative : 0 ≤ parameter)
+    (parameterAtMostOne : parameter ≤ 1)
+    (startLeft : 0 ≤ orientation start b c)
+    (finishLeft : 0 ≤ orientation finish b c) :
+    0 ≤ orientation (interpolatePoint start finish parameter) b c := by
+  rw [orientation_interpolate_first]
+  exact add_nonneg
+    (mul_nonneg (sub_nonneg.mpr parameterAtMostOne) startLeft)
+    (mul_nonneg parameterNonnegative finishLeft)
+
+theorem orientation_interpolate_second_nonneg
+    [LinearOrder R] [IsStrictOrderedRing R]
+    (a start finish c : Vec2 R) {parameter : R}
+    (parameterNonnegative : 0 ≤ parameter)
+    (parameterAtMostOne : parameter ≤ 1)
+    (startLeft : 0 ≤ orientation a start c)
+    (finishLeft : 0 ≤ orientation a finish c) :
+    0 ≤ orientation a (interpolatePoint start finish parameter) c := by
+  rw [orientation_interpolate_second]
+  exact add_nonneg
+    (mul_nonneg (sub_nonneg.mpr parameterAtMostOne) startLeft)
+    (mul_nonneg parameterNonnegative finishLeft)
 
 end Sprawlens.HalfPlaneIntersection

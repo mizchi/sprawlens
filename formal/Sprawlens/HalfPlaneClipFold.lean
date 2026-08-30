@@ -1,9 +1,11 @@
 import Mathlib.Data.List.Destutter
 import Sprawlens.HalfPlaneClipStep
+import Sprawlens.OrderedTriples
 
 namespace Sprawlens.HalfPlaneClipFold
 
 open HalfPlaneClipStep
+open OrderedTriples
 
 universe u
 
@@ -18,6 +20,107 @@ theorem joinDistinct_isChain {α : Type u} [DecidableEq α] (chunks : List (List
 theorem joinDistinct_sublist {α : Type u} [DecidableEq α] (chunks : List (List α)) :
     List.Sublist (joinDistinct chunks) chunks.flatten := by
   exact List.destutter_sublist (· ≠ ·) chunks.flatten
+
+theorem destutter'_starts_with
+    {α : Type u} (relation : α → α → Prop) [DecidableRel relation] (first : α) :
+    ∀ rest : List α, ∃ tail, rest.destutter' relation first = first :: tail
+  | [] => ⟨[], rfl⟩
+  | next :: rest => by
+      rw [List.destutter'_cons]
+      by_cases related : relation first next
+      · rw [if_pos related]
+        exact ⟨rest.destutter' relation next, rfl⟩
+      · rw [if_neg related]
+        exact destutter'_starts_with relation first rest
+
+theorem destutter_prefix_pair {α : Type u} [DecidableEq α]
+    (first second : α) (rest : List α) (distinct : first ≠ second) :
+    List.IsPrefix [first, second]
+      ((first :: second :: rest).destutter (· ≠ ·)) := by
+  rw [List.destutter_cons_cons, if_pos distinct]
+  rcases destutter'_starts_with (· ≠ ·) second rest with ⟨tail, startsWith⟩
+  rw [startsWith]
+  simp
+
+theorem joinDistinct_prefix_pair {α : Type u} [DecidableEq α]
+    {chunks : List (List α)} (first second : α) (rest : List α)
+    (flattened : chunks.flatten = first :: second :: rest)
+    (distinct : first ≠ second) :
+    List.IsPrefix [first, second] (joinDistinct chunks) := by
+  rw [joinDistinct, flattened]
+  exact destutter_prefix_pair first second rest distinct
+
+theorem joinDistinct_prefix_pair_of_prefix {α : Type u} [DecidableEq α]
+    {chunks : List (List α)} (first second : α)
+    (flattenedPrefix : List.IsPrefix [first, second] chunks.flatten)
+    (distinct : first ≠ second) :
+    List.IsPrefix [first, second] (joinDistinct chunks) := by
+  rw [List.prefix_iff_exists_eq_append] at flattenedPrefix
+  rcases flattenedPrefix with ⟨rest, flattened⟩
+  exact joinDistinct_prefix_pair first second rest flattened distinct
+
+theorem destutter'_suffix_pair {α : Type u} [DecidableEq α]
+    (penultimate last : α) (distinct : penultimate ≠ last) :
+    ∀ (initial : List α) (current : α),
+      List.IsSuffix [penultimate, last]
+        ((initial ++ [penultimate, last]).destutter' (· ≠ ·) current)
+  | [], current => by
+      simp only [List.nil_append, List.destutter'_cons]
+      by_cases related : current ≠ penultimate
+      · rw [if_pos related]
+        simp [distinct]
+      · rw [if_neg related]
+        have equal : current = penultimate := not_ne_iff.mp related
+        subst current
+        simp [distinct]
+  | next :: rest, current => by
+      simp only [List.cons_append, List.destutter'_cons]
+      by_cases related : current ≠ next
+      · rw [if_pos related]
+        have suffix := destutter'_suffix_pair penultimate last distinct rest next
+        rw [List.suffix_iff_exists_eq_append] at suffix ⊢
+        rcases suffix with ⟨front, equality⟩
+        exact ⟨current :: front, by simp [equality]⟩
+      · rw [if_neg related]
+        exact destutter'_suffix_pair penultimate last distinct rest current
+
+theorem destutter_suffix_pair {α : Type u} [DecidableEq α]
+    (initial : List α) (penultimate last : α) (distinct : penultimate ≠ last) :
+    List.IsSuffix [penultimate, last]
+      ((initial ++ [penultimate, last]).destutter (· ≠ ·)) := by
+  cases initial with
+  | nil => simp [distinct]
+  | cons first rest =>
+      exact destutter'_suffix_pair penultimate last distinct rest first
+
+theorem joinDistinct_suffix_pair {α : Type u} [DecidableEq α]
+    {chunks : List (List α)} (initial : List α) (penultimate last : α)
+    (flattened : chunks.flatten = initial ++ [penultimate, last])
+    (distinct : penultimate ≠ last) :
+    List.IsSuffix [penultimate, last] (joinDistinct chunks) := by
+  rw [joinDistinct, flattened]
+  exact destutter_suffix_pair initial penultimate last distinct
+
+theorem joinDistinct_suffix_pair_of_suffix {α : Type u} [DecidableEq α]
+    {chunks : List (List α)} (penultimate last : α)
+    (flattenedSuffix : List.IsSuffix [penultimate, last] chunks.flatten)
+    (distinct : penultimate ≠ last) :
+    List.IsSuffix [penultimate, last] (joinDistinct chunks) := by
+  rw [List.suffix_iff_exists_eq_append] at flattenedSuffix
+  rcases flattenedSuffix with ⟨initial, flattened⟩
+  exact joinDistinct_suffix_pair initial penultimate last flattened distinct
+
+theorem joinDistinct_allOrderedTriples {α : Type u} [DecidableEq α]
+    {relation : α → α → α → Prop} {chunks : List (List α)}
+    (ordered : AllOrderedTriples relation chunks.flatten) :
+    AllOrderedTriples relation (joinDistinct chunks) := by
+  exact allOrderedTriples_sublist (joinDistinct_sublist chunks) ordered
+
+theorem joinDistinct_allOrderedCCW {R : Type u} [Field R] [LinearOrder R] [DecidableEq R]
+    {chunks : List (List (ExactGeometry.Vec2 R))}
+    (ordered : AllOrderedCCW chunks.flatten) :
+    AllOrderedCCW (joinDistinct chunks) := by
+  exact AllOrderedCCW.sublist (joinDistinct_sublist chunks) ordered
 
 theorem mem_flatten_of_mem_joinDistinct {α : Type u} [DecidableEq α]
     {chunks : List (List α)} {value : α} (member : value ∈ joinDistinct chunks) :

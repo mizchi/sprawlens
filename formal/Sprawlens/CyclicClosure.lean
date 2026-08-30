@@ -1,10 +1,12 @@
 import Mathlib.Data.List.Basic
 import Mathlib.Data.List.Infix
 import Sprawlens.HalfPlaneClipFold
+import Sprawlens.OrderedTriples
 
 namespace Sprawlens.CyclicClosure
 
 open HalfPlaneClipFold
+open OrderedTriples
 
 universe u
 
@@ -73,12 +75,102 @@ theorem normalizeClosure_length_le
           · simp
           · simp
 
+theorem normalizeClosure_sublist
+    {α : Type u} [DecidableEq α] (output : List α) :
+    List.Sublist (normalizeClosure output) output := by
+  cases output with
+  | nil => exact .slnil
+  | cons first rest =>
+      cases rest with
+      | nil => exact .refl _
+      | cons second tail =>
+          by_cases closing : (first :: second :: tail).getLast? = some first
+          · rw [normalizeClosure_eq_dropLast_of_closing first second tail closing]
+            exact List.dropLast_sublist _
+          · rw [normalizeClosure_eq_self_of_open first second tail closing]
+
+theorem normalizeClosure_prefix_pair
+    {α : Type u} [DecidableEq α] {output : List α} {first second : α}
+    (prefixProof : List.IsPrefix [first, second] output)
+    (distinct : first ≠ second) :
+    List.IsPrefix [first, second] (normalizeClosure output) := by
+  rw [List.prefix_iff_exists_eq_append] at prefixProof
+  rcases prefixProof with ⟨tail, rfl⟩
+  simp only [List.cons_append, List.nil_append]
+  cases tail with
+  | nil =>
+      have openOutput : ([first, second] : List α).getLast? ≠ some first := by
+        simp
+        exact fun equal => distinct equal.symm
+      rw [normalizeClosure_eq_self_of_open first second [] openOutput]
+  | cons third rest =>
+      by_cases closing : (first :: second :: third :: rest).getLast? = some first
+      · rw [normalizeClosure_eq_dropLast_of_closing first second (third :: rest) closing]
+        rw [List.prefix_iff_eq_take]
+        simp
+      · rw [normalizeClosure_eq_self_of_open first second (third :: rest) closing]
+        simp
+
+theorem normalizeClosure_boundary_pairs
+    {α : Type u} [DecidableEq α] {output : List α}
+    (first second penultimate last : α)
+    (prefixProof : List.IsPrefix [first, second] output)
+    (suffixProof : List.IsSuffix [penultimate, last] output)
+    (endpointsDistinct : first ≠ last) :
+    List.IsPrefix [first, second] (normalizeClosure output) ∧
+      List.IsSuffix [penultimate, last] (normalizeClosure output) := by
+  rw [List.prefix_iff_exists_eq_append] at prefixProof
+  rcases prefixProof with ⟨tail, rfl⟩
+  simp only [List.cons_append, List.nil_append] at suffixProof ⊢
+  have outputLast : (first :: second :: tail).getLast? = some last := by
+    have suffixWitness := suffixProof
+    rw [List.suffix_iff_exists_eq_append] at suffixWitness
+    rcases suffixWitness with ⟨front, equality⟩
+    calc
+      (first :: second :: tail).getLast? =
+          (front ++ [penultimate, last]).getLast? :=
+        congrArg List.getLast? equality
+      _ = some last := by simp
+  have openOutput : (first :: second :: tail).getLast? ≠ some first := by
+    intro closing
+    rw [outputLast] at closing
+    exact endpointsDistinct (Option.some_injective _ closing).symm
+  rw [normalizeClosure_eq_self_of_open first second tail openOutput]
+  exact ⟨by simp, suffixProof⟩
+
+theorem normalizeClosure_allOrderedTriples
+    {α : Type u} [DecidableEq α] {relation : α → α → α → Prop} {output : List α}
+    (ordered : AllOrderedTriples relation output) :
+    AllOrderedTriples relation (normalizeClosure output) := by
+  exact allOrderedTriples_sublist (normalizeClosure_sublist output) ordered
+
+theorem normalizeClosure_allOrderedCCW
+    {R : Type u} [Field R] [LinearOrder R] [DecidableEq R]
+    {output : List (ExactGeometry.Vec2 R)} (ordered : AllOrderedCCW output) :
+    AllOrderedCCW (normalizeClosure output) := by
+  exact AllOrderedCCW.sublist (normalizeClosure_sublist output) ordered
+
 theorem normalizeClosure_preserves
     {α : Type u} [DecidableEq α] {predicate : α → Prop} {output : List α}
     (holds : ∀ value ∈ output, predicate value) :
     ∀ value ∈ normalizeClosure output, predicate value := by
   intro value member
   exact holds value (mem_original_of_mem_normalizeClosure member)
+
+theorem normalizeClosure_isChain
+    {α : Type u} [DecidableEq α] {relation : α → α → Prop} {output : List α}
+    (chain : output.IsChain relation) : (normalizeClosure output).IsChain relation := by
+  cases output with
+  | nil => simp
+  | cons first rest =>
+      cases rest with
+      | nil => simp
+      | cons second tail =>
+          by_cases closing : (first :: second :: tail).getLast? = some first
+          · rw [normalizeClosure_eq_dropLast_of_closing first second tail closing]
+            exact chain.dropLast
+          · rw [normalizeClosure_eq_self_of_open first second tail closing]
+            exact chain
 
 theorem normalizeClosure_closureNormalized_of_isChain
     {α : Type u} [DecidableEq α] (output : List α)
