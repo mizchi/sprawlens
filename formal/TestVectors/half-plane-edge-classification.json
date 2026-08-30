@@ -1,0 +1,13 @@
+{
+  "schemaVersion": 1,
+  "cases": [
+    { "name": "strictly-inside", "currentDistance": -2, "nextDistance": -1, "expectedClass": "inside", "expectedOutputDistances": [-2] },
+    { "name": "leaving", "currentDistance": -2, "nextDistance": 3, "expectedClass": "leaving", "expectedOutputDistances": [-2, 0] },
+    { "name": "entering", "currentDistance": 3, "nextDistance": -2, "expectedClass": "entering", "expectedOutputDistances": [0] },
+    { "name": "strictly-outside", "currentDistance": 3, "nextDistance": 2, "expectedClass": "outside", "expectedOutputDistances": [] },
+    { "name": "boundary-edge", "currentDistance": 0, "nextDistance": 0, "expectedClass": "inside", "expectedOutputDistances": [0] },
+    { "name": "boundary-leaving", "currentDistance": 0, "nextDistance": 3, "expectedClass": "leaving", "expectedOutputDistances": [0] },
+    { "name": "boundary-entering", "currentDistance": 3, "nextDistance": 0, "expectedClass": "entering", "expectedOutputDistances": [0] },
+    { "name": "inside-to-boundary", "currentDistance": -2, "nextDistance": 0, "expectedClass": "inside", "expectedOutputDistances": [-2] }
+  ]
+}

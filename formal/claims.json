@@ -310,6 +310,33 @@
       ],
       "status": "proved-local-half-plane-intersection-contract-standard-mathematics-not-novelty",
       "implementationCorrespondence": "shared-exact-rational-fixture-conformance-6-cases-and-live-clipHalfPlane-call-site-not-a-proof-of-cyclic-output-or-area-monotonicity"
+    },
+    {
+      "id": "infrastructure.exact-geometry.half-plane-edge-classification",
+      "paper": null,
+      "protocol": "research/lean-formalization-plan.md#L3",
+      "typescript": [
+        "packages/layout/src/halfPlaneClipStep.ts",
+        "packages/layout/src/halfPlaneClipStep.test.ts",
+        "packages/layout/src/halfPlaneClipStepConformance.test.ts",
+        "packages/layout/src/polygon.ts",
+        "packages/layout/src/polygon.test.ts"
+      ],
+      "fixtures": ["formal/TestVectors/half-plane-edge-classification.json"],
+      "leanModule": "Sprawlens.HalfPlaneClipStep",
+      "theorems": [
+        "classify_inside_iff",
+        "classify_leaving_iff",
+        "classify_entering_iff",
+        "classify_outside_iff",
+        "leaving_parameter_mem_Icc",
+        "entering_parameter_mem_Icc",
+        "outputDistances_length_le_two",
+        "outputDistances_nodup",
+        "outputDistances_nonpos"
+      ],
+      "status": "proved-local-edge-classification-contract-standard-mathematics-not-novelty",
+      "implementationCorrespondence": "shared-exact-integer-classification-and-output-fixture-conformance-8-cases-plus-boundary-duplicate-regressions-not-a-proof-of-multi-edge-cyclic-output-or-area-monotonicity"
     }
   ]
 }

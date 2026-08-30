@@ -82,6 +82,18 @@ describe("clipHalfPlane", () => {
     const out = clipHalfPlane(unitSquare, 1, 1, 1.2);
     expect(signedArea(out)).toBeGreaterThan(0);
   });
+
+  it("emits a boundary vertex only once", () => {
+    expect(clipHalfPlane(unitSquare, 1, 1, 1)).toEqual([
+      { x: 0, y: 0 },
+      { x: 1, y: 0 },
+      { x: 0, y: 1 },
+    ]);
+  });
+
+  it("returns empty when the intersection collapses to a boundary edge", () => {
+    expect(clipHalfPlane(unitSquare, 1, 0, 0)).toEqual([]);
+  });
 });
 
 describe("circleToPolygon", () => {

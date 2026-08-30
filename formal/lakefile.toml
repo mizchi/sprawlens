@@ -49,3 +49,7 @@ root = "Sprawlens.CheckPolygonAreaFixtures"
 [[lean_exe]]
 name = "check-half-plane-intersection-fixtures"
 root = "Sprawlens.CheckHalfPlaneIntersectionFixtures"
+
+[[lean_exe]]
+name = "check-half-plane-clip-step-fixtures"
+root = "Sprawlens.CheckHalfPlaneClipStepFixtures"

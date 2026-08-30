@@ -27,6 +27,7 @@ export * from "./feasibleEnvelope.ts";
 export * from "./forceLayout.ts";
 export * from "./geojson.ts";
 export * from "./halfPlaneIntersection.ts";
+export * from "./halfPlaneClipStep.ts";
 export * from "./hierarchyColor.ts";
 export * from "./index.ts";
 export * from "./layoutComparison.ts";

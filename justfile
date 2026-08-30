@@ -30,6 +30,8 @@ lean-conformance: lean-check
     pnpm vitest run packages/layout/src/polygonAreaConformance.test.ts
     cd formal && lake exe check-half-plane-intersection-fixtures TestVectors/half-plane-boundary-parameter.json
     pnpm vitest run packages/layout/src/halfPlaneIntersectionConformance.test.ts
+    cd formal && lake exe check-half-plane-clip-step-fixtures TestVectors/half-plane-edge-classification.json
+    pnpm vitest run packages/layout/src/halfPlaneClipStepConformance.test.ts
 
 build:
     pnpm build
