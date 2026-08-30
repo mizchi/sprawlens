@@ -17,7 +17,7 @@ just lean-conformance
 ```
 
 `lean-check`は定理をmachine-checkする。`lean-conformance`はそれに加えて、
-`TestVectors/feasible-envelope.json`、`TestVectors/external-sequence-gate.json`、`TestVectors/temporal-barycenter.json`、`TestVectors/orientation.json`、`TestVectors/proper-segment-intersection.json`、`TestVectors/point-in-open-segment.json`、`TestVectors/collinear-open-overlap.json`、`TestVectors/simple-open-ring.json`、`TestVectors/polygon-signed-area.json`、`TestVectors/half-plane-boundary-parameter.json`、`TestVectors/half-plane-edge-classification.json`をLean executableとTypeScriptの純粋関数の双方で実行する。
+`TestVectors/feasible-envelope.json`、`TestVectors/external-sequence-gate.json`、`TestVectors/temporal-barycenter.json`、`TestVectors/orientation.json`、`TestVectors/proper-segment-intersection.json`、`TestVectors/point-in-open-segment.json`、`TestVectors/collinear-open-overlap.json`、`TestVectors/simple-open-ring.json`、`TestVectors/polygon-signed-area.json`、`TestVectors/half-plane-boundary-parameter.json`、`TestVectors/half-plane-edge-classification.json`、`TestVectors/half-plane-clip-fold.json`、`TestVectors/segment-interpolation-orientation.json`をLean executableとTypeScriptの純粋関数の双方で実行する。
 
 ## Current model
 
@@ -52,9 +52,13 @@ eligible集合が空の場合はbaselineへfallbackする。baseline自身がinv
 
 `Sprawlens.PolygonArea`は有限index集合とcyclic successor permutation上のshoelace sumをsigned twice-areaとして定義する。translation invariance、uniform scaleに対する二乗則、successor反転による符号反転、三角形ではorientation determinantと一致することを証明した。TypeScriptでは既存`signedArea`を`signedTwiceArea / 2`として再構成し、符号、translation、scale、退化列を含む9ケースを共有する。clipping algorithmの面積単調性を証明したことは意味しない。
 
-`Sprawlens.HalfPlaneIntersection`は、二点の符号付き距離をaffine補間して半平面境界と交わるparameterを定義する。内側から外側、外側から内側の双方について分母の非零性とparameterが`[0, 1]`に入ること、得られる補間距離がexactに0になることを証明した。TypeScriptではこの関数を`clipHalfPlane`の交点生成に組み込み、端点を含む6ケースの有理数fixtureを共有する。多角形の出力列、orientation保存、clipping後の面積境界は後続のcontractで扱う。
+`Sprawlens.HalfPlaneIntersection`は、二点の符号付き距離をaffine補間して半平面境界と交わるparameterを定義する。内側から外側、外側から内側の双方について分母の非零性とparameterが`[0, 1]`に入ること、得られる補間距離がexactに0になることを証明した。座標補間も共通primitiveとし、補間点を三角形の始点・中間点・終点へ入れたorientationが元determinantの`1-t`または`t`倍になること、係数が非負ならturnの非負性を維持することを証明した。TypeScriptでは実際の交点生成がこのprimitiveを使用し、境界parameter 6ケースとorientation 5ケースを共有する。ring全体のorientation保存とclipping後の面積境界は後続contractで扱う。
 
 `Sprawlens.HalfPlaneClipStep`は、oriented edgeをclosed half-planeに対してinside / leaving / entering / outsideへ全分類する。各classと二点の符号条件の同値性を証明し、leaving / enteringからboundary parameterの`[0, 1]`包含を導いた。さらに一辺が出力する符号付き距離列を最小modelとし、長さが最大2、重複なし、全要素が半平面内であることを証明した。TypeScriptの`clipHalfPlane`も同じ分類・step emitterを使用し、境界端点と期待出力を含む8ケースを共有する。この分離で発見した境界頂点の二重出力は、step内とcyclic closureの重複排除、および退化ringの回帰testで修正した。複数edgeを連結した出力列全体の一般証明は次段階である。
+
+`Sprawlens.HalfPlaneClipFold`は複数edgeのstep出力をflattenし、隣接重複を除いて連結する。正規化結果が元のflatten列のsublistであること、隣接要素が相異なること、全出力距離が半平面内に残ることを証明した。TypeScriptでは`cyclicRingOutput.ts`へ同じ責務を切り出し、step境界をまたぐ重複と非隣接の再出現を含む6ケースを共有する。
+
+`Sprawlens.CyclicClosure`は、open ring表現で末尾が先頭を明示的に繰り返す場合だけ末尾を一つ除く。空列・singleton・open列の保存、closing branchでの`dropLast`選択、長さと要素predicateの保存を証明した。入力が隣接非重複なら、正規化後は明示的なclosing duplicateを持たず、half-plane foldの全出力が内側という性質も維持される。共有fold fixtureはclosure前後の期待列を双方で検査する。orientationと面積境界は後続contractで扱う。
 
 ## 証拠の境界
 

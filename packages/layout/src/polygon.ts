@@ -1,23 +1,12 @@
 import type { Vec2 } from "./vec.ts";
 import { orientationDeterminant } from "./orientation.ts";
 import { emitHalfPlaneClipStep } from "./halfPlaneClipStep.ts";
+import { appendDistinctPoints, removeCyclicDuplicate } from "./cyclicRingOutput.ts";
 
 /** Open ring (last vertex implicitly connects to the first), CCW for positive area. */
 export type Ring = Vec2[];
 
 export type Circle = { cx: number; cy: number; r: number };
-
-const samePoint = (left: Vec2, right: Vec2): boolean =>
-  left.x === right.x && left.y === right.y;
-
-const appendDistinctPoint = (ring: Ring, point: Vec2): void => {
-  const previous = ring[ring.length - 1];
-  if (previous === undefined || !samePoint(previous, point)) ring.push(point);
-};
-
-const removeCyclicDuplicate = (ring: Ring): void => {
-  if (ring.length > 1 && samePoint(ring[0]!, ring[ring.length - 1]!)) ring.pop();
-};
 
 export function signedTwiceArea(ring: readonly Vec2[]): number {
   if (ring.length < 3) return 0;
@@ -70,8 +59,7 @@ export function clipHalfPlane(ring: Ring, nx: number, ny: number, c: number): Ri
     const next = ring[(i + 1) % ring.length]!;
     const curDist = nx * cur.x + ny * cur.y - c;
     const nextDist = nx * next.x + ny * next.y - c;
-    for (const point of emitHalfPlaneClipStep(cur, next, curDist, nextDist))
-      appendDistinctPoint(out, point);
+    appendDistinctPoints(out, emitHalfPlaneClipStep(cur, next, curDist, nextDist));
   }
   removeCyclicDuplicate(out);
   return out.length < 3 ? [] : out;

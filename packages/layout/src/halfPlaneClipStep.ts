@@ -1,5 +1,5 @@
 import type { Vec2 } from "./vec.ts";
-import { halfPlaneBoundaryParameter } from "./halfPlaneIntersection.ts";
+import { halfPlaneBoundaryParameter, interpolatePoint } from "./halfPlaneIntersection.ts";
 
 export type HalfPlaneEdgeClass = "inside" | "leaving" | "entering" | "outside";
 
@@ -21,10 +21,7 @@ const boundaryPoint = (
   nextDistance: number,
 ): Vec2 => {
   const parameter = halfPlaneBoundaryParameter(currentDistance, nextDistance);
-  return {
-    x: current.x + (next.x - current.x) * parameter,
-    y: current.y + (next.y - current.y) * parameter,
-  };
+  return interpolatePoint(current, next, parameter);
 };
 
 /**

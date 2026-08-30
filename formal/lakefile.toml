@@ -53,3 +53,11 @@ root = "Sprawlens.CheckHalfPlaneIntersectionFixtures"
 [[lean_exe]]
 name = "check-half-plane-clip-step-fixtures"
 root = "Sprawlens.CheckHalfPlaneClipStepFixtures"
+
+[[lean_exe]]
+name = "check-half-plane-clip-fold-fixtures"
+root = "Sprawlens.CheckHalfPlaneClipFoldFixtures"
+
+[[lean_exe]]
+name = "check-interpolation-orientation-fixtures"
+root = "Sprawlens.CheckInterpolationOrientationFixtures"

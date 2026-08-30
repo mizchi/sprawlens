@@ -10,3 +10,5 @@ import Sprawlens.SimpleRing
 import Sprawlens.PolygonArea
 import Sprawlens.HalfPlaneIntersection
 import Sprawlens.HalfPlaneClipStep
+import Sprawlens.HalfPlaneClipFold
+import Sprawlens.CyclicClosure

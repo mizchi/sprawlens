@@ -32,6 +32,10 @@ lean-conformance: lean-check
     pnpm vitest run packages/layout/src/halfPlaneIntersectionConformance.test.ts
     cd formal && lake exe check-half-plane-clip-step-fixtures TestVectors/half-plane-edge-classification.json
     pnpm vitest run packages/layout/src/halfPlaneClipStepConformance.test.ts
+    cd formal && lake exe check-half-plane-clip-fold-fixtures TestVectors/half-plane-clip-fold.json
+    pnpm vitest run packages/layout/src/cyclicRingOutputConformance.test.ts
+    cd formal && lake exe check-interpolation-orientation-fixtures TestVectors/segment-interpolation-orientation.json
+    pnpm vitest run packages/layout/src/interpolationOrientationConformance.test.ts
 
 build:
     pnpm build

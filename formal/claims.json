@@ -337,6 +337,80 @@
       ],
       "status": "proved-local-edge-classification-contract-standard-mathematics-not-novelty",
       "implementationCorrespondence": "shared-exact-integer-classification-and-output-fixture-conformance-8-cases-plus-boundary-duplicate-regressions-not-a-proof-of-multi-edge-cyclic-output-or-area-monotonicity"
+    },
+    {
+      "id": "infrastructure.exact-geometry.half-plane-clip-fold",
+      "paper": null,
+      "protocol": "research/lean-formalization-plan.md#L3",
+      "typescript": [
+        "packages/layout/src/cyclicRingOutput.ts",
+        "packages/layout/src/cyclicRingOutput.test.ts",
+        "packages/layout/src/cyclicRingOutputConformance.test.ts",
+        "packages/layout/src/polygon.ts"
+      ],
+      "fixtures": ["formal/TestVectors/half-plane-clip-fold.json"],
+      "leanModule": "Sprawlens.HalfPlaneClipFold",
+      "theorems": [
+        "joinDistinct_isChain",
+        "joinDistinct_sublist",
+        "mem_flatten_of_mem_joinDistinct",
+        "clipOutputDistances_isChain",
+        "clipOutputDistances_nonpos"
+      ],
+      "status": "proved-multi-step-output-fold-standard-mathematics-not-novelty",
+      "implementationCorrespondence": "shared-exact-integer-fold-fixture-conformance-6-cases-not-a-proof-of-point-coordinate-fold-or-area-monotonicity"
+    },
+    {
+      "id": "infrastructure.exact-geometry.cyclic-closure",
+      "paper": null,
+      "protocol": "research/lean-formalization-plan.md#L3",
+      "typescript": [
+        "packages/layout/src/cyclicRingOutput.ts",
+        "packages/layout/src/cyclicRingOutput.test.ts",
+        "packages/layout/src/cyclicRingOutputConformance.test.ts",
+        "packages/layout/src/polygon.ts"
+      ],
+      "fixtures": ["formal/TestVectors/half-plane-clip-fold.json"],
+      "leanModule": "Sprawlens.CyclicClosure",
+      "theorems": [
+        "normalizeClosure_nil",
+        "normalizeClosure_singleton",
+        "normalizeClosure_eq_dropLast_of_closing",
+        "normalizeClosure_eq_self_of_open",
+        "mem_original_of_mem_normalizeClosure",
+        "normalizeClosure_length_le",
+        "normalizeClosure_preserves",
+        "normalizeClosure_closureNormalized_of_isChain",
+        "closedClipOutputDistances_closureNormalized",
+        "closedClipOutputDistances_nonpos"
+      ],
+      "status": "proved-cyclic-closure-normalization-standard-mathematics-not-novelty",
+      "implementationCorrespondence": "shared-exact-integer-fold-and-closure-fixture-conformance-6-cases-not-a-proof-of-floating-point-point-equality-or-clipping-orientation"
+    },
+    {
+      "id": "infrastructure.exact-geometry.segment-interpolation-orientation",
+      "paper": null,
+      "protocol": "research/lean-formalization-plan.md#L3",
+      "typescript": [
+        "packages/layout/src/halfPlaneIntersection.ts",
+        "packages/layout/src/halfPlaneIntersection.test.ts",
+        "packages/layout/src/halfPlaneClipStep.ts",
+        "packages/layout/src/interpolationOrientationConformance.test.ts"
+      ],
+      "fixtures": ["formal/TestVectors/segment-interpolation-orientation.json"],
+      "leanModule": "Sprawlens.HalfPlaneIntersection",
+      "theorems": [
+        "interpolatePoint_zero",
+        "interpolatePoint_one",
+        "orientation_interpolate_finish",
+        "orientation_interpolate_start",
+        "orientation_interpolate_middle",
+        "orientation_interpolate_finish_nonneg",
+        "orientation_interpolate_start_nonneg",
+        "orientation_interpolate_middle_nonneg"
+      ],
+      "status": "proved-local-interpolation-orientation-laws-standard-mathematics-not-novelty",
+      "implementationCorrespondence": "shared-exact-rational-orientation-fixture-conformance-5-cases-and-live-boundary-point-call-site-not-a-proof-of-whole-ring-orientation-preservation"
     }
   ]
 }
