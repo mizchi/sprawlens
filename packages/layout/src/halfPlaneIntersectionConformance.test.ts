@@ -23,16 +23,12 @@ describe("Lean/TypeScript half-plane boundary-parameter conformance", () => {
   it("uses the pinned schema", () => expect(fixture.schemaVersion).toBe(1));
 
   it.each(fixture.cases)("boundary parameter: $name", (testCase) => {
-    const parameter = halfPlaneBoundaryParameter(
-      testCase.currentDistance,
-      testCase.nextDistance,
-    );
+    const parameter = halfPlaneBoundaryParameter(testCase.currentDistance, testCase.nextDistance);
     expect(parameter).toBeCloseTo(testCase.expectedNumerator / testCase.expectedDenominator);
     expect(parameter).toBeGreaterThanOrEqual(0);
     expect(parameter).toBeLessThanOrEqual(1);
     expect(
-      testCase.currentDistance +
-        (testCase.nextDistance - testCase.currentDistance) * parameter,
+      testCase.currentDistance + (testCase.nextDistance - testCase.currentDistance) * parameter,
     ).toBeCloseTo(0);
   });
 });

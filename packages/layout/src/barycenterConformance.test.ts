@@ -27,7 +27,10 @@ type Fixture = {
 };
 
 const fixture = JSON.parse(
-  readFileSync(new URL("../../../formal/TestVectors/temporal-barycenter.json", import.meta.url), "utf8"),
+  readFileSync(
+    new URL("../../../formal/TestVectors/temporal-barycenter.json", import.meta.url),
+    "utf8",
+  ),
 ) as Fixture;
 
 const expectedPoint = (point: RationalPoint) => ({
@@ -39,7 +42,9 @@ describe("Lean/TypeScript temporal barycenter conformance", () => {
   it("uses the pinned schema", () => expect(fixture.schemaVersion).toBe(1));
 
   it.each(fixture.weightedCases)("weighted: $name", ({ samples, expected }) => {
-    const actual = weightedBarycenter(samples.map(({ x, y, weight }) => ({ point: { x, y }, weight })));
+    const actual = weightedBarycenter(
+      samples.map(({ x, y, weight }) => ({ point: { x, y }, weight })),
+    );
     if (expected === null) expect(actual).toBeUndefined();
     else expect(actual).toEqual(expectedPoint(expected));
   });

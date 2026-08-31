@@ -9,7 +9,10 @@ typecheck:
 lean-check:
     cd formal && lake build
 
-lean-conformance: lean-check
+lean-claims:
+    node tools/check-formal-claims.mjs
+
+lean-conformance: lean-check lean-claims
     cd formal && lake exe check-fixtures TestVectors/feasible-envelope.json
     pnpm vitest run packages/layout/src/feasibleEnvelopeConformance.test.ts
     cd formal && lake exe check-external-support-fixtures TestVectors/external-sequence-gate.json

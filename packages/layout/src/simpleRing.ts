@@ -70,10 +70,7 @@ export function assessSimpleRingTopology(
 
 /** Topological simplicity only; convexity and winding direction are separate contracts. */
 export function isSimpleOpenRing(ring: readonly Vec2[]): boolean {
-  if (
-    ring.length < 3 ||
-    !ring.every(({ x, y }) => Number.isFinite(x) && Number.isFinite(y))
-  ) {
+  if (ring.length < 3 || !ring.every(({ x, y }) => Number.isFinite(x) && Number.isFinite(y))) {
     return false;
   }
   const topology = assessSimpleRingTopology(ring);

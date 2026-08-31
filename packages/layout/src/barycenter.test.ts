@@ -39,12 +39,12 @@ describe("weightedBarycenter", () => {
 
   it("returns undefined for zero total weight and rejects invalid inputs", () => {
     expect(weightedBarycenter([{ point: { x: 1, y: 2 }, weight: 0 }])).toBeUndefined();
-    expect(() =>
-      weightedBarycenter([{ point: { x: 1, y: 2 }, weight: -1 }]),
-    ).toThrow(/non-negative/);
-    expect(() =>
-      weightedBarycenter([{ point: { x: Number.NaN, y: 2 }, weight: 1 }]),
-    ).toThrow(/finite/);
+    expect(() => weightedBarycenter([{ point: { x: 1, y: 2 }, weight: -1 }])).toThrow(
+      /non-negative/,
+    );
+    expect(() => weightedBarycenter([{ point: { x: Number.NaN, y: 2 }, weight: 1 }])).toThrow(
+      /finite/,
+    );
   });
 });
 

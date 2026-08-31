@@ -27,12 +27,7 @@ describe("emitHalfPlaneClipStep", () => {
     [3, 0, [0]],
     [-2, 0, [-2]],
   ] as const)("emits normalized points for (%s, %s)", (current, next, expectedX) => {
-    const output = emitHalfPlaneClipStep(
-      { x: current, y: 1 },
-      { x: next, y: 1 },
-      current,
-      next,
-    );
+    const output = emitHalfPlaneClipStep({ x: current, y: 1 }, { x: next, y: 1 }, current, next);
     expect(output.map((point) => point.x)).toEqual(expectedX);
     expect(output.every((point) => point.x <= 0)).toBe(true);
     expect(output.length).toBeLessThanOrEqual(2);

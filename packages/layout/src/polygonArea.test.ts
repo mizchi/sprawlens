@@ -32,6 +32,11 @@ describe("signedTwiceArea", () => {
   it("returns zero below three vertices", () => {
     expect(signedTwiceArea([])).toBe(0);
     expect(signedTwiceArea([{ x: 1, y: 1 }])).toBe(0);
-    expect(signedTwiceArea([{ x: 0, y: 0 }, { x: 1, y: 1 }])).toBe(0);
+    expect(
+      signedTwiceArea([
+        { x: 0, y: 0 },
+        { x: 1, y: 1 },
+      ]),
+    ).toBe(0);
   });
 });

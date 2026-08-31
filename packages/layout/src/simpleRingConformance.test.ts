@@ -10,7 +10,10 @@ type Fixture = {
 };
 
 const fixture = JSON.parse(
-  readFileSync(new URL("../../../formal/TestVectors/simple-open-ring.json", import.meta.url), "utf8"),
+  readFileSync(
+    new URL("../../../formal/TestVectors/simple-open-ring.json", import.meta.url),
+    "utf8",
+  ),
 ) as Fixture;
 
 describe("Lean/TypeScript simple-open-ring conformance", () => {

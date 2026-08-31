@@ -2,8 +2,7 @@ import type { Vec2 } from "./vec.ts";
 import { orientationDeterminant } from "./orientation.ts";
 
 const strictlyOpposite = (left: number, right: number, tolerance: number) =>
-  (left > tolerance && right < -tolerance) ||
-  (left < -tolerance && right > tolerance);
+  (left > tolerance && right < -tolerance) || (left < -tolerance && right > tolerance);
 
 /**
  * True only when both open segment interiors cross.
@@ -20,15 +19,7 @@ export function properSegmentsIntersect(
     throw new Error("proper segment intersection tolerance must be finite and non-negative");
   }
   return (
-    strictlyOpposite(
-      orientationDeterminant(a, b, c),
-      orientationDeterminant(a, b, d),
-      tolerance,
-    ) &&
-    strictlyOpposite(
-      orientationDeterminant(c, d, a),
-      orientationDeterminant(c, d, b),
-      tolerance,
-    )
+    strictlyOpposite(orientationDeterminant(a, b, c), orientationDeterminant(a, b, d), tolerance) &&
+    strictlyOpposite(orientationDeterminant(c, d, a), orientationDeterminant(c, d, b), tolerance)
   );
 }

@@ -20,46 +20,22 @@ describe("pointInOpenSegment", () => {
     const b = { x: 4, y: 4 };
     const point = { x: 1, y: 1 };
     expect(pointInOpenSegment(b, a, point)).toBe(true);
-    expect(
-      pointInOpenSegment(
-        { x: 10, y: -3 },
-        { x: 14, y: 1 },
-        { x: 11, y: -2 },
-      ),
-    ).toBe(true);
-    expect(
-      pointInOpenSegment(
-        { x: 0, y: 0 },
-        { x: -8, y: -8 },
-        { x: -2, y: -2 },
-      ),
-    ).toBe(true);
+    expect(pointInOpenSegment({ x: 10, y: -3 }, { x: 14, y: 1 }, { x: 11, y: -2 })).toBe(true);
+    expect(pointInOpenSegment({ x: 0, y: 0 }, { x: -8, y: -8 }, { x: -2, y: -2 })).toBe(true);
   });
 
   it("keeps area and length tolerances separate", () => {
     expect(
-      pointInOpenSegment(
-        { x: 0, y: 0 },
-        { x: 10, y: 0 },
-        { x: 5, y: 1e-8 },
-        1e-6,
-        1e-12,
-      ),
+      pointInOpenSegment({ x: 0, y: 0 }, { x: 10, y: 0 }, { x: 5, y: 1e-8 }, 1e-6, 1e-12),
     ).toBe(true);
     expect(
-      pointInOpenSegment(
-        { x: 0, y: 0 },
-        { x: 10, y: 0 },
-        { x: 5, y: 1e-8 },
-        1e-10,
-        1e-12,
-      ),
+      pointInOpenSegment({ x: 0, y: 0 }, { x: 10, y: 0 }, { x: 5, y: 1e-8 }, 1e-10, 1e-12),
     ).toBe(false);
   });
 
   it("rejects invalid tolerances", () => {
-    expect(() =>
-      pointInOpenSegment({ x: 0, y: 0 }, { x: 1, y: 0 }, { x: 0.5, y: 0 }, -1),
-    ).toThrow(/tolerance/);
+    expect(() => pointInOpenSegment({ x: 0, y: 0 }, { x: 1, y: 0 }, { x: 0.5, y: 0 }, -1)).toThrow(
+      /tolerance/,
+    );
   });
 });

@@ -2,10 +2,39 @@
   "schemaVersion": 1,
   "cases": [
     { "name": "empty", "chunks": [], "expectedOutput": [], "expectedClosedOutput": [] },
-    { "name": "empty-chunks", "chunks": [[], []], "expectedOutput": [], "expectedClosedOutput": [] },
-    { "name": "cross-chunk-boundary-duplicate", "chunks": [[-2, 0], [0], [-1]], "expectedOutput": [-2, 0, -1], "expectedClosedOutput": [-2, 0, -1] },
-    { "name": "within-and-cross-chunk-duplicates", "chunks": [[-3, -3], [-3, 0, 0], [0, -2]], "expectedOutput": [-3, 0, -2], "expectedClosedOutput": [-3, 0, -2] },
-    { "name": "cyclic-closing-repeat-removed", "chunks": [[-2, 0], [-2]], "expectedOutput": [-2, 0, -2], "expectedClosedOutput": [-2, 0] },
-    { "name": "single-boundary", "chunks": [[], [0], [0]], "expectedOutput": [0], "expectedClosedOutput": [0] }
+    {
+      "name": "empty-chunks",
+      "chunks": [[], []],
+      "expectedOutput": [],
+      "expectedClosedOutput": []
+    },
+    {
+      "name": "cross-chunk-boundary-duplicate",
+      "chunks": [[-2, 0], [0], [-1]],
+      "expectedOutput": [-2, 0, -1],
+      "expectedClosedOutput": [-2, 0, -1]
+    },
+    {
+      "name": "within-and-cross-chunk-duplicates",
+      "chunks": [
+        [-3, -3],
+        [-3, 0, 0],
+        [0, -2]
+      ],
+      "expectedOutput": [-3, 0, -2],
+      "expectedClosedOutput": [-3, 0, -2]
+    },
+    {
+      "name": "cyclic-closing-repeat-removed",
+      "chunks": [[-2, 0], [-2]],
+      "expectedOutput": [-2, 0, -2],
+      "expectedClosedOutput": [-2, 0]
+    },
+    {
+      "name": "single-boundary",
+      "chunks": [[], [0], [0]],
+      "expectedOutput": [0],
+      "expectedClosedOutput": [0]
+    }
   ]
 }

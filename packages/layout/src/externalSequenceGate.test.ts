@@ -31,9 +31,9 @@ describe("external sequence evidence gate", () => {
     expect(canProduceExternalSequenceEffect([eligible, eligible])).toBe(true);
 
     for (const gate of Object.keys(eligible) as Array<keyof typeof eligible>) {
-      expect(
-        canProduceExternalSequenceEffect([eligible, { ...eligible, [gate]: false }]),
-      ).toBe(false);
+      expect(canProduceExternalSequenceEffect([eligible, { ...eligible, [gate]: false }])).toBe(
+        false,
+      );
     }
   });
 });

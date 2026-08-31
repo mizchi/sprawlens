@@ -35,7 +35,10 @@ type Fixture = {
 };
 
 const fixture = JSON.parse(
-  readFileSync(new URL("../../../formal/TestVectors/external-sequence-gate.json", import.meta.url), "utf8"),
+  readFileSync(
+    new URL("../../../formal/TestVectors/external-sequence-gate.json", import.meta.url),
+    "utf8",
+  ),
 ) as Fixture;
 
 const expectedSupported = (facts: Fixture["supportCases"][number]["facts"]) =>

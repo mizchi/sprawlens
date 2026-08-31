@@ -366,10 +366,7 @@
       "id": "infrastructure.exact-geometry.polygon-area-rewrite",
       "paper": null,
       "protocol": "research/lean-formalization-plan.md#L3",
-      "typescript": [
-        "packages/layout/src/polygon.ts",
-        "packages/layout/src/polygonArea.test.ts"
-      ],
+      "typescript": ["packages/layout/src/polygon.ts", "packages/layout/src/polygonArea.test.ts"],
       "leanModule": "Sprawlens.PolygonAreaRewrite",
       "theorems": [
         "closedEdgeCrossSum_triangle",
@@ -607,16 +604,13 @@
         "distance_fold_collapses_the_boundary_edge"
       ],
       "status": "proved-exact-point-emission-and-ring-membership-contract-standard-mathematics-not-novelty",
-      "implementationCorrespondence": "lean-edge-checker-executes-the-point-emitter-plus-shared-step-and-fold-fixtures-cyclic-orientation-is-proved-under-the-explicit-all-ordered-triples-input-contract-and-area-monotonicity-is-certificate-checked-universal-mixed-decomposition-certificate-construction-remains-unproved"
+      "implementationCorrespondence": "lean-edge-checker-executes-the-point-emitter-plus-shared-step-and-fold-fixtures-cyclic-orientation-is-proved-under-the-explicit-all-ordered-triples-input-contract-the-unconditional-strict-convex-area-theorem-is-owned-by-the-convex-clip-area-claim-and-no-longer-requires-a-universal-mixed-decomposition-certificate-typescript-floating-point-refinement-remains-unproved"
     },
     {
       "id": "infrastructure.exact-geometry.ordered-triple-normalization",
       "paper": null,
       "protocol": "research/lean-formalization-plan.md#L3",
-      "typescript": [
-        "packages/layout/src/cyclicRingOutput.ts",
-        "packages/layout/src/polygon.ts"
-      ],
+      "typescript": ["packages/layout/src/cyclicRingOutput.ts", "packages/layout/src/polygon.ts"],
       "leanModule": "Sprawlens.OrderedTriples, Sprawlens.HalfPlaneClipFold, Sprawlens.CyclicClosure, and Sprawlens.HalfPlaneClipRing",
       "theorems": [
         "allOrderedTriples_sublist",
@@ -649,10 +643,7 @@
       "id": "infrastructure.exact-geometry.segment-triple-orientation",
       "paper": null,
       "protocol": "research/lean-formalization-plan.md#L3",
-      "typescript": [
-        "packages/layout/src/halfPlaneClipStep.ts",
-        "packages/layout/src/polygon.ts"
-      ],
+      "typescript": ["packages/layout/src/halfPlaneClipStep.ts", "packages/layout/src/polygon.ts"],
       "leanModule": "Sprawlens.SegmentTripleOrientation",
       "theorems": [
         "outputPoints_pairwise_inSegmentOrder",
@@ -703,10 +694,7 @@
       "id": "infrastructure.exact-geometry.convex-clip-contract",
       "paper": null,
       "protocol": "research/lean-formalization-plan.md#L3",
-      "typescript": [
-        "packages/layout/src/polygon.ts",
-        "packages/layout/src/polygon.test.ts"
-      ],
+      "typescript": ["packages/layout/src/polygon.ts", "packages/layout/src/polygon.test.ts"],
       "leanModule": "Sprawlens.ConvexClipContract",
       "theorems": [
         "convex_vertex_left_of_edge",
@@ -760,10 +748,7 @@
       "id": "infrastructure.exact-geometry.strict-convex-contract",
       "paper": null,
       "protocol": "research/lean-formalization-plan.md#L3",
-      "typescript": [
-        "packages/layout/src/polygon.ts",
-        "packages/layout/src/polygon.test.ts"
-      ],
+      "typescript": ["packages/layout/src/polygon.ts", "packages/layout/src/polygon.test.ts"],
       "leanModule": "Sprawlens.StrictConvexContract",
       "theorems": [
         "strictlyLinearlyOrdered_iff_indexedVertices_triplewise",
@@ -783,10 +768,7 @@
       "id": "infrastructure.exact-geometry.hexagon-chord",
       "paper": null,
       "protocol": "research/lean-formalization-plan.md#L3",
-      "typescript": [
-        "packages/layout/src/polygon.ts",
-        "packages/layout/src/polygon.test.ts"
-      ],
+      "typescript": ["packages/layout/src/polygon.ts", "packages/layout/src/polygon.test.ts"],
       "leanModule": "Sprawlens.HexagonChord",
       "theorems": [
         "canonical_support_forces_three_periodic",

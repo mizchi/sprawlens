@@ -23,7 +23,6 @@ export function pointInOpenSegment(
   const end = useX ? b.x : b.y;
   const value = useX ? point.x : point.y;
   return (
-    Math.min(start, end) + lengthTolerance < value &&
-    value < Math.max(start, end) - lengthTolerance
+    Math.min(start, end) + lengthTolerance < value && value < Math.max(start, end) - lengthTolerance
   );
 }

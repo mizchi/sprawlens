@@ -1,8 +1,4 @@
-export type ExternalSequenceResponseStatus =
-  | "ok"
-  | "unsupported"
-  | "failed"
-  | "execution-failed";
+export type ExternalSequenceResponseStatus = "ok" | "unsupported" | "failed" | "execution-failed";
 
 export type ExternalSequenceResponseClass =
   | "accepted"

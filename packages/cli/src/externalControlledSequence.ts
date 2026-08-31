@@ -283,8 +283,7 @@ export async function runExternalCommonSequenceProbe(
       }
       failures.push({
         path: name,
-        status:
-          supportClass === "unexpected-unsupported" ? "unexpected-unsupported" : path.status,
+        status: supportClass === "unexpected-unsupported" ? "unexpected-unsupported" : path.status,
         reason: path.reason,
       });
       continue;
@@ -379,8 +378,7 @@ export async function runExternalCommonSequenceProbe(
           hostValid: successful(path) && path.hostValid === true,
           expectedSupported: path.expectedSupport?.expectedSupported === true,
           metadataMatches:
-            "implementationMatchesExpected" in path &&
-            path.implementationMatchesExpected === true,
+            "implementationMatchesExpected" in path && path.implementationMatchesExpected === true,
         };
       }),
     );

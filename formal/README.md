@@ -13,10 +13,11 @@ Sprawlensの実行実装はTypeScript / JavaScriptに置き、ここでは論文
 
 ```bash
 just lean-check
+just lean-claims
 just lean-conformance
 ```
 
-`lean-check`は定理をmachine-checkする。`lean-conformance`はそれに加えて、
+`lean-check`は定理をmachine-checkする。`lean-claims`は`claims.json`に列挙した全定理名をLeanで`#check`し、台帳対象moduleに`sorry` / `admit` / `axiom`がないことを検査する。この検査とLean buildはCIの独立`formal` jobでも実行する。`lean-conformance`は両方に加えて、
 `TestVectors/feasible-envelope.json`、`TestVectors/external-sequence-gate.json`、`TestVectors/temporal-barycenter.json`、`TestVectors/orientation.json`、`TestVectors/proper-segment-intersection.json`、`TestVectors/point-in-open-segment.json`、`TestVectors/collinear-open-overlap.json`、`TestVectors/simple-open-ring.json`、`TestVectors/polygon-signed-area.json`、`TestVectors/half-plane-boundary-parameter.json`、`TestVectors/half-plane-edge-classification.json`、`TestVectors/half-plane-clip-fold.json`、`TestVectors/segment-interpolation-orientation.json`をLean executableとTypeScriptの純粋関数の双方で実行する。
 
 ## Current model

@@ -3,42 +3,84 @@
   "cases": [
     {
       "name": "convex-ccw",
-      "vertices": [{ "x": 0, "y": 0 }, { "x": 4, "y": 0 }, { "x": 4, "y": 3 }, { "x": 0, "y": 3 }],
+      "vertices": [
+        { "x": 0, "y": 0 },
+        { "x": 4, "y": 0 },
+        { "x": 4, "y": 3 },
+        { "x": 0, "y": 3 }
+      ],
       "expected": true
     },
     {
       "name": "concave-simple",
-      "vertices": [{ "x": 0, "y": 0 }, { "x": 4, "y": 0 }, { "x": 4, "y": 4 }, { "x": 2, "y": 2 }, { "x": 0, "y": 4 }],
+      "vertices": [
+        { "x": 0, "y": 0 },
+        { "x": 4, "y": 0 },
+        { "x": 4, "y": 4 },
+        { "x": 2, "y": 2 },
+        { "x": 0, "y": 4 }
+      ],
       "expected": true
     },
     {
       "name": "clockwise-simple",
-      "vertices": [{ "x": 0, "y": 0 }, { "x": 0, "y": 3 }, { "x": 4, "y": 3 }, { "x": 4, "y": 0 }],
+      "vertices": [
+        { "x": 0, "y": 0 },
+        { "x": 0, "y": 3 },
+        { "x": 4, "y": 3 },
+        { "x": 4, "y": 0 }
+      ],
       "expected": true
     },
     {
       "name": "proper-crossing",
-      "vertices": [{ "x": 0, "y": 0 }, { "x": 4, "y": 4 }, { "x": 0, "y": 4 }, { "x": 4, "y": 0 }],
+      "vertices": [
+        { "x": 0, "y": 0 },
+        { "x": 4, "y": 4 },
+        { "x": 0, "y": 4 },
+        { "x": 4, "y": 0 }
+      ],
       "expected": false
     },
     {
       "name": "t-junction",
-      "vertices": [{ "x": 0, "y": 0 }, { "x": 4, "y": 0 }, { "x": 4, "y": 4 }, { "x": 2, "y": 0 }, { "x": 0, "y": 4 }],
+      "vertices": [
+        { "x": 0, "y": 0 },
+        { "x": 4, "y": 0 },
+        { "x": 4, "y": 4 },
+        { "x": 2, "y": 0 },
+        { "x": 0, "y": 4 }
+      ],
       "expected": false
     },
     {
       "name": "collinear-overlap",
-      "vertices": [{ "x": 0, "y": 0 }, { "x": 4, "y": 0 }, { "x": 4, "y": 2 }, { "x": 1, "y": 0 }, { "x": 3, "y": 0 }, { "x": 0, "y": 2 }],
+      "vertices": [
+        { "x": 0, "y": 0 },
+        { "x": 4, "y": 0 },
+        { "x": 4, "y": 2 },
+        { "x": 1, "y": 0 },
+        { "x": 3, "y": 0 },
+        { "x": 0, "y": 2 }
+      ],
       "expected": false
     },
     {
       "name": "duplicate-vertex",
-      "vertices": [{ "x": 0, "y": 0 }, { "x": 4, "y": 0 }, { "x": 4, "y": 4 }, { "x": 0, "y": 0 }],
+      "vertices": [
+        { "x": 0, "y": 0 },
+        { "x": 4, "y": 0 },
+        { "x": 4, "y": 4 },
+        { "x": 0, "y": 0 }
+      ],
       "expected": false
     },
     {
       "name": "too-few-vertices",
-      "vertices": [{ "x": 0, "y": 0 }, { "x": 1, "y": 0 }],
+      "vertices": [
+        { "x": 0, "y": 0 },
+        { "x": 1, "y": 0 }
+      ],
       "expected": false
     }
   ]
