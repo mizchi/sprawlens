@@ -69,10 +69,12 @@
 - `FanBetweenness`で、正orientationのoff-line witnessと二つのweak support条件から、共線点を閉じ辺上の`[0,1]`補間としてorientation面積比で再構成した。weak global orderはこの二つのsupport条件を自動供給する。さらにwitness伝播が失敗する唯一のcaseは末尾頂点と頂点0の重複であることを示し、injectivityまたは`IsSimpleRing`で排除した。結果として、weak global vertex order、injectivity（またはsimplicity）、正orientationの先頭三角形から、任意頂点数の`SupportSemanticsAdequate`を証明した。途中のゼロ面積fan cellは許容される。
 - `SeamSupportSemantics`で、weak global order、edge-support領域、vertex convex hull、injectivityが巡回reindexで保存されることを証明した。正の先頭三角形を持つseamの存在は、どこかの三つのcyclic adjacent verticesが正orientationを持つことと同値である。したがって元のmaterialization seamによらず、weak global order、simplicity、positive cyclic turnから`SupportSemanticsAdequate`を導ける。
 - `FullDimensionalSupportSemantics`で、連続する二つの共線tripleが非退化な共有辺を持つとき、外側のtripleも共線になるdeterminant補題を証明した。正orientation tripleのindex spanに対する強帰納法により、weak global orderとinjectivityの下では任意の正tripleから正のcyclic adjacent turnを抽出できる。回転不変定理と合成し、weak global order、injectivityまたは`IsSimpleRing`、通常のfull-dimensionality（任意の正orientation tripleの存在）から、seam指定なしで`SupportSemanticsAdequate`を証明した。
+- `ClipCompleteness`で、実行可能な出力列のconvex hullと「保持頂点＋交差点」という宣言的生成集合のconvex hullがexactに一致することを証明した。これにより`ClipRegionComplete`はlist順序・destutter・closureに依存しない純粋な`BoundaryGeneratorHullComplete`と必要十分になり、残る義務を凸幾何だけへ分離した。
+- `TriangleClipCompleteness`で、内側1頂点・外側2頂点のbarycentric combinationがhalf-plane内に残るなら、内側頂点と2交点のconvex combinationへ重みを移送できることを証明した。内側2頂点・外側1頂点では、外側weightを両内側頂点のsigned-distance容量以下に分割し、内側2点と2交点のconvex combinationを構成した。境界生成集合と`BoundaryGeneratorHullComplete`の循環reindex不変性により全6 mixed labelingを閉じ、clip境界がどの入力頂点も通らないstrict ordered triangleでは、no-cut / empty-cutを含む全符号caseの実行可能連続領域等号を証明した。
 
 ### 未証明・実証が必要なこと
 
-- insideとoutsideの頂点が両方存在するmixed crossing caseで、`indexedVertexConvexRegion ∩ halfPlaneRegion`の任意点が`clipIndexedConvexRegion`に入る逆包含。任意の頂点順序では交差辺の集合がconvex hull境界を表さないため、`IsTraversalConvexCCW`またはより強いordered-convex premiseを前提とする必要がある。
+- strict triangleのmixed crossingは、clip境界が入力頂点を通らないgeneric-position条件の下で全符号caseを統合済み。残る最小義務はsigned distanceが0の境界頂点を含む退化caseであり、その後にordered-convex一般多角形へ持ち上げる。
 - empty / point / segment / polygonの正準表現と、その意味保存・冪等性・一意性。
 - 共線点除去、隣接重複除去、winding統一、巡回始点選択を合成したcanonicalizer。
 - 有理座標の小規模全探索による、完全一致命題の反例探索。

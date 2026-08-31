@@ -40,6 +40,8 @@ import Sprawlens.RedundantVertexSemantics
 import Sprawlens.FanBetweenness
 import Sprawlens.SeamSupportSemantics
 import Sprawlens.FullDimensionalSupportSemantics
+import Sprawlens.ClipCompleteness
+import Sprawlens.TriangleClipCompleteness
 import Sprawlens.CyclicBinaryBlocks
 import Sprawlens.ConvexHalfPlaneSigns
 import Sprawlens.HexagonChord
