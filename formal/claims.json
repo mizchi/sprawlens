@@ -770,6 +770,7 @@
         "IsStrictVertexOrderedConvexCCW.strict",
         "IsStrictVertexOrderedConvexCCW.injective",
         "IsStrictVertexOrderedConvexCCW.vertexOrdered",
+        "linearlyOrdered_rotateVertex",
         "clipIndexedRing_cyclicTurnsNonnegative_of_strict_vertex_ordered"
       ],
       "status": "proved-strict-global-vertex-order-to-clipping-orientation-standard-mathematics-not-novelty",
@@ -936,7 +937,7 @@
       "paper": null,
       "protocol": "formal/AdjacentResearch.md#3-退化を含む半平面クリッピングの正準性",
       "typescript": [],
-      "leanModule": "Sprawlens.CanonicalClip, Sprawlens.Vec2Linear, Sprawlens.TriangleSupportSemantics, Sprawlens.QuadrilateralSupportSemantics, Sprawlens.PentagonSupportSemantics, Sprawlens.PolygonSupportSemantics, Sprawlens.FanSupportSemantics, Sprawlens.RedundantVertexSemantics, and Sprawlens.FanBetweenness",
+      "leanModule": "Sprawlens.CanonicalClip, Sprawlens.Vec2Linear, Sprawlens.TriangleSupportSemantics, Sprawlens.QuadrilateralSupportSemantics, Sprawlens.PentagonSupportSemantics, Sprawlens.PolygonSupportSemantics, Sprawlens.FanSupportSemantics, Sprawlens.RedundantVertexSemantics, Sprawlens.FanBetweenness, Sprawlens.SeamSupportSemantics, and Sprawlens.FullDimensionalSupportSemantics",
       "theorems": [
         "affineCombination_eq_interpolatePoint",
         "orientation_triangle_decomposition",
@@ -969,6 +970,25 @@
         "positivePrefixWitness_supportSemanticsAdequate",
         "orderedInjectiveInitial_supportSemanticsAdequate",
         "orderedSimpleInitial_supportSemanticsAdequate",
+        "range_rotateVertex",
+        "mem_indexedPolygonRegion_iff_indexedEdges",
+        "indexedPolygonRegion_rotateVertex",
+        "indexedVertexConvexRegion_rotateVertex",
+        "supportSemanticsAdequate_rotateVertex_iff",
+        "injective_rotateVertex",
+        "rotateVertex_zero",
+        "rotateVertex_one",
+        "rotateVertex_two",
+        "hasPositiveSeam_iff_hasPositiveCyclicTurn",
+        "orderedInjectivePositiveSeam_supportSemanticsAdequate",
+        "orderedSimplePositiveSeam_supportSemanticsAdequate",
+        "orderedSimplePositiveTurn_supportSemanticsAdequate",
+        "orientation_eq_zero_of_collinear_chain",
+        "orientation_eq_zero_of_collinear_chain_left",
+        "positiveTriple_hasPositiveCyclicTurn",
+        "hasPositiveTriple_hasPositiveCyclicTurn",
+        "orderedInjectiveFullDimensional_supportSemanticsAdequate",
+        "orderedSimpleFullDimensional_supportSemanticsAdequate",
         "canonical_idempotent",
         "canonical_emit_eq_of_semantics_eq",
         "canonical_halfPlane_emit_perm",
@@ -999,8 +1019,8 @@
         "weakConvex_reverse_containment_counterexample",
         "collapsedTriangle_vertexConvex_semantics_exact"
       ],
-      "status": "proved-explicit-completeness-contract-exact-boundary-generators-degeneracy-safe-convex-hull-soundness-ordered-simple-positive-seam-support-adequacy-no-cut-and-empty-cut-equality-plus-collapsed-and-collinear-counterexamples",
-      "implementationCorrespondence": "the-executable-lean-emitter-vertex-set-is-exactly-retained-input-vertices-plus-crossing-points-its-full-convex-hull-stays-in-the-input-vertex-convex-hull-intersection-without-convexity-and-equality-holds-for-all-inside-or-all-strictly-outside-inputs-simple-plus-weak-convex-is-proved-insufficient-while-global-weak-order-plus-injectivity-or-simplicity-and-a-positive-initial-triangle-is-proved-sufficient-for-support-semantics-with-zero-area-fan-cells-treated-as-redundant-the-mixed-clip-completeness-seam-independent-full-dimensional-rotation-and-degenerate-canonicalizer-laws-remain-proof-obligations"
+      "status": "proved-explicit-completeness-contract-exact-boundary-generators-degeneracy-safe-convex-hull-soundness-ordered-simple-full-dimensional-support-adequacy-no-cut-and-empty-cut-equality-plus-collapsed-and-collinear-counterexamples",
+      "implementationCorrespondence": "the-executable-lean-emitter-vertex-set-is-exactly-retained-input-vertices-plus-crossing-points-its-full-convex-hull-stays-in-the-input-vertex-convex-hull-intersection-without-convexity-and-equality-holds-for-all-inside-or-all-strictly-outside-inputs-simple-plus-weak-convex-is-proved-insufficient-while-global-weak-order-plus-simplicity-and-conventional-full-dimensionality-is-proved-sufficient-for-support-semantics-with-zero-area-fan-cells-treated-as-redundant-and-no-seam-certificate-required-the-mixed-clip-completeness-and-degenerate-canonicalizer-laws-remain-proof-obligations"
     },
     {
       "id": "adjacent.hierarchical-layout.patch-noninterference",

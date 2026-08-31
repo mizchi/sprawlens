@@ -140,6 +140,65 @@ theorem IsStrictlyLinearlyOrderedCCW.rotateVertex {extraVertices : Nat}
         omega
 
 omit [IsStrictOrderedRing R] in
+/-- Weak global vertex order is invariant under changing the cyclic
+materialization seam. -/
+theorem linearlyOrdered_rotateVertex {extraVertices : Nat}
+    {vertex : RingIndex extraVertices → Vec2 R}
+    (ordered : IsLinearlyOrderedCCW vertex)
+    (start : RingIndex extraVertices) :
+    IsLinearlyOrderedCCW (rotateVertex start vertex) := by
+  intro first second third firstBefore secondBefore
+  let positive : 0 < extraVertices + 3 := by omega
+  let firstRotated := rotateIndex positive start first
+  let secondRotated := rotateIndex positive start second
+  let thirdRotated := rotateIndex positive start third
+  have firstValue : firstRotated.val =
+      if start.val + first.val < extraVertices + 3 then
+        start.val + first.val else start.val + first.val - (extraVertices + 3) := by
+    exact add_mod_eq_self_or_sub start.isLt first.isLt
+  have secondValue : secondRotated.val =
+      if start.val + second.val < extraVertices + 3 then
+        start.val + second.val else start.val + second.val - (extraVertices + 3) := by
+    exact add_mod_eq_self_or_sub start.isLt second.isLt
+  have thirdValue : thirdRotated.val =
+      if start.val + third.val < extraVertices + 3 then
+        start.val + third.val else start.val + third.val - (extraVertices + 3) := by
+    exact add_mod_eq_self_or_sub start.isLt third.isLt
+  change 0 ≤ orientation
+    (vertex firstRotated) (vertex secondRotated) (vertex thirdRotated)
+  by_cases thirdInRange : start.val + third.val < extraVertices + 3
+  · have firstInRange : start.val + first.val < extraVertices + 3 := by omega
+    have secondInRange : start.val + second.val < extraVertices + 3 := by omega
+    apply ordered firstRotated secondRotated thirdRotated
+    · simp [firstValue, secondValue, firstInRange, secondInRange]
+      omega
+    · simp [secondValue, thirdValue, secondInRange, thirdInRange]
+      omega
+  · by_cases firstInRange : start.val + first.val < extraVertices + 3
+    · by_cases secondInRange : start.val + second.val < extraVertices + 3
+      · rw [orientation_cycle
+          (vertex thirdRotated) (vertex firstRotated) (vertex secondRotated)]
+        apply ordered thirdRotated firstRotated secondRotated
+        · simp [thirdValue, firstValue, thirdInRange, firstInRange]
+          omega
+        · simp [firstValue, secondValue, firstInRange, secondInRange]
+          omega
+      · rw [← orientation_cycle
+          (vertex firstRotated) (vertex secondRotated) (vertex thirdRotated)]
+        apply ordered secondRotated thirdRotated firstRotated
+        · simp [secondValue, thirdValue, secondInRange, thirdInRange]
+          omega
+        · simp [thirdValue, firstValue, thirdInRange, firstInRange]
+          omega
+    · have secondNotInRange :
+          ¬start.val + second.val < extraVertices + 3 := by omega
+      apply ordered firstRotated secondRotated thirdRotated
+      · simp [firstValue, secondValue, firstInRange, secondNotInRange]
+        omega
+      · simp [secondValue, thirdValue, secondNotInRange, thirdInRange]
+        omega
+
+omit [IsStrictOrderedRing R] in
 theorem strictlyLinearlyOrdered_iff_indexedVertices_triplewise
     {extraVertices : Nat}
     (vertex : RingIndex extraVertices → Vec2 R) :
