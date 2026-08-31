@@ -936,9 +936,22 @@
       "paper": null,
       "protocol": "formal/AdjacentResearch.md#3-退化を含む半平面クリッピングの正準性",
       "typescript": [],
-      "leanModule": "Sprawlens.CanonicalClip and Sprawlens.Vec2Linear",
+      "leanModule": "Sprawlens.CanonicalClip, Sprawlens.Vec2Linear, Sprawlens.TriangleSupportSemantics, Sprawlens.QuadrilateralSupportSemantics, Sprawlens.PentagonSupportSemantics, Sprawlens.PolygonSupportSemantics, and Sprawlens.FanSupportSemantics",
       "theorems": [
         "affineCombination_eq_interpolatePoint",
+        "orientation_triangle_decomposition",
+        "orientation_barycentric_reconstruct",
+        "strictTriangle_supportSemanticsAdequate",
+        "orderedTripleVertex_strict",
+        "orderedTriple_supportSemanticsAdequate",
+        "orderedTriple_convexRegion_subset",
+        "strictQuadrilateral_supportSemanticsAdequate",
+        "strictPentagon_supportSemanticsAdequate",
+        "prefixVertex_strict",
+        "strictPolygon_supportSemanticsAdequate",
+        "orderedTripleVertex_strict_of_positive",
+        "strictOrdered_hasPositiveFan",
+        "positiveFan_supportSemanticsAdequate",
         "canonical_idempotent",
         "canonical_emit_eq_of_semantics_eq",
         "canonical_halfPlane_emit_perm",
@@ -969,8 +982,8 @@
         "weakConvex_reverse_containment_counterexample",
         "collapsedTriangle_vertexConvex_semantics_exact"
       ],
-      "status": "proved-explicit-completeness-contract-exact-boundary-generators-degeneracy-safe-convex-hull-soundness-no-cut-and-empty-cut-equality-plus-collapsed-and-collinear-counterexamples",
-      "implementationCorrespondence": "the-executable-lean-emitter-vertex-set-is-exactly-retained-input-vertices-plus-crossing-points-its-full-convex-hull-stays-in-the-input-vertex-convex-hull-intersection-without-convexity-and-equality-holds-for-all-inside-or-all-strictly-outside-inputs-simple-plus-weak-convex-is-proved-insufficient-the-mixed-case-needs-ordered-convex-completeness-and-degenerate-canonicalizer-laws-remain-proof-obligations"
+      "status": "proved-explicit-completeness-contract-exact-boundary-generators-degeneracy-safe-convex-hull-soundness-positive-fan-polygon-support-adequacy-no-cut-and-empty-cut-equality-plus-collapsed-and-collinear-counterexamples",
+      "implementationCorrespondence": "the-executable-lean-emitter-vertex-set-is-exactly-retained-input-vertices-plus-crossing-points-its-full-convex-hull-stays-in-the-input-vertex-convex-hull-intersection-without-convexity-and-equality-holds-for-all-inside-or-all-strictly-outside-inputs-simple-plus-weak-convex-is-proved-insufficient-while-global-weak-order-plus-a-positive-fan-is-proved-sufficient-for-support-semantics-at-every-vertex-count-and-strict-global-order-constructs-that-certificate-the-mixed-clip-completeness-and-degenerate-canonicalizer-laws-remain-proof-obligations"
     },
     {
       "id": "adjacent.hierarchical-layout.patch-noninterference",

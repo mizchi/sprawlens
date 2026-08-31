@@ -59,13 +59,17 @@
 - 退化安全な入力意味論として、入力頂点集合のconvex hullである`indexedVertexConvexRegion`を追加した。実emitterの全点が入力辺上にあることから、出力convex hull全体が`indexedVertexConvexRegion ∩ halfPlaneRegion`に入ることを、convexityの仮定なしで証明した。collapsed triangleでは両領域が実際に同じ一点になることもLeanで証明し、意味論の修正が反例を解消するpositive sanity caseとして保持した。
 - no-cutとempty-cutの連続領域等号を分離して証明した。全入力頂点がclosed half-plane内なら出力convex hullは`indexedVertexConvexRegion ∩ halfPlaneRegion`にexactに一致し、全入力頂点がstrictly outsideなら両領域とも空になる。これらも入力convexityを必要としない。
 - 残る逆包含を`ClipRegionComplete`として分離し、既証明の無条件soundnessと合わせると連続領域等号と必要十分になることを証明した。no-cut / empty-cutはこの完全性contractを満たす。
-- 旧support-half-plane意味論とvertex-convex意味論の等号を`SupportSemanticsAdequate`として分離した。`IsStrictVertexOrderedConvexCCW`は少なくともsupport領域の全平面化を排除することを証明したが、両意味論の完全一致はまだ未証明である。
+- 旧support-half-plane意味論とvertex-convex意味論の等号を`SupportSemanticsAdequate`として分離した。
 - `IsSimpleRing ∧ IsWeaklyConvexCCW`だけでは`SupportSemanticsAdequate`を導けない。三つの相異なる共線点はこの両contractを満たすが、support領域は無限直線、vertex convex hullは有限線分になるLean反例を保持した。したがってfull-dimensionalityまたは意味論等号の直接仮定が必要である。
+- `TriangleSupportSemantics`で、三角形内の点を三つのorientation比によるbarycentric coordinateで再構成した。3本のsupport不等式から各weightの非負性と総和1を導き、`IsStrictVertexOrderedConvexCCW`を満たす三角形で`SupportSemanticsAdequate`がexactに成立することを証明した。
+- `QuadrilateralSupportSemantics`と`PentagonSupportSemantics`で、頂点0からの対角線に対する点の符号によりfan triangleを選び、三角形定理へ帰着する有限caseを検証した。
+- `PolygonSupportSemantics`でこのfan分割を任意頂点数へ一般化した。末尾への対角線の左側なら末尾triangleへ、右側なら末尾頂点を除いたprefix polygonへ帰着する帰納法により、任意の`IsStrictVertexOrderedConvexCCW`入力で`indexedPolygonRegion = indexedVertexConvexRegion`を証明した。したがってstrict global orderは`SupportSemanticsAdequate`の十分条件である。
+- `FanSupportSemantics`で十分条件をさらに弱めた。globalなweak vertex orderに加え、頂点0を根とする各fan triangleのorientationが正であるという再帰的certificateだけで`SupportSemanticsAdequate`が成立する。これはfan cell以外の共線三点を許し、strict global orderからcertificateを構成できることも証明した。
 
 ### 未証明・実証が必要なこと
 
 - insideとoutsideの頂点が両方存在するmixed crossing caseで、`indexedVertexConvexRegion ∩ halfPlaneRegion`の任意点が`clipIndexedConvexRegion`に入る逆包含。任意の頂点順序では交差辺の集合がconvex hull境界を表さないため、`IsTraversalConvexCCW`またはより強いordered-convex premiseを前提とする必要がある。
-- `IsStrictVertexOrderedConvexCCW`から`SupportSemanticsAdequate`を導くか、より弱い`IsVertexOrderedConvexCCW ∧ full-dimensionality`から導くこと。現在証明済みなのは全平面化の排除までである。
+- `IsVertexOrderedConvexCCW ∧ full-dimensionality`だけから、正のfanを持つ巡回始点または冗長頂点除去を構成して`SupportSemanticsAdequate`を導くこと。positive-fan caseまでは証明済みだが、fan cell自体のorientationが0になる場合は始点変更またはcell skipが必要である。
 - empty / point / segment / polygonの正準表現と、その意味保存・冪等性・一意性。
 - 共線点除去、隣接重複除去、winding統一、巡回始点選択を合成したcanonicalizer。
 - 有理座標の小規模全探索による、完全一致命題の反例探索。

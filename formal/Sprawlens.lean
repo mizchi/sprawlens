@@ -31,6 +31,11 @@ import Sprawlens.StrictConvexContract
 import Sprawlens.ConvexClipArea
 import Sprawlens.ConvexClipConsequences
 import Sprawlens.CanonicalClip
+import Sprawlens.TriangleSupportSemantics
+import Sprawlens.QuadrilateralSupportSemantics
+import Sprawlens.PentagonSupportSemantics
+import Sprawlens.PolygonSupportSemantics
+import Sprawlens.FanSupportSemantics
 import Sprawlens.CyclicBinaryBlocks
 import Sprawlens.ConvexHalfPlaneSigns
 import Sprawlens.HexagonChord
