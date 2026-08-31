@@ -571,6 +571,113 @@ theorem clippedSignedTwiceArea_le_of_rotatedBlock {extraVertices count : Nat}
         outsideOrdered exitParameterBounds entryParameterBounds
         firstTurn middleTurn lastTurn)
 
+theorem clippedSignedTwiceArea_lt_of_rotatedBlock {extraVertices count : Nat}
+    (plane : HalfPlane R) (vertex : RingIndex extraVertices → Vec2 R)
+    (ordered : IsStrictVertexOrderedConvexCCW vertex)
+    (countPositive : 0 < count) (countBound : count < extraVertices + 3)
+    (countNextBound : count + 1 < extraVertices + 3)
+    (outsideIff : ∀ index,
+      0 < signedDistance plane (vertex index) ↔
+        0 < index.val ∧ index.val ≤ count) :
+    clippedSignedTwiceArea plane vertex < indexedSignedTwiceArea vertex := by
+  have insideOfNotBlock : ∀ pointIndex : RingIndex extraVertices,
+      ¬(0 < pointIndex.val ∧ pointIndex.val ≤ count) →
+        signedDistance plane (vertex pointIndex) ≤ 0 := by
+    intro pointIndex notInBlock
+    exact le_of_not_gt fun outside =>
+      notInBlock ((outsideIff pointIndex).mp outside)
+  have zeroInside : signedDistance plane (vertex ⟨0, by omega⟩) ≤ 0 :=
+    insideOfNotBlock ⟨0, by omega⟩ (by simp)
+  have firstOutside : 0 < signedDistance plane (vertex ⟨1, by omega⟩) := by
+    apply (outsideIff ⟨1, by omega⟩).mpr
+    exact ⟨by norm_num, countPositive⟩
+  have lastOutside :
+      0 < signedDistance plane (vertex ⟨count, countBound⟩) := by
+    apply (outsideIff ⟨count, countBound⟩).mpr
+    exact ⟨countPositive, le_rfl⟩
+  have nextInside :
+      signedDistance plane (vertex ⟨count + 1, countNextBound⟩) ≤ 0 :=
+    insideOfNotBlock ⟨count + 1, countNextBound⟩ (by
+      change ¬(0 < count + 1 ∧ count + 1 ≤ count)
+      omega)
+  have exitParameterBounds := boundaryParameter_mem_Icc_of_inside_outside
+    zeroInside firstOutside
+  have entryParameterBounds := boundaryParameter_mem_Icc_of_outside_inside
+    lastOutside nextInside
+  have exitParameterStrict := boundaryParameter_lt_one_of_inside_outside
+    zeroInside firstOutside
+  have entryParameterPositive := boundaryParameter_pos_of_outside_inside
+    lastOutside nextInside
+  rw [clippedSignedTwiceArea_eq_idealOutputPointFlatten]
+  change closedEdgeCrossSum (idealIndexedChunks plane vertex).flatten <
+    closedEdgeCrossSum (indexedVertices vertex)
+  rw [idealIndexedChunkFlatten_eq_block plane vertex countPositive countBound
+    countNextBound outsideIff]
+  rw [indexedVertices_eq_block vertex countPositive countBound]
+  have retainedEq := retainedBlockVertices_eq_cons
+    (count := count) vertex countNextBound
+  rw [retainedEq]
+  by_cases singletonOutside : count = 1
+  · subst count
+    rw [outsideBlockVertices_eq_singleton vertex countBound]
+    have turnPositive : 0 < orientation
+        (vertex (⟨0, by omega⟩ : RingIndex extraVertices))
+        (vertex (⟨1, by omega⟩ : RingIndex extraVertices))
+        (vertex (⟨2, by omega⟩ : RingIndex extraVertices)) :=
+      ordered _ _ _ (by norm_num) (by norm_num)
+    simpa [boundaryPoint] using
+      (closedEdgeCrossSum_interpolate_corner_lt
+        (vertex (⟨0, by omega⟩ : RingIndex extraVertices))
+        (vertex (⟨1, by omega⟩ : RingIndex extraVertices))
+        (vertex (⟨2, by omega⟩ : RingIndex extraVertices))
+        exitParameterStrict entryParameterPositive turnPositive
+        (retainedBlockVertices (count := 1) vertex).tail)
+  · have countAtLeastTwo : 2 ≤ count := by omega
+    have outsideEq := outsideBlockVertices_eq_first_middle_last
+      vertex countAtLeastTwo countBound
+    rw [outsideEq]
+    have outsideOrdered := outsideBlockVertices_triplewise ordered countBound
+    rw [outsideEq] at outsideOrdered
+    have firstTurnPositive : 0 < orientation
+        (vertex (⟨0, by omega⟩ : RingIndex extraVertices))
+        (vertex (⟨1, by omega⟩ : RingIndex extraVertices))
+        (vertex ⟨count, countBound⟩) := by
+      apply ordered
+      · change 0 < 1
+        omega
+      · change 1 < count
+        omega
+    have middleTurn : 0 ≤ orientation
+        (vertex (⟨0, by omega⟩ : RingIndex extraVertices))
+        (vertex ⟨count, countBound⟩)
+        (vertex ⟨count + 1, countNextBound⟩) := by
+      apply le_of_lt
+      apply ordered
+      · change 0 < count
+        omega
+      · change count < count + 1
+        omega
+    have lastTurn : 0 ≤ orientation
+        (vertex (⟨1, by omega⟩ : RingIndex extraVertices))
+        (vertex ⟨count, countBound⟩)
+        (vertex ⟨count + 1, countNextBound⟩) := by
+      apply le_of_lt
+      apply ordered
+      · change 1 < count
+        omega
+      · change count < count + 1
+        omega
+    simpa [boundaryPoint] using
+      (closedEdgeCrossSum_canonical_clip_lt
+        (vertex (⟨0, by omega⟩ : RingIndex extraVertices))
+        (vertex (⟨1, by omega⟩ : RingIndex extraVertices))
+        (vertex ⟨count, countBound⟩)
+        (vertex ⟨count + 1, countNextBound⟩)
+        (outsideBlockVertices vertex countBound).tail.dropLast
+        (retainedBlockVertices (count := count) vertex).tail
+        outsideOrdered exitParameterBounds entryParameterBounds
+        exitParameterStrict firstTurnPositive middleTurn lastTurn)
+
 omit [IsStrictOrderedRing R] in
 theorem idealIndexedChunks_eq_of_singleton_inside_block
     {extraVertices count : Nat}
@@ -736,6 +843,78 @@ theorem clippedSignedTwiceArea_le_of_singleton_inside_block
       outsideOrdered exitParameterBounds entryParameterBounds
       firstTurn (by simp) lastTurn)
 
+theorem clippedSignedTwiceArea_lt_of_singleton_inside_block
+    {extraVertices count : Nat}
+    (plane : HalfPlane R) (vertex : RingIndex extraVertices → Vec2 R)
+    (ordered : IsStrictVertexOrderedConvexCCW vertex)
+    (countPositive : 0 < count)
+    (countLast : count + 1 = extraVertices + 3)
+    (outsideIff : ∀ index,
+      0 < signedDistance plane (vertex index) ↔
+        0 < index.val ∧ index.val ≤ count) :
+    clippedSignedTwiceArea plane vertex < indexedSignedTwiceArea vertex := by
+  have countBound : count < extraVertices + 3 := by omega
+  have countAtLeastTwo : 2 ≤ count := by omega
+  have zeroInside : signedDistance plane (vertex ⟨0, by omega⟩) ≤ 0 := by
+    apply le_of_not_gt
+    intro outside
+    have bounds := (outsideIff ⟨0, by omega⟩).mp outside
+    change 0 < 0 ∧ 0 ≤ count at bounds
+    omega
+  have firstOutside : 0 < signedDistance plane (vertex ⟨1, by omega⟩) := by
+    apply (outsideIff ⟨1, by omega⟩).mpr
+    exact ⟨by norm_num, by omega⟩
+  have lastOutside :
+      0 < signedDistance plane (vertex ⟨count, countBound⟩) := by
+    apply (outsideIff ⟨count, countBound⟩).mpr
+    exact ⟨countPositive, le_rfl⟩
+  have exitParameterBounds := boundaryParameter_mem_Icc_of_inside_outside
+    zeroInside firstOutside
+  have entryParameterBounds := boundaryParameter_mem_Icc_of_outside_inside
+    lastOutside zeroInside
+  have exitParameterStrict := boundaryParameter_lt_one_of_inside_outside
+    zeroInside firstOutside
+  have outsideEq := outsideBlockVertices_eq_first_middle_last
+    vertex countAtLeastTwo countBound
+  have outsideOrdered := outsideBlockVertices_triplewise ordered countBound
+  rw [outsideEq] at outsideOrdered
+  have firstTurnPositive : 0 < orientation
+      (vertex (⟨0, by omega⟩ : RingIndex extraVertices))
+      (vertex (⟨1, by omega⟩ : RingIndex extraVertices))
+      (vertex ⟨count, countBound⟩) := by
+    apply ordered
+    · change 0 < 1
+      omega
+    · change 1 < count
+      omega
+  have lastTurn : 0 ≤ orientation
+      (vertex (⟨1, by omega⟩ : RingIndex extraVertices))
+      (vertex ⟨count, countBound⟩)
+      (vertex (⟨0, by omega⟩ : RingIndex extraVertices)) := by
+    rw [orientation_cycle]
+    exact le_of_lt firstTurnPositive
+  rw [clippedSignedTwiceArea_eq_idealOutputPointFlatten]
+  change closedEdgeCrossSum (idealIndexedChunks plane vertex).flatten <
+    closedEdgeCrossSum (indexedVertices vertex)
+  rw [idealIndexedChunks_eq_of_singleton_inside_block
+    plane vertex countPositive countLast outsideIff]
+  rw [indexedVertices_eq_block vertex countPositive countBound]
+  rw [outsideEq]
+  have retainedEmpty :
+      retainedBlockVertices (count := count) vertex = [] := by
+    simp [retainedBlockVertices]
+    omega
+  rw [retainedEmpty]
+  simp [canonicalChunkBlock]
+  simpa [boundaryPoint] using
+    (closedEdgeCrossSum_singleton_inside_clip_lt
+      (vertex (⟨0, by omega⟩ : RingIndex extraVertices))
+      (vertex (⟨1, by omega⟩ : RingIndex extraVertices))
+      (vertex ⟨count, countBound⟩)
+      (outsideBlockVertices vertex countBound).tail.dropLast
+      outsideOrdered exitParameterBounds entryParameterBounds
+      exitParameterStrict firstTurnPositive lastTurn)
+
 theorem indexedVertices_nodup_of_strict {extraVertices : Nat}
     {vertex : RingIndex extraVertices → Vec2 R}
     (ordered : IsStrictVertexOrderedConvexCCW vertex) :
@@ -749,6 +928,30 @@ theorem indexedSignedTwiceArea_nonnegative {extraVertices : Nat}
   apply closedEdgeCrossSum_nonnegative_of_triplewise
   exact (linearlyOrdered_iff_indexedVertices_triplewise vertex).mp
     ordered.vertexOrdered.linear
+
+theorem indexedSignedTwiceArea_positive {extraVertices : Nat}
+    {vertex : RingIndex extraVertices → Vec2 R}
+    (ordered : IsStrictVertexOrderedConvexCCW vertex) :
+    0 < indexedSignedTwiceArea vertex := by
+  have strictTriplewise :
+      (indexedVertices vertex).Triplewise
+        (fun first second third => 0 < orientation first second third) :=
+    (strictlyLinearlyOrdered_iff_indexedVertices_triplewise vertex).mp ordered.strict
+  have pointCount : (indexedVertices vertex).length = extraVertices + 3 := by
+    simp [indexedVertices]
+  rw [indexedSignedTwiceArea]
+  generalize pointsEq : indexedVertices vertex = points at strictTriplewise pointCount ⊢
+  cases points with
+  | nil => simp at pointCount
+  | cons first rest =>
+      cases rest with
+      | nil => simp at pointCount
+      | cons second rest =>
+          cases rest with
+          | nil => simp at pointCount
+          | cons third tail =>
+              exact closedEdgeCrossSum_pos_of_strict_triplewise
+                first second third tail strictTriplewise
 
 theorem clippedSignedTwiceArea_le_of_length_le_two {extraVertices : Nat}
     (plane : HalfPlane R) (vertex : RingIndex extraVertices → Vec2 R)
@@ -784,6 +987,15 @@ theorem clippedSignedTwiceArea_le_of_all_outside {extraVertices : Nat}
     clippedSignedTwiceArea plane vertex ≤ indexedSignedTwiceArea vertex := by
   rw [clippedSignedTwiceArea, clipIndexedRing_eq_nil_of_all_outside plane vertex allOutside]
   exact indexedSignedTwiceArea_nonnegative ordered
+
+theorem clippedSignedTwiceArea_lt_of_all_outside {extraVertices : Nat}
+    (plane : HalfPlane R) (vertex : RingIndex extraVertices → Vec2 R)
+    (ordered : IsStrictVertexOrderedConvexCCW vertex)
+    (allOutside : ∀ index, 0 < signedDistance plane (vertex index)) :
+    clippedSignedTwiceArea plane vertex < indexedSignedTwiceArea vertex := by
+  rw [clippedSignedTwiceArea,
+    clipIndexedRing_eq_nil_of_all_outside plane vertex allOutside]
+  exact indexedSignedTwiceArea_positive ordered
 
 omit [IsStrictOrderedRing R] in
 theorem outputPointFlatten_eq_indexedVertices_of_all_inside {extraVertices : Nat}
@@ -1112,6 +1324,86 @@ theorem clippedSignedTwiceArea_le {extraVertices : Nat}
     exact (clippedSignedTwiceArea_eq_of_all_inside
       plane vertex ordered allInside).le
 
+/-- If at least one strict-convex input vertex is outside, clipping loses positive area. -/
+theorem clippedSignedTwiceArea_lt_of_hasOutside {extraVertices : Nat}
+    (plane : HalfPlane R) (vertex : RingIndex extraVertices → Vec2 R)
+    (ordered : IsStrictVertexOrderedConvexCCW vertex)
+    (hasOutside : ∃ index, 0 < signedDistance plane (vertex index)) :
+    clippedSignedTwiceArea plane vertex < indexedSignedTwiceArea vertex := by
+  by_cases hasInside : ∃ index, signedDistance plane (vertex index) ≤ 0
+  · rcases outside_rotatedBlock plane vertex ordered hasOutside hasInside with
+      ⟨positive, start, count, countPositive, countBound, blockIff⟩
+    let rotated := rotateVertex start vertex
+    have rotatedOrdered : IsStrictVertexOrderedConvexCCW rotated :=
+      ordered.rotateVertex start
+    have rotatedBlockIff : ∀ index,
+        0 < signedDistance plane (rotated index) ↔
+          0 < index.val ∧ index.val ≤ count := by
+      intro index
+      simpa [rotated, rotateVertex] using blockIff index
+    have rotatedAreaDecrease :
+        clippedSignedTwiceArea plane rotated < indexedSignedTwiceArea rotated := by
+      by_cases retainedAtLeastTwo : count + 1 < extraVertices + 3
+      · exact clippedSignedTwiceArea_lt_of_rotatedBlock
+          plane rotated rotatedOrdered countPositive countBound
+          retainedAtLeastTwo rotatedBlockIff
+      · have singletonInside : count + 1 = extraVertices + 3 := by omega
+        exact clippedSignedTwiceArea_lt_of_singleton_inside_block
+          plane rotated rotatedOrdered countPositive singletonInside rotatedBlockIff
+    calc
+      clippedSignedTwiceArea plane vertex =
+          clippedSignedTwiceArea plane rotated :=
+        (clippedSignedTwiceArea_rotateVertex plane start vertex).symm
+      _ < indexedSignedTwiceArea rotated := rotatedAreaDecrease
+      _ = indexedSignedTwiceArea vertex :=
+        indexedSignedTwiceArea_rotateVertex start vertex
+  · have allOutside : ∀ index, 0 < signedDistance plane (vertex index) := by
+      intro index
+      exact lt_of_not_ge fun inside => hasInside ⟨index, inside⟩
+    exact clippedSignedTwiceArea_lt_of_all_outside
+      plane vertex ordered allOutside
+
+/-- Equality holds exactly when no input vertex lies strictly outside the half-plane. -/
+theorem clippedSignedTwiceArea_eq_iff_all_inside {extraVertices : Nat}
+    (plane : HalfPlane R) (vertex : RingIndex extraVertices → Vec2 R)
+    (ordered : IsStrictVertexOrderedConvexCCW vertex) :
+    clippedSignedTwiceArea plane vertex = indexedSignedTwiceArea vertex ↔
+      ∀ index, signedDistance plane (vertex index) ≤ 0 := by
+  constructor
+  · intro areasEqual index
+    apply le_of_not_gt
+    intro outside
+    have areaDecrease := clippedSignedTwiceArea_lt_of_hasOutside
+      plane vertex ordered ⟨index, outside⟩
+    exact (ne_of_lt areaDecrease) areasEqual
+  · intro allInside
+    exact clippedSignedTwiceArea_eq_of_all_inside plane vertex ordered allInside
+
+def clippedAreaLoss {extraVertices : Nat}
+    (plane : HalfPlane R) (vertex : RingIndex extraVertices → Vec2 R) : R :=
+  indexedSignedTwiceArea vertex - clippedSignedTwiceArea plane vertex
+
+theorem clippedAreaLoss_nonnegative {extraVertices : Nat}
+    (plane : HalfPlane R) (vertex : RingIndex extraVertices → Vec2 R)
+    (ordered : IsStrictVertexOrderedConvexCCW vertex) :
+    0 ≤ clippedAreaLoss plane vertex := by
+  rw [clippedAreaLoss]
+  exact sub_nonneg.mpr (clippedSignedTwiceArea_le plane vertex ordered)
+
+theorem clippedAreaLoss_eq_zero_iff_all_inside {extraVertices : Nat}
+    (plane : HalfPlane R) (vertex : RingIndex extraVertices → Vec2 R)
+    (ordered : IsStrictVertexOrderedConvexCCW vertex) :
+    clippedAreaLoss plane vertex = 0 ↔
+      ∀ index, signedDistance plane (vertex index) ≤ 0 := by
+  rw [clippedAreaLoss, sub_eq_zero]
+  constructor
+  · intro areasEqual
+    exact (clippedSignedTwiceArea_eq_iff_all_inside plane vertex ordered).mp
+      areasEqual.symm
+  · intro allInside
+    exact ((clippedSignedTwiceArea_eq_iff_all_inside
+      plane vertex ordered).mpr allInside).symm
+
 /-- Regression witness: a strict triangle can have exactly one retained input vertex. -/
 def singletonInsideTriangleVertex (index : RingIndex 0) : Vec2 Rat :=
   match index.val with
@@ -1182,6 +1474,16 @@ theorem singletonInsideTriangle_area_nonincrease :
     singletonInsideTriangle_strict
     (.singletonInside singletonInsideTriangleDecomposition)
 
+theorem singletonInsideTriangle_area_decrease :
+    clippedSignedTwiceArea singletonInsideTrianglePlane singletonInsideTriangleVertex <
+      indexedSignedTwiceArea singletonInsideTriangleVertex := by
+  apply clippedSignedTwiceArea_lt_of_hasOutside
+    singletonInsideTrianglePlane singletonInsideTriangleVertex
+    singletonInsideTriangle_strict
+  refine ⟨(⟨1, by omega⟩ : RingIndex 0), ?_⟩
+  norm_num [signedDistance, singletonInsideTrianglePlane,
+    singletonInsideTriangleVertex]
+
 def singletonOutsideTrianglePlane : HalfPlane Rat where
   normalX := 1
   normalY := 0
@@ -1212,5 +1514,15 @@ theorem singletonOutsideTriangle_area_nonincrease :
     singletonOutsideTrianglePlane singletonInsideTriangleVertex
     singletonInsideTriangle_strict
     (.singletonOutside singletonOutsideTriangleDecomposition)
+
+theorem singletonOutsideTriangle_area_decrease :
+    clippedSignedTwiceArea singletonOutsideTrianglePlane singletonInsideTriangleVertex <
+      indexedSignedTwiceArea singletonInsideTriangleVertex := by
+  apply clippedSignedTwiceArea_lt_of_hasOutside
+    singletonOutsideTrianglePlane singletonInsideTriangleVertex
+    singletonInsideTriangle_strict
+  refine ⟨(⟨1, by omega⟩ : RingIndex 0), ?_⟩
+  norm_num [signedDistance, singletonOutsideTrianglePlane,
+    singletonInsideTriangleVertex]
 
 end Sprawlens.ConvexClipArea

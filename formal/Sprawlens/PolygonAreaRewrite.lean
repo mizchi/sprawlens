@@ -416,6 +416,30 @@ theorem closedEdgeCrossSum_interpolate_corner_le_of_mem_Icc
       (by simpa [triangleSignedTwiceArea_eq_orientation] using turnNonnegative)
   linarith
 
+/-- A genuine replacement of a strict corner removes a strictly positive ear area. -/
+theorem closedEdgeCrossSum_interpolate_corner_lt
+    [LinearOrder R] [IsStrictOrderedRing R]
+    (a b c : Vec2 R) {startParameter finishParameter : R}
+    (startBeforeOutside : startParameter < 1)
+    (finishAfterOutside : 0 < finishParameter)
+    (turnPositive : 0 < orientation a b c)
+    (tail : List (Vec2 R)) :
+    let entry := interpolatePoint a b startParameter
+    let exit := interpolatePoint b c finishParameter
+    closedEdgeCrossSum (a :: entry :: exit :: c :: tail) <
+      closedEdgeCrossSum (a :: b :: c :: tail) := by
+  dsimp only
+  rw [closedEdgeCrossSum_interpolate_corner]
+  have removedPositive :
+      0 < triangleSignedTwiceArea
+        (interpolatePoint a b startParameter) b
+        (interpolatePoint b c finishParameter) := by
+    rw [triangleSignedTwiceArea_interpolate_both,
+      triangleSignedTwiceArea_eq_orientation]
+    exact mul_pos (mul_pos (sub_pos.mpr startBeforeOutside) finishAfterOutside)
+      turnPositive
+  linarith
+
 /-- Deleting one materialized corner removes exactly its signed ear area. -/
 theorem closedEdgeCrossSum_delete_corner
     (a b c : Vec2 R) (tail : List (Vec2 R)) :
@@ -470,6 +494,32 @@ theorem closedEdgeCrossSum_nonnegative_of_triplewise
                   first second third
                   ((List.pairwise_cons.mp afterFirst.1).1 third (by simp)) tail)
 termination_by points.length
+
+/-- Three or more strictly ordered vertices have strictly positive signed shoelace area. -/
+theorem closedEdgeCrossSum_pos_of_strict_triplewise
+    [LinearOrder R] [IsStrictOrderedRing R]
+    (first second third : Vec2 R) (tail : List (Vec2 R))
+    (ordered : (first :: second :: third :: tail).Triplewise
+      (fun a b c => 0 < orientation a b c)) :
+    0 < closedEdgeCrossSum (first :: second :: third :: tail) := by
+  have afterFirst := List.triplewise_cons.mp ordered
+  have afterSecond := List.triplewise_cons.mp afterFirst.2
+  have smallerOrdered :
+      (first :: third :: tail).Triplewise
+        (fun a b c => 0 ≤ orientation a b c) := by
+    apply List.triplewise_cons.mpr
+    constructor
+    · exact (List.pairwise_cons.mp afterFirst.1).2.imp
+        (fun turn => le_of_lt turn)
+    · exact afterSecond.2.imp (fun turn => le_of_lt turn)
+  have smallerNonnegative :=
+    closedEdgeCrossSum_nonnegative_of_triplewise
+      (first :: third :: tail) smallerOrdered
+  have firstTurnPositive : 0 < orientation first second third :=
+    (List.pairwise_cons.mp afterFirst.1).1 third (by simp)
+  rw [closedEdgeCrossSum_delete_corner,
+    triangleSignedTwiceArea_eq_orientation] at smallerNonnegative
+  linarith
 
 /-- The fan turns needed to delete a contiguous chain between fixed endpoints. -/
 def FanTurnsNonnegative [LinearOrder R]
@@ -611,6 +661,57 @@ theorem closedEdgeCrossSum_two_boundary_replacement_le
   rw [areaIdentity]
   linarith
 
+/-- Replacing an outside chain endpoint strictly decreases area when its first ear is strict. -/
+theorem closedEdgeCrossSum_two_boundary_replacement_lt
+    [LinearOrder R] [IsStrictOrderedRing R]
+    (insideLast outsideFirst outsideLast insideFirst : Vec2 R)
+    {exitParameter entryParameter : R}
+    (exitInSegment : exitParameter ∈ Set.Icc (0 : R) 1)
+    (entryInSegment : entryParameter ∈ Set.Icc (0 : R) 1)
+    (exitBeforeOutside : exitParameter < 1)
+    (firstTurnPositive : 0 < orientation insideLast outsideFirst outsideLast)
+    (middleTurn : 0 ≤ orientation insideLast outsideLast insideFirst)
+    (lastTurn : 0 ≤ orientation outsideFirst outsideLast insideFirst)
+    (tail : List (Vec2 R)) :
+    let exit := interpolatePoint insideLast outsideFirst exitParameter
+    let entry := interpolatePoint outsideLast insideFirst entryParameter
+    closedEdgeCrossSum (insideLast :: exit :: entry :: insideFirst :: tail) <
+      closedEdgeCrossSum
+        (insideLast :: outsideFirst :: outsideLast :: insideFirst :: tail) := by
+  dsimp only
+  let exit := interpolatePoint insideLast outsideFirst exitParameter
+  let entry := interpolatePoint outsideLast insideFirst entryParameter
+  have firstRemovedPositive :
+      0 < orientation exit outsideFirst outsideLast := by
+    dsimp [exit]
+    rw [HalfPlaneIntersection.orientation_interpolate_start]
+    exact mul_pos (sub_pos.mpr exitBeforeOutside) firstTurnPositive
+  have exitToInsideNonnegative :
+      0 ≤ orientation exit outsideLast insideFirst := by
+    dsimp [exit]
+    exact HalfPlaneIntersection.orientation_interpolate_first_nonneg
+      insideLast outsideFirst outsideLast insideFirst
+      exitInSegment.1 exitInSegment.2 middleTurn lastTurn
+  have secondRemovedNonnegative :
+      0 ≤ orientation exit outsideLast entry := by
+    dsimp [entry]
+    exact HalfPlaneIntersection.orientation_interpolate_finish_nonneg
+      exit outsideLast insideFirst entryInSegment.1 exitToInsideNonnegative
+  have areaIdentity :
+      closedEdgeCrossSum (insideLast :: exit :: entry :: insideFirst :: tail) =
+        closedEdgeCrossSum
+          (insideLast :: outsideFirst :: outsideLast :: insideFirst :: tail) -
+          orientation exit outsideFirst outsideLast -
+          orientation exit outsideLast entry := by
+    rw [closedEdgeCrossSum, closedEdgeCrossSum]
+    simp only [pathEdgeCrossSum]
+    simp
+    simp only [edgeCross, orientation]
+    dsimp [exit, entry, interpolatePoint]
+    ring
+  rw [areaIdentity]
+  linarith
+
 /-- Canonical mixed clip: remove an outside chain, then replace its two endpoints. -/
 theorem closedEdgeCrossSum_canonical_clip_le
     [LinearOrder R] [IsStrictOrderedRing R]
@@ -635,6 +736,36 @@ theorem closedEdgeCrossSum_canonical_clip_le
   exact (closedEdgeCrossSum_two_boundary_replacement_le
     insideLast outsideFirst outsideLast insideFirst
     exitInSegment entryInSegment firstTurn middleTurn lastTurn insideTail).trans
+      (closedEdgeCrossSum_delete_middle_chain_le
+        insideLast outsideFirst outsideLast outsideMiddle
+        (insideFirst :: insideTail) outsideOrdered)
+
+/-- A canonical mixed clip strictly decreases area when it removes a genuine strict ear. -/
+theorem closedEdgeCrossSum_canonical_clip_lt
+    [LinearOrder R] [IsStrictOrderedRing R]
+    (insideLast outsideFirst outsideLast insideFirst : Vec2 R)
+    (outsideMiddle insideTail : List (Vec2 R))
+    {exitParameter entryParameter : R}
+    (outsideOrdered :
+      (outsideFirst :: (outsideMiddle ++ [outsideLast])).Triplewise
+        (fun first second third => 0 ≤ orientation first second third))
+    (exitInSegment : exitParameter ∈ Set.Icc (0 : R) 1)
+    (entryInSegment : entryParameter ∈ Set.Icc (0 : R) 1)
+    (exitBeforeOutside : exitParameter < 1)
+    (firstTurnPositive : 0 < orientation insideLast outsideFirst outsideLast)
+    (middleTurn : 0 ≤ orientation insideLast outsideLast insideFirst)
+    (lastTurn : 0 ≤ orientation outsideFirst outsideLast insideFirst) :
+    let exit := interpolatePoint insideLast outsideFirst exitParameter
+    let entry := interpolatePoint outsideLast insideFirst entryParameter
+    closedEdgeCrossSum (insideLast :: exit :: entry :: insideFirst :: insideTail) <
+      closedEdgeCrossSum
+        (insideLast :: outsideFirst ::
+          (outsideMiddle ++ outsideLast :: insideFirst :: insideTail)) := by
+  dsimp only
+  exact (closedEdgeCrossSum_two_boundary_replacement_lt
+    insideLast outsideFirst outsideLast insideFirst
+    exitInSegment entryInSegment exitBeforeOutside firstTurnPositive
+    middleTurn lastTurn insideTail).trans_le
       (closedEdgeCrossSum_delete_middle_chain_le
         insideLast outsideFirst outsideLast outsideMiddle
         (insideFirst :: insideTail) outsideOrdered)
@@ -675,6 +806,51 @@ theorem closedEdgeCrossSum_singleton_inside_clip_le
           inside outsideFirst outsideLast inside outsideMiddle []
           outsideOrdered exitInSegment entryInSegment
           firstTurn middleTurn lastTurn
+    _ = closedEdgeCrossSum
+        ((inside :: outsideFirst :: (outsideMiddle ++ [outsideLast])) ++ [inside]) := by
+      congr 1
+      simp [List.append_assoc]
+    _ = closedEdgeCrossSum
+        (inside :: outsideFirst :: (outsideMiddle ++ [outsideLast])) :=
+      closedEdgeCrossSum_append_head inside
+        (outsideFirst :: (outsideMiddle ++ [outsideLast]))
+
+/-- The singleton-inside canonical clip also loses strictly positive area. -/
+theorem closedEdgeCrossSum_singleton_inside_clip_lt
+    [LinearOrder R] [IsStrictOrderedRing R]
+    (inside outsideFirst outsideLast : Vec2 R)
+    (outsideMiddle : List (Vec2 R))
+    {exitParameter entryParameter : R}
+    (outsideOrdered :
+      (outsideFirst :: (outsideMiddle ++ [outsideLast])).Triplewise
+        (fun first second third => 0 ≤ orientation first second third))
+    (exitInSegment : exitParameter ∈ Set.Icc (0 : R) 1)
+    (entryInSegment : entryParameter ∈ Set.Icc (0 : R) 1)
+    (exitBeforeOutside : exitParameter < 1)
+    (firstTurnPositive : 0 < orientation inside outsideFirst outsideLast)
+    (lastTurn : 0 ≤ orientation outsideFirst outsideLast inside) :
+    let exit := interpolatePoint inside outsideFirst exitParameter
+    let entry := interpolatePoint outsideLast inside entryParameter
+    closedEdgeCrossSum [inside, exit, entry] <
+      closedEdgeCrossSum (inside :: outsideFirst :: (outsideMiddle ++ [outsideLast])) := by
+  dsimp only
+  calc
+    closedEdgeCrossSum [inside,
+        interpolatePoint inside outsideFirst exitParameter,
+        interpolatePoint outsideLast inside entryParameter] =
+        closedEdgeCrossSum ([inside,
+          interpolatePoint inside outsideFirst exitParameter,
+          interpolatePoint outsideLast inside entryParameter] ++ [inside]) :=
+      (closedEdgeCrossSum_append_head inside
+        [interpolatePoint inside outsideFirst exitParameter,
+          interpolatePoint outsideLast inside entryParameter]).symm
+    _ < closedEdgeCrossSum
+        ([inside, outsideFirst] ++ outsideMiddle ++ [outsideLast, inside]) := by
+      simpa only [List.cons_append, List.nil_append, List.append_assoc] using
+        closedEdgeCrossSum_canonical_clip_lt
+          inside outsideFirst outsideLast inside outsideMiddle []
+          outsideOrdered exitInSegment entryInSegment exitBeforeOutside
+          firstTurnPositive (by simp) lastTurn
     _ = closedEdgeCrossSum
         ((inside :: outsideFirst :: (outsideMiddle ++ [outsideLast])) ++ [inside]) := by
       congr 1

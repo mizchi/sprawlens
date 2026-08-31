@@ -22,6 +22,7 @@ import Sprawlens.HalfPlaneBoundaryGeometry
 import Sprawlens.ConvexClipContract
 import Sprawlens.StrictConvexContract
 import Sprawlens.ConvexClipArea
+import Sprawlens.ConvexClipConsequences
 import Sprawlens.CyclicBinaryBlocks
 import Sprawlens.ConvexHalfPlaneSigns
 import Sprawlens.HexagonChord

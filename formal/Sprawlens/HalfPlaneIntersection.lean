@@ -127,6 +127,23 @@ theorem boundaryParameter_mem_Icc_of_outside_inside
   · rw [boundaryParameter, div_le_iff₀ denominatorPositive]
     linarith
 
+/-- A genuine inside-to-outside crossing reaches the boundary before the outside endpoint. -/
+theorem boundaryParameter_lt_one_of_inside_outside
+    [LinearOrder R] [IsStrictOrderedRing R]
+    {current next : R} (currentInside : current ≤ 0) (nextOutside : 0 < next) :
+    boundaryParameter current next < 1 := by
+  have denominatorNegative : current - next < 0 := by linarith
+  rw [boundaryParameter, div_lt_iff_of_neg denominatorNegative]
+  linarith
+
+/-- A genuine outside-to-inside crossing leaves the outside endpoint by a positive amount. -/
+theorem boundaryParameter_pos_of_outside_inside
+    [LinearOrder R] [IsStrictOrderedRing R]
+    {current next : R} (currentOutside : 0 < current) (nextInside : next ≤ 0) :
+    0 < boundaryParameter current next := by
+  have denominatorPositive : 0 < current - next := by linarith
+  exact div_pos currentOutside denominatorPositive
+
 theorem interpolateDistance_boundaryParameter
     {current next : R} (distinct : current ≠ next) :
     interpolateDistance current next (boundaryParameter current next) = 0 := by
