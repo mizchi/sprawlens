@@ -1,6 +1,10 @@
 import Sprawlens.FeasibleEnvelope
 import Sprawlens.FeasibleEnvelopeSelector
+import Sprawlens.FiniteMassTransport
 import Sprawlens.Paper1Contract
+import Sprawlens.PairwiseClipCompleteness
+import Sprawlens.PairwiseBarycentricFlow
+import Sprawlens.PairwiseAdjacentCoverage
 import Sprawlens.AdjacencyRate
 import Sprawlens.ControlledPaths
 import Sprawlens.LayoutConfluence
@@ -42,6 +46,7 @@ import Sprawlens.SeamSupportSemantics
 import Sprawlens.FullDimensionalSupportSemantics
 import Sprawlens.ClipCompleteness
 import Sprawlens.TriangleClipCompleteness
+import Sprawlens.TriangleBoundaryClipCompleteness
 import Sprawlens.CyclicBinaryBlocks
 import Sprawlens.ConvexHalfPlaneSigns
 import Sprawlens.HexagonChord
