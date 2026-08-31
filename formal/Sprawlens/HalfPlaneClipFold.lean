@@ -21,6 +21,32 @@ theorem joinDistinct_sublist {α : Type u} [DecidableEq α] (chunks : List (List
     List.Sublist (joinDistinct chunks) chunks.flatten := by
   exact List.destutter_sublist (· ≠ ·) chunks.flatten
 
+theorem mem_destutter'_ne_iff {α : Type u} [DecidableEq α]
+    (value current : α) : ∀ rest : List α,
+    value ∈ rest.destutter' (· ≠ ·) current ↔ value = current ∨ value ∈ rest
+  | [] => by simp
+  | next :: rest => by
+      by_cases distinct : current ≠ next
+      · simp [distinct, mem_destutter'_ne_iff value next rest]
+      · have equal : current = next := not_ne_iff.mp distinct
+        subst next
+        simp [mem_destutter'_ne_iff value current rest]
+
+/-- Removing adjacent duplicate values preserves list membership in both
+directions. -/
+theorem mem_destutter_ne_iff {α : Type u} [DecidableEq α]
+    (value : α) (values : List α) :
+    value ∈ values.destutter (· ≠ ·) ↔ value ∈ values := by
+  cases values with
+  | nil => simp
+  | cons current rest =>
+      simpa [List.destutter_cons'] using mem_destutter'_ne_iff value current rest
+
+theorem mem_joinDistinct_iff {α : Type u} [DecidableEq α]
+    (value : α) (chunks : List (List α)) :
+    value ∈ joinDistinct chunks ↔ value ∈ chunks.flatten := by
+  exact mem_destutter_ne_iff value chunks.flatten
+
 theorem destutter'_starts_with
     {α : Type u} (relation : α → α → Prop) [DecidableRel relation] (first : α) :
     ∀ rest : List α, ∃ tail, rest.destutter' relation first = first :: tail

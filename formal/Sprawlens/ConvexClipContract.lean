@@ -520,6 +520,104 @@ theorem clipIndexedRing_nonpos {extraVertices : Nat}
     signedDistance plane point ≤ 0 := by
   exact closedClipOutputPoints_nonpos plane emitted
 
+omit [IsStrictOrderedRing R] in
+/-- Every point emitted by one indexed input edge survives the fold and cyclic
+normalization into the final ring. -/
+theorem edge_output_mem_clipIndexedRing {extraVertices : Nat}
+    (plane : HalfPlane R) (vertex : RingIndex extraVertices → Vec2 R)
+    (index : RingIndex extraVertices) {point : Vec2 R}
+    (emitted : point ∈ outputPoints plane (vertex index) (vertex (nextIndex index))) :
+    point ∈ clipIndexedRing plane vertex := by
+  rw [clipIndexedRing, mem_closedClipOutputPoints_iff,
+    mem_clipOutputPoints_iff]
+  simp only [List.mem_flatten, List.mem_map]
+  refine ⟨outputPoints plane (vertex index) (vertex (nextIndex index)), ?_, ?_⟩
+  · exact ⟨(vertex index, vertex (nextIndex index)),
+      (mem_indexedEdges_iff vertex _).mpr ⟨index, rfl⟩, rfl⟩
+  · exact emitted
+
+omit [IsStrictOrderedRing R] in
+/-- Every input vertex retained by the closed half-plane occurs in the final
+normalized emitter output. -/
+theorem input_vertex_mem_clipIndexedRing_of_nonpos {extraVertices : Nat}
+    (plane : HalfPlane R) (vertex : RingIndex extraVertices → Vec2 R)
+    (index : RingIndex extraVertices)
+    (inside : signedDistance plane (vertex index) ≤ 0) :
+    vertex index ∈ clipIndexedRing plane vertex := by
+  exact edge_output_mem_clipIndexedRing plane vertex index
+    (current_mem_outputPoints_of_nonpos
+      plane (vertex index) (vertex (nextIndex index)) inside)
+
+omit [IsStrictOrderedRing R] in
+theorem leaving_boundary_mem_clipIndexedRing {extraVertices : Nat}
+    (plane : HalfPlane R) (vertex : RingIndex extraVertices → Vec2 R)
+    (index : RingIndex extraVertices)
+    (currentInside : signedDistance plane (vertex index) ≤ 0)
+    (nextOutside : 0 < signedDistance plane (vertex (nextIndex index))) :
+    boundaryPoint plane (vertex index) (vertex (nextIndex index)) ∈
+      clipIndexedRing plane vertex := by
+  exact edge_output_mem_clipIndexedRing plane vertex index
+    (boundaryPoint_mem_outputPoints_of_leaving plane
+      (vertex index) (vertex (nextIndex index)) currentInside nextOutside)
+
+omit [IsStrictOrderedRing R] in
+theorem entering_boundary_mem_clipIndexedRing {extraVertices : Nat}
+    (plane : HalfPlane R) (vertex : RingIndex extraVertices → Vec2 R)
+    (index : RingIndex extraVertices)
+    (currentOutside : 0 < signedDistance plane (vertex index))
+    (nextInside : signedDistance plane (vertex (nextIndex index)) ≤ 0) :
+    boundaryPoint plane (vertex index) (vertex (nextIndex index)) ∈
+      clipIndexedRing plane vertex := by
+  exact edge_output_mem_clipIndexedRing plane vertex index
+    (boundaryPoint_mem_outputPoints_of_entering plane
+      (vertex index) (vertex (nextIndex index)) currentOutside nextInside)
+
+/-- Declarative finite boundary generators for clipping an indexed ring: every
+retained input vertex and every entering or leaving edge intersection. -/
+def IsClipBoundaryGenerator {extraVertices : Nat}
+    (plane : HalfPlane R) (vertex : RingIndex extraVertices → Vec2 R)
+    (point : Vec2 R) : Prop :=
+  (∃ index,
+    point = vertex index ∧ signedDistance plane (vertex index) ≤ 0) ∨
+  (∃ index,
+    point = boundaryPoint plane (vertex index) (vertex (nextIndex index)) ∧
+      ((signedDistance plane (vertex index) ≤ 0 ∧
+          0 < signedDistance plane (vertex (nextIndex index))) ∨
+        (0 < signedDistance plane (vertex index) ∧
+          signedDistance plane (vertex (nextIndex index)) ≤ 0)))
+
+omit [IsStrictOrderedRing R] in
+/-- Exact finite-set contract for the normalized ring emitter. Destuttering and
+cyclic closure neither lose nor invent values: the final vertex set is exactly
+the retained input vertices plus the crossing boundary points. -/
+theorem mem_clipIndexedRing_iff_boundaryGenerator {extraVertices : Nat}
+    (plane : HalfPlane R) (vertex : RingIndex extraVertices → Vec2 R)
+    (point : Vec2 R) :
+    point ∈ clipIndexedRing plane vertex ↔
+      IsClipBoundaryGenerator plane vertex point := by
+  constructor
+  · intro emitted
+    rw [clipIndexedRing, mem_closedClipOutputPoints_iff,
+      mem_clipOutputPoints_iff] at emitted
+    simp only [List.mem_flatten, List.mem_map] at emitted
+    rcases emitted with ⟨output, ⟨edge, edgeMember, rfl⟩, pointMember⟩
+    rw [mem_indexedEdges_iff] at edgeMember
+    rcases edgeMember with ⟨index, rfl⟩
+    rw [mem_outputPoints_iff_retained_or_crossing] at pointMember
+    rcases pointMember with retained | crossing
+    · exact Or.inl ⟨index, retained⟩
+    · exact Or.inr ⟨index, crossing⟩
+  · rintro (⟨index, pointEq, inside⟩ | ⟨index, pointEq, crossing⟩)
+    · rw [pointEq]
+      exact input_vertex_mem_clipIndexedRing_of_nonpos
+        plane vertex index inside
+    · rw [pointEq]
+      rcases crossing with leaving | entering
+      · exact leaving_boundary_mem_clipIndexedRing
+          plane vertex index leaving.1 leaving.2
+      · exact entering_boundary_mem_clipIndexedRing
+          plane vertex index entering.1 entering.2
+
 theorem clipIndexedRing_on_input_edge {extraVertices : Nat}
     (plane : HalfPlane R) (vertex : RingIndex extraVertices → Vec2 R)
     {point : Vec2 R} (emitted : point ∈ clipIndexedRing plane vertex) :

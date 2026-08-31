@@ -18,6 +18,13 @@ def clipOutputPoints (plane : HalfPlane R) (edges : List (Vec2 R × Vec2 R)) : L
   joinDistinct (edges.map fun edge => outputPoints plane edge.1 edge.2)
 
 omit [IsStrictOrderedRing R] in
+theorem mem_clipOutputPoints_iff
+    (plane : HalfPlane R) (edges : List (Vec2 R × Vec2 R)) (point : Vec2 R) :
+    point ∈ clipOutputPoints plane edges ↔
+      point ∈ (edges.map fun edge => outputPoints plane edge.1 edge.2).flatten := by
+  exact mem_joinDistinct_iff point _
+
+omit [IsStrictOrderedRing R] in
 theorem outputPointFlatten_eq_nil_of_each_empty
     (plane : HalfPlane R) (edges : List (Vec2 R × Vec2 R))
     (eachEmpty : ∀ edge ∈ edges, outputPoints plane edge.1 edge.2 = []) :
@@ -111,6 +118,13 @@ theorem clipOutputPoints_allOrderedCCW
 def closedClipOutputPoints
     (plane : HalfPlane R) (edges : List (Vec2 R × Vec2 R)) : List (Vec2 R) :=
   normalizeClosure (clipOutputPoints plane edges)
+
+omit [IsStrictOrderedRing R] in
+theorem mem_closedClipOutputPoints_iff
+    (plane : HalfPlane R) (edges : List (Vec2 R × Vec2 R)) (point : Vec2 R) :
+    point ∈ closedClipOutputPoints plane edges ↔
+      point ∈ clipOutputPoints plane edges := by
+  exact mem_normalizeClosure_iff point _
 
 omit [IsStrictOrderedRing R] in
 theorem closedClipOutputPoints_closureNormalized

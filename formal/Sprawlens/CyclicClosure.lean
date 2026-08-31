@@ -81,6 +81,31 @@ theorem mem_original_of_mem_normalizeClosure
           · exact List.mem_of_mem_dropLast member
           · exact member
 
+/-- Removing an explicit closing duplicate preserves value membership because
+the same value remains at the head of the open-ring representation. -/
+theorem mem_normalizeClosure_iff
+    {α : Type u} [DecidableEq α] (value : α) (output : List α) :
+    value ∈ normalizeClosure output ↔ value ∈ output := by
+  constructor
+  · exact mem_original_of_mem_normalizeClosure
+  · intro member
+    cases output with
+    | nil => simp at member
+    | cons first rest =>
+        cases rest with
+        | nil => simpa using member
+        | cons second tail =>
+            by_cases closing : (first :: second :: tail).getLast? = some first
+            · rw [normalizeClosure_eq_dropLast_of_closing first second tail closing]
+              by_cases valueIsFirst : value = first
+              · subst value
+                cases tail <;> simp
+              · apply List.mem_dropLast_of_mem_of_ne_getLast? member
+                rw [closing]
+                simpa using valueIsFirst
+            · rw [normalizeClosure_eq_self_of_open first second tail closing]
+              exact member
+
 theorem normalizeClosure_length_le
     {α : Type u} [DecidableEq α] (output : List α) :
     (normalizeClosure output).length ≤ output.length := by

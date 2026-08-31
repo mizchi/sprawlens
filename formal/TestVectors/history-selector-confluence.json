@@ -1,0 +1,20 @@
+{
+  "schemaVersion": 1,
+  "selectorCases": [
+    { "name": "base keeps left", "editA": false, "editB": false, "previous": false, "expected": false },
+    { "name": "base keeps right", "editA": false, "editB": false, "previous": true, "expected": true },
+    { "name": "A forces right from left", "editA": true, "editB": false, "previous": false, "expected": true },
+    { "name": "A keeps right", "editA": true, "editB": false, "previous": true, "expected": true },
+    { "name": "B keeps left", "editA": false, "editB": true, "previous": false, "expected": false },
+    { "name": "B forces left from right", "editA": false, "editB": true, "previous": true, "expected": false },
+    { "name": "endpoint keeps left", "editA": true, "editB": true, "previous": false, "expected": false },
+    { "name": "endpoint keeps right", "editA": true, "editB": true, "previous": true, "expected": true }
+  ],
+  "pathCase": {
+    "name": "commuting input edits retain different predecessor geometries",
+    "expectedInputA": true,
+    "expectedInputB": true,
+    "expectedAB": true,
+    "expectedBA": false
+  }
+}

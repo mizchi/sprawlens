@@ -61,3 +61,7 @@ root = "Sprawlens.CheckHalfPlaneClipFoldFixtures"
 [[lean_exe]]
 name = "check-interpolation-orientation-fixtures"
 root = "Sprawlens.CheckInterpolationOrientationFixtures"
+
+[[lean_exe]]
+name = "check-history-selector-fixtures"
+root = "Sprawlens.CheckHistorySelectorFixtures"

@@ -3,8 +3,15 @@ import Sprawlens.FeasibleEnvelopeSelector
 import Sprawlens.Paper1Contract
 import Sprawlens.AdjacencyRate
 import Sprawlens.ControlledPaths
+import Sprawlens.LayoutConfluence
+import Sprawlens.ControlledPathConfluence
+import Sprawlens.HistorySelectorConfluence
+import Sprawlens.ConfluenceDefect
+import Sprawlens.LayoutNoninterference
+import Sprawlens.HierarchyNoninterference
 import Sprawlens.ExternalSupport
 import Sprawlens.TemporalBarycenter
+import Sprawlens.Vec2Linear
 import Sprawlens.ExactGeometry
 import Sprawlens.SegmentIntersection
 import Sprawlens.SegmentContact
@@ -23,6 +30,7 @@ import Sprawlens.ConvexClipContract
 import Sprawlens.StrictConvexContract
 import Sprawlens.ConvexClipArea
 import Sprawlens.ConvexClipConsequences
+import Sprawlens.CanonicalClip
 import Sprawlens.CyclicBinaryBlocks
 import Sprawlens.ConvexHalfPlaneSigns
 import Sprawlens.HexagonChord

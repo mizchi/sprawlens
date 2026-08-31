@@ -391,6 +391,111 @@ theorem outputPoints_nonpos
   rw [outputPoints_distances] at mapped
   exact outputDistances_nonpos mapped
 
+omit [IsStrictOrderedRing R] in
+/-- Every closed-half-plane input vertex is retained by its outgoing edge
+emitter, including a vertex exactly on the boundary. -/
+theorem current_mem_outputPoints_of_nonpos
+    (plane : HalfPlane R) (current next : Vec2 R)
+    (currentInside : signedDistance plane current ≤ 0) :
+    current ∈ outputPoints plane current next := by
+  by_cases nextInside : signedDistance plane next ≤ 0
+  · rw [outputPoints_eq_singleton_of_inside plane current next currentInside nextInside]
+    simp
+  · have nextOutside : 0 < signedDistance plane next := lt_of_not_ge nextInside
+    by_cases currentBoundary : signedDistance plane current = 0
+    · have classifiedZero :
+          classify 0 (signedDistance plane next) = .leaving :=
+        classify_leaving_iff.mpr ⟨le_rfl, nextOutside⟩
+      simp [outputPoints, currentBoundary, classifiedZero]
+    · have currentStrict : signedDistance plane current < 0 :=
+        lt_of_le_of_ne currentInside currentBoundary
+      rw [outputPoints_eq_pair_of_strict_leaving
+        plane current next currentStrict nextOutside]
+      simp
+
+omit [IsStrictOrderedRing R] in
+theorem boundaryPoint_mem_outputPoints_of_leaving
+    (plane : HalfPlane R) (current next : Vec2 R)
+    (currentInside : signedDistance plane current ≤ 0)
+    (nextOutside : 0 < signedDistance plane next) :
+    boundaryPoint plane current next ∈ outputPoints plane current next := by
+  by_cases currentBoundary : signedDistance plane current = 0
+  · rw [boundaryPoint_eq_current_of_current_boundary
+      plane current next currentBoundary]
+    exact current_mem_outputPoints_of_nonpos plane current next currentInside
+  · have currentStrict : signedDistance plane current < 0 :=
+      lt_of_le_of_ne currentInside currentBoundary
+    rw [outputPoints_eq_pair_of_strict_leaving
+      plane current next currentStrict nextOutside]
+    simp
+
+omit [IsStrictOrderedRing R] in
+theorem boundaryPoint_mem_outputPoints_of_entering
+    (plane : HalfPlane R) (current next : Vec2 R)
+    (currentOutside : 0 < signedDistance plane current)
+    (nextInside : signedDistance plane next ≤ 0) :
+    boundaryPoint plane current next ∈ outputPoints plane current next := by
+  by_cases nextBoundary : signedDistance plane next = 0
+  · have currentNotBoundary : signedDistance plane current ≠ 0 := ne_of_gt currentOutside
+    rw [boundaryPoint_eq_next_of_next_boundary
+      plane current next currentNotBoundary nextBoundary]
+    have classifiedZero :
+        classify (signedDistance plane current) 0 = .entering :=
+      classify_entering_iff.mpr ⟨currentOutside, le_rfl⟩
+    simp [outputPoints, nextBoundary, classifiedZero]
+  · have nextStrict : signedDistance plane next < 0 :=
+      lt_of_le_of_ne nextInside nextBoundary
+    rw [outputPoints_eq_singleton_of_strict_entering
+      plane current next currentOutside nextStrict]
+    simp
+
+omit [IsStrictOrderedRing R] in
+/-- Exact value-level characterization of one edge emitter: it emits precisely
+the retained current vertex and, for a crossing edge, its boundary point. The
+disjunction intentionally permits the same boundary vertex to satisfy both
+roles in a degenerate endpoint crossing. -/
+theorem mem_outputPoints_iff_retained_or_crossing
+    (plane : HalfPlane R) (current next point : Vec2 R) :
+    point ∈ outputPoints plane current next ↔
+      (point = current ∧ signedDistance plane current ≤ 0) ∨
+      (point = boundaryPoint plane current next ∧
+        ((signedDistance plane current ≤ 0 ∧ 0 < signedDistance plane next) ∨
+          (0 < signedDistance plane current ∧ signedDistance plane next ≤ 0))) := by
+  cases classified : classify (signedDistance plane current) (signedDistance plane next) with
+  | inside =>
+      have conditions := classify_inside_iff.mp classified
+      simp [outputPoints, classified, conditions.1, conditions.2,
+        not_lt_of_ge conditions.1, not_lt_of_ge conditions.2]
+  | leaving =>
+      have conditions := classify_leaving_iff.mp classified
+      by_cases currentBoundary : signedDistance plane current = 0
+      · have boundaryEq := boundaryPoint_eq_current_of_current_boundary
+          plane current next currentBoundary
+        have leavingAtBoundary :
+            classify 0 (signedDistance plane next) = .leaving :=
+          classify_leaving_iff.mpr ⟨le_rfl, conditions.2⟩
+        simp [outputPoints, currentBoundary, boundaryEq, leavingAtBoundary,
+          conditions.2]
+      · simp [outputPoints, classified, currentBoundary,
+          conditions.1, conditions.2, not_lt_of_ge conditions.1]
+  | entering =>
+      have conditions := classify_entering_iff.mp classified
+      have currentNotBoundary : signedDistance plane current ≠ 0 := ne_of_gt conditions.1
+      by_cases nextBoundary : signedDistance plane next = 0
+      · have boundaryEq := boundaryPoint_eq_next_of_next_boundary
+          plane current next currentNotBoundary nextBoundary
+        have enteringAtBoundary :
+            classify (signedDistance plane current) 0 = .entering :=
+          classify_entering_iff.mpr ⟨conditions.1, le_rfl⟩
+        simp [outputPoints, nextBoundary, boundaryEq, enteringAtBoundary,
+          conditions.1, not_le_of_gt conditions.1]
+      · simp [outputPoints, classified, nextBoundary,
+          conditions.1, conditions.2, not_le_of_gt conditions.1]
+  | outside =>
+      have conditions := classify_outside_iff.mp classified
+      simp [outputPoints, classified, conditions.1, conditions.2,
+        not_le_of_gt conditions.1, not_le_of_gt conditions.2]
+
 def OnClosedSegment (start finish point : Vec2 R) : Prop :=
   ∃ parameter ∈ Set.Icc (0 : R) 1, point = interpolatePoint start finish parameter
 
