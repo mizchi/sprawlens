@@ -936,7 +936,7 @@
       "paper": null,
       "protocol": "formal/AdjacentResearch.md#3-退化を含む半平面クリッピングの正準性",
       "typescript": [],
-      "leanModule": "Sprawlens.CanonicalClip, Sprawlens.Vec2Linear, Sprawlens.TriangleSupportSemantics, Sprawlens.QuadrilateralSupportSemantics, Sprawlens.PentagonSupportSemantics, Sprawlens.PolygonSupportSemantics, and Sprawlens.FanSupportSemantics",
+      "leanModule": "Sprawlens.CanonicalClip, Sprawlens.Vec2Linear, Sprawlens.TriangleSupportSemantics, Sprawlens.QuadrilateralSupportSemantics, Sprawlens.PentagonSupportSemantics, Sprawlens.PolygonSupportSemantics, Sprawlens.FanSupportSemantics, Sprawlens.RedundantVertexSemantics, and Sprawlens.FanBetweenness",
       "theorems": [
         "affineCombination_eq_interpolatePoint",
         "orientation_triangle_decomposition",
@@ -952,6 +952,23 @@
         "orderedTripleVertex_strict_of_positive",
         "strictOrdered_hasPositiveFan",
         "positiveFan_supportSemanticsAdequate",
+        "prefixVertex_ordered",
+        "supportSemanticsAdequate_snoc_of_positiveFanTriangle",
+        "indexedPolygonRegion_eq_prefix_of_last_on_closingSegment",
+        "indexedVertexConvexRegion_eq_prefix_of_last_on_closingSegment",
+        "supportSemanticsAdequate_of_prefix_of_last_on_closingSegment",
+        "reducibleFan_supportSemanticsAdequate",
+        "collinear_between_of_positive_witness",
+        "last_on_closingSegment_of_ordered_of_positive_witness",
+        "positive_witness_propagates_to_last",
+        "witnessedFan_hasReducibleFan",
+        "witnessedFan_supportSemanticsAdequate",
+        "positivePrefixWitness_prefix",
+        "positivePrefixWitness_of_ordered_of_injective_of_initial",
+        "positivePrefixWitness_hasWitnessedFan",
+        "positivePrefixWitness_supportSemanticsAdequate",
+        "orderedInjectiveInitial_supportSemanticsAdequate",
+        "orderedSimpleInitial_supportSemanticsAdequate",
         "canonical_idempotent",
         "canonical_emit_eq_of_semantics_eq",
         "canonical_halfPlane_emit_perm",
@@ -982,8 +999,8 @@
         "weakConvex_reverse_containment_counterexample",
         "collapsedTriangle_vertexConvex_semantics_exact"
       ],
-      "status": "proved-explicit-completeness-contract-exact-boundary-generators-degeneracy-safe-convex-hull-soundness-positive-fan-polygon-support-adequacy-no-cut-and-empty-cut-equality-plus-collapsed-and-collinear-counterexamples",
-      "implementationCorrespondence": "the-executable-lean-emitter-vertex-set-is-exactly-retained-input-vertices-plus-crossing-points-its-full-convex-hull-stays-in-the-input-vertex-convex-hull-intersection-without-convexity-and-equality-holds-for-all-inside-or-all-strictly-outside-inputs-simple-plus-weak-convex-is-proved-insufficient-while-global-weak-order-plus-a-positive-fan-is-proved-sufficient-for-support-semantics-at-every-vertex-count-and-strict-global-order-constructs-that-certificate-the-mixed-clip-completeness-and-degenerate-canonicalizer-laws-remain-proof-obligations"
+      "status": "proved-explicit-completeness-contract-exact-boundary-generators-degeneracy-safe-convex-hull-soundness-ordered-simple-positive-seam-support-adequacy-no-cut-and-empty-cut-equality-plus-collapsed-and-collinear-counterexamples",
+      "implementationCorrespondence": "the-executable-lean-emitter-vertex-set-is-exactly-retained-input-vertices-plus-crossing-points-its-full-convex-hull-stays-in-the-input-vertex-convex-hull-intersection-without-convexity-and-equality-holds-for-all-inside-or-all-strictly-outside-inputs-simple-plus-weak-convex-is-proved-insufficient-while-global-weak-order-plus-injectivity-or-simplicity-and-a-positive-initial-triangle-is-proved-sufficient-for-support-semantics-with-zero-area-fan-cells-treated-as-redundant-the-mixed-clip-completeness-seam-independent-full-dimensional-rotation-and-degenerate-canonicalizer-laws-remain-proof-obligations"
     },
     {
       "id": "adjacent.hierarchical-layout.patch-noninterference",

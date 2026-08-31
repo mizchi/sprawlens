@@ -65,11 +65,13 @@
 - `QuadrilateralSupportSemantics`と`PentagonSupportSemantics`で、頂点0からの対角線に対する点の符号によりfan triangleを選び、三角形定理へ帰着する有限caseを検証した。
 - `PolygonSupportSemantics`でこのfan分割を任意頂点数へ一般化した。末尾への対角線の左側なら末尾triangleへ、右側なら末尾頂点を除いたprefix polygonへ帰着する帰納法により、任意の`IsStrictVertexOrderedConvexCCW`入力で`indexedPolygonRegion = indexedVertexConvexRegion`を証明した。したがってstrict global orderは`SupportSemanticsAdequate`の十分条件である。
 - `FanSupportSemantics`で十分条件をさらに弱めた。globalなweak vertex orderに加え、頂点0を根とする各fan triangleのorientationが正であるという再帰的certificateだけで`SupportSemanticsAdequate`が成立する。これはfan cell以外の共線三点を許し、strict global orderからcertificateを構成できることも証明した。
+- `RedundantVertexSemantics`で、閉じ辺を`[0,1]`補間点で分割する末尾頂点を追加・除去しても、edge-support領域とvertex convex hullがそれぞれexactに不変であることを証明した。これをpositive fan stepと合成した`HasReducibleFan`により、正面積cellとゼロ面積の冗長subdivisionが混在するweak ordered polygonでも`SupportSemanticsAdequate`を導ける。
+- `FanBetweenness`で、正orientationのoff-line witnessと二つのweak support条件から、共線点を閉じ辺上の`[0,1]`補間としてorientation面積比で再構成した。weak global orderはこの二つのsupport条件を自動供給する。さらにwitness伝播が失敗する唯一のcaseは末尾頂点と頂点0の重複であることを示し、injectivityまたは`IsSimpleRing`で排除した。結果として、weak global vertex order、injectivity（またはsimplicity）、正orientationの先頭三角形から、任意頂点数の`SupportSemanticsAdequate`を証明した。途中のゼロ面積fan cellは許容される。
 
 ### 未証明・実証が必要なこと
 
 - insideとoutsideの頂点が両方存在するmixed crossing caseで、`indexedVertexConvexRegion ∩ halfPlaneRegion`の任意点が`clipIndexedConvexRegion`に入る逆包含。任意の頂点順序では交差辺の集合がconvex hull境界を表さないため、`IsTraversalConvexCCW`またはより強いordered-convex premiseを前提とする必要がある。
-- `IsVertexOrderedConvexCCW ∧ full-dimensionality`だけから、正のfanを持つ巡回始点または冗長頂点除去を構成して`SupportSemanticsAdequate`を導くこと。positive-fan caseまでは証明済みだが、fan cell自体のorientationが0になる場合は始点変更またはcell skipが必要である。
+- seamに依存しないfull-dimensionalityから、正orientationの先頭三角形を持つ巡回始点を選び、weak global orderとsupport / convex-hull意味論をその回転に保存すること。seam固定後のinjectiveまたはsimple caseは証明済みである。
 - empty / point / segment / polygonの正準表現と、その意味保存・冪等性・一意性。
 - 共線点除去、隣接重複除去、winding統一、巡回始点選択を合成したcanonicalizer。
 - 有理座標の小規模全探索による、完全一致命題の反例探索。

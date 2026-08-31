@@ -36,6 +36,8 @@ import Sprawlens.QuadrilateralSupportSemantics
 import Sprawlens.PentagonSupportSemantics
 import Sprawlens.PolygonSupportSemantics
 import Sprawlens.FanSupportSemantics
+import Sprawlens.RedundantVertexSemantics
+import Sprawlens.FanBetweenness
 import Sprawlens.CyclicBinaryBlocks
 import Sprawlens.ConvexHalfPlaneSigns
 import Sprawlens.HexagonChord
