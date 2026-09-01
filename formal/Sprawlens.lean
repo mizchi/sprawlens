@@ -5,6 +5,10 @@ import Sprawlens.Paper1Contract
 import Sprawlens.PairwiseClipCompleteness
 import Sprawlens.PairwiseBarycentricFlow
 import Sprawlens.PairwiseAdjacentCoverage
+import Sprawlens.ReclipCertificate
+import Sprawlens.ListReclipClassification
+import Sprawlens.ClipOutputRecertification
+import Sprawlens.DegenerateClip
 import Sprawlens.AdjacencyRate
 import Sprawlens.ControlledPaths
 import Sprawlens.LayoutConfluence
@@ -49,6 +53,7 @@ import Sprawlens.TriangleClipCompleteness
 import Sprawlens.TriangleBoundaryClipCompleteness
 import Sprawlens.CyclicBinaryBlocks
 import Sprawlens.ConvexHalfPlaneSigns
+import Sprawlens.WeakConvexHalfPlaneSigns
 import Sprawlens.HexagonChord
 import Sprawlens.HalfPlaneClipFold
 import Sprawlens.CyclicClosure

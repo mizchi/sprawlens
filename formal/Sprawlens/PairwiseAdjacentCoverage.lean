@@ -121,7 +121,7 @@ and the two adjacent crossing edges. -/
 theorem pairwiseGenerator_mem_boundaryHull_of_outsideBlock
     {extraVertices count : Nat}
     (plane : HalfPlane R) (vertex : RingIndex extraVertices → Vec2 R)
-    (ordered : IsStrictVertexOrderedConvexCCW vertex)
+    (adequate : SupportSemanticsAdequate vertex)
     (countPositive : 0 < count)
     (countBound : count < extraVertices + 3)
     (outsideIff : ∀ index,
@@ -194,7 +194,7 @@ theorem pairwiseGenerator_mem_boundaryHull_of_outsideBlock
     have targetInSupport :
         boundaryPoint plane (vertex first) (vertex second) ∈
           indexedPolygonRegion vertex := by
-      rw [strictPolygon_supportSemanticsAdequate vertex ordered]
+      rw [adequate]
       exact targetInVertexHull
     let exit := boundaryPoint plane (vertex zero) (vertex one)
     let entry := boundaryPoint plane (vertex lastOutside)
@@ -236,7 +236,7 @@ hull covers the complete all-pairs relaxation. -/
 theorem pairwiseCovered_of_outsideBlock
     {extraVertices count : Nat}
     (plane : HalfPlane R) (vertex : RingIndex extraVertices → Vec2 R)
-    (ordered : IsStrictVertexOrderedConvexCCW vertex)
+    (adequate : SupportSemanticsAdequate vertex)
     (countPositive : 0 < count)
     (countBound : count < extraVertices + 3)
     (outsideIff : ∀ index,
@@ -248,15 +248,15 @@ theorem pairwiseCovered_of_outsideBlock
   apply convexHull_min
   · intro point generator
     exact pairwiseGenerator_mem_boundaryHull_of_outsideBlock
-      plane vertex ordered countPositive countBound outsideIff generator
+      plane vertex adequate countPositive countBound outsideIff generator
   · exact convex_convexHull R _
 
-/-- A normalized strict-convex mixed clipping instance has complete adjacent
-boundary generators. -/
+/-- A normalized mixed clipping instance with adequate support semantics has
+complete adjacent boundary generators. -/
 theorem boundaryGeneratorHullComplete_of_outsideBlock
     {extraVertices count : Nat}
     (plane : HalfPlane R) (vertex : RingIndex extraVertices → Vec2 R)
-    (ordered : IsStrictVertexOrderedConvexCCW vertex)
+    (adequate : SupportSemanticsAdequate vertex)
     (countPositive : 0 < count)
     (countBound : count < extraVertices + 3)
     (outsideIff : ∀ index,
@@ -266,7 +266,7 @@ theorem boundaryGeneratorHullComplete_of_outsideBlock
   apply (boundaryGeneratorHullComplete_iff_pairwiseCovered plane vertex
     (PairwiseBarycentricFlow.pairwiseGeneratorHullComplete
       plane vertex)).mpr
-  exact pairwiseCovered_of_outsideBlock plane vertex ordered countPositive
+  exact pairwiseCovered_of_outsideBlock plane vertex adequate countPositive
     countBound outsideIff
 
 /-- General single-half-plane completeness for every strict globally ordered
@@ -284,6 +284,8 @@ theorem strictPolygon_boundaryGeneratorHullComplete
       let rotated := rotateVertex start vertex
       have rotatedOrdered : IsStrictVertexOrderedConvexCCW rotated :=
         ordered.rotateVertex start
+      have rotatedAdequate : SupportSemanticsAdequate rotated :=
+        strictPolygon_supportSemanticsAdequate rotated rotatedOrdered
       have rotatedBlockIff : ∀ index,
           0 < signedDistance plane (rotated index) ↔
             0 < index.val ∧ index.val ≤ count := by
@@ -292,7 +294,7 @@ theorem strictPolygon_boundaryGeneratorHullComplete
       have rotatedComplete :
           BoundaryGeneratorHullComplete plane rotated :=
         boundaryGeneratorHullComplete_of_outsideBlock plane rotated
-          rotatedOrdered countPositive countBound rotatedBlockIff
+          rotatedAdequate countPositive countBound rotatedBlockIff
       exact (boundaryGeneratorHullComplete_rotateVertex_iff
         plane start vertex).mp rotatedComplete
     · have allOutside : ∀ index,
