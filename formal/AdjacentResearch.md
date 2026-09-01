@@ -86,12 +86,26 @@
 - 一般mixed canonical rotationの実出力について、既証明のweak order、injectivity、full-dimensionalityを上の定理へ接続した。retained頂点が一つのbranchとそれ以外のbranchの双方で、長さ3以上なら`IsReclipCertified`、短ければempty / point / segmentとして全分類できる。さらに任意のmixed strict入力にはoutside block直前のseamが存在し、そのseamへ入力を回転してから実emitterを適用すれば、この全分類を得られる。
 - `DegenerateClip`でempty / point / segmentを水増しなしのartifactとして定義した。pointは保持またはempty、segmentはinside / leaving / entering / outsideの4状態からpoint / segment / emptyへ遷移する総関数であり、境界交点の前後で補間parameterをexactに変換して、出力領域が元領域とclosed half-planeの共通部分に一致することを証明した。
 - 退化artifactのstepを任意の有限half-plane列へfoldし、結果領域が宣言的`constrainedRegion`とexactに一致することを証明した。segment endpointの重複を除く正規形とempty / point / segment分類も全段で保存される。`OutputReclassification`からは、有限継続可能な退化artifactまたは長さ3以上のcertified polygonへ分岐できる。
+- `CyclicDestutter`で、隣接duplicate除去とclosing duplicate除去の合成が任意のlist回転に対して巡回同値を保存することを証明した。可変長chunk列を回転した後のflattenにも持ち上げたため、edgeごとの出力長に依存しない。
+- `ClipRotationEquivariance`で実emitterをこの汎用定理へ接続し、入力edge列またはindexed vertexのseamを変更しても、正規化後出力は巡回回転まで一致することをconvexity仮定なしで証明した。`ReclipRotation`では`IsReclipCertified`と`OutputReclassification`の回転保存を証明し、canonical mixed seamの証明を呼出側の元seamへ移送した。no-cut / empty-cutを加え、strict入力の任意half-plane出力を元seamのまま全分類できる。
+- `IteratedReclipCounterexample`で、`IsReclipCertified`を満たす全次元五角形でも冗長な共線辺頂点を持てること、その支持線clipが相異なる三共線点を返すこと、この出力が長さ3にもかかわらず`OutputReclassification`を持たないことを証明した。したがって、要素数を幾何学的次元と同一視する旧分類は一般の反復不変量ではない。
+- `SemanticReclassification`でraw listの凸包と正規化artifact領域の等しさを新しい反復契約にした。empty / point / segment / certified polygonという旧分類はすべて新契約へ埋め込める。さらに、二端点がlistに含まれ全点がそのclosed segment上にあるなら、list長によらず線分artifactへ意味保存で落とせる。上の三共線点反例は旧契約には拒否され、新契約には受理されるstrict extension witnessになった。
+- polygonと退化artifactを統一する`ClipTransition`を定義し、一段の受理済み遷移が元領域と次half-planeのintersectionにexactであることを証明した。そのproof-carryingな有限遷移列も、初期領域に全half-planeを加えた`constrainedRegion`とexactに一致する。これで多段意味論のsoundnessは閉じ、残る義務を各polygon出力のtotalなdimension-aware再分類へ分離した。
+- `AffineDimensionClassification`で、weak global orderを持つringはpositive ordered tripleを持つか、全ordered tripleがorientation 0になるかのいずれかであることを証明した。injectivityがあれば前者は既存の`IsReclipCertified`へ直結する。実emitter出力についてはweak-order保存と`Nodup`だけでこの分岐を得られるため、total再分類の残件は後者からextreme endpointsを抽出する一次元問題だけになった。
+- `CollinearExtrema`で、相異なる最初の二点に対するline parameterを定義し、orientation 0の点をaffine interpolationとしてexactに復元した。有限parameter集合の最小・最大は実際の頂点から選べ、その二頂点間のclosed segmentが全頂点を含む。これを使い、全ordered triple共線branchを線分artifactへtotalに落とした。
+- `TotalSemanticReclassification`でglobal `dedup`がvertex集合と凸包を変えず、sublistとしてweak global orderを保存することを証明した。したがって実emitter出力は長さや非隣接duplicateの有無によらず、certified polygonまたはdegenerate artifactへsemanticにtotal分類できる。
+- `TotalIteratedClip`でpolygonのcertificateに加えてweak orderと`Nodup`を保持する`IterationReady`を定義した。ready artifactは任意half-planeで次のready artifactへ遷移でき、任意の有限half-plane列にも帰納できる。strict ordered初期polygonをready artifactへ埋め込み、最終artifact領域が`indexedVertexConvexRegion`へ全制約を適用した`constrainedRegion`とexactに一致するend-to-end定理まで閉じた。
+- `ExecutableCanonicalizer`でglobal dedup、有限positive-triple判定、`List.argmin` / `List.argmax`による共線extrema選択をproof-free関数へ落とした。weak ordered入力での領域意味保存と、artifactをmaterializeして再適用したときの冪等性を証明した。
+- 同じ非退化線分を逆向きの二点列で与えると領域は一致するが、走査順をそのまま端点順に使う初期案ではartifactが一致しなかった。このRedを受け、端点を辞書式座標順へ正規化した。現実装では逆向き入力のartifact一致と、その連続領域が元のsegmentに一致することを証明済みである。
+- `PolygonSeamCanonicalizer`でpolygonを辞書式最小頂点へ回転する実行可能なseam normalizerを分離した。これは元listの巡回置換であり、長さ、`Nodup`、凸包領域を保存し、最小頂点を先頭へ置き、二度適用しても変化しない。さらに`Nodup`なlistでは任意の入力巡回回転を同じ正規化listへ写すことを証明した。dimension-aware canonicalizerのartifact層へ合成した`canonicalizeSeamed`も定義し、weak ordered入力での領域意味保存とartifact-level冪等性を閉じた。残る義務は、合成関数をmaterializeして再適用する冪等性と、base classifierの全branchを含むend-to-end入力回転一致である。
+- その残件に対し、positive cyclic turnが任意の`rotateVertex`で保存されることと、cyclic turnがseamを跨ぐ場合でもorientationの巡回対称性によって増加indexの`HasPositiveTriple`へ戻せることを証明した。これによりpolygon seam回転後もaffine-dimension classifierがpolygon branchに留まるための幾何学的義務を分離して閉じた。
+- このcyclic turn保存を具体的な`List.rotate`と`listVertex`再indexへ接続し、weak order・`Nodup`・positive tripleを持つpolygonは`canonicalPolygon`後もpositive tripleを持つことを証明した。したがってseam正規化済みpolygonを`canonicalizeSeamed`へmaterializeして戻すと同じpolygon artifactになる。全artifact冪等性に残るのは、このpolygon fixed-pointと既証明のempty / point / segment / collinear fixed-pointを合成する場合分けである。
 
 ### 未証明・実証が必要なこと
 
-- 単一half-planeについては、任意頂点数のstrict ordered convex polygonで実emitterのconvex-hull意味論と宣言的intersectionの等号まで証明済みである。canonical mixed-sign rotationでは長さ3以上の実出力を次段用certificateへ再認証し、退化branchは任意の有限half-plane列までexactに閉じた。残るのは任意seamの実出力との巡回同値・certificate保存、およびpolygon stepを繰り返して毎段再dispatchするend-to-end接続である。
-- empty / point / segment / polygonの正準表現と、その意味保存・冪等性・一意性。
-- 共線点除去、隣接重複除去、winding統一、巡回始点選択を合成したcanonicalizer。
+- 単一half-planeの実emitter領域等号、dimension-awareなtotal再分類、polygon / degenerate混在の任意有限遷移、strict ordered初期polygonからのend-to-end宣言的領域等式に加え、具体的な実行可能canonicalizerの意味保存とmaterialization後の冪等性まで証明済みである。
+- empty / point / segment / polygonの正準表現について残るのは、同一領域を同一artifactへ写す意味的一意性である。
+- polygonのwinding統一と、合成済みseam canonicalizerのmaterialization後冪等性・全branch入力回転一致。segment端点順とpolygon seam単体の巡回回転不変性は実装・証明済みである。
 - 有理座標の小規模全探索による、完全一致命題の反例探索。
 
 集合交差の可換性自体は標準事実である。成果候補は、退化を含む実行可能emitterと正準化の検証済み接続である。

@@ -35,6 +35,47 @@ structure IsReclipCertified {extraVertices : Nat}
     (∃ index, signedDistance plane (vertex index) ≤ 0) →
     IsRotatedBlock (fun index ↦ 0 < signedDistance plane (vertex index))
 
+/-- Reclip certification belongs to the cyclic polygon, not to the selected
+materialization seam. -/
+theorem IsReclipCertified.rotateVertex
+    {extraVertices : Nat}
+    {vertex : RingIndex extraVertices → Vec2 R}
+    (certified : IsReclipCertified vertex)
+    (start : RingIndex extraVertices) :
+    IsReclipCertified (StrictConvexContract.rotateVertex start vertex) := by
+  let positive : 0 < extraVertices + 3 := by omega
+  have vertexEq : ∀ index,
+      StrictConvexContract.rotateVertex start vertex index =
+        vertex (rotateIndex positive start index) := by
+    intro index
+    apply congrArg vertex
+    apply Fin.ext
+    rfl
+  refine ⟨
+    (supportSemanticsAdequate_rotateVertex_iff start vertex).mpr
+      certified.supportAdequate,
+    ?_
+  ⟩
+  intro plane hasOutside hasInside
+  have originalOutside :
+      ∃ index, 0 < signedDistance plane (vertex index) := by
+    rcases hasOutside with ⟨index, outside⟩
+    exact ⟨rotateIndex positive start index, by
+      rw [← vertexEq index]
+      exact outside⟩
+  have originalInside :
+      ∃ index, signedDistance plane (vertex index) ≤ 0 := by
+    rcases hasInside with ⟨index, inside⟩
+    exact ⟨rotateIndex positive start index, by
+      rw [← vertexEq index]
+      exact inside⟩
+  have originalBlock := certified.outsideRotatedBlock
+    plane originalOutside originalInside
+  have rotatedBlock := originalBlock.comp_rotateIndex positive start
+  change IsRotatedBlock (fun index =>
+    0 < signedDistance plane (vertex (rotateIndex positive start index)))
+  exact rotatedBlock
+
 /-- Strict global order is one sufficient producer of the weaker reusable
 clipping certificate. -/
 theorem IsStrictVertexOrderedConvexCCW.reclipCertified

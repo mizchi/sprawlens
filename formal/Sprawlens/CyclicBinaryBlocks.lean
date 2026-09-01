@@ -12,6 +12,51 @@ def IsLinearInterval {n : Nat} (predicate : Fin n → Prop) : Prop :=
 def rotateIndex {n : Nat} (positive : 0 < n) (start index : Fin n) : Fin n :=
   ⟨(start.val + index.val) % n, Nat.mod_lt _ positive⟩
 
+theorem rotateIndex_assoc {n : Nat} (positive : 0 < n)
+    (first second index : Fin n) :
+    rotateIndex positive first (rotateIndex positive second index) =
+      rotateIndex positive (rotateIndex positive first second) index := by
+  apply Fin.ext
+  simp only [rotateIndex]
+  rw [Nat.add_mod_mod, Nat.mod_add_mod, Nat.add_assoc]
+
+def inverseStart {n : Nat} (positive : 0 < n) (start : Fin n) : Fin n :=
+  if zero : start.val = 0 then ⟨0, positive⟩
+  else ⟨n - start.val, by omega⟩
+
+theorem rotateIndex_inverseStart_left {n : Nat} (positive : 0 < n)
+    (start index : Fin n) :
+    rotateIndex positive (inverseStart positive start)
+        (rotateIndex positive start index) = index := by
+  apply Fin.ext
+  by_cases zero : start.val = 0
+  · simp [rotateIndex, inverseStart, zero, Nat.mod_eq_of_lt index.isLt]
+  · simp only [rotateIndex, inverseStart, zero, dite_false]
+    rw [Nat.add_mod_mod]
+    have sum : n - start.val + (start.val + index.val) = n + index.val := by
+      omega
+    rw [sum, Nat.add_mod_left, Nat.mod_eq_of_lt index.isLt]
+
+theorem rotateIndex_injective {n : Nat} (positive : 0 < n)
+    (start : Fin n) : Function.Injective (rotateIndex positive start) := by
+  intro first second equal
+  have inverseEqual := congrArg
+    (rotateIndex positive (inverseStart positive start)) equal
+  simpa [rotateIndex_inverseStart_left] using inverseEqual
+
+theorem rotateIndex_inverseStart_right {n : Nat} (positive : 0 < n)
+    (start index : Fin n) :
+    rotateIndex positive start
+        (rotateIndex positive (inverseStart positive start) index) = index := by
+  apply Fin.ext
+  by_cases zero : start.val = 0
+  · simp [rotateIndex, inverseStart, zero, Nat.mod_eq_of_lt index.isLt]
+  · simp only [rotateIndex, inverseStart, zero, dite_false]
+    rw [Nat.add_mod_mod]
+    have sum : start.val + (n - start.val + index.val) = n + index.val := by
+      omega
+    rw [sum, Nat.add_mod_left, Nat.mod_eq_of_lt index.isLt]
+
 /-- A nontrivial cyclic binary block can be cut immediately before the selected block.
 In the rotated order, index zero is rejected and precisely indices `1 .. count`
 are selected. -/
@@ -20,6 +65,33 @@ def IsRotatedBlock {n : Nat} (predicate : Fin n → Prop) : Prop :=
     0 < count ∧ count < n ∧
       ∀ index, predicate (rotateIndex positive start index) ↔
         0 < index.val ∧ index.val ≤ count
+
+/-- A cyclic block remains a cyclic block after changing the materialization
+seam of its finite index space. -/
+theorem IsRotatedBlock.comp_rotateIndex {n : Nat} {predicate : Fin n → Prop}
+    (positive : 0 < n) (offset : Fin n)
+    (block : IsRotatedBlock predicate) :
+    IsRotatedBlock (fun index =>
+      predicate (rotateIndex positive offset index)) := by
+  rcases block with
+    ⟨blockPositive, start, count, countPositive, countBound, blockIff⟩
+  let shiftedStart :=
+    rotateIndex positive (inverseStart positive offset) start
+  refine ⟨positive, shiftedStart, count, countPositive, countBound, ?_⟩
+  intro index
+  have composed :
+      rotateIndex positive offset
+          (rotateIndex positive shiftedStart index) =
+        rotateIndex positive start index := by
+    rw [rotateIndex_assoc]
+    have unshifted : rotateIndex positive offset shiftedStart = start := by
+      dsimp only [shiftedStart]
+      exact rotateIndex_inverseStart_right positive offset start
+    rw [unshifted]
+  change predicate (rotateIndex positive offset
+      (rotateIndex positive shiftedStart index)) ↔ _
+  rw [composed]
+  simpa using blockIff index
 
 theorem add_mod_eq_self_or_sub {n left right : Nat}
     (leftBound : left < n) (rightBound : right < n) :
