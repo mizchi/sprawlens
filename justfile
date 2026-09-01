@@ -51,6 +51,9 @@ benchmark-layout *args:
 benchmark-stable:
     @pnpm bench packages/layout/src/stableNeighborhood.bench.ts
 
+benchmark-boundary-hausdorff:
+    @pnpm bench packages/layout/src/boundaryHausdorff.bench.ts
+
 stable-vt-adapter:
     @pnpm tsx tools/stable-vt-adapter.ts
 

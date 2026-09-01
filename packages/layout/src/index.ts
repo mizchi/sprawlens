@@ -2,6 +2,7 @@
 export * from "./affine.ts";
 export * from "./assignment.ts";
 export * from "./barycenter.ts";
+export * from "./boundaryHausdorff.ts";
 export * from "./bundling.ts";
 export * from "./capacityLayout.ts";
 export * from "./candidateGenerator.ts";

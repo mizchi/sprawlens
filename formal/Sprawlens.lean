@@ -32,6 +32,9 @@ import Sprawlens.LayoutConfluence
 import Sprawlens.ControlledPathConfluence
 import Sprawlens.HistorySelectorConfluence
 import Sprawlens.ConfluenceDefect
+import Sprawlens.SameEndpointConsistency
+import Sprawlens.BoundaryDiscrepancy
+import Sprawlens.PolygonBoundaryMetric
 import Sprawlens.LayoutNoninterference
 import Sprawlens.HierarchyNoninterference
 import Sprawlens.ExternalSupport
@@ -74,3 +77,7 @@ import Sprawlens.WeakConvexHalfPlaneSigns
 import Sprawlens.HexagonChord
 import Sprawlens.HalfPlaneClipFold
 import Sprawlens.CyclicClosure
+import Sprawlens.HausdorffApproximation
+import Sprawlens.ArcLengthSampling
+import Sprawlens.PolygonBoundarySampling
+import Sprawlens.FiniteHausdorffMaximum

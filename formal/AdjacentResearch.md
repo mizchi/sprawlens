@@ -17,13 +17,25 @@
 - resetとflipだけからなる二状態modelで、同じ二編集が順序により異なる終点を持つload-bearing counterexampleを固定した。
 - `HistorySelectorConfluence`で、二候補・二編集・前状態への距離最小という有限selectorを定義した。AB/BAは同じ入力終点を持つ一方、中間状態で一意に選ばれた候補が共通終点のtie-breakとして残るため、最終geometryが異なることを証明した。
 - `ConfluenceDefect`で局所squareの二終点間距離を欠損として定義した。metric spaceでは欠損0とその状態での可換性が同値であり、第二遷移のLipschitz定数と二つのstep budgetから欠損上界が得られることを証明した。
+- `SameEndpointConsistency`でinput projectionとgeometry observationを分離し、同じinput終点かつ異なるgeometryというviolationを一般の二経路に対して定義した。metricではviolationと正のpath defectが同値であり、上の有限selectorがuniversal consistencyへの反例になることを証明した。
+- AB/BA commutator defectと二方向のreversal-loop defectを統一した。二方向のloop defectの差はcommutator defect以下であり、片方向が初期geometryへ完全回復すれば、反対方向のloop defectはcommutator defectとexactに一致する。
+- raw defectからnoise floorと事前marginを引いて0で切るexcess defectについて、常に非負であり、raw defectが閾値以下ならexactに0、閾値を超えるときだけ正になることを証明した。noise floorの統計的推定自体は証明対象ではない。
+- same-endpoint violationの検出に必要なのは非負性と分離性だけであり、symmetryとtriangle inequalityは不要であることを`RepresentationDiscrepancy`として分離した。triangle boundを使うloop間関係だけは引き続きmetricを要求する。
+- 現在のsampled mean-nearest boundary displacementはfull domain上のmetricではない。empty / nonempty間が0になるLean反例と、三角不等式が`2 > 0.5 + 0.5`で破れるTypeScript回帰caseを固定した。代替候補として非空compact boundaryのHausdorff metricが、0 iff set同一とtriangle inequalityを満たすことを証明した。
+- 非空polygon listの全closed edgeとclosing edgeの和集合が非空compactであり、Hausdorff carrierを直接構成できることを証明した。このboundary setは任意seam回転とwinding反転でexactに不変である。辺上の冗長点による一辺の二分もsetを変えず、局所挿入前後のHausdorff距離は0になる。
+- 両boundaryのsample集合がepsilon-netで、sampled maximumの上界と達成点が得られる場合、sampled estimateがexact Hausdorff distanceの下界となり、exact値が`estimate + max epsilon`以下になることを証明した。TypeScript候補は空境界をfail-closedにし、周長/sample数を保守的な離散化誤差として返す。
+- 非負periodの閉じた1-Lipschitz traceについて、`0 ≤ index < count`のuniform arc-length sampleが`period / count`-netを構成することを証明した。trace像の非空compact性も導き、sample maximumの有限計算だけを残してHausdorff certificateへ接続した。
+- polygon全体のpiecewise traceとは独立に、各closed edgeのaffine sampleが`edgeLength / subdivisions`-netとなり、そのunionが`maxEdgeLength / subdivisions`-netとなることを証明した。TypeScriptにも同じedge-local samplerを独立APIとして実装し、empty policy、bound、実sample数を回帰testで固定した。
+- 同程度の理論誤差を狙ったdevelopment microbenchmarkでは、edge-local版はfixed-total版より4辺で1.38倍、16辺で1.77倍、64辺で5.07倍遅かった。このため現時点ではproof-oriented baselineとし、production置換は行っていない。
+- edge-local sampleを`Finset.range`とaffine imageの有限unionとして実体化し、carrier集合との一致と非空性を証明した。非空有限sample上ではdirected `infDist`の最大値が必ず達成されるため、sample上界、達成witness、非負性を自動生成し、maximum仮定なしのpolygon Hausdorff区間定理まで閉じた。
 
 ### 未証明・実証が必要なこと
 
 - 実際のSprawlens layout transitionがどの編集対で可換になるか。
 - 非可換性を距離へ持ち上げた上界、下界、またはLipschitz条件。
 - 実geometry metricについてLipschitz定数とstep budgetを推定・保証すること。
-- reversal residualと局所squareの欠損を結ぶ定理。
+- primary実測値をseparating discrepancyとして使うdomainを明示するか、証明済みの非空polygon-boundary Hausdorff metricへ置き換えること。
+- TypeScriptのpoint-to-segment projection式がpolygon boundaryへのLean `infDist`と一致することをEuclidean 2Dで証明するか、共有fixtureでrefinement境界を固定すること。採用版についてIEEE-754 roundoffを含む誤差contractを固定すること。
 - 今回の二候補witnessが、実repository sequenceの候補生成・feasible-envelope metricに埋め込めること。
 
 新規性は可換性の一般代数ではなく、状態依存visual layoutのpath dependenceを局所squareと証明可能な欠損へ分解する点に置く。
@@ -144,7 +156,7 @@
 
 ## 次の証明順序
 
-1. 二候補witnessを実candidate metricへ埋め込み、TypeScriptでも同じ非可換squareを共有fixtureとして実行する。
-2. 出力ringの領域意味論を定義し、保持頂点とcrossing交点の完全性から一段emitter soundnessの逆包含を証明する。
-3. 冗長共線境界頂点normalizerを定義し、意味保存・冪等性とirredundant convex polygon上の一意性を証明する。
+1. proof-carrying clipping関係とproof-erased TypeScript / JavaScript実行器の対応範囲を決め、exact-rational oracleまたは共有fixtureで最小refinement contractを固定する。
+2. 既存のproof-assistant geometry artifactを体系的に比較し、退化安全な反復reclassificationとcanonical artifactの差分だけをpublication claim候補として残す。
+3. 有理座標の小規模全探索でcanonical extensionalityの前提境界を反例探索し、見つかったwitnessをLean regressionへ追加する。
 4. controllerのparent chainとancestor closureを共有fixtureで対応づけ、実patch生成器のsupport契約へ接続する。

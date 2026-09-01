@@ -1,4 +1,5 @@
 import type { AtlasEdge } from "@sprawlens/contracts";
+import { sampledMeanBoundaryDisplacement } from "./boundaryHausdorff.ts";
 import { centroid, polygonIoU, type Ring } from "./polygon.ts";
 import type { Vec2 } from "./vec.ts";
 
@@ -14,63 +15,6 @@ export type TemporalGeometryMetrics = {
   polygonIoULoss: number;
   relativeDirectionChange: number;
 };
-
-const pointSegmentDistance = (point: Vec2, start: Vec2, end: Vec2) => {
-  const dx = end.x - start.x;
-  const dy = end.y - start.y;
-  const lengthSquared = dx * dx + dy * dy;
-  if (lengthSquared <= 1e-24) return Math.hypot(point.x - start.x, point.y - start.y);
-  const projection = Math.max(
-    0,
-    Math.min(1, ((point.x - start.x) * dx + (point.y - start.y) * dy) / lengthSquared),
-  );
-  return Math.hypot(point.x - (start.x + projection * dx), point.y - (start.y + projection * dy));
-};
-
-const sampleBoundary = (ring: Ring, count = 32): Vec2[] => {
-  if (ring.length === 0) return [];
-  const segments = ring.map((start, index) => {
-    const end = ring[(index + 1) % ring.length]!;
-    return { start, end, length: Math.hypot(end.x - start.x, end.y - start.y) };
-  });
-  const perimeter = segments.reduce((sum, segment) => sum + segment.length, 0);
-  if (perimeter <= 1e-12) return Array.from({ length: count }, () => ({ ...ring[0]! }));
-  return Array.from({ length: count }, (_, sampleIndex) => {
-    let distance = (sampleIndex * perimeter) / count;
-    for (const segment of segments) {
-      if (distance <= segment.length || segment === segments.at(-1)) {
-        const ratio = segment.length <= 1e-12 ? 0 : distance / segment.length;
-        return {
-          x: segment.start.x + (segment.end.x - segment.start.x) * ratio,
-          y: segment.start.y + (segment.end.y - segment.start.y) * ratio,
-        };
-      }
-      distance -= segment.length;
-    }
-    return { ...ring[0]! };
-  });
-};
-
-const directedBoundaryDistance = (samples: readonly Vec2[], target: Ring) => {
-  if (samples.length === 0 || target.length === 0) return 0;
-  return (
-    samples.reduce((sum, point) => {
-      let nearest = Infinity;
-      for (let index = 0; index < target.length; index++) {
-        nearest = Math.min(
-          nearest,
-          pointSegmentDistance(point, target[index]!, target[(index + 1) % target.length]!),
-        );
-      }
-      return sum + nearest;
-    }, 0) / samples.length
-  );
-};
-
-const boundaryDistance = (before: Ring, after: Ring) =>
-  (directedBoundaryDistance(sampleBoundary(before), after) +
-    directedBoundaryDistance(sampleBoundary(after), before)) /
-  2;
 
 export type ConstraintGraphDistanceMetrics = {
   constraintPathMedian: number;
@@ -102,7 +46,8 @@ export function compareLayoutGeometry(
       Math.hypot(currentCentroid.x - previousCentroid.x, currentCentroid.y - previousCentroid.y) /
       Math.max(scale, 1e-12);
     boundaryDisplacement +=
-      boundaryDistance(pair.before.polygon, pair.after.polygon) / Math.max(scale, 1e-12);
+      sampledMeanBoundaryDisplacement(pair.before.polygon, pair.after.polygon) /
+      Math.max(scale, 1e-12);
     polygonIoULoss += 1 - polygonIoU(pair.before.polygon, pair.after.polygon);
   }
   centroidDisplacement /= Math.max(1, surviving.length);
