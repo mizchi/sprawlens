@@ -97,15 +97,19 @@
 - `TotalIteratedClip`でpolygonのcertificateに加えてweak orderと`Nodup`を保持する`IterationReady`を定義した。ready artifactは任意half-planeで次のready artifactへ遷移でき、任意の有限half-plane列にも帰納できる。strict ordered初期polygonをready artifactへ埋め込み、最終artifact領域が`indexedVertexConvexRegion`へ全制約を適用した`constrainedRegion`とexactに一致するend-to-end定理まで閉じた。
 - `ExecutableCanonicalizer`でglobal dedup、有限positive-triple判定、`List.argmin` / `List.argmax`による共線extrema選択をproof-free関数へ落とした。weak ordered入力での領域意味保存と、artifactをmaterializeして再適用したときの冪等性を証明した。
 - 同じ非退化線分を逆向きの二点列で与えると領域は一致するが、走査順をそのまま端点順に使う初期案ではartifactが一致しなかった。このRedを受け、端点を辞書式座標順へ正規化した。現実装では逆向き入力のartifact一致と、その連続領域が元のsegmentに一致することを証明済みである。
-- `PolygonSeamCanonicalizer`でpolygonを辞書式最小頂点へ回転する実行可能なseam normalizerを分離した。これは元listの巡回置換であり、長さ、`Nodup`、凸包領域を保存し、最小頂点を先頭へ置き、二度適用しても変化しない。さらに`Nodup`なlistでは任意の入力巡回回転を同じ正規化listへ写すことを証明した。dimension-aware canonicalizerのartifact層へ合成した`canonicalizeSeamed`も定義し、weak ordered入力での領域意味保存とartifact-level冪等性を閉じた。残る義務は、合成関数をmaterializeして再適用する冪等性と、base classifierの全branchを含むend-to-end入力回転一致である。
+- `PolygonSeamCanonicalizer`でpolygonを辞書式最小頂点へ回転する実行可能なseam normalizerを分離した。これは元listの巡回置換であり、長さ、`Nodup`、凸包領域を保存し、最小頂点を先頭へ置き、二度適用しても変化しない。さらに`Nodup`なlistでは任意の入力巡回回転を同じ正規化listへ写すことを証明した。dimension-aware canonicalizerのartifact層へ合成した`canonicalizeSeamed`も定義し、weak ordered入力での領域意味保存と、全artifactをmaterializeして再適用した場合の冪等性を閉じた。
 - その残件に対し、positive cyclic turnが任意の`rotateVertex`で保存されることと、cyclic turnがseamを跨ぐ場合でもorientationの巡回対称性によって増加indexの`HasPositiveTriple`へ戻せることを証明した。これによりpolygon seam回転後もaffine-dimension classifierがpolygon branchに留まるための幾何学的義務を分離して閉じた。
 - このcyclic turn保存を具体的な`List.rotate`と`listVertex`再indexへ接続し、weak order・`Nodup`・positive tripleを持つpolygonは`canonicalPolygon`後もpositive tripleを持つことを証明した。したがってseam正規化済みpolygonを`canonicalizeSeamed`へmaterializeして戻すと同じpolygon artifactになる。全artifact冪等性に残るのは、このpolygon fixed-pointと既証明のempty / point / segment / collinear fixed-pointを合成する場合分けである。
+- polygon fixed-pointを既証明のempty・point・座標順segment・collinear extrema branchと合成し、global dedupを含むpublic `canonicalizeSeamed`について、weak ordered入力のartifactをmaterializeして再適用しても完全に同じartifactを返す冪等性を証明した。
+- positive-triple判定が`Nodup`かつweak orderedなlistの任意巡回回転で同値であることを証明した。共線branchでは、同じ非退化closed segment領域を表す二つの端点対が反転を除いて一致することをaffine parameterから導き、座標順segment artifactの一意性へ接続した。これらをempty・point・pair・任意長共線・polygonへ場合分けして統合し、public `canonicalizeSeamed`が入力の任意巡回始点に対してexactに同一artifactを返すことを証明した。
+- `WindingCanonicalizer`で、入力またはそのreverseがweak global CCW orderを持つという明示domain上の実行可能winding正規化を分離した。これはpermutation・長さ・`Nodup`・凸包領域を保存し、domain上でCCW出力と冪等性を保証する。既存CCW canonicalizerへ合成し、領域保存とCCW入力の全branch巡回回転不変性を継承した。
+- 一方、同一領域全般に対するartifact一意性は現表現では偽である。`CanonicalizerExtensionalityCounterexample`で、cornerのみの正方形と下辺上に冗長な相異なる頂点を加えた五角形が同じ凸包領域を持つ一方、`canonicalizeSeamed`は異なるpolygon artifactを返すことを証明した。次の正しい義務は冗長共線境界頂点の除去と、irredundant convex polygonに制約した一意性である。
 
 ### 未証明・実証が必要なこと
 
 - 単一half-planeの実emitter領域等号、dimension-awareなtotal再分類、polygon / degenerate混在の任意有限遷移、strict ordered初期polygonからのend-to-end宣言的領域等式に加え、具体的な実行可能canonicalizerの意味保存とmaterialization後の冪等性まで証明済みである。
-- empty / point / segment / polygonの正準表現について残るのは、同一領域を同一artifactへ写す意味的一意性である。
-- polygonのwinding統一と、合成済みseam canonicalizerのmaterialization後冪等性・全branch入力回転一致。segment端点順とpolygon seam単体の巡回回転不変性は実装・証明済みである。
+- empty / point / segmentの正準表現は閉じた。polygonの同一領域artifact一意性には、反例で必要性を確認した冗長共線境界頂点の除去が残る。
+- winding selectorのdomain内正規化は実装・証明済みである。残るのはirredundant normalizerの意味保存・冪等性と、その制約下のpolygon artifact一意性である。
 - 有理座標の小規模全探索による、完全一致命題の反例探索。
 
 集合交差の可換性自体は標準事実である。成果候補は、退化を含む実行可能emitterと正準化の検証済み接続である。
@@ -138,5 +142,5 @@
 
 1. 二候補witnessを実candidate metricへ埋め込み、TypeScriptでも同じ非可換squareを共有fixtureとして実行する。
 2. 出力ringの領域意味論を定義し、保持頂点とcrossing交点の完全性から一段emitter soundnessの逆包含を証明する。
-3. 退化表現を含むcanonicalizerを定義し、意味保存・冪等性・一意性を証明する。
+3. 冗長共線境界頂点normalizerを定義し、意味保存・冪等性とirredundant convex polygon上の一意性を証明する。
 4. controllerのparent chainとancestor closureを共有fixtureで対応づけ、実patch生成器のsupport契約へ接続する。

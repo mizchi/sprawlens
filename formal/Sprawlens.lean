@@ -20,6 +20,8 @@ import Sprawlens.TotalSemanticReclassification
 import Sprawlens.TotalIteratedClip
 import Sprawlens.ExecutableCanonicalizer
 import Sprawlens.PolygonSeamCanonicalizer
+import Sprawlens.WindingCanonicalizer
+import Sprawlens.CanonicalizerExtensionalityCounterexample
 import Sprawlens.IteratedReclipRepair
 import Sprawlens.AdjacencyRate
 import Sprawlens.ControlledPaths

@@ -1,3 +1,4 @@
+import Mathlib.Data.List.Permutation
 import Sprawlens.ExecutableCanonicalizer
 
 namespace Sprawlens.PolygonSeamCanonicalizer
@@ -395,6 +396,81 @@ theorem hasPositiveCyclicTurn_listVertex_rotate
     rw [Nat.mod_add_mod, Nat.add_comm]
 
 omit [IsStrictOrderedRing R] in
+/-- Full affine dimension is preserved when a duplicate-free weakly ordered
+list is cyclically rotated. -/
+theorem hasPositiveTriple_listVertex_rotate
+    (points : List (Vec2 R))
+    (lengthAtLeastThree : 3 ≤ points.length)
+    (ordered : AllOrderedCCW points) (nodup : points.Nodup)
+    (fullDimensional : HasPositiveTriple
+      (listVertex points lengthAtLeastThree))
+    (count : Nat)
+    (rotatedLengthAtLeastThree : 3 ≤ (points.rotate count).length) :
+    HasPositiveTriple
+      (listVertex (points.rotate count) rotatedLengthAtLeastThree) := by
+  have vertexOrdered : IsLinearlyOrderedCCW
+      (listVertex points lengthAtLeastThree) := by
+    rw [linearlyOrdered_iff_indexedVertices_triplewise]
+    rw [indexedVertices_listVertex]
+    exact ordered
+  have vertexInjective : Function.Injective
+      (listVertex points lengthAtLeastThree) :=
+    listVertex_injective_of_nodup lengthAtLeastThree nodup
+  have positiveTurn : HasPositiveCyclicTurn
+      (listVertex points lengthAtLeastThree) :=
+    hasPositiveTriple_hasPositiveCyclicTurn
+      (listVertex points lengthAtLeastThree) vertexOrdered vertexInjective
+        fullDimensional
+  exact hasPositiveCyclicTurn_hasPositiveTriple _
+    (hasPositiveCyclicTurn_listVertex_rotate
+      points lengthAtLeastThree positiveTurn count
+        rotatedLengthAtLeastThree)
+
+omit [IsStrictOrderedRing R] in
+/-- For duplicate-free weakly ordered lists, the executable affine-dimension
+predicate is invariant under every cyclic choice of input seam. -/
+theorem hasPositiveTriple_listVertex_rotate_iff
+    (points : List (Vec2 R))
+    (lengthAtLeastThree : 3 ≤ points.length)
+    (ordered : AllOrderedCCW points) (nodup : points.Nodup)
+    (count : Nat)
+    (rotatedLengthAtLeastThree : 3 ≤ (points.rotate count).length) :
+    HasPositiveTriple
+        (listVertex (points.rotate count) rotatedLengthAtLeastThree) ↔
+      HasPositiveTriple (listVertex points lengthAtLeastThree) := by
+  constructor
+  · intro rotatedFull
+    let rotated := points.rotate count
+    let reverseCount := rotated.length - count % rotated.length
+    have restored : rotated.rotate reverseCount = points := by
+      dsimp only [rotated, reverseCount]
+      exact (List.rotate_eq_iff.mp (rfl : points.rotate count =
+        points.rotate count)).symm
+    have rotatedOrdered : AllOrderedCCW rotated := by
+      exact allOrderedCCW_rotate points ordered count
+    have rotatedNodup : rotated.Nodup := by
+      exact List.nodup_rotate.mpr nodup
+    have restoredLengthAtLeastThree :
+        3 ≤ (rotated.rotate reverseCount).length := by
+      rw [restored]
+      exact lengthAtLeastThree
+    have restoredFull := hasPositiveTriple_listVertex_rotate
+      rotated rotatedLengthAtLeastThree rotatedOrdered rotatedNodup
+        rotatedFull reverseCount restoredLengthAtLeastThree
+    let positiveFor : List (Vec2 R) → Prop := fun values =>
+      ∀ lengthProof : 3 ≤ values.length,
+        HasPositiveTriple (listVertex values lengthProof)
+    have restoredAll : positiveFor (rotated.rotate reverseCount) := by
+      intro lengthProof
+      simpa only using restoredFull
+    have propertyEq := congrArg positiveFor restored
+    exact propertyEq.mp restoredAll lengthAtLeastThree
+  · intro fullDimensional
+    exact hasPositiveTriple_listVertex_rotate
+      points lengthAtLeastThree ordered nodup fullDimensional count
+        rotatedLengthAtLeastThree
+
+omit [IsStrictOrderedRing R] in
 /-- A duplicate-free weakly ordered full-dimensional polygon remains in the
 positive-triple branch after moving its seam to the least coordinate. -/
 theorem canonicalPolygon_hasPositiveTriple
@@ -483,6 +559,15 @@ normalization. -/
 def canonicalizeSeamed (points : List (Vec2 R)) : CanonicalArtifact R :=
   normalizePolygonSeam (ExecutableCanonicalizer.canonicalize points)
 
+omit [Field R] [IsStrictOrderedRing R] in
+theorem normalizePolygonSeam_canonicalSegment
+    (start finish : Vec2 R) :
+    normalizePolygonSeam
+        (ExecutableCanonicalizer.canonicalSegment start finish) =
+      ExecutableCanonicalizer.canonicalSegment start finish := by
+  unfold ExecutableCanonicalizer.canonicalSegment
+  split <;> rfl
+
 omit [IsStrictOrderedRing R] in
 /-- The composed canonicalizer fixes a seam-normalized full-dimensional
 polygon after materialization. -/
@@ -506,6 +591,104 @@ theorem canonicalizeSeamed_canonicalPolygon_fixed
         canonicalPositive]
   simp only [normalizePolygonSeam]
   rw [canonicalPolygon_idempotent]
+
+/-- Every duplicate-free weakly ordered input is a fixed point after the
+composed artifact is materialized and canonicalized again. -/
+theorem canonicalizeSeamed_normalized_materialized_fixed
+    (points : List (Vec2 R)) (nodup : points.Nodup)
+    (ordered : AllOrderedCCW points) :
+    canonicalizeSeamed
+        (normalizePolygonSeam
+          (ExecutableCanonicalizer.canonicalizeNormalized points)).points =
+      normalizePolygonSeam
+        (ExecutableCanonicalizer.canonicalizeNormalized points) := by
+  cases points with
+  | nil =>
+      simp [canonicalizeSeamed, normalizePolygonSeam,
+        ExecutableCanonicalizer.canonicalize,
+        ExecutableCanonicalizer.canonicalizeNormalized,
+        CanonicalArtifact.points]
+  | cons first rest =>
+      cases rest with
+      | nil =>
+          simp [canonicalizeSeamed, normalizePolygonSeam,
+            ExecutableCanonicalizer.canonicalize,
+            ExecutableCanonicalizer.canonicalizeNormalized,
+            CanonicalArtifact.points]
+      | cons second tail =>
+          cases tail with
+          | nil =>
+              have distinct : first ≠ second := by
+                intro equal
+                apply (List.nodup_cons.mp nodup).1
+                simp [equal]
+              change canonicalizeSeamed
+                  (normalizePolygonSeam
+                    (ExecutableCanonicalizer.canonicalSegment
+                      first second)).points =
+                normalizePolygonSeam
+                  (ExecutableCanonicalizer.canonicalSegment first second)
+              rw [normalizePolygonSeam_canonicalSegment]
+              rw [canonicalizeSeamed,
+                ExecutableCanonicalizer.canonicalize_canonicalSegment_points
+                  first second distinct,
+                normalizePolygonSeam_canonicalSegment]
+          | cons third remaining =>
+              let values := first :: second :: third :: remaining
+              let lengthAtLeastThree : 3 ≤ values.length := by simp [values]
+              let vertex := listVertex values lengthAtLeastThree
+              by_cases fullDimensional : HasPositiveTriple vertex
+              · have result : normalizePolygonSeam
+                    (ExecutableCanonicalizer.canonicalizeNormalized values) =
+                    CanonicalArtifact.polygon
+                      (canonicalPolygon values) := by
+                  simp [ExecutableCanonicalizer.canonicalizeNormalized,
+                    normalizePolygonSeam, values, vertex, fullDimensional]
+                rw [result]
+                change canonicalizeSeamed (canonicalPolygon values) = _
+                exact canonicalizeSeamed_canonicalPolygon_fixed
+                  values lengthAtLeastThree ordered nodup fullDimensional
+              · let lower := ExecutableCanonicalizer.lowerEndpoint
+                    first second (third :: remaining)
+                let upper := ExecutableCanonicalizer.upperEndpoint
+                    first second (third :: remaining)
+                have firstDistinct : first ≠ second := by
+                  intro equal
+                  apply (List.nodup_cons.mp nodup).1
+                  simp [equal]
+                have endpointDistinct : lower ≠ upper := by
+                  exact ExecutableCanonicalizer.lowerEndpoint_ne_upperEndpoint
+                    first second (third :: remaining) firstDistinct
+                have result : normalizePolygonSeam
+                    (ExecutableCanonicalizer.canonicalizeNormalized values) =
+                    ExecutableCanonicalizer.canonicalSegment lower upper := by
+                  have baseResult :
+                      ExecutableCanonicalizer.canonicalizeNormalized values =
+                        ExecutableCanonicalizer.canonicalSegment lower upper := by
+                    simp [ExecutableCanonicalizer.canonicalizeNormalized,
+                      values, vertex, fullDimensional, lower, upper]
+                  rw [baseResult]
+                  exact normalizePolygonSeam_canonicalSegment lower upper
+                rw [result]
+                rw [canonicalizeSeamed,
+                  ExecutableCanonicalizer.canonicalize_canonicalSegment_points
+                    lower upper endpointDistinct]
+                exact normalizePolygonSeam_canonicalSegment lower upper
+
+/-- End-to-end materialization idempotence of the composed executable
+canonicalizer on its weakly ordered input domain. -/
+theorem canonicalizeSeamed_materialized_idempotent
+    (points : List (Vec2 R)) (ordered : AllOrderedCCW points) :
+    canonicalizeSeamed (canonicalizeSeamed points).points =
+      canonicalizeSeamed points := by
+  change canonicalizeSeamed
+      (normalizePolygonSeam
+        (ExecutableCanonicalizer.canonicalizeNormalized points.dedup)).points =
+    normalizePolygonSeam
+      (ExecutableCanonicalizer.canonicalizeNormalized points.dedup)
+  exact canonicalizeSeamed_normalized_materialized_fixed
+    points.dedup (List.nodup_dedup points)
+      (AllOrderedCCW.sublist (List.dedup_sublist points) ordered)
 
 omit [IsStrictOrderedRing R] in
 /-- Artifact-level seam normalization preserves continuous semantics. -/
@@ -552,5 +735,141 @@ theorem normalizePolygonSeam_polygon_rotate
       normalizePolygonSeam (CanonicalArtifact.polygon points) := by
   simp only [normalizePolygonSeam]
   rw [canonicalPolygon_rotate points nodup count]
+
+omit [IsStrictOrderedRing R] in
+/-- Cyclically moving the materialization seam preserves the convex-hull
+region of any list. -/
+theorem listConvexRegion_rotate
+    (points : List (Vec2 R)) (count : Nat) :
+    listConvexRegion (points.rotate count) = listConvexRegion points := by
+  unfold listConvexRegion
+  congr 1
+  ext point
+  exact (List.rotate_perm points count).mem_iff
+
+/-- End-to-end seam independence: on duplicate-free weakly ordered inputs,
+the composed executable canonicalizer returns exactly the same artifact for
+every cyclic choice of starting vertex.  This covers empty, point, segment,
+arbitrarily long collinear, and full-dimensional polygon branches. -/
+theorem canonicalizeSeamed_rotate
+    (points : List (Vec2 R)) (nodup : points.Nodup)
+    (ordered : AllOrderedCCW points) (count : Nat) :
+    canonicalizeSeamed (points.rotate count) =
+      canonicalizeSeamed points := by
+  cases points with
+  | nil =>
+      simp [canonicalizeSeamed, ExecutableCanonicalizer.canonicalize,
+        ExecutableCanonicalizer.canonicalizeNormalized,
+        normalizePolygonSeam]
+  | cons first rest =>
+      cases rest with
+      | nil =>
+          simp [canonicalizeSeamed, ExecutableCanonicalizer.canonicalize,
+            ExecutableCanonicalizer.canonicalizeNormalized,
+            normalizePolygonSeam]
+      | cons second tail =>
+          cases tail with
+          | nil =>
+              have distinct : first ≠ second := by
+                intro equal
+                apply (List.nodup_cons.mp nodup).1
+                simp [equal]
+              have originalResult :
+                  canonicalizeSeamed [first, second] =
+                    ExecutableCanonicalizer.canonicalSegment first second := by
+                rw [canonicalizeSeamed,
+                  ExecutableCanonicalizer.canonicalize_pair
+                    first second distinct]
+                exact normalizePolygonSeam_canonicalSegment first second
+              have rotatedPermutation :
+                  ([first, second].rotate count).Perm [first, second] :=
+                List.rotate_perm [first, second] count
+              rcases List.perm_pair.mp rotatedPermutation with
+                unchanged | reversed
+              · rw [unchanged]
+              · rw [reversed, originalResult]
+                rw [canonicalizeSeamed,
+                  ExecutableCanonicalizer.canonicalize_pair
+                    second first distinct.symm,
+                  normalizePolygonSeam_canonicalSegment]
+                exact ExecutableCanonicalizer.canonicalSegment_comm
+                  second first
+          | cons third remaining =>
+              let values := first :: second :: third :: remaining
+              let lengthAtLeastThree : 3 ≤ values.length := by simp [values]
+              let rotatedLengthAtLeastThree :
+                  3 ≤ (values.rotate count).length := by
+                simpa using lengthAtLeastThree
+              have rotatedNodup : (values.rotate count).Nodup :=
+                List.nodup_rotate.mpr nodup
+              have rotatedOrdered : AllOrderedCCW (values.rotate count) :=
+                allOrderedCCW_rotate values ordered count
+              have dimensionInvariant :=
+                hasPositiveTriple_listVertex_rotate_iff
+                  values lengthAtLeastThree ordered nodup count
+                    rotatedLengthAtLeastThree
+              by_cases fullDimensional : HasPositiveTriple
+                  (listVertex values lengthAtLeastThree)
+              · have rotatedFull : HasPositiveTriple
+                    (listVertex (values.rotate count)
+                      rotatedLengthAtLeastThree) :=
+                  dimensionInvariant.mpr fullDimensional
+                have originalClassifier :=
+                  canonicalize_eq_polygon_of_nodup_of_positive
+                    values nodup lengthAtLeastThree fullDimensional
+                have rotatedClassifier :=
+                  canonicalize_eq_polygon_of_nodup_of_positive
+                    (values.rotate count) rotatedNodup
+                      rotatedLengthAtLeastThree rotatedFull
+                rw [canonicalizeSeamed, rotatedClassifier,
+                  normalizePolygonSeam, canonicalizeSeamed,
+                  originalClassifier, normalizePolygonSeam]
+                exact congrArg CanonicalArtifact.polygon
+                  (canonicalPolygon_rotate values nodup count)
+              · have rotatedNotFull : ¬HasPositiveTriple
+                    (listVertex (values.rotate count)
+                      rotatedLengthAtLeastThree) := by
+                  intro rotatedFull
+                  exact fullDimensional (dimensionInvariant.mp rotatedFull)
+                rcases
+                    ExecutableCanonicalizer.canonicalizeNormalized_eq_segment_of_not_positive
+                      values nodup lengthAtLeastThree fullDimensional with
+                  ⟨start, finish, distinct, originalBase⟩
+                rcases
+                    ExecutableCanonicalizer.canonicalizeNormalized_eq_segment_of_not_positive
+                      (values.rotate count) rotatedNodup
+                        rotatedLengthAtLeastThree rotatedNotFull with
+                  ⟨rotatedStart, rotatedFinish, rotatedDistinct, rotatedBase⟩
+                have originalResult : canonicalizeSeamed values =
+                    ExecutableCanonicalizer.canonicalSegment
+                      start finish := by
+                  rw [canonicalizeSeamed,
+                    ExecutableCanonicalizer.canonicalize,
+                    List.dedup_eq_self.mpr nodup, originalBase]
+                  exact normalizePolygonSeam_canonicalSegment start finish
+                have rotatedResult : canonicalizeSeamed
+                      (values.rotate count) =
+                    ExecutableCanonicalizer.canonicalSegment
+                      rotatedStart rotatedFinish := by
+                  rw [canonicalizeSeamed,
+                    ExecutableCanonicalizer.canonicalize,
+                    List.dedup_eq_self.mpr rotatedNodup, rotatedBase]
+                  exact normalizePolygonSeam_canonicalSegment
+                    rotatedStart rotatedFinish
+                have sameSegmentRegion :
+                    (ExecutableCanonicalizer.canonicalSegment
+                        rotatedStart rotatedFinish).region =
+                      (ExecutableCanonicalizer.canonicalSegment
+                        start finish).region := by
+                  rw [← rotatedResult, ← originalResult,
+                    canonicalizeSeamed_region
+                      (values.rotate count) rotatedOrdered,
+                    canonicalizeSeamed_region values ordered,
+                    listConvexRegion_rotate]
+                rw [rotatedResult, originalResult]
+                exact
+                  ExecutableCanonicalizer.canonicalSegment_eq_of_region_eq
+                    rotatedStart rotatedFinish start finish
+                      rotatedDistinct sameSegmentRegion
 
 end Sprawlens.PolygonSeamCanonicalizer

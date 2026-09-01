@@ -8,11 +8,14 @@ open ConvexClipContract
 open DegenerateClip
 open ExactGeometry
 open FullDimensionalSupportSemantics
+open HalfPlaneClipPoints
+open HalfPlaneIntersection
 open ListReclipClassification
 open OrderedTriples
 open SemanticReclassification
 open SimpleRing
 open TotalSemanticReclassification
+open Vec2Linear
 
 universe u
 
@@ -123,6 +126,134 @@ theorem canonicalSegment_comm (start finish : Vec2 R) :
       (pointLexLE_total start finish).resolve_left forward
     simp [canonicalSegment, forward, backward]
 
+omit [LinearOrder R] [IsStrictOrderedRing R] in
+/-- Interpolation along a nondegenerate segment has a unique parameter. -/
+theorem interpolatePoint_injective_of_ne
+    (start finish : Vec2 R) (distinct : start ≠ finish) :
+    Function.Injective (interpolatePoint start finish) := by
+  intro firstParameter secondParameter equalPoints
+  apply AffineMap.lineMap_injective R distinct
+  have lineMapEq (parameter : R) :
+      AffineMap.lineMap start finish parameter =
+        interpolatePoint start finish parameter := by
+    simp only [AffineMap.lineMap_apply_module]
+    exact affineCombination_eq_interpolatePoint
+      start finish (1 - parameter) parameter (by ring)
+  rw [lineMapEq, lineMapEq]
+  exact equalPoints
+
+/-- A nondegenerate closed segment determines its endpoint pair up to
+reversal. -/
+theorem segment_endpoints_eq_or_swap
+    (firstStart firstFinish secondStart secondFinish : Vec2 R)
+    (firstDistinct : firstStart ≠ firstFinish)
+    (sameRegion :
+      (DegenerateArtifact.segment firstStart firstFinish).region =
+        (DegenerateArtifact.segment secondStart secondFinish).region) :
+    (firstStart = secondStart ∧ firstFinish = secondFinish) ∨
+      (firstStart = secondFinish ∧ firstFinish = secondStart) := by
+  have secondStartOnFirst :
+      OnClosedSegment firstStart firstFinish secondStart := by
+    change secondStart ∈
+      (DegenerateArtifact.segment firstStart firstFinish).region
+    rw [sameRegion]
+    exact onClosedSegment_start secondStart secondFinish
+  have secondFinishOnFirst :
+      OnClosedSegment firstStart firstFinish secondFinish := by
+    change secondFinish ∈
+      (DegenerateArtifact.segment firstStart firstFinish).region
+    rw [sameRegion]
+    exact onClosedSegment_finish secondStart secondFinish
+  have firstStartOnSecond :
+      OnClosedSegment secondStart secondFinish firstStart := by
+    change firstStart ∈
+      (DegenerateArtifact.segment secondStart secondFinish).region
+    rw [← sameRegion]
+    exact onClosedSegment_start firstStart firstFinish
+  have firstFinishOnSecond :
+      OnClosedSegment secondStart secondFinish firstFinish := by
+    change firstFinish ∈
+      (DegenerateArtifact.segment secondStart secondFinish).region
+    rw [← sameRegion]
+    exact onClosedSegment_finish firstStart firstFinish
+  rcases secondStartOnFirst with
+    ⟨startParameter, startBounds, secondStartEq⟩
+  rcases secondFinishOnFirst with
+    ⟨finishParameter, finishBounds, secondFinishEq⟩
+  rcases firstStartOnSecond with
+    ⟨firstWitness, firstWitnessBounds, firstStartEq⟩
+  rcases firstFinishOnSecond with
+    ⟨finishWitness, finishWitnessBounds, firstFinishEq⟩
+  have parameterZero :
+      startParameter +
+          (finishParameter - startParameter) * firstWitness = 0 := by
+    apply interpolatePoint_injective_of_ne firstStart firstFinish firstDistinct
+    rw [interpolatePoint_zero]
+    rw [← interpolatePoint_between_parameters,
+      ← secondStartEq, ← secondFinishEq]
+    exact firstStartEq.symm
+  have parameterOne :
+      startParameter +
+          (finishParameter - startParameter) * finishWitness = 1 := by
+    apply interpolatePoint_injective_of_ne firstStart firstFinish firstDistinct
+    rw [interpolatePoint_one]
+    rw [← interpolatePoint_between_parameters,
+      ← secondStartEq, ← secondFinishEq]
+    exact firstFinishEq.symm
+  rcases le_total startParameter finishParameter with forward | backward
+  · have firstProduct :
+        0 ≤ (finishParameter - startParameter) * firstWitness :=
+      mul_nonneg (sub_nonneg.mpr forward) firstWitnessBounds.1
+    have finishRemainder :
+        0 ≤ (finishParameter - startParameter) * (1 - finishWitness) :=
+      mul_nonneg (sub_nonneg.mpr forward)
+        (sub_nonneg.mpr finishWitnessBounds.2)
+    have startZero : startParameter = 0 := by
+      nlinarith [startBounds.1]
+    have finishOne : finishParameter = 1 := by
+      nlinarith [finishBounds.2]
+    left
+    constructor
+    · rw [secondStartEq, startZero, interpolatePoint_zero]
+    · rw [secondFinishEq, finishOne, interpolatePoint_one]
+  · have startRemainder :
+        0 ≤ (startParameter - finishParameter) * (1 - firstWitness) :=
+      mul_nonneg (sub_nonneg.mpr backward)
+        (sub_nonneg.mpr firstWitnessBounds.2)
+    have finishProduct :
+        0 ≤ (startParameter - finishParameter) * finishWitness :=
+      mul_nonneg (sub_nonneg.mpr backward) finishWitnessBounds.1
+    have finishZero : finishParameter = 0 := by
+      nlinarith [finishBounds.1]
+    have startOne : startParameter = 1 := by
+      nlinarith [startBounds.2]
+    right
+    constructor
+    · rw [secondFinishEq, finishZero, interpolatePoint_zero]
+    · rw [secondStartEq, startOne, interpolatePoint_one]
+
+/-- Equal nondegenerate segment regions have the same coordinate-ordered
+artifact, even when their source traversals or base directions differ. -/
+theorem canonicalSegment_eq_of_region_eq
+    (firstStart firstFinish secondStart secondFinish : Vec2 R)
+    (firstDistinct : firstStart ≠ firstFinish)
+    (sameRegion :
+      (canonicalSegment firstStart firstFinish).region =
+        (canonicalSegment secondStart secondFinish).region) :
+    canonicalSegment firstStart firstFinish =
+      canonicalSegment secondStart secondFinish := by
+  have rawRegion :
+      (DegenerateArtifact.segment firstStart firstFinish).region =
+        (DegenerateArtifact.segment secondStart secondFinish).region := by
+    rw [← canonicalSegment_region, ← canonicalSegment_region]
+    exact sameRegion
+  rcases segment_endpoints_eq_or_swap firstStart firstFinish
+      secondStart secondFinish firstDistinct rawRegion with
+    aligned | reversed
+  · rw [aligned.1, aligned.2]
+  · rw [reversed.1, reversed.2]
+    exact canonicalSegment_comm secondFinish secondStart
+
 /-- The executable endpoint selector cannot collapse two distinct base
 points to one endpoint: their parameters are zero and one. -/
 theorem lowerEndpoint_ne_upperEndpoint
@@ -189,6 +320,42 @@ def canonicalizeNormalized (points : List (Vec2 R)) : CanonicalArtifact R :=
 affine-dimension dispatch. -/
 def canonicalize (points : List (Vec2 R)) : CanonicalArtifact R :=
   canonicalizeNormalized points.dedup
+
+/-- A duplicate-free list of length at least three that fails the positive-
+triple test is represented by a nondegenerate canonical segment. -/
+theorem canonicalizeNormalized_eq_segment_of_not_positive
+    (points : List (Vec2 R)) (nodup : points.Nodup)
+    (lengthAtLeastThree : 3 ≤ points.length)
+    (notFullDimensional : ¬HasPositiveTriple
+      (listVertex points lengthAtLeastThree)) :
+    ∃ start finish, start ≠ finish ∧
+      canonicalizeNormalized points = canonicalSegment start finish := by
+  cases points with
+  | nil => simp at lengthAtLeastThree
+  | cons first rest =>
+      cases rest with
+      | nil => simp at lengthAtLeastThree
+      | cons second tail =>
+          cases tail with
+          | nil => simp at lengthAtLeastThree
+          | cons third remaining =>
+              let start := lowerEndpoint first second (third :: remaining)
+              let finish := upperEndpoint first second (third :: remaining)
+              have firstDistinct : first ≠ second := by
+                intro equal
+                apply (List.nodup_cons.mp nodup).1
+                simp [equal]
+              have endpointsDistinct : start ≠ finish :=
+                lowerEndpoint_ne_upperEndpoint first second
+                  (third :: remaining) firstDistinct
+              refine ⟨start, finish, endpointsDistinct, ?_⟩
+              simp only [canonicalizeNormalized]
+              split
+              · rename_i positive
+                apply False.elim
+                apply notFullDimensional
+                simpa only using positive
+              · rfl
 
 omit [IsStrictOrderedRing R] in
 /-- In the collinear fork, every materialized value is collinear with the
