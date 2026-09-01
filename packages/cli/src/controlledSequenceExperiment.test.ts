@@ -1,6 +1,9 @@
 import { describe, expect, it } from "vitest";
 import type { LayoutSequenceGraph } from "@sprawlens/layout";
-import { runControlledSequenceExperiment } from "./controlledSequenceExperiment.ts";
+import {
+  meanBySequenceThenRepository,
+  runControlledSequenceExperiment,
+} from "./controlledSequenceExperiment.ts";
 
 const graph = (prefix: string): LayoutSequenceGraph => ({
   nodes: Array.from({ length: 6 }, (_, index) => ({ id: `${prefix}${index}`, weight: index + 1 })),
@@ -11,6 +14,16 @@ const graph = (prefix: string): LayoutSequenceGraph => ({
 });
 
 describe("controlled sequence experiment", () => {
+  it("averages seeds within each sequence before the repository mean", () => {
+    const samples = [
+      { sequence: "short", value: 10 },
+      { sequence: "long", value: 0 },
+      { sequence: "long", value: 2 },
+    ];
+
+    expect(meanBySequenceThenRepository(samples, (sample) => sample.value)).toBe(5.5);
+  });
+
   it("aggregates probe metrics with repositories as the outer unit", () => {
     const result = runControlledSequenceExperiment(
       [
@@ -20,7 +33,7 @@ describe("controlled sequence experiment", () => {
       { seeds: [3] },
     );
 
-    expect(result.schemaVersion).toBe(2);
+    expect(result.schemaVersion).toBe(3);
     expect(result.summary.repositories).toBe(2);
     expect(result.summary.probes).toBe(2);
     expect(result.summary.floorViolations).toBe(0);
@@ -30,6 +43,18 @@ describe("controlled sequence experiment", () => {
       12,
     );
     expect(result.summary.pathDependence.neighborhoodSwap.boundaryDisplacement.mean).toBeCloseTo(
+      0,
+      12,
+    );
+    expect(result.repositories[0]?.probes[0]?.result.repeatability).not.toBeNull();
+    expect(result.summary.developmentReliability.noiseFloor.neighborhoodSwap.mean).toBeCloseTo(
+      0,
+      12,
+    );
+    expect(
+      result.summary.developmentReliability.commutatorExcess.neighborhoodSwap.mean,
+    ).toBeCloseTo(0, 12);
+    expect(result.summary.developmentReliability.loopExcess.noOp.neighborhoodSwap.mean).toBeCloseTo(
       0,
       12,
     );

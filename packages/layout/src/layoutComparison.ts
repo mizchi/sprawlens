@@ -23,6 +23,42 @@ export type ConstraintGraphDistanceMetrics = {
   constraintEdgeCount: number;
 };
 
+const indexConfirmatoryCells = (cells: readonly ComparableCell[], side: "before" | "after") => {
+  const byId = new Map<string, ComparableCell>();
+  for (const cell of cells) {
+    if (byId.has(cell.id)) throw new RangeError(`${side} has duplicate stable-cell ID ${cell.id}`);
+    if (cell.polygon.length === 0) {
+      throw new RangeError(`${side} must contain nonempty polygon boundaries`);
+    }
+    const coordinates = [cell.site, ...cell.polygon];
+    if (coordinates.some(({ x, y }) => !Number.isFinite(x) || !Number.isFinite(y))) {
+      throw new RangeError(`${side} cell ${cell.id} contains a non-finite coordinate`);
+    }
+    byId.set(cell.id, cell);
+  }
+  return byId;
+};
+
+/**
+ * Fail-closed domain check for same-endpoint confirmatory comparisons.
+ * Unlike exploratory metrics, this contract does not silently intersect IDs
+ * or map empty boundaries to zero.
+ */
+export function requireSameEndpointGeometryDomain(
+  before: readonly ComparableCell[],
+  after: readonly ComparableCell[],
+) {
+  const beforeById = indexConfirmatoryCells(before, "before");
+  const afterById = indexConfirmatoryCells(after, "after");
+  const ids = [...beforeById.keys()].sort((left, right) => left.localeCompare(right));
+  if (ids.length === 0)
+    throw new RangeError("same-endpoint domain requires at least one stable cell");
+  if (ids.length !== afterById.size || ids.some((id) => !afterById.has(id))) {
+    throw new RangeError("same-endpoint stable-cell ID sets differ");
+  }
+  return ids.map((id) => ({ before: beforeById.get(id)!, after: afterById.get(id)! }));
+}
+
 /** Evaluation-only temporal metrics; none participate in layout selection. */
 export function compareLayoutGeometry(
   before: readonly ComparableCell[],

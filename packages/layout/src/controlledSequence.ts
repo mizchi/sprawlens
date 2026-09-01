@@ -1,6 +1,7 @@
 import { clipScale } from "./clip.ts";
 import {
   compareLayoutGeometry,
+  requireSameEndpointGeometryDomain,
   type ComparableCell,
   type TemporalGeometryMetrics,
 } from "./layoutComparison.ts";
@@ -24,6 +25,16 @@ export type ControlledSequenceProbe = {
 
 export const CONTROLLED_RECOVERY_NAMES = ["noOp", "weight", "rewire", "combined"] as const;
 export type ControlledRecoveryName = (typeof CONTROLLED_RECOVERY_NAMES)[number];
+export const CONTROLLED_REPEATABILITY_PATH_NAMES = [
+  ...CONTROLLED_RECOVERY_NAMES,
+  "orderAB",
+  "orderBA",
+] as const;
+export type ControlledRepeatabilityPathName = (typeof CONTROLLED_REPEATABILITY_PATH_NAMES)[number];
+export type ControlledSequenceProbeOptions = SequenceBenchmarkOptions & {
+  /** Execute each controlled path a second time with the same declared inputs. */
+  captureRepeatability?: boolean;
+};
 
 const cloneGraph = (graph: LayoutSequenceGraph): LayoutSequenceGraph => ({
   nodes: graph.nodes.map((node) => ({ ...node, hint: node.hint ? { ...node.hint } : undefined })),
@@ -89,15 +100,16 @@ const compareFinal = (
   after: readonly ComparableCell[],
   scale: number,
 ): ControlledGeometryMetrics => {
-  const beforeById = new Map(before.map((cell) => [cell.id, cell.site] as const));
-  const surviving = after.flatMap((cell) => {
-    const previous = beforeById.get(cell.id);
-    return previous ? [Math.hypot(cell.site.x - previous.x, cell.site.y - previous.y) / scale] : [];
-  });
+  const pairs = requireSameEndpointGeometryDomain(before, after);
+  const siteDisplacements = pairs.map(
+    (pair) =>
+      Math.hypot(pair.after.site.x - pair.before.site.x, pair.after.site.y - pair.before.site.y) /
+      scale,
+  );
   return {
     siteDisplacement:
-      surviving.reduce((sum, displacement) => sum + displacement, 0) /
-      Math.max(1, surviving.length),
+      siteDisplacements.reduce((sum, displacement) => sum + displacement, 0) /
+      Math.max(1, siteDisplacements.length),
     ...compareLayoutGeometry(before, after, scale),
   };
 };
@@ -105,17 +117,52 @@ const compareFinal = (
 /** Measure true recovery error and order-induced path dependence. */
 export function runControlledSequenceProbe(
   probe: ControlledSequenceProbe,
-  options: SequenceBenchmarkOptions,
+  options: ControlledSequenceProbeOptions,
 ) {
   const captureOptions = { ...options, captureFinalGeometry: true };
-  const recoveryRuns = {
+  const executePaths = () => ({
     noOp: runStableNeighborhoodSequence(probe.noOp, captureOptions),
     weight: runStableNeighborhoodSequence(probe.weightReversal, captureOptions),
     rewire: runStableNeighborhoodSequence(probe.rewireReversal, captureOptions),
     combined: runStableNeighborhoodSequence(probe.combinedReversal, captureOptions),
+    orderAB: runStableNeighborhoodSequence(probe.orderAB, captureOptions),
+    orderBA: runStableNeighborhoodSequence(probe.orderBA, captureOptions),
+  });
+  const primaryRuns = executePaths();
+  const repeatRuns = options.captureRepeatability ? executePaths() : null;
+  const comparePathFinals = (
+    left: (typeof primaryRuns)[ControlledRepeatabilityPathName],
+    right: (typeof primaryRuns)[ControlledRepeatabilityPathName],
+  ) =>
+    Object.fromEntries(
+      SEQUENCE_CONDITION_NAMES.map((condition) => [
+        condition,
+        compareFinal(
+          left.finalCellGeometry![condition],
+          right.finalCellGeometry![condition],
+          clipScale(options.clip ?? DEFAULT_SEQUENCE_CLIP),
+        ),
+      ]),
+    ) as Record<SequenceConditionName, ControlledGeometryMetrics>;
+  const repeatability = repeatRuns
+    ? (Object.fromEntries(
+        CONTROLLED_REPEATABILITY_PATH_NAMES.map((path) => [
+          path,
+          comparePathFinals(primaryRuns[path], repeatRuns[path]),
+        ]),
+      ) as Record<
+        ControlledRepeatabilityPathName,
+        Record<SequenceConditionName, ControlledGeometryMetrics>
+      >)
+    : null;
+  const recoveryRuns = {
+    noOp: primaryRuns.noOp,
+    weight: primaryRuns.weight,
+    rewire: primaryRuns.rewire,
+    combined: primaryRuns.combined,
   };
-  const orderAB = runStableNeighborhoodSequence(probe.orderAB, captureOptions);
-  const orderBA = runStableNeighborhoodSequence(probe.orderBA, captureOptions);
+  const orderAB = primaryRuns.orderAB;
+  const orderBA = primaryRuns.orderBA;
   const scale = clipScale(options.clip ?? DEFAULT_SEQUENCE_CLIP);
   const finalAB = orderAB.finalCellGeometry!;
   const finalBA = orderBA.finalCellGeometry!;
@@ -142,12 +189,13 @@ export function runControlledSequenceProbe(
       (typeof recoveryRuns)[ControlledRecoveryName]["summary"][SequenceConditionName]["initialToFinal"]
     >
   >;
-  const allRuns = [...Object.values(recoveryRuns), orderAB, orderBA];
+  const allRuns = [...Object.values(primaryRuns), ...(repeatRuns ? Object.values(repeatRuns) : [])];
   return {
-    schemaVersion: 2 as const,
+    schemaVersion: 3 as const,
     seed: options.seed,
     recovery,
     pathDependence,
+    repeatability,
     floorViolations: allRuns.reduce((sum, run) => sum + run.adjacencyFloorViolations, 0),
     budgetShortfalls: allRuns.reduce((sum, run) => sum + run.budget.shortfallTransitions, 0),
   };

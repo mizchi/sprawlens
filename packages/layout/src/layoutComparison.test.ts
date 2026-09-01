@@ -8,6 +8,7 @@ import {
   compareLayoutGeometry,
   constraintGraphDistance,
   distanceChangeFaithfulness,
+  requireSameEndpointGeometryDomain,
   type ComparableCell,
 } from "./layoutComparison.ts";
 
@@ -78,6 +79,40 @@ describe("independent temporal layout metrics", () => {
     expect(bridgeRight).toBeCloseTo(0.5, 12);
     expect(leftRight).toBeCloseTo(2, 12);
     expect(leftRight).toBeGreaterThan(leftBridge + bridgeRight);
+  });
+});
+
+describe("same-endpoint confirmatory domain", () => {
+  it("returns stable-ID-sorted pairs for the same nonempty cell set", () => {
+    const before = [square("b", 2, 0), square("a", 0, 0)];
+    const after = [square("a", 1, 0), square("b", 3, 0)];
+
+    expect(requireSameEndpointGeometryDomain(before, after).map((pair) => pair.before.id)).toEqual([
+      "a",
+      "b",
+    ]);
+  });
+
+  it("rejects a changed stable-cell set", () => {
+    expect(() =>
+      requireSameEndpointGeometryDomain([square("a", 0, 0)], [square("b", 0, 0)]),
+    ).toThrow(/stable-cell ID sets differ/);
+  });
+
+  it("rejects empty boundaries and duplicate stable IDs", () => {
+    expect(() => requireSameEndpointGeometryDomain([], [])).toThrow(/at least one stable cell/);
+    expect(() =>
+      requireSameEndpointGeometryDomain(
+        [{ ...square("a", 0, 0), polygon: [] }],
+        [square("a", 0, 0)],
+      ),
+    ).toThrow(/nonempty polygon boundaries/);
+    expect(() =>
+      requireSameEndpointGeometryDomain(
+        [square("a", 0, 0), square("a", 1, 0)],
+        [square("a", 0, 0)],
+      ),
+    ).toThrow(/duplicate stable-cell ID/);
   });
 });
 

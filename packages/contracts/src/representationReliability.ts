@@ -15,10 +15,15 @@ export const representationReliabilityMetricContractV1 = {
     D_loop: { leftPath: [], rightPath: ["A", "A^-1"] },
     D_repeat: {
       construction: "independent-rerun-pairs-of-same-path",
-      quantile: { probability: 0.95, method: "nearest-rank" },
+      quantile: {
+        probability: 0.95,
+        method: "nearest-rank",
+        scope: "condition-within-repository-across-sequence-seed-path",
+      },
     },
     D_excess: {
       formula: "max(0,D_path-Q_0.95(D_repeat)-margin)",
+      margin: 0,
       marginUnit: "fraction-of-max-clip-extent",
     },
   },

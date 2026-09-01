@@ -21,6 +21,7 @@ const numberOption = (name: string, fallback: number) => {
   return value;
 };
 const historyFreeReferenceWeight = numberOption("--history-free-weight", 0);
+const reliabilityMargin = numberOption("--reliability-margin", 0);
 
 const manifestBytes = await readFile(manifestPath);
 const manifestHash = createHash("sha256").update(manifestBytes).digest("hex");
@@ -46,9 +47,10 @@ for (const repository of manifest.repositories) {
 const result = runControlledSequenceExperiment(datasets, {
   seeds: manifest.selectionProtocol.benchmark.seeds,
   stableHistoryFreeReferenceWeight: historyFreeReferenceWeight,
+  reliabilityMargin,
 });
 const artifact = {
-  schemaVersion: 2 as const,
+  schemaVersion: 3 as const,
   status: "post-hoc controlled-sequence development experiment" as const,
   manifestHash,
   generatedAt: new Date().toISOString(),
@@ -96,6 +98,19 @@ ${conditions
   .join("\n")}
 
 値は小さいほど良い。\`neighborhoodSwap\`は同じgraphとseedをcoldに解く決定的対照なので、同一endpointでは原理的に0となる。history-aware条件の値は、入力差では説明できない幾何学的記憶を表す。
+
+## Development noise-adjusted reliability
+
+同じpathを同じ宣言入力で独立に再実行し、repository・condition内のsequence × seed × pathから95% empirical nearest-rank noise floorを求めた。\`D_excess = max(0, D_path - noiseFloor - margin)\`で、marginは${result.summary.developmentReliability.margin}。現値はsampled mean boundary discrepancyに基づくdevelopment指標であり、target contractのexact Hausdorff confirmatory値ではない。
+
+| condition | repeatability noise floor | commutator excess |
+| --- | ---: | ---: |
+${conditions
+  .map(
+    (condition) =>
+      `| ${condition} | ${format(result.summary.developmentReliability.noiseFloor[condition])} | ${format(result.summary.developmentReliability.commutatorExcess[condition])} |`,
+  )
+  .join("\n")}
 `;
 const writeAtomic = async (path: string, contents: string) => {
   await mkdir(resolve(path, ".."), { recursive: true });

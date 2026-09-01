@@ -913,7 +913,11 @@
         "packages/contracts/src/numericGeometry.ts",
         "packages/contracts/src/numericGeometry.test.ts",
         "packages/contracts/src/representationReliability.ts",
-        "packages/contracts/src/representationReliability.test.ts"
+        "packages/contracts/src/representationReliability.test.ts",
+        "packages/layout/src/controlledSequence.ts",
+        "packages/layout/src/controlledSequence.test.ts",
+        "packages/cli/src/controlledSequenceExperiment.ts",
+        "packages/cli/src/controlledSequenceExperiment.test.ts"
       ],
       "fixtures": [
         "formal/TestVectors/history-selector-confluence.json",

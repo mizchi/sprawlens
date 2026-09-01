@@ -64,6 +64,7 @@
     "@sprawlens/agent": "workspace:*",
     "@sprawlens/analyzer-terraform": "workspace:*",
     "@sprawlens/analyzer-ts": "workspace:*",
+    "@sprawlens/contracts": "workspace:*",
     "@sprawlens/layout": "workspace:^",
     "@sprawlens/providers": "workspace:*",
     "@sprawlens/schema": "workspace:*",

@@ -30,7 +30,7 @@ describe("controlled sequence probes", () => {
   it("measures hysteresis and path dependence without treating natural change as drift", () => {
     const result = runControlledSequenceProbe(buildControlledSequenceProbe(graph), { seed: 7 });
 
-    expect(result.schemaVersion).toBe(2);
+    expect(result.schemaVersion).toBe(3);
     expect(result.recovery.noOp.stableNeighborhood.boundaryDisplacement).toBeCloseTo(0, 12);
     expect(result.recovery.weight.stableNeighborhood.boundaryDisplacement).toBeGreaterThanOrEqual(
       0,
@@ -45,6 +45,19 @@ describe("controlled sequence probes", () => {
     expect(result.recovery.combined.neighborhoodSwap.boundaryDisplacement).toBeCloseTo(0, 12);
     expect(result.pathDependence.neighborhoodSwap.boundaryDisplacement).toBeCloseTo(0, 12);
     expect(result.floorViolations).toBe(0);
+  });
+
+  it("captures independent same-path rerun defects when requested", () => {
+    const result = runControlledSequenceProbe(buildControlledSequenceProbe(graph), {
+      seed: 7,
+      captureRepeatability: true,
+    });
+
+    expect(result.repeatability).not.toBeNull();
+    expect(result.repeatability?.orderAB.neighborhoodSwap.boundaryDisplacement).toBeCloseTo(0, 12);
+    expect(
+      result.repeatability?.orderBA.stableNeighborhood.boundaryDisplacement,
+    ).toBeGreaterThanOrEqual(0);
   });
 
   it("can select a path-independent deterministic history-free reference", () => {

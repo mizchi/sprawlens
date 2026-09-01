@@ -178,6 +178,9 @@ importers:
       '@sprawlens/analyzer-ts':
         specifier: workspace:*
         version: link:../analyzer-ts
+      '@sprawlens/contracts':
+        specifier: workspace:*
+        version: link:../contracts
       '@sprawlens/layout':
         specifier: workspace:^
         version: link:../layout

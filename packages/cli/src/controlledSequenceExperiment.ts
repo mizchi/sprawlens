@@ -1,6 +1,7 @@
 import {
   buildControlledSequenceProbe,
   CONTROLLED_RECOVERY_NAMES,
+  CONTROLLED_REPEATABILITY_PATH_NAMES,
   runControlledSequenceProbe,
   SEQUENCE_CONDITION_NAMES,
   summarizeSamples,
@@ -8,6 +9,11 @@ import {
   type ControlledRecoveryName,
   type SequenceConditionName,
 } from "@sprawlens/layout";
+import {
+  computeExcessDefect,
+  empiricalNearestRankQuantile,
+  representationReliabilityMetricContractV1,
+} from "@sprawlens/contracts";
 
 const METRICS = [
   "siteDisplacement",
@@ -26,12 +32,37 @@ type Dataset = {
 const mean = (values: readonly number[]) =>
   values.reduce((sum, value) => sum + value, 0) / Math.max(1, values.length);
 
+export function meanBySequenceThenRepository<T extends { sequence: string }>(
+  samples: readonly T[],
+  valueOf: (sample: T) => number,
+) {
+  if (samples.length === 0) throw new RangeError("nested aggregation requires a sample");
+  const bySequence = new Map<string, number[]>();
+  for (const sample of samples) {
+    const value = valueOf(sample);
+    if (!Number.isFinite(value)) throw new RangeError("nested aggregation requires finite values");
+    const values = bySequence.get(sample.sequence) ?? [];
+    values.push(value);
+    bySequence.set(sample.sequence, values);
+  }
+  return mean([...bySequence.values()].map(mean));
+}
+
 export function runControlledSequenceExperiment(
   datasets: readonly Dataset[],
-  options: { seeds?: readonly number[]; stableHistoryFreeReferenceWeight?: number } = {},
+  options: {
+    seeds?: readonly number[];
+    stableHistoryFreeReferenceWeight?: number;
+    reliabilityMargin?: number;
+  } = {},
 ) {
   const seeds = [...(options.seeds ?? [3, 7, 11])];
   if (seeds.length === 0) throw new Error("controlled sequence experiment requires a seed");
+  const reliabilityMargin =
+    options.reliabilityMargin ?? representationReliabilityMetricContractV1.metrics.D_excess.margin;
+  if (!Number.isFinite(reliabilityMargin) || reliabilityMargin < 0) {
+    throw new RangeError("reliabilityMargin must be finite and non-negative");
+  }
   const repositories = datasets.map((dataset) => {
     const exclusions: Array<{ sequence: string; reason: string }> = [];
     const probes = dataset.sequences.flatMap((sequence) => {
@@ -48,6 +79,7 @@ export function runControlledSequenceExperiment(
           result: runControlledSequenceProbe(probe, {
             seed,
             stableHistoryFreeReferenceWeight: options.stableHistoryFreeReferenceWeight,
+            captureRepeatability: true,
           }),
         }));
       } catch (error) {
@@ -58,49 +90,108 @@ export function runControlledSequenceExperiment(
         return [];
       }
     });
+    if (probes.length === 0) {
+      return { repository: dataset.repository, probes, exclusions, means: null };
+    }
     const recoveryMetricMean = (
       recovery: ControlledRecoveryName,
       condition: SequenceConditionName,
       metric: Metric,
-    ) => mean(probes.map((probe) => probe.result.recovery[recovery][condition][metric]));
+    ) =>
+      meanBySequenceThenRepository(
+        probes,
+        (probe) => probe.result.recovery[recovery][condition][metric],
+      );
     const pathDependenceMetricMean = (condition: SequenceConditionName, metric: Metric) =>
-      mean(probes.map((probe) => probe.result.pathDependence[condition][metric]));
+      meanBySequenceThenRepository(
+        probes,
+        (probe) => probe.result.pathDependence[condition][metric],
+      );
+    const noiseFloor = Object.fromEntries(
+      SEQUENCE_CONDITION_NAMES.map((condition) => {
+        const repeatabilitySamples = probes.flatMap((probe) => {
+          const repeatability = probe.result.repeatability;
+          if (!repeatability) throw new Error("controlled experiment requires repeatability runs");
+          return CONTROLLED_REPEATABILITY_PATH_NAMES.map(
+            (path) => repeatability[path][condition].boundaryDisplacement,
+          );
+        });
+        return [
+          condition,
+          empiricalNearestRankQuantile(
+            repeatabilitySamples,
+            representationReliabilityMetricContractV1.metrics.D_repeat.quantile.probability,
+          ),
+        ];
+      }),
+    ) as Record<SequenceConditionName, number>;
+    const commutatorExcess = Object.fromEntries(
+      SEQUENCE_CONDITION_NAMES.map((condition) => [
+        condition,
+        meanBySequenceThenRepository(probes, (probe) =>
+          computeExcessDefect(
+            probe.result.pathDependence[condition].boundaryDisplacement,
+            noiseFloor[condition],
+            reliabilityMargin,
+          ),
+        ),
+      ]),
+    ) as Record<SequenceConditionName, number>;
+    const loopExcess = Object.fromEntries(
+      CONTROLLED_RECOVERY_NAMES.map((recovery) => [
+        recovery,
+        Object.fromEntries(
+          SEQUENCE_CONDITION_NAMES.map((condition) => [
+            condition,
+            meanBySequenceThenRepository(probes, (probe) =>
+              computeExcessDefect(
+                probe.result.recovery[recovery][condition].boundaryDisplacement,
+                noiseFloor[condition],
+                reliabilityMargin,
+              ),
+            ),
+          ]),
+        ) as Record<SequenceConditionName, number>,
+      ]),
+    ) as Record<ControlledRecoveryName, Record<SequenceConditionName, number>>;
     return {
       repository: dataset.repository,
       probes,
       exclusions,
-      means:
-        probes.length === 0
-          ? null
-          : {
-              recovery: Object.fromEntries(
-                CONTROLLED_RECOVERY_NAMES.map((recovery) => [
-                  recovery,
-                  Object.fromEntries(
-                    SEQUENCE_CONDITION_NAMES.map((condition) => [
-                      condition,
-                      Object.fromEntries(
-                        METRICS.map((metric) => [
-                          metric,
-                          recoveryMetricMean(recovery, condition, metric),
-                        ]),
-                      ) as Record<Metric, number>,
-                    ]),
-                  ) as Record<SequenceConditionName, Record<Metric, number>>,
-                ]),
-              ) as Record<
-                ControlledRecoveryName,
-                Record<SequenceConditionName, Record<Metric, number>>
-              >,
-              pathDependence: Object.fromEntries(
-                SEQUENCE_CONDITION_NAMES.map((condition) => [
-                  condition,
-                  Object.fromEntries(
-                    METRICS.map((metric) => [metric, pathDependenceMetricMean(condition, metric)]),
-                  ) as Record<Metric, number>,
-                ]),
-              ) as Record<SequenceConditionName, Record<Metric, number>>,
-            },
+      means: {
+        recovery: Object.fromEntries(
+          CONTROLLED_RECOVERY_NAMES.map((recovery) => [
+            recovery,
+            Object.fromEntries(
+              SEQUENCE_CONDITION_NAMES.map((condition) => [
+                condition,
+                Object.fromEntries(
+                  METRICS.map((metric) => [
+                    metric,
+                    recoveryMetricMean(recovery, condition, metric),
+                  ]),
+                ) as Record<Metric, number>,
+              ]),
+            ) as Record<SequenceConditionName, Record<Metric, number>>,
+          ]),
+        ) as Record<ControlledRecoveryName, Record<SequenceConditionName, Record<Metric, number>>>,
+        pathDependence: Object.fromEntries(
+          SEQUENCE_CONDITION_NAMES.map((condition) => [
+            condition,
+            Object.fromEntries(
+              METRICS.map((metric) => [metric, pathDependenceMetricMean(condition, metric)]),
+            ) as Record<Metric, number>,
+          ]),
+        ) as Record<SequenceConditionName, Record<Metric, number>>,
+        developmentReliability: {
+          discrepancy: "sampled-mean-boundary-displacement-v1" as const,
+          repeatabilityQuantile: "empirical-nearest-rank-0.95" as const,
+          margin: reliabilityMargin,
+          noiseFloor,
+          commutatorExcess,
+          loopExcess,
+        },
+      },
     };
   });
   const included = repositories.filter(
@@ -126,7 +217,7 @@ export function runControlledSequenceExperiment(
       ]),
     ) as Record<SequenceConditionName, Record<Metric, ReturnType<typeof summarizeSamples>>>;
   return {
-    schemaVersion: 2 as const,
+    schemaVersion: 3 as const,
     seeds,
     stableHistoryFreeReferenceWeight: options.stableHistoryFreeReferenceWeight ?? 0,
     repositories,
@@ -160,6 +251,50 @@ export function runControlledSequenceExperiment(
         Record<SequenceConditionName, Record<Metric, ReturnType<typeof summarizeSamples>>>
       >,
       pathDependence: summarizeConditionMetrics((repository) => repository.means.pathDependence),
+      developmentReliability: {
+        discrepancy: "sampled-mean-boundary-displacement-v1" as const,
+        repeatabilityQuantile: "empirical-nearest-rank-0.95" as const,
+        margin: reliabilityMargin,
+        noiseFloor: Object.fromEntries(
+          SEQUENCE_CONDITION_NAMES.map((condition) => [
+            condition,
+            summarizeSamples(
+              included.map(
+                (repository) => repository.means.developmentReliability.noiseFloor[condition],
+              ),
+            ),
+          ]),
+        ) as Record<SequenceConditionName, ReturnType<typeof summarizeSamples>>,
+        commutatorExcess: Object.fromEntries(
+          SEQUENCE_CONDITION_NAMES.map((condition) => [
+            condition,
+            summarizeSamples(
+              included.map(
+                (repository) => repository.means.developmentReliability.commutatorExcess[condition],
+              ),
+            ),
+          ]),
+        ) as Record<SequenceConditionName, ReturnType<typeof summarizeSamples>>,
+        loopExcess: Object.fromEntries(
+          CONTROLLED_RECOVERY_NAMES.map((recovery) => [
+            recovery,
+            Object.fromEntries(
+              SEQUENCE_CONDITION_NAMES.map((condition) => [
+                condition,
+                summarizeSamples(
+                  included.map(
+                    (repository) =>
+                      repository.means.developmentReliability.loopExcess[recovery][condition],
+                  ),
+                ),
+              ]),
+            ) as Record<SequenceConditionName, ReturnType<typeof summarizeSamples>>,
+          ]),
+        ) as Record<
+          ControlledRecoveryName,
+          Record<SequenceConditionName, ReturnType<typeof summarizeSamples>>
+        >,
+      },
     },
   };
 }
