@@ -12,13 +12,15 @@ This module separates semantic uniqueness into two obligations:
 2. two ordered materializations of the same extreme-point set have the same
    cyclic order.
 
-The first obligation already recovers the finite vertex set from continuous
-convex-hull semantics.  The second remains an order-theoretic polygon lemma.
+Finite affine exposure recovers the vertex set.  For full-dimensional weakly
+ordered normalizer outputs, local irredundancy then recovers strict global
+order, closing the order-theoretic polygon obligation as well.
 -/
 
 namespace Sprawlens.IrredundantPolygonUniqueness
 
 open Set
+open CollinearExtrema
 open ConvexClipContract
 open CyclicBinaryBlocks
 open ExactGeometry
@@ -278,6 +280,106 @@ theorem pointInOpenSegment_of_strict_interpolation
       constructor
       · exact strictBetweenInterpolate start.y finish.y yDifferent
       · simp [BetweenInclusive, interpolatePoint, not_ne_iff.mp xDifferent]
+
+/-- The project interpolation formula agrees with Mathlib's open affine
+segment whenever its parameter is strictly between zero and one. -/
+theorem interpolatePoint_mem_openSegment
+    (start finish : Vec2 R) (parameter : R)
+    (parameterPositive : 0 < parameter) (parameterBelowOne : parameter < 1) :
+    interpolatePoint start finish parameter ∈ openSegment R start finish := by
+  have lineMapEq :
+      AffineMap.lineMap start finish parameter =
+        interpolatePoint start finish parameter := by
+    simp only [AffineMap.lineMap_apply_module]
+    exact affineCombination_eq_interpolatePoint
+      start finish (1 - parameter) parameter (by ring)
+  rw [← lineMapEq]
+  exact lineMap_mem_openSegment (𝕜 := R) start finish
+    ⟨parameterPositive, parameterBelowOne⟩
+
+/-- Among three pairwise distinct collinear points, exactly one geometric
+role is interior: at least one point lies in the open segment of the other
+two.  The statement avoids choosing a coordinate axis. -/
+theorem one_mem_openSegment_of_collinear
+    (first middle last : Vec2 R)
+    (firstNeMiddle : first ≠ middle)
+    (middleNeLast : middle ≠ last)
+    (firstNeLast : first ≠ last)
+    (collinear : orientation first last middle = 0) :
+    middle ∈ openSegment R first last ∨
+      first ∈ openSegment R middle last ∨
+      last ∈ openSegment R first middle := by
+  let parameter := lineParameter first last middle
+  have middleEq :
+      middle = interpolatePoint first last parameter :=
+    (interpolatePoint_lineParameter first last middle firstNeLast
+      collinear).symm
+  have parameterNeZero : parameter ≠ 0 := by
+    intro parameterZero
+    rw [parameterZero, interpolatePoint_zero] at middleEq
+    exact firstNeMiddle middleEq.symm
+  have parameterNeOne : parameter ≠ 1 := by
+    intro parameterOne
+    rw [parameterOne, interpolatePoint_one] at middleEq
+    exact middleNeLast middleEq
+  rcases lt_or_gt_of_ne parameterNeZero with parameterNegative | parameterPositive
+  · right
+    left
+    let localParameter := (-parameter) / (1 - parameter)
+    have denominatorPositive : 0 < 1 - parameter := by linarith
+    have localPositive : 0 < localParameter :=
+      div_pos (neg_pos.mpr parameterNegative) denominatorPositive
+    have localBelowOne : localParameter < 1 := by
+      exact (div_lt_one denominatorPositive).mpr (by linarith)
+    have firstEq :
+        first = interpolatePoint middle last localParameter := by
+      calc
+        first = interpolatePoint first last 0 :=
+          (interpolatePoint_zero first last).symm
+        _ = interpolatePoint
+              (interpolatePoint first last parameter)
+              (interpolatePoint first last 1) localParameter := by
+            rw [interpolatePoint_between_parameters]
+            congr 1
+            dsimp [localParameter]
+            field_simp [sub_ne_zero.mpr (by linarith : parameter ≠ 1)]
+            ring
+        _ = interpolatePoint middle last localParameter := by
+          rw [← middleEq, interpolatePoint_one]
+    rw [firstEq]
+    exact interpolatePoint_mem_openSegment middle last localParameter
+      localPositive localBelowOne
+  · by_cases parameterBelowOne : parameter < 1
+    · left
+      rw [middleEq]
+      exact interpolatePoint_mem_openSegment first last parameter
+        parameterPositive parameterBelowOne
+    · right
+      right
+      have parameterAboveOne : 1 < parameter := by
+        exact lt_of_le_of_ne (le_of_not_gt parameterBelowOne) parameterNeOne.symm
+      let localParameter := 1 / parameter
+      have localPositive : 0 < localParameter := div_pos one_pos parameterPositive
+      have localBelowOne : localParameter < 1 :=
+        (div_lt_one parameterPositive).mpr parameterAboveOne
+      have lastEq :
+          last = interpolatePoint first middle localParameter := by
+        calc
+          last = interpolatePoint first last 1 :=
+            (interpolatePoint_one first last).symm
+          _ = interpolatePoint
+                (interpolatePoint first last 0)
+                (interpolatePoint first last parameter) localParameter := by
+              rw [interpolatePoint_between_parameters]
+              congr 1
+              dsimp [localParameter]
+              field_simp [parameterNeZero]
+              ring
+          _ = interpolatePoint first middle localParameter := by
+            rw [interpolatePoint_zero, ← middleEq]
+      rw [lastEq]
+      exact interpolatePoint_mem_openSegment first middle localParameter
+        localPositive localBelowOne
 
 /-- In a full-dimensional, duplicate-free weakly ordered polygon, a
 collinear leading triple makes its middle vertex an open-segment redundancy. -/
@@ -989,6 +1091,137 @@ theorem allVerticesExtreme_of_ordered_of_cyclicallyStrict
     rotatedEq]
   exact rotatedExtreme
 
+/-- Three pairwise distinct generators cannot be collinear when every listed
+generator is an extreme point of the generated convex region. -/
+theorem orientation_ne_zero_of_allVerticesExtreme
+    (points : List (Vec2 R)) (allExtreme : AllVerticesExtreme points)
+    (first middle last : Vec2 R)
+    (firstMember : first ∈ points) (middleMember : middle ∈ points)
+    (lastMember : last ∈ points)
+    (firstNeMiddle : first ≠ middle)
+    (middleNeLast : middle ≠ last)
+    (firstNeLast : first ≠ last) :
+    orientation first middle last ≠ 0 := by
+  intro collinear
+  have reversedCollinear : orientation first last middle = 0 := by
+    rw [orientation_reverse, collinear, neg_zero]
+  have generatorMember (point : Vec2 R) (member : point ∈ points) :
+      point ∈ listConvexRegion points := by
+    unfold listConvexRegion
+    exact subset_convexHull R _ member
+  rcases one_mem_openSegment_of_collinear first middle last
+      firstNeMiddle middleNeLast firstNeLast reversedCollinear with
+    middleBetween | firstBetween | lastBetween
+  · have middleExtreme :=
+      (mem_extremePoints_iff_left.mp (allExtreme middle middleMember)).2
+    have forced := middleExtreme first (generatorMember first firstMember)
+      last (generatorMember last lastMember) middleBetween
+    exact firstNeMiddle forced
+  · have firstExtreme :=
+      (mem_extremePoints_iff_left.mp (allExtreme first firstMember)).2
+    have forced := firstExtreme middle (generatorMember middle middleMember)
+      last (generatorMember last lastMember) firstBetween
+    exact firstNeMiddle forced.symm
+  · have lastExtreme :=
+      (mem_extremePoints_iff_left.mp (allExtreme last lastMember)).2
+    have forced := lastExtreme first (generatorMember first firstMember)
+      middle (generatorMember middle middleMember) lastBetween
+    exact firstNeLast forced
+
+/-- Weak global order becomes strict global order once duplicate freedom and
+extremality exclude the zero-orientation branch for every ordered triple. -/
+theorem allStrictlyOrderedCCW_of_ordered_of_allVerticesExtreme
+    (points : List (Vec2 R)) (nodup : points.Nodup)
+    (ordered : AllOrderedCCW points) (allExtreme : AllVerticesExtreme points) :
+    AllStrictlyOrderedCCW points := by
+  unfold AllOrderedCCW at ordered
+  unfold AllStrictlyOrderedCCW
+  change points.Triplewise
+    (fun first second last => 0 ≤ orientation first second last) at ordered
+  rw [List.triplewise_iff_getElem] at ordered
+  rw [List.triplewise_iff_getElem]
+  intro firstIndex middleIndex lastIndex firstBeforeMiddle middleBeforeLast
+    lastBound
+  have firstBound : firstIndex < points.length := by omega
+  have middleBound : middleIndex < points.length := by omega
+  have firstNeMiddle :
+      points[firstIndex] ≠ points[middleIndex] := by
+    intro equal
+    have indicesEqual := nodup.getElem_inj_iff.mp equal
+    omega
+  have middleNeLast :
+      points[middleIndex] ≠ points[lastIndex] := by
+    intro equal
+    have indicesEqual := nodup.getElem_inj_iff.mp equal
+    omega
+  have firstNeLast :
+      points[firstIndex] ≠ points[lastIndex] := by
+    intro equal
+    have indicesEqual := nodup.getElem_inj_iff.mp equal
+    omega
+  have nonzero := orientation_ne_zero_of_allVerticesExtreme points allExtreme
+    points[firstIndex] points[middleIndex] points[lastIndex]
+      (by simp) (by simp) (by simp)
+      firstNeMiddle middleNeLast firstNeLast
+  exact lt_of_le_of_ne
+    (ordered firstIndex middleIndex lastIndex firstBeforeMiddle
+      middleBeforeLast lastBound)
+    (Ne.symm nonzero)
+
+/-- Weak global order with strict cyclic turns is already strict globally. -/
+theorem allStrictlyOrderedCCW_of_ordered_of_cyclicallyStrict
+    (points : List (Vec2 R)) (lengthAtLeastThree : 3 ≤ points.length)
+    (nodup : points.Nodup) (ordered : AllOrderedCCW points)
+    (strict : CyclicallyStrict points) :
+    AllStrictlyOrderedCCW points := by
+  apply allStrictlyOrderedCCW_of_ordered_of_allVerticesExtreme
+    points nodup ordered
+  exact allVerticesExtreme_of_ordered_of_cyclicallyStrict
+    points lengthAtLeastThree ordered strict
+
+/-- This closes the normalizer-side bridge: full-dimensional weak order,
+duplicate freedom, and local irredundancy imply strict global polygon order. -/
+theorem allStrictlyOrderedCCW_of_ordered_of_irredundant
+    (points : List (Vec2 R)) (lengthAtLeastThree : 3 ≤ points.length)
+    (nodup : points.Nodup) (ordered : AllOrderedCCW points)
+    (fullDimensional : HasPositiveTriple
+      (listVertex points lengthAtLeastThree))
+    (irredundant : CyclicallyIrredundant points) :
+    AllStrictlyOrderedCCW points := by
+  apply allStrictlyOrderedCCW_of_ordered_of_cyclicallyStrict
+    points lengthAtLeastThree nodup ordered
+  exact cyclicallyStrict_of_ordered_of_irredundant
+    points lengthAtLeastThree ordered nodup fullDimensional irredundant
+
+/-- A full-dimensional polygon branch produced by the public finite-descent
+normalizer recovers strict global order from its proved postconditions. -/
+theorem normalizeCyclicBoundaryFixed_strictlyOrdered_of_fullDimensional
+    (points : List (Vec2 R)) (ordered : AllOrderedCCW points)
+    (nodup : points.Nodup)
+    (outputLength : 3 ≤ (normalizeCyclicBoundaryFixed points).length)
+    (outputFullDimensional : HasPositiveTriple
+      (listVertex (normalizeCyclicBoundaryFixed points) outputLength)) :
+    AllStrictlyOrderedCCW (normalizeCyclicBoundaryFixed points) := by
+  apply allStrictlyOrderedCCW_of_ordered_of_irredundant
+    (normalizeCyclicBoundaryFixed points) outputLength
+  · exact normalizeCyclicBoundaryFixed_nodup points nodup
+  · exact normalizeCyclicBoundaryFixed_ordered points ordered
+  · exact outputFullDimensional
+  · exact normalizeCyclicBoundaryFixed_irredundant points nodup
+
+omit [IsStrictOrderedRing R] in
+/-- The public finite-descent output is already at the deterministic polygon
+seam on every duplicate-free input. -/
+theorem canonicalPolygon_normalizeCyclicBoundaryFixed
+    (points : List (Vec2 R)) (nodup : points.Nodup) :
+    canonicalPolygon (normalizeCyclicBoundaryFixed points) =
+      normalizeCyclicBoundaryFixed points := by
+  have oneStepFixed := normalizeCyclicBoundaryFixed_step_fixed points nodup
+  have canonicalStep := canonicalPolygon_normalizeCyclicBoundary
+    (normalizeCyclicBoundaryFixed points)
+  rw [oneStepFixed] at canonicalStep
+  exact canonicalStep
+
 /-- Every strict globally CCW-ordered list of length at least three consists
 exactly of extreme generators of its convex hull. -/
 theorem allVerticesExtreme_of_strictlyOrdered
@@ -1077,6 +1310,78 @@ theorem canonicalPolygon_eq_of_region_eq_of_strictlyOrdered
   · exact firstOrdered
   · exact secondOrdered
   · exact sameRegion
+
+/-- Full-dimensional weakly ordered irredundant polygons are semantically
+extensional; strict order is derived rather than required from the caller. -/
+theorem canonicalPolygon_eq_of_region_eq_of_ordered_of_irredundant
+    (first second : List (Vec2 R))
+    (firstLength : 3 ≤ first.length) (secondLength : 3 ≤ second.length)
+    (firstNodup : first.Nodup) (secondNodup : second.Nodup)
+    (firstOrdered : AllOrderedCCW first)
+    (secondOrdered : AllOrderedCCW second)
+    (firstFullDimensional : HasPositiveTriple
+      (listVertex first firstLength))
+    (secondFullDimensional : HasPositiveTriple
+      (listVertex second secondLength))
+    (firstIrredundant : CyclicallyIrredundant first)
+    (secondIrredundant : CyclicallyIrredundant second)
+    (sameRegion : listConvexRegion first = listConvexRegion second) :
+    canonicalPolygon first = canonicalPolygon second := by
+  apply canonicalPolygon_eq_of_region_eq_of_strictlyOrdered
+    first second firstLength secondLength firstNodup secondNodup
+  · exact allStrictlyOrderedCCW_of_ordered_of_irredundant
+      first firstLength firstNodup firstOrdered
+        firstFullDimensional firstIrredundant
+  · exact allStrictlyOrderedCCW_of_ordered_of_irredundant
+      second secondLength secondNodup secondOrdered
+        secondFullDimensional secondIrredundant
+  · exact sameRegion
+
+/-- Public finite-descent normalization is semantically extensional on its
+full-dimensional weakly ordered polygon branch. -/
+theorem normalizeCyclicBoundaryFixed_eq_of_region_eq_of_fullDimensional
+    (first second : List (Vec2 R))
+    (firstNodup : first.Nodup) (secondNodup : second.Nodup)
+    (firstOrdered : AllOrderedCCW first)
+    (secondOrdered : AllOrderedCCW second)
+    (firstOutputLength :
+      3 ≤ (normalizeCyclicBoundaryFixed first).length)
+    (secondOutputLength :
+      3 ≤ (normalizeCyclicBoundaryFixed second).length)
+    (firstOutputFullDimensional : HasPositiveTriple
+      (listVertex (normalizeCyclicBoundaryFixed first) firstOutputLength))
+    (secondOutputFullDimensional : HasPositiveTriple
+      (listVertex (normalizeCyclicBoundaryFixed second) secondOutputLength))
+    (sameRegion : listConvexRegion first = listConvexRegion second) :
+    normalizeCyclicBoundaryFixed first =
+      normalizeCyclicBoundaryFixed second := by
+  have firstOutputStrict :=
+    normalizeCyclicBoundaryFixed_strictlyOrdered_of_fullDimensional
+      first firstOrdered firstNodup firstOutputLength
+        firstOutputFullDimensional
+  have secondOutputStrict :=
+    normalizeCyclicBoundaryFixed_strictlyOrdered_of_fullDimensional
+      second secondOrdered secondNodup secondOutputLength
+        secondOutputFullDimensional
+  have outputRegionEq :
+      listConvexRegion (normalizeCyclicBoundaryFixed first) =
+        listConvexRegion (normalizeCyclicBoundaryFixed second) := by
+    rw [normalizeCyclicBoundaryFixed_region first,
+      normalizeCyclicBoundaryFixed_region second, sameRegion]
+  have canonicalEq := canonicalPolygon_eq_of_region_eq_of_strictlyOrdered
+    (normalizeCyclicBoundaryFixed first)
+    (normalizeCyclicBoundaryFixed second)
+    firstOutputLength secondOutputLength
+    (normalizeCyclicBoundaryFixed_nodup first firstNodup)
+    (normalizeCyclicBoundaryFixed_nodup second secondNodup)
+    firstOutputStrict secondOutputStrict outputRegionEq
+  calc
+    normalizeCyclicBoundaryFixed first =
+        canonicalPolygon (normalizeCyclicBoundaryFixed first) :=
+      (canonicalPolygon_normalizeCyclicBoundaryFixed first firstNodup).symm
+    _ = canonicalPolygon (normalizeCyclicBoundaryFixed second) := canonicalEq
+    _ = normalizeCyclicBoundaryFixed second :=
+      canonicalPolygon_normalizeCyclicBoundaryFixed second secondNodup
 
 /-- The complete boundary normalizer is semantically extensional on the
 strict duplicate-free polygon domain. -/
