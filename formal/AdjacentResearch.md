@@ -104,12 +104,13 @@
 - positive-triple判定が`Nodup`かつweak orderedなlistの任意巡回回転で同値であることを証明した。共線branchでは、同じ非退化closed segment領域を表す二つの端点対が反転を除いて一致することをaffine parameterから導き、座標順segment artifactの一意性へ接続した。これらをempty・point・pair・任意長共線・polygonへ場合分けして統合し、public `canonicalizeSeamed`が入力の任意巡回始点に対してexactに同一artifactを返すことを証明した。
 - `WindingCanonicalizer`で、入力またはそのreverseがweak global CCW orderを持つという明示domain上の実行可能winding正規化を分離した。これはpermutation・長さ・`Nodup`・凸包領域を保存し、domain上でCCW出力と冪等性を保証する。既存CCW canonicalizerへ合成し、領域保存とCCW入力の全branch巡回回転不変性を継承した。
 - 一方、同一領域全般に対するartifact一意性は現表現では偽である。`CanonicalizerExtensionalityCounterexample`で、cornerのみの正方形と下辺上に冗長な相異なる頂点を加えた五角形が同じ凸包領域を持つ一方、`canonicalizeSeamed`は異なるpolygon artifactを返すことを証明した。次の正しい義務は冗長共線境界頂点の除去と、irredundant convex polygonに制約した一意性である。
+- `RedundantBoundaryNormalizer`で既存の実行可能open-segment Bool判定をaffine parameterの`[0,1]`所属へ接続し、segment内の有限generatorを削除しても凸包領域が変わらない一般補題を証明した。局所削除をopen chainへ反復し、さらにseamを1頂点ずつ動かす有限巡回passと最小座標seam正規化を合成した。各passは凸包領域、weak global order、`Nodup`を保存し、頂点数を増やさない。同じ頂点数なら削除はなく巡回回転だけであることを示し、strictに頂点数が減る間だけ反復するproof-free有限降下版を追加した。duplicate-free入力では元の頂点数をfuelにすれば必ず一段normalizerの固定点へ到達し、合成関数自体も冪等である。さらに固定点では、全巡回シームについて先頭三点の中央が両隣のopen segmentに入らないことを証明した。したがって対象にした局所冗長共線境界頂点の削除完全性も閉じ、上の冗長正方形反例の修復を維持する。残件はこのirredundant polygon制約下の意味的一意性である。
 
 ### 未証明・実証が必要なこと
 
 - 単一half-planeの実emitter領域等号、dimension-awareなtotal再分類、polygon / degenerate混在の任意有限遷移、strict ordered初期polygonからのend-to-end宣言的領域等式に加え、具体的な実行可能canonicalizerの意味保存とmaterialization後の冪等性まで証明済みである。
-- empty / point / segmentの正準表現は閉じた。polygonの同一領域artifact一意性には、反例で必要性を確認した冗長共線境界頂点の除去が残る。
-- winding selectorのdomain内正規化は実装・証明済みである。残るのはirredundant normalizerの意味保存・冪等性と、その制約下のpolygon artifact一意性である。
+- empty / point / segmentの正準表現は閉じた。polygonでは冗長境界削除の領域・order・`Nodup`保存、有限降下による固定点到達、duplicate-free domain上の冪等性、全巡回隣接三点に対する局所削除完全性、既知反例の修復まで閉じた。
+- winding selectorのdomain内正規化は実装・証明済みである。残るのはirredundant出力制約下のpolygon artifact一意性である。
 - 有理座標の小規模全探索による、完全一致命題の反例探索。
 
 集合交差の可換性自体は標準事実である。成果候補は、退化を含む実行可能emitterと正準化の検証済み接続である。
