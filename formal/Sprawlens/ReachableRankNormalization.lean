@@ -136,6 +136,20 @@ def HasReducibleAdjacent {Edit : Type u}
         HasReducibleAdjacent rank Independent (second :: rest)
   | _ => False
 
+instance instDecidableHasReducibleAdjacent
+    {Edit : Type u} (rank : Edit → Nat)
+    (Independent : Edit → Edit → Prop) [DecidableRel Independent]
+    (edits : List Edit) :
+    Decidable (HasReducibleAdjacent rank Independent edits) := by
+  induction edits with
+  | nil => exact isFalse id
+  | cons first rest inductionHypothesis =>
+      cases rest with
+      | nil => exact isFalse id
+      | cons second tail =>
+          simp only [HasReducibleAdjacent]
+          infer_instance
+
 theorem HasReducibleAdjacent.prepend
     {Edit : Type u} (rank : Edit → Nat)
     (Independent : Edit → Edit → Prop)
@@ -199,6 +213,14 @@ def IsReachableRankNormalForm {Edit : Type u}
     (rank : Edit → Nat) (Independent : Edit → Edit → Prop)
     (edits : List Edit) : Prop :=
   ¬HasReducibleAdjacent rank Independent edits
+
+instance instDecidableIsReachableRankNormalForm
+    {Edit : Type u} (rank : Edit → Nat)
+    (Independent : Edit → Edit → Prop) [DecidableRel Independent]
+    (edits : List Edit) :
+    Decidable (IsReachableRankNormalForm rank Independent edits) := by
+  unfold IsReachableRankNormalForm
+  infer_instance
 
 /-- Every finite trace reaches some irreducible representative by repeatedly
 swapping independent strict inversions. This is an existence theorem only;

@@ -295,6 +295,58 @@ theorem WeightedSwapStep.perm
   | backward before after first second independent =>
       exact (List.Perm.swap first second after).append_left before
 
+theorem TraceCertificate.perm
+    {Edit : Type u} (Independent : Edit → Edit → Prop)
+    (swapCost : List Edit → List Edit → Edit → Edit → ℝ)
+    {cost : ℝ} {first second : List Edit}
+    (certificate : TraceCertificate Independent swapCost
+      cost first second) :
+    first.Perm second := by
+  induction certificate with
+  | refl edits => exact .refl edits
+  | swap before after first second independent =>
+      exact (List.Perm.swap first second after).symm.append_left before
+  | symm certificate inductionHypothesis => exact inductionHypothesis.symm
+  | trans left right leftHypothesis rightHypothesis =>
+      exact leftHypothesis.trans rightHypothesis
+
+theorem TraceEquivalent.perm
+    {Edit : Type u} (Independent : Edit → Edit → Prop)
+    {first second : List Edit}
+    (equivalent : TraceEquivalent Independent first second) :
+    first.Perm second := by
+  induction equivalent with
+  | refl edits => exact .refl edits
+  | swap before after first second independent =>
+      exact (List.Perm.swap first second after).symm.append_left before
+  | symm equivalent inductionHypothesis => exact inductionHypothesis.symm
+  | trans left right leftHypothesis rightHypothesis =>
+      exact leftHypothesis.trans rightHypothesis
+
+/-- Any filter that observes the same two-element result before and after
+each declared-independent swap is invariant under the whole trace
+equivalence. This exposes order constraints among dependent edits. -/
+theorem TraceEquivalent.filter_eq
+    {Edit : Type u} (Independent : Edit → Edit → Prop)
+    (keep : Edit → Bool)
+    (swapInvariant : ∀ first second, Independent first second →
+      [first, second].filter keep = [second, first].filter keep)
+    {first second : List Edit}
+    (equivalent : TraceEquivalent Independent first second) :
+    first.filter keep = second.filter keep := by
+  induction equivalent with
+  | refl edits => rfl
+  | swap before after first second independent =>
+      simp only [List.filter_append]
+      apply congrArg (before.filter keep ++ ·)
+      change ([first, second] ++ after).filter keep =
+        ([second, first] ++ after).filter keep
+      simp only [List.filter_append]
+      rw [swapInvariant first second independent]
+  | symm equivalent inductionHypothesis => exact inductionHypothesis.symm
+  | trans left right leftHypothesis rightHypothesis =>
+      exact leftHypothesis.trans rightHypothesis
+
 namespace WeightedTraceWalk
 
 theorem vertex_perm_first
@@ -336,6 +388,36 @@ theorem count_lt_permutations_length_of_nodup
   omega
 
 end WeightedTraceWalk
+
+/-- Every certificate with nonnegative primitive costs has a no-more-
+expensive simple sequential representative. Its edge count is bounded solely
+by the finite permutation component of the initial trace. -/
+theorem TraceCertificate.exists_simpleWeightedTracePath_of_nonnegative
+    {Edit : Type u} (Independent : Edit → Edit → Prop)
+    (swapCost : List Edit → List Edit → Edit → Edit → ℝ)
+    (primitiveNonneg : PrimitiveSwapCostLowerBound
+      Independent swapCost 0)
+    {cost : ℝ} {first target : List Edit}
+    (certificate : TraceCertificate Independent swapCost
+      cost first target) :
+    ∃ simpleCount simpleCost,
+      simpleCount < first.permutations.length ∧
+      WeightedTracePath Independent swapCost
+        simpleCount simpleCost first target ∧
+      simpleCost ≤ cost := by
+  obtain ⟨count, path⟩ :=
+    Sprawlens.PositiveCostAttainment.TraceCertificate.exists_weightedTracePath
+      Independent swapCost certificate
+  obtain ⟨walk, countEq, costEq⟩ :=
+    WeightedTraceWalk.exists_of_weightedTracePath
+      Independent swapCost path
+  obtain ⟨simple, simpleNodup, simpleCostLe, simpleSubset⟩ :=
+    walk.exists_loopErased Independent swapCost primitiveNonneg
+  exact ⟨simple.count, simple.cost,
+    simple.count_lt_permutations_length_of_nodup
+      Independent swapCost simpleNodup,
+    simple.toWeightedTracePath,
+    simpleCostLe.trans_eq costEq⟩
 
 /-- Nonnegative primitive costs suffice for global minimum attainment between
 two fixed traces. Zero-cost cycles are erased first; every remaining simple

@@ -1370,11 +1370,106 @@
       "leanModule": "Sprawlens.NonnegativeCostAttainment",
       "theorems": [
         "WeightedSwapStep.perm",
+        "TraceCertificate.perm",
+        "TraceEquivalent.perm",
+        "TraceEquivalent.filter_eq",
+        "TraceCertificate.exists_simpleWeightedTracePath_of_nonnegative",
         "minimumTraceCertificate_exists_of_nonnegative",
         "optimalPropagatedCost_attained_of_nonnegative"
       ],
       "status": "proved-full-certificate-minimum-and-propagated-infimum-attainment-for-arbitrary-nonnegative-context-dependent-primitive-costs-including-zero-cost-cycles-via-cost-nonincreasing-loop-erasure-and-a-finite-permutation-graph-bound",
       "implementationCorrespondence": "abstract-existence-proof-for-fixed-finite-trace-pairs-covering-zero-cost-edges-and-inversion-increasing-detours-with-nonnegativity-as-the-boundary-witnessed-by-the-negative-cycle-counterexample-not-an-extracted-production-shortest-path-algorithm-or-a-practical-factorial-complexity-bound"
+    },
+    {
+      "id": "paper2.layout-transition.nonnegative-normalizing-attainment",
+      "paper": 2,
+      "protocol": "formal/AdjacentResearch.md#1-状態依存レイアウトの合流性欠損",
+      "typescript": [],
+      "leanModule": "Sprawlens.NonnegativeNormalizingAttainment",
+      "theorems": [
+        "minimumNormalizingCertificate_exists_of_nonnegative",
+        "optimalNormalizingPropagatedCost_attained",
+        "optimalRankNormalizingPropagatedCost_attained",
+        "weightedFork_normal_equivalent_target_cases",
+        "weightedFork_optimalNormalizingPropagatedCost_eq_one"
+      ],
+      "status": "proved-global-minimum-attainment-over-all-acceptable-normal-targets-and-all-nonnegative-certificates-with-a-simple-path-permutation-bound-rank-normalization-specialization-and-exact-weighted-fork-optimum-one",
+      "implementationCorrespondence": "abstract-target-agnostic-normalization-objective-using-the-leftmost-normalizer-only-as-a-feasibility-witness-and-proving-the-nonconfluent-fork-prefers-the-right-cost-one-branch-over-the-leftmost-cost-two-branch-not-a-scientific-validation-of-the-normal-target-predicate-or-an-extracted-production-shortest-path-algorithm"
+    },
+    {
+      "id": "paper2.layout-transition.simple-normalizing-search",
+      "paper": 2,
+      "protocol": "formal/AdjacentResearch.md#1-状態依存レイアウトの合流性欠損",
+      "typescript": [],
+      "leanModule": "Sprawlens.SimpleNormalizingSearch",
+      "theorems": [
+        "minimumBy?_eq_none_iff",
+        "mem_of_minimumBy?_eq_some",
+        "minimumBy?_cost_le_of_mem",
+        "weightedTraceWalk_first_mem_vertices",
+        "simpleWeightedTraceWalkOutcomesList_sound",
+        "simpleWeightedTraceWalkOutcomesList_complete",
+        "simpleWeightedTracePathOutcomesList_sound",
+        "simpleWeightedTracePathOutcomesList_complete",
+        "minimumSimpleNormalizingOutcome?_spec",
+        "weightedFork_minimumSimpleNormalizingOutcome?_eq"
+      ],
+      "status": "proved-cycle-pruned-simple-walk-enumerator-soundness-completeness-and-deterministic-global-minimum-normalizing-selector-with-an-exact-fork-output-cost-one",
+      "implementationCorrespondence": "universe-polymorphic-visited-set-depth-first-search-specification-with-computable-rank-normal-form-filter-and-stable-input-order-ties-proving-global-optimality-under-nonnegative-real-edge-costs-not-yet-a-production-javascript-port-dominance-pruned-dijkstra-implementation-or-polynomial-complexity-result"
+    },
+    {
+      "id": "paper2.layout-transition.prefix-dominance",
+      "paper": 2,
+      "protocol": "formal/AdjacentResearch.md#1-状態依存レイアウトの合流性欠損",
+      "typescript": [],
+      "leanModule": "Sprawlens.PrefixDominance",
+      "theorems": [
+        "prefixDominance_preserves_completion",
+        "prefix_minimal_of_append_minimal",
+        "certificatePrefixDominance_preserves_completion",
+        "fork_normalForm_key_not_safe_for_dominance"
+      ],
+      "status": "proved-exact-trace-prefix-dominance-and-bellman-optimal-substructure-with-a-load-bearing-counterexample-to-coarse-normal-form-state-merging",
+      "implementationCorrespondence": "abstract-justification-for-best-cost-pruning-keyed-by-the-complete-trace-because-common-suffix-cost-is-prefix-history-independent-while-the-weighted-fork-proves-that-merging-distinct-traces-by-normality-is-unsound-used-by-the-verified-list-priority-queue-dijkstra-specification-but-not-yet-a-production-javascript-implementation"
+    },
+    {
+      "id": "paper2.layout-transition.dijkstra-invariant",
+      "paper": 2,
+      "protocol": "formal/AdjacentResearch.md#1-状態依存レイアウトの合流性欠損",
+      "typescript": [],
+      "leanModule": "Sprawlens.DijkstraInvariant",
+      "theorems": [
+        "minimumFrontierEntry_is_pathCostMinimal",
+        "initialFrontier_sound",
+        "initialFrontier_covers_of_nonnegative",
+        "frontierSimpleCutCoverage_implies_covers",
+        "initialFrontier_simpleCutCoverage_of_nonnegative",
+        "relaxWeightedFrontierEntry_sound",
+        "frontierSound_relax_append",
+        "relaxWeightedFrontierEntry_cost_mono",
+        "advanceFrontier_sound",
+        "advanceFrontier_preserves_simpleCutCoverage",
+        "initialSearchInvariant_of_nonnegative",
+        "advanceSearchInvariant",
+        "searchInvariant_minimum_is_pathCostMinimal",
+        "pruneSettledFrontier_sound",
+        "pruneSettledFrontier_preserves_simpleCutCoverage",
+        "pruneSettledFrontier_preserves_searchInvariant",
+        "minimum_prunedFrontier_target_fresh",
+        "initialFullSearchInvariant_of_nonnegative",
+        "dijkstraStep_continue_preserves_fullInvariant",
+        "dijkstraStep_found_globalNormalizingMinimum",
+        "dijkstraStep_not_exhausted_of_normal_path",
+        "settled_length_le_permutations_length",
+        "dijkstraSearchFuel_some_globalNormalizingMinimum",
+        "dijkstraSearchFuel_ne_none_of_remaining_capacity",
+        "dijkstraSearch_complete_and_optimal",
+        "dijkstraRankNormalizingPropagatedCost_attained",
+        "weightedFork_dijkstraSearch_eq",
+        "negativeCost_initialFrontier_not_covering"
+      ],
+      "status": "proved-complete-finite-list-priority-queue-dijkstra-search-with-simple-suffix-cut-coverage-preservation-permutation-count-termination-global-normalizing-optimality-propagated-rank-intrinsic-attainment-and-the-exact-weighted-fork-result",
+      "implementationCorrespondence": "verified-exact-real-list-priority-queue-reference-algorithm-for-the-symmetric-weighted-trace-graph-including-settled-set-updates-stale-entry-pruning-termination-and-global-normalizing-optimality-not-yet-refined-to-a-production-javascript-heap-and-hash-table-implementation"
     },
     {
       "id": "paper2.layout-transition.certificate-potential-duality",

@@ -50,6 +50,10 @@ import Sprawlens.CertificatePotentialDuality
 import Sprawlens.GlobalWeightedNormalization
 import Sprawlens.PositiveCostAttainment
 import Sprawlens.NonnegativeCostAttainment
+import Sprawlens.NonnegativeNormalizingAttainment
+import Sprawlens.SimpleNormalizingSearch
+import Sprawlens.PrefixDominance
+import Sprawlens.DijkstraInvariant
 import Sprawlens.GeneratedOptimalityGap
 import Sprawlens.HardSelectorLipschitz
 import Sprawlens.SoftSelectorLipschitz
