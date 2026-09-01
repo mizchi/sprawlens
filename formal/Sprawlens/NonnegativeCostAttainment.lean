@@ -1,3 +1,4 @@
+import Mathlib.Data.Finset.Card
 import Mathlib.Data.List.Permutation
 import Sprawlens.PositiveCostAttainment
 
@@ -389,6 +390,26 @@ theorem count_lt_permutations_length_of_nodup
 
 end WeightedTraceWalk
 
+/-- Sharper finite-state bound: repeated edits can make `List.permutations`
+contain duplicate traces, so a simple walk is bounded by the number of
+distinct syntactic permutations rather than by the raw permutation list. -/
+theorem WeightedTraceWalk.count_lt_uniquePermutations_of_nodup
+    {Edit : Type u} [DecidableEq Edit]
+    (Independent : Edit → Edit → Prop)
+    (swapCost : List Edit → List Edit → Edit → Edit → ℝ)
+    {first target : List Edit}
+    (walk : WeightedTraceWalk Independent swapCost first target)
+    (nodup : walk.vertices.Nodup) :
+    walk.count < first.permutations.toFinset.card := by
+  have subset : walk.vertices.toFinset ⊆ first.permutations.toFinset := by
+    intro vertex member
+    simp only [List.mem_toFinset] at member ⊢
+    exact List.mem_permutations.mpr
+      (walk.vertex_perm_first Independent swapCost member)
+  have cardLe := Finset.card_le_card subset
+  rw [List.toFinset_card_of_nodup nodup, walk.vertices_length] at cardLe
+  omega
+
 /-- Every certificate with nonnegative primitive costs has a no-more-
 expensive simple sequential representative. Its edge count is bounded solely
 by the finite permutation component of the initial trace. -/
@@ -415,6 +436,36 @@ theorem TraceCertificate.exists_simpleWeightedTracePath_of_nonnegative
     walk.exists_loopErased Independent swapCost primitiveNonneg
   exact ⟨simple.count, simple.cost,
     simple.count_lt_permutations_length_of_nodup
+      Independent swapCost simpleNodup,
+    simple.toWeightedTracePath,
+    simpleCostLe.trans_eq costEq⟩
+
+/-- The loop-erased representative with the sharper number-of-distinct-
+permutations bound. -/
+theorem TraceCertificate.exists_simpleWeightedTracePath_of_nonnegative_uniqueBound
+    {Edit : Type u} [DecidableEq Edit]
+    (Independent : Edit → Edit → Prop)
+    (swapCost : List Edit → List Edit → Edit → Edit → ℝ)
+    (primitiveNonneg : PrimitiveSwapCostLowerBound
+      Independent swapCost 0)
+    {cost : ℝ} {first target : List Edit}
+    (certificate : TraceCertificate Independent swapCost
+      cost first target) :
+    ∃ simpleCount simpleCost,
+      simpleCount < first.permutations.toFinset.card ∧
+      WeightedTracePath Independent swapCost
+        simpleCount simpleCost first target ∧
+      simpleCost ≤ cost := by
+  obtain ⟨count, path⟩ :=
+    Sprawlens.PositiveCostAttainment.TraceCertificate.exists_weightedTracePath
+      Independent swapCost certificate
+  obtain ⟨walk, countEq, costEq⟩ :=
+    WeightedTraceWalk.exists_of_weightedTracePath
+      Independent swapCost path
+  obtain ⟨simple, simpleNodup, simpleCostLe, simpleSubset⟩ :=
+    walk.exists_loopErased Independent swapCost primitiveNonneg
+  exact ⟨simple.count, simple.cost,
+    simple.count_lt_uniquePermutations_of_nodup
       Independent swapCost simpleNodup,
     simple.toWeightedTracePath,
     simpleCostLe.trans_eq costEq⟩

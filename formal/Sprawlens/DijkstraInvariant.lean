@@ -1,4 +1,5 @@
 import Sprawlens.PrefixDominance
+import Sprawlens.ReachableTraceClass
 
 namespace Sprawlens.DijkstraInvariant
 
@@ -14,6 +15,7 @@ open PrefixDominance
 open PropagatedConfluence
 open QuantitativeConfluence
 open ReachableRankNormalization
+open ReachableTraceClass
 open SimpleNormalizingSearch
 open TraceDerivationGenerator
 open WeightedNormalizationPolicy
@@ -566,6 +568,12 @@ def SettledPermutations {Edit : Type u}
     (source : List Edit) (settled : List (List Edit)) : Prop :=
   ∀ target, target ∈ settled → target.Perm source
 
+def SettledReachable {Edit : Type u}
+    (Independent : Edit → Edit → Prop)
+    (source : List Edit) (settled : List (List Edit)) : Prop :=
+  ∀ target, target ∈ settled →
+    TraceEquivalent Independent source target
+
 def FullSearchInvariant {Edit : Type u}
     (Independent : Edit → Edit → Prop)
     (swapCost : List Edit → List Edit → Edit → Edit → ℝ)
@@ -575,7 +583,8 @@ def FullSearchInvariant {Edit : Type u}
       state.settled state.frontier ∧
     SettledNonNormal Normal state.settled ∧
     state.settled.Nodup ∧
-    SettledPermutations source state.settled
+    SettledPermutations source state.settled ∧
+    SettledReachable Independent source state.settled
 
 /-- One executable list-priority-queue iteration. Stale settled entries are
 filtered before minimum selection. -/
@@ -608,7 +617,7 @@ theorem initialFullSearchInvariant_of_nonnegative
   exact ⟨initialSearchInvariant_of_nonnegative
       Independent swapCost primitiveNonneg source,
     by simp [SettledNonNormal], by simp,
-    by simp [SettledPermutations]⟩
+    by simp [SettledPermutations], by simp [SettledReachable]⟩
 
 /-- A `continue` result preserves both graph-search invariants and records a
 new distinct non-normal settled trace. -/
@@ -650,10 +659,14 @@ theorem dijkstraStep_continue_preserves_fullInvariant
           (Sprawlens.NonnegativeCostAttainment.TraceCertificate.perm
             Independent swapCost
             (selectedPath.toTraceCertificate Independent swapCost)).symm
+        have selectedReachable :
+            TraceEquivalent Independent source selectedTarget :=
+          (selectedPath.toTraceCertificate Independent swapCost)
+            |>.toTraceEquivalent Independent swapCost
         have advancedInvariant := advanceSearchInvariant
           Independent swapCost primitiveNonneg source state.settled fresh
           selectedEq freshInvariant
-        refine ⟨⟨advancedInvariant, ?_, ?_, ?_⟩, by simp⟩
+        refine ⟨⟨advancedInvariant, ?_, ?_, ?_, ?_⟩, by simp⟩
         · intro target targetMember
           rcases List.mem_cons.mp targetMember with targetEq | oldMember
           · simpa [targetEq]
@@ -662,7 +675,11 @@ theorem dijkstraStep_continue_preserves_fullInvariant
         · intro target targetMember
           rcases List.mem_cons.mp targetMember with targetEq | oldMember
           · simpa [targetEq] using selectedPerm
-          · exact invariant.2.2.2 target oldMember
+          · exact invariant.2.2.2.1 target oldMember
+        · intro target targetMember
+          rcases List.mem_cons.mp targetMember with targetEq | oldMember
+          · simpa [targetEq] using selectedReachable
+          · exact invariant.2.2.2.2 target oldMember
 
 /-- If one iteration returns a normal target, that queue entry is globally
 minimum across every path to every acceptable normal target, not merely
@@ -752,19 +769,39 @@ theorem dijkstraStep_not_exhausted_of_normal_path
       by_cases normal : Normal selectedTarget <;>
         simp [dijkstraStep, fresh, selectedEq, normal] at exhaustedEq
 
-theorem settled_length_le_permutations_length
-    {Edit : Type u}
+theorem settled_length_le_uniquePermutations
+    {Edit : Type u} [DecidableEq Edit]
     (Independent : Edit → Edit → Prop)
     (swapCost : List Edit → List Edit → Edit → Edit → ℝ)
     (Normal : List Edit → Prop) (source : List Edit)
     (state : SearchState Edit)
     (invariant : FullSearchInvariant
       Independent swapCost Normal source state) :
-    state.settled.length ≤ source.permutations.length := by
+    state.settled.length ≤ source.permutations.toFinset.card := by
+  have subset : state.settled.toFinset ⊆ source.permutations.toFinset := by
+    intro target targetMember
+    simp only [List.mem_toFinset] at targetMember ⊢
+    exact List.mem_permutations.mpr
+      (invariant.2.2.2.1 target targetMember)
+  have cardLe := Finset.card_le_card subset
+  rwa [List.toFinset_card_of_nodup invariant.2.2.1] at cardLe
+
+/-- Every settled state belongs to the exact finite trace-equivalence class,
+so its duplicate-free list length is bounded by the size of that class. -/
+theorem settled_length_le_reachableTraceVerticesList
+    {Edit : Type u} [DecidableEq Edit]
+    (Independent : Edit → Edit → Prop) [DecidableRel Independent]
+    (swapCost : List Edit → List Edit → Edit → Edit → ℝ)
+    (Normal : List Edit → Prop) (source : List Edit)
+    (state : SearchState Edit)
+    (invariant : FullSearchInvariant
+      Independent swapCost Normal source state) :
+    state.settled.length ≤
+      (reachableTraceVerticesList Independent source).length := by
   apply invariant.2.2.1.length_le_of_subset
   intro target targetMember
-  exact List.mem_permutations.mpr
-    (invariant.2.2.2 target targetMember)
+  exact reachableTraceVerticesList_complete Independent source target
+    (invariant.2.2.2.2 target targetMember)
 
 /-- Fuel-bounded executable Dijkstra loop over the finite trace-permutation
 component. -/
@@ -827,7 +864,7 @@ theorem dijkstraSearchFuel_some_globalNormalizingMinimum
 
 /-- With more fuel than the number of still-unsettled permutations, a known
 normal path guarantees that the loop returns a result. -/
-theorem dijkstraSearchFuel_ne_none_of_remaining_capacity
+theorem dijkstraSearchFuel_ne_none_of_reachableRemainingCapacity
     {Edit : Type u} [DecidableEq Edit]
     (Independent : Edit → Edit → Prop) [DecidableRel Independent]
     (swapCost : List Edit → List Edit → Edit → Edit → ℝ)
@@ -841,7 +878,8 @@ theorem dijkstraSearchFuel_ne_none_of_remaining_capacity
     (targetNormal : Normal target)
     (path : WeightedTracePath Independent swapCost
       count cost source target)
-    (capacity : source.permutations.length - state.settled.length < fuel) :
+    (capacity : (reachableTraceVerticesList Independent source).length -
+      state.settled.length < fuel) :
     dijkstraSearchFuel Independent swapCost Normal fuel state ≠ none := by
   induction fuel generalizing state with
   | zero => omega
@@ -858,12 +896,15 @@ theorem dijkstraSearchFuel_ne_none_of_remaining_capacity
             dijkstraStep_continue_preserves_fullInvariant
               Independent swapCost Normal primitiveNonneg source state next
               invariant stepEq
-          have stateLengthLe := settled_length_le_permutations_length
+          have stateLengthLe :=
+            settled_length_le_reachableTraceVerticesList
             Independent swapCost Normal source state invariant
-          have nextLengthLe := settled_length_le_permutations_length
+          have nextLengthLe :=
+            settled_length_le_reachableTraceVerticesList
             Independent swapCost Normal source next nextInvariant
           have nextCapacity :
-              source.permutations.length - next.settled.length < fuel := by
+              (reachableTraceVerticesList Independent source).length -
+                next.settled.length < fuel := by
             omega
           have nextNe := inductionHypothesis next nextInvariant nextCapacity
           simpa [dijkstraSearchFuel, stepEq] using nextNe
@@ -872,9 +913,9 @@ def initialSearchState {Edit : Type u} (source : List Edit) :
     SearchState Edit :=
   ⟨[], [(0, source)]⟩
 
-/-- Public finite search. One more iteration than the number of syntactic
-permutations is sufficient because every `continue` settles a fresh
-permutation. -/
+/-- Public finite search. One more iteration than the exact finite
+trace-equivalence class size is sufficient because every `continue` settles
+a fresh reachable trace. -/
 noncomputable def dijkstraSearch
     {Edit : Type u} [DecidableEq Edit]
     (Independent : Edit → Edit → Prop) [DecidableRel Independent]
@@ -882,7 +923,42 @@ noncomputable def dijkstraSearch
     (Normal : List Edit → Prop) [DecidablePred Normal]
     (source : List Edit) : Option (ℝ × List Edit) :=
   dijkstraSearchFuel Independent swapCost Normal
-    (source.permutations.length + 1) (initialSearchState source)
+    ((reachableTraceVerticesList Independent source).length + 1)
+    (initialSearchState source)
+
+/-- Soundness-only public API: any value returned by the finite search is a
+globally minimum normalizing path. Unlike completeness, this direction needs
+no separately supplied feasible normal path. -/
+theorem dijkstraSearch_some_globalNormalizingMinimum
+    {Edit : Type u} [DecidableEq Edit]
+    (Independent : Edit → Edit → Prop) [DecidableRel Independent]
+    (swapCost : List Edit → List Edit → Edit → Edit → ℝ)
+    (Normal : List Edit → Prop) [DecidablePred Normal]
+    (primitiveNonneg : PrimitiveSwapCostLowerBound
+      Independent swapCost 0)
+    (source : List Edit)
+    {minimumCost : ℝ} {minimumTarget : List Edit}
+    (searchEq : dijkstraSearch Independent swapCost Normal source =
+      some (minimumCost, minimumTarget)) :
+    Normal minimumTarget ∧
+      ∃ minimumCount,
+        WeightedTracePath Independent swapCost
+            minimumCount minimumCost source minimumTarget ∧
+          ∀ {otherCount otherCost otherTarget},
+            Normal otherTarget →
+            WeightedTracePath Independent swapCost
+              otherCount otherCost source otherTarget →
+            minimumCost ≤ otherCost := by
+  let state := initialSearchState source
+  have invariant : FullSearchInvariant
+      Independent swapCost Normal source state :=
+    initialFullSearchInvariant_of_nonnegative
+      Independent swapCost Normal primitiveNonneg source
+  apply dijkstraSearchFuel_some_globalNormalizingMinimum
+    Independent swapCost Normal primitiveNonneg source
+    ((reachableTraceVerticesList Independent source).length + 1)
+    state invariant
+  simpa [dijkstraSearch, state] using searchEq
 
 /-- End-to-end correctness and completeness of the finite list-priority-
 queue implementation. -/
@@ -915,25 +991,64 @@ theorem dijkstraSearch_complete_and_optimal
     initialFullSearchInvariant_of_nonnegative
       Independent swapCost Normal primitiveNonneg source
   have capacity :
-      source.permutations.length - state.settled.length <
-        source.permutations.length + 1 := by
+      (reachableTraceVerticesList Independent source).length -
+          state.settled.length <
+        (reachableTraceVerticesList Independent source).length + 1 := by
     simp [state, initialSearchState]
-  have searchNe := dijkstraSearchFuel_ne_none_of_remaining_capacity
+  have searchNe := dijkstraSearchFuel_ne_none_of_reachableRemainingCapacity
     Independent swapCost Normal primitiveNonneg source
-    (source.permutations.length + 1) state invariant
+    ((reachableTraceVerticesList Independent source).length + 1)
+    state invariant
     baseNormal basePath capacity
   cases searchEq : dijkstraSearchFuel Independent swapCost Normal
-      (source.permutations.length + 1) state with
+      ((reachableTraceVerticesList Independent source).length + 1)
+      state with
   | none => exact (searchNe searchEq).elim
   | some result =>
       obtain ⟨minimumCost, minimumTarget⟩ := result
       obtain ⟨minimumNormal, minimumCount, minimumPath, minimum⟩ :=
         dijkstraSearchFuel_some_globalNormalizingMinimum
           Independent swapCost Normal primitiveNonneg source
-          (source.permutations.length + 1) state invariant searchEq
+          ((reachableTraceVerticesList Independent source).length + 1)
+          state invariant searchEq
       exact ⟨minimumCount, minimumCost, minimumTarget,
         by simpa [dijkstraSearch, state] using searchEq,
         minimumNormal, minimumPath, minimum⟩
+
+/-- Public decision boundary: search returns `none` exactly when no acceptable
+normal target is reachable by any weighted path. -/
+theorem dijkstraSearch_eq_none_iff_no_normalPath
+    {Edit : Type u} [DecidableEq Edit]
+    (Independent : Edit → Edit → Prop) [DecidableRel Independent]
+    (swapCost : List Edit → List Edit → Edit → Edit → ℝ)
+    (Normal : List Edit → Prop) [DecidablePred Normal]
+    (primitiveNonneg : PrimitiveSwapCostLowerBound
+      Independent swapCost 0)
+    (source : List Edit) :
+    dijkstraSearch Independent swapCost Normal source = none ↔
+      ¬∃ count cost target,
+        Normal target ∧
+        WeightedTracePath Independent swapCost
+          count cost source target := by
+  constructor
+  · intro searchNone
+    rintro ⟨baseCount, baseCost, baseTarget, baseNormal, basePath⟩
+    obtain ⟨minimumCount, minimumCost, minimumTarget, searchSome,
+        minimumNormal, minimumPath, minimum⟩ :=
+      dijkstraSearch_complete_and_optimal Independent swapCost Normal
+        primitiveNonneg source baseNormal basePath
+    rw [searchNone] at searchSome
+    simp at searchSome
+  · intro noPath
+    cases searchEq : dijkstraSearch Independent swapCost Normal source with
+    | none => rfl
+    | some result =>
+        obtain ⟨minimumCost, minimumTarget⟩ := result
+        obtain ⟨minimumNormal, minimumCount, minimumPath, minimum⟩ :=
+          dijkstraSearch_some_globalNormalizingMinimum Independent swapCost
+            Normal primitiveNonneg source searchEq
+        exact (noPath ⟨minimumCount, minimumCost, minimumTarget,
+          minimumNormal, minimumPath⟩).elim
 
 /-- Production-facing exact-real specialization. For arbitrary decidable
 rank dependence, Dijkstra returns a globally cheapest propagated certificate

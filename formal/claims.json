@@ -1373,11 +1373,13 @@
         "TraceCertificate.perm",
         "TraceEquivalent.perm",
         "TraceEquivalent.filter_eq",
+        "WeightedTraceWalk.count_lt_uniquePermutations_of_nodup",
         "TraceCertificate.exists_simpleWeightedTracePath_of_nonnegative",
+        "TraceCertificate.exists_simpleWeightedTracePath_of_nonnegative_uniqueBound",
         "minimumTraceCertificate_exists_of_nonnegative",
         "optimalPropagatedCost_attained_of_nonnegative"
       ],
-      "status": "proved-full-certificate-minimum-and-propagated-infimum-attainment-for-arbitrary-nonnegative-context-dependent-primitive-costs-including-zero-cost-cycles-via-cost-nonincreasing-loop-erasure-and-a-finite-permutation-graph-bound",
+      "status": "proved-full-certificate-minimum-and-propagated-infimum-attainment-for-arbitrary-nonnegative-context-dependent-primitive-costs-including-zero-cost-cycles-via-cost-nonincreasing-loop-erasure-and-a-distinct-syntactic-permutation-finset-bound",
       "implementationCorrespondence": "abstract-existence-proof-for-fixed-finite-trace-pairs-covering-zero-cost-edges-and-inversion-increasing-detours-with-nonnegativity-as-the-boundary-witnessed-by-the-negative-cycle-counterexample-not-an-extracted-production-shortest-path-algorithm-or-a-practical-factorial-complexity-bound"
     },
     {
@@ -1433,6 +1435,32 @@
       "implementationCorrespondence": "abstract-justification-for-best-cost-pruning-keyed-by-the-complete-trace-because-common-suffix-cost-is-prefix-history-independent-while-the-weighted-fork-proves-that-merging-distinct-traces-by-normality-is-unsound-used-by-the-verified-list-priority-queue-dijkstra-specification-but-not-yet-a-production-javascript-implementation"
     },
     {
+      "id": "paper2.layout-transition.reachable-trace-class",
+      "paper": 2,
+      "protocol": "formal/AdjacentResearch.md#1-状態依存レイアウトの合流性欠損",
+      "typescript": [],
+      "leanModule": "Sprawlens.ReachableTraceClass",
+      "theorems": [
+        "zeroSwapCost_nonnegative",
+        "TraceEquivalent.exists_zeroWeightedTracePath",
+        "reachableTraceVerticesList_nodup",
+        "reachableTraceVerticesList_sound",
+        "reachableTraceVerticesList_complete",
+        "mem_reachableTraceVerticesList_iff",
+        "reachableTraceVerticesList_membership_congr",
+        "reachableTraceVerticesList_perm_of_traceEquivalent",
+        "reachableTraceVerticesList_length_eq_of_traceEquivalent",
+        "WeightedTraceWalk.vertex_traceEquivalent_first",
+        "WeightedTraceWalk.count_lt_reachableTraceVerticesList_of_nodup",
+        "TraceCertificate.exists_simpleWeightedTracePath_of_nonnegative_reachableBound",
+        "source_mem_reachableTraceVerticesList",
+        "reachableTraceVerticesList_length_pos",
+        "reachableTraceVerticesList_length_le_uniquePermutations"
+      ],
+      "status": "proved-executable-duplicate-free-finite-enumeration-exactly-characterizing-the-source-trace-equivalence-class-and-sharpening-simple-path-length-to-the-reachable-class-cardinality",
+      "implementationCorrespondence": "cost-erased-reference-enumerator-for-the-declared-adjacent-independence-graph-used-to-bound-verified-search-fuel-and-approximation-error-not-a-production-reachability-precomputation-strategy"
+    },
+    {
       "id": "paper2.layout-transition.dijkstra-invariant",
       "paper": 2,
       "protocol": "formal/AdjacentResearch.md#1-状態依存レイアウトの合流性欠損",
@@ -1460,16 +1488,318 @@
         "dijkstraStep_continue_preserves_fullInvariant",
         "dijkstraStep_found_globalNormalizingMinimum",
         "dijkstraStep_not_exhausted_of_normal_path",
-        "settled_length_le_permutations_length",
+        "settled_length_le_uniquePermutations",
+        "settled_length_le_reachableTraceVerticesList",
         "dijkstraSearchFuel_some_globalNormalizingMinimum",
-        "dijkstraSearchFuel_ne_none_of_remaining_capacity",
+        "dijkstraSearchFuel_ne_none_of_reachableRemainingCapacity",
+        "dijkstraSearch_some_globalNormalizingMinimum",
         "dijkstraSearch_complete_and_optimal",
+        "dijkstraSearch_eq_none_iff_no_normalPath",
         "dijkstraRankNormalizingPropagatedCost_attained",
         "weightedFork_dijkstraSearch_eq",
         "negativeCost_initialFrontier_not_covering"
       ],
-      "status": "proved-complete-finite-list-priority-queue-dijkstra-search-with-simple-suffix-cut-coverage-preservation-permutation-count-termination-global-normalizing-optimality-propagated-rank-intrinsic-attainment-and-the-exact-weighted-fork-result",
+      "status": "proved-complete-finite-list-priority-queue-dijkstra-search-with-simple-suffix-cut-coverage-preservation-exact-reachable-class-size-termination-global-normalizing-optimality-propagated-rank-intrinsic-attainment-and-the-exact-weighted-fork-result",
       "implementationCorrespondence": "verified-exact-real-list-priority-queue-reference-algorithm-for-the-symmetric-weighted-trace-graph-including-settled-set-updates-stale-entry-pruning-termination-and-global-normalizing-optimality-not-yet-refined-to-a-production-javascript-heap-and-hash-table-implementation"
+    },
+    {
+      "id": "paper2.layout-transition.approximate-weighted-normalization",
+      "paper": 2,
+      "protocol": "formal/AdjacentResearch.md#1-状態依存レイアウトの合流性欠損",
+      "typescript": [],
+      "leanModule": "Sprawlens.ApproximateWeightedNormalization",
+      "theorems": [
+        "PrimitiveSwapCostWithin.symm",
+        "PrimitiveSwapCostWithinBy.symm",
+        "weightedSwapStep_exists_approximate",
+        "weightedSwapStep_exists_approximate_with_error",
+        "weightedSwapStep_exists_upper",
+        "weightedSwapStep_exists_lower",
+        "weightedTracePath_exists_approximate",
+        "weightedTracePath_exists_approximate_with_errorPath",
+        "weightedTracePath_exists_upper",
+        "weightedTracePath_exists_lower",
+        "left_le_right_add_of_abs_sub_le",
+        "exactCost_le_of_approximateOrder",
+        "exactCost_le_of_approximateOrder_overestimate",
+        "exactCost_le_of_approximateOrder_underestimate",
+        "target_eq_of_approximateOrder_and_pathwiseMargin",
+        "target_eq_of_approximateOrder_overestimate_and_pathwiseMargin",
+        "target_eq_of_approximateOrder_underestimate_and_pathwiseMargin",
+        "approximateDijkstra_exactCost_pathwiseCertified",
+        "approximateDijkstra_exactCost_pathwiseCertified_of_overestimate",
+        "approximateDijkstra_exactCost_pathwiseCertified_of_underestimate",
+        "approximateDijkstra_exactCost_nearOptimal",
+        "approximateDijkstra_exactCost_nearOptimal_of_overestimate",
+        "approximateDijkstra_exactCost_nearOptimal_of_underestimate",
+        "approximateDijkstra_target_stable_of_margin",
+        "approximateDijkstra_target_stable_of_overestimate_margin",
+        "approximateDijkstra_target_stable_of_underestimate_margin",
+        "twoSidedError_does_not_imply_oneBudget",
+        "overestimate_marginEquality_allows_distinctTarget",
+        "underestimate_marginEquality_allows_distinctTarget"
+      ],
+      "status": "proved-uniform-path-sensitive-and-one-sided-cost-perturbation-with-additive-error-certificates-reachable-class-sized-global-normalizing-suboptimality-and-target-stability-bounds-plus-a-sharp-two-sided-factor-witness",
+      "implementationCorrespondence": "implementation-independent-contract-from-uniform-admissible-primitive-cost-error-to-exact-objective-and-target-reliability-not-a-proof-of-javascript-floating-point-arithmetic-or-the-production-heap-and-hash-table-refinement"
+    },
+    {
+      "id": "paper2.layout-transition.cost-calibration-invariant",
+      "paper": 2,
+      "protocol": "formal/AdjacentResearch.md#1-状態依存レイアウトの合流性欠損",
+      "typescript": [],
+      "leanModule": "Sprawlens.CostCalibrationInvariant",
+      "theorems": [
+        "weightedSwapStep_scale",
+        "weightedSwapStep_unscale",
+        "weightedTracePath_scale",
+        "weightedTracePath_unscale",
+        "scaleSwapCost_nonnegative",
+        "scaledDijkstra_preserves_exactGlobalOptimality",
+        "scaledDijkstra_preserves_strictlySeparatedTarget",
+        "zeroScaling_erases_strictOrder",
+        "negativeScaling_reverses_strictOrder"
+      ],
+      "status": "proved-positive-uniform-cost-scaling-preserves-path-costs-exact-global-normalizing-optimality-and-strictly-separated-target-identity-with-zero-and-negative-factor-boundary-witnesses",
+      "implementationCorrespondence": "implementation-independent-calibration-contract-for-positive-changes-of-cost-units-not-a-novel-shortest-path-result-or-a-proof-of-production-numeric-scaling"
+    },
+    {
+      "id": "paper2.layout-transition.normal-target-margin",
+      "paper": 2,
+      "protocol": "formal/AdjacentResearch.md#1-状態依存レイアウトの合流性欠損",
+      "typescript": [],
+      "leanModule": "Sprawlens.NormalTargetMargin",
+      "theorems": [
+        "dijkstraSecondNormalTarget_some_spec",
+        "dijkstraSecondNormalTarget_eq_none_iff_no_otherNormalPath",
+        "secondNormalTarget_marginCertificate",
+        "secondNormalTarget_margin_nonnegative",
+        "dijkstraTargetMargin?_some_spec",
+        "approximateDijkstra_target_stable_of_computedMargin",
+        "approximateDijkstra_target_stable_of_computedMargin_overestimate",
+        "approximateDijkstra_target_stable_of_computedMargin_underestimate"
+      ],
+      "status": "proved-best-excluded-second-target-search-none-characterization-nonnegative-best-to-second-separation-certificate-and-computed-margin-target-stability-for-two-sided-and-one-sided-approximate-dijkstra",
+      "implementationCorrespondence": "verified-reference-instrument-that-runs-exact-dijkstra-twice-to-produce-a-target-reliability-margin-not-yet-a-production-cached-or-incremental-margin-computation"
+    },
+    {
+      "id": "paper2.layout-transition.structural-target-uniqueness",
+      "paper": 2,
+      "protocol": "formal/AdjacentResearch.md#1-状態依存レイアウトの合流性欠損",
+      "typescript": [],
+      "leanModule": "Sprawlens.StructuralTargetUniqueness",
+      "theorems": [
+        "weightedSwapStep_recost",
+        "weightedTracePath_recost",
+        "normalPath_exists_iff_recost",
+        "otherNormalPath_exists_iff_recost",
+        "no_otherNormalPath_iff_recost",
+        "dijkstraSecondNormalTarget_none_iff_recost",
+        "dijkstraSearch_none_iff_recost",
+        "normalTarget_eq_of_no_otherNormalPath",
+        "dijkstraTarget_stable_of_no_secondTarget"
+      ],
+      "status": "proved-cost-model-independent-reachability-and-structural-normal-target-uniqueness-with-target-stability-under-arbitrary-nonnegative-recosting",
+      "implementationCorrespondence": "implementation-independent-graph-structural-certificate-that-second-none-eliminates-all-distinct-reachable-normal-representations-objective-values-and-selected-paths-may-still-change"
+    },
+    {
+      "id": "paper2.layout-transition.target-reliability-classification",
+      "paper": 2,
+      "protocol": "formal/AdjacentResearch.md#1-状態依存レイアウトの合流性欠損",
+      "typescript": [],
+      "leanModule": "Sprawlens.TargetReliabilityClassification",
+      "theorems": [
+        "classifyTargetReliability_eq_noNormalTarget_iff_search_none",
+        "classifyTargetReliability_eq_uniqueNormalTarget_iff",
+        "classifyTargetReliability_eq_competingNormalTargets_iff_margin",
+        "classifyTargetReliability_competing_bestSearch_eq",
+        "classifyTargetReliability_eq_noNormalTarget_iff_no_normalPath",
+        "classifyTargetReliability_uniqueNormalTarget_spec",
+        "classifyTargetReliability_competingNormalTargets_spec",
+        "classifyTargetReliability_uniqueTarget_stable_under_recost"
+      ],
+      "status": "proved-total-three-way-representation-reliability-classification-separating-infeasibility-structural-uniqueness-and-competing-target-margin-certificates",
+      "implementationCorrespondence": "verified-reference-diagnostic-api-that-removes-the-ambiguous-none-result-from-the-optional-margin-instrument-not-yet-a-production-serialized-report"
+    },
+    {
+      "id": "paper2.layout-transition.target-multiplicity-invariant",
+      "paper": 2,
+      "protocol": "formal/AdjacentResearch.md#1-状態依存レイアウトの合流性欠損",
+      "typescript": [],
+      "leanModule": "Sprawlens.TargetMultiplicityInvariant",
+      "theorems": [
+        "hasMultipleNormalTargets_iff_recost",
+        "exists_competingClassification_iff_hasMultipleNormalTargets",
+        "noNormalTargetClassification_iff_recost",
+        "competingClassification_iff_recost",
+        "uniqueNormalTargetClassification_iff_recost"
+      ],
+      "status": "proved-zero-one-or-multiple-reachable-normal-target-classification-category-invariant-under-arbitrary-nonnegative-recosting",
+      "implementationCorrespondence": "implementation-independent-structural-multiplicity-audit-best-target-and-margin-inside-the-competing-category-may-change-with-costs"
+    },
+    {
+      "id": "paper2.layout-transition.target-margin-semantics",
+      "paper": 2,
+      "protocol": "formal/AdjacentResearch.md#1-状態依存レイアウトの合流性欠損",
+      "typescript": [],
+      "leanModule": "Sprawlens.TargetMarginSemantics",
+      "theorems": [
+        "hasUniqueOptimalTarget_iff_no_distinctCooptimalTarget",
+        "competingMargin_eq_zero_iff_distinctCooptimalTarget",
+        "competingMargin_pos_iff_uniqueOptimalTarget",
+        "uniqueClassification_hasUniqueOptimalTarget"
+      ],
+      "status": "proved-zero-margin-iff-distinct-cooptimal-target-and-positive-margin-iff-objective-level-target-uniqueness",
+      "implementationCorrespondence": "verified-semantics-for-interpreting-the-best-to-second-margin-as-representation-ambiguity-not-a-statistical-confidence-interval-or-floating-point-guarantee"
+    },
+    {
+      "id": "paper2.layout-transition.classified-approximate-reliability",
+      "paper": 2,
+      "protocol": "formal/AdjacentResearch.md#1-状態依存レイアウトの合流性欠損",
+      "typescript": [],
+      "leanModule": "Sprawlens.ClassifiedApproximateReliability",
+      "theorems": [
+        "competingClassification_target_stable_of_twoSidedMargin",
+        "competingClassification_target_stable_of_overestimateMargin",
+        "competingClassification_target_stable_of_underestimateMargin",
+        "classifiedTarget_stable_of_structural_or_twoSidedMargin"
+      ],
+      "status": "proved-classifier-driven-target-stability-combining-unconditional-structural-uniqueness-with-budgeted-two-sided-and-one-sided-competing-margin-cases",
+      "implementationCorrespondence": "proof-carrying-reference-decision-rule-from-reliability-classification-and-primitive-cost-error-contract-to-target-identity-not-yet-a-production-report-consumer"
+    },
+    {
+      "id": "paper2.layout-transition.target-robustness-radius",
+      "paper": 2,
+      "protocol": "formal/AdjacentResearch.md#1-状態依存レイアウトの合流性欠損",
+      "typescript": [],
+      "leanModule": "Sprawlens.TargetRobustnessRadius",
+      "theorems": [
+        "reachableClassSizeReal_pos",
+        "epsilon_lt_twoSidedTargetRobustnessRadius_iff",
+        "epsilon_lt_oneSidedTargetRobustnessRadius_iff",
+        "twoSidedTargetRobustnessRadius_nonnegative",
+        "oneSidedTargetRobustnessRadius_nonnegative",
+        "twoSidedTargetRobustnessRadius_pos_iff_margin_pos",
+        "oneSidedTargetRobustnessRadius_pos_iff_margin_pos",
+        "oneSidedTargetRobustnessRadius_eq_two_mul_twoSided",
+        "competingTwoSidedRadius_pos_iff_uniqueOptimalTarget",
+        "competingClassification_target_stable_within_twoSidedRadius",
+        "competingClassification_target_stable_within_overestimateRadius",
+        "competingClassification_target_stable_within_underestimateRadius"
+      ],
+      "status": "proved-certified-open-per-edge-target-robustness-radii-with-positive-denominators-exact-two-sided-versus-one-sided-factor-two-and-end-to-end-target-stability",
+      "implementationCorrespondence": "reportable-reference-radius-derived-from-exact-best-to-second-margin-and-reachable-class-cardinality-not-an-empirical-confidence-level-or-a-proof-that-production-errors-satisfy-the-radius"
+    },
+    {
+      "id": "paper2.layout-transition.target-robustness-report",
+      "paper": 2,
+      "protocol": "formal/AdjacentResearch.md#1-状態依存レイアウトの合流性欠損",
+      "typescript": [],
+      "leanModule": "Sprawlens.TargetRobustnessReport",
+      "theorems": [
+        "targetRobustnessReport?_eq_none_iff_classified_noNormalTarget",
+        "targetRobustnessReport?_eq_none_iff_no_normalPath",
+        "targetRobustnessReport?_some_best_spec",
+        "targetRobustnessReport?_some_search_eq",
+        "targetRobustnessReport_unbounded_iff_uniqueClassification",
+        "targetRobustnessReport_finiteTwoSided_spec",
+        "targetRobustnessReport_target_stable_of_twoSidedAllowance",
+        "targetRobustnessReport_target_stable_of_overestimateAllowance",
+        "targetRobustnessReport_target_stable_of_underestimateAllowance"
+      ],
+      "status": "proved-total-proof-oriented-reliability-report-with-infeasible-unbounded-and-finite-radius-semantics-and-direct-two-sided-or-one-sided-consumers",
+      "implementationCorrespondence": "pure-reference-report-contract-eliminating-caller-side-reclassification-not-yet-a-json-schema-typescript-adapter-or-production-error-estimator"
+    },
+    {
+      "id": "paper2.layout-transition.zero-error-dijkstra-invariance",
+      "paper": 2,
+      "protocol": "formal/AdjacentResearch.md#1-状態依存レイアウトの合流性欠損",
+      "typescript": [],
+      "leanModule": "Sprawlens.ZeroErrorDijkstraInvariance",
+      "theorems": [
+        "primitiveSwapCostEqOnAllowed_of_within_zero",
+        "weightedSwapStepChoicesListAux_eq_of_costEqOnAllowed",
+        "weightedSwapStepChoicesList_eq_of_costEqOnAllowed",
+        "relaxWeightedFrontierEntry_eq_of_costEqOnAllowed",
+        "advanceFrontier_eq_of_costEqOnAllowed",
+        "dijkstraStep_eq_of_costEqOnAllowed",
+        "dijkstraSearchFuel_eq_of_costEqOnAllowed",
+        "dijkstraSearch_eq_of_costEqOnAllowed",
+        "dijkstraSearch_eq_of_within_zero",
+        "targetRobustnessReport_search_eq_of_within_zero",
+        "targetRobustnessReport_target_stable_of_twoSidedPermission",
+        "targetRobustnessReport_target_stable_of_overestimatePermission",
+        "targetRobustnessReport_target_stable_of_underestimatePermission"
+      ],
+      "status": "proved-deterministic-dijkstra-extensionality-on-admissible-edge-costs-and-zero-error-target-stability-including-zero-margin-ties",
+      "implementationCorrespondence": "algorithm-level-reference-proof-that-zero-admissible-primitive-error-preserves-edge-enumeration-relaxation-queue-steps-and-final-result-not-a-floating-point-bit-equality-claim"
+    },
+    {
+      "id": "paper2.layout-transition.composed-approximate-reliability",
+      "paper": 2,
+      "protocol": "formal/AdjacentResearch.md#1-状態依存レイアウトの合流性欠損",
+      "typescript": [],
+      "leanModule": "Sprawlens.ComposedApproximateReliability",
+      "theorems": [
+        "primitiveSwapCostWithin_add",
+        "primitiveSwapCostLe_trans",
+        "certifiedErrorRadius_allows_of_le",
+        "certifiedErrorRadius_permits_of_nonnegative_of_le",
+        "targetRobustnessReport_target_stable_of_twoStageTwoSided",
+        "targetRobustnessReport_target_stable_of_twoStageOverestimate",
+        "targetRobustnessReport_target_stable_of_twoStageUnderestimate"
+      ],
+      "status": "proved-additive-two-stage-primitive-error-composition-order-transitivity-downward-closed-report-permission-and-end-to-end-target-stability",
+      "implementationCorrespondence": "modular-reference-budget-rollup-for-independent-approximation-stages-not-yet-a-production-error-source-inventory-or-automated-budget-accounting-pipeline"
+    },
+    {
+      "id": "paper2.layout-transition.finite-approximation-chain",
+      "paper": 2,
+      "protocol": "formal/AdjacentResearch.md#1-状態依存レイアウトの合流性欠損",
+      "typescript": [],
+      "leanModule": "Sprawlens.FiniteApproximationChain",
+      "theorems": [
+        "PrimitiveSwapCostWithinChain.total_nonnegative",
+        "PrimitiveSwapCostWithinChain.toWithin",
+        "PrimitiveSwapCostWithinChain.trans",
+        "dijkstraSearch_eq_of_zeroErrorChain",
+        "targetRobustnessReport_target_stable_of_finiteTwoSidedChain",
+        "targetRobustnessReport_target_stable_of_finiteOverestimateChain",
+        "targetRobustnessReport_target_stable_of_finiteUnderestimateChain"
+      ],
+      "status": "proved-arbitrary-finite-nonnegative-approximation-chain-concatenation-flattening-zero-total-search-invariance-and-report-driven-target-stability",
+      "implementationCorrespondence": "inductive-proof-carrying-error-pipeline-contract-for-any-finite-number-of-stages-not-yet-a-production-stage-registry-or-generated-certificate-loader"
+    },
+    {
+      "id": "paper2.layout-transition.directed-approximation-chain",
+      "paper": 2,
+      "protocol": "formal/AdjacentResearch.md#1-状態依存レイアウトの合流性欠損",
+      "typescript": [],
+      "leanModule": "Sprawlens.DirectedApproximationChain",
+      "theorems": [
+        "PrimitiveSwapCostDirectedChain.toWithinChain",
+        "PrimitiveSwapCostDirectedChain.total_nonnegative",
+        "PrimitiveSwapCostDirectedChain.toWithin",
+        "PrimitiveSwapCostDirectedChain.endpointOrder",
+        "PrimitiveSwapCostDirectedChain.trans",
+        "targetRobustnessReport_target_stable_of_directedFiniteChain"
+      ],
+      "status": "proved-stage-local-uniform-overestimate-or-underestimate-chain-composition-to-endpoint-order-and-one-sided-report-target-stability",
+      "implementationCorrespondence": "proof-carrying-directional-error-pipeline-where-callers-certify-each-stage-locally-not-yet-a-production-stage-schema-or-static-certificate-generator"
+    },
+    {
+      "id": "paper2.layout-transition.pathwise-target-reliability",
+      "paper": 2,
+      "protocol": "formal/AdjacentResearch.md#1-状態依存レイアウトの合流性欠損",
+      "typescript": [],
+      "leanModule": "Sprawlens.PathwiseTargetReliability",
+      "theorems": [
+        "primitiveSwapCostWithinBy_add",
+        "competingClassification_twoSidedPathwiseCertificate",
+        "competingClassification_overestimatePathwiseCertificate",
+        "competingClassification_underestimatePathwiseCertificate"
+      ],
+      "status": "proved-pointwise-nonuniform-error-composition-and-instance-specific-selected-and-best-path-margin-certificates-for-two-sided-and-one-sided-approximate-search",
+      "implementationCorrespondence": "proof-carrying-post-hoc-target-reliability-certificate-that-avoids-the-reachable-class-worst-case-multiplier-production-must-compute-and-serialize-primitive-edge-error-costs"
     },
     {
       "id": "paper2.layout-transition.certificate-potential-duality",
