@@ -12,11 +12,17 @@
 
 - `ControlledPaths`でweight変更とleaf追加、weight変更とrewireが入力graph上で可換である。
 - `LayoutConfluence`で、独立編集の全局所squareがlayout状態上でも可換なら、隣接する独立編集の交換で結ばれた任意の編集列は同じlayout終点を持つことを証明した。
+- `ReachableConfluence`で、固定初期layoutからのtrace independenceと、そこから到達可能な全状態における独立editの局所可換性が必要十分であることを証明した。到達可能な一つの非可換squareはglobal claimの完全な反証witnessになる。
+- 全状態での可換性は上のreachable条件より真に強い。三状態の有限modelで、初期状態からの全traceは同じ終点を持つ一方、到達不能状態では同じedit pairが非可換になることを証明した。したがって実装監査はreachable state spaceを正本にできる。
 - `ControlledPathConfluence`で三種類のcontrolled editを共通の編集言語へ埋め込み、既存の局所可換性から、独立swapで結ばれた任意長の編集列が同じ入力graph終点を持つことを証明した。
 - 一つの非可換squareが、最小のpath-dependence witnessになることを証明した。
 - resetとflipだけからなる二状態modelで、同じ二編集が順序により異なる終点を持つload-bearing counterexampleを固定した。
 - `HistorySelectorConfluence`で、二候補・二編集・前状態への距離最小という有限selectorを定義した。AB/BAは同じ入力終点を持つ一方、中間状態で一意に選ばれた候補が共通終点のtie-breakとして残るため、最終geometryが異なることを証明した。
 - `ConfluenceDefect`で局所squareの二終点間距離を欠損として定義した。metric spaceでは欠損0とその状態での可換性が同値であり、第二遷移のLipschitz定数と二つのstep budgetから欠損上界が得られることを証明した。
+- `QuantitativeConfluence`でadjacent swap回数をindexに持つtrace relationを定義した。全edit transitionがnonexpansiveで、reachableな独立squareの欠損が一様に`δ`以下なら、`k`回のswapで結ばれる二系列の最終差は`k * δ`以下になる。
+- 一般の共通Lipschitz定数`L`へ拡張し、各primitive swapの局所欠損を、その後ろに残るedit数`m`に応じた`L^m`で重み付けするtrace relationを定義した。最終差は重み総和と局所budgetの積以下になる。従って拡大的suffixも捨てずに評価できる。
+- 内部layout stateにmetricを要求しない観測版も証明した。`observe : State → Geometry`の出力だけがpseudometricを持ち、各editが観測距離を高々`L`倍にするなら、同じsuffix-weighted boundが最終geometry差に成立する。これはhidden solver stateではなくpolygon観測を測るPaper 2のcontractに対応する。
+- nonexpansive前提は飾りではない。reset / incrementの局所square欠損が1でも、その後に共通のdoubling editを置くと最終差が2になるexact-real反例を証明した。一方、`L = 2`の重み付き定理はこの最終差を上界2としてexactに捉える。
 - `SameEndpointConsistency`でinput projectionとgeometry observationを分離し、同じinput終点かつ異なるgeometryというviolationを一般の二経路に対して定義した。metricではviolationと正のpath defectが同値であり、上の有限selectorがuniversal consistencyへの反例になることを証明した。
 - AB/BA commutator defectと二方向のreversal-loop defectを統一した。二方向のloop defectの差はcommutator defect以下であり、片方向が初期geometryへ完全回復すれば、反対方向のloop defectはcommutator defectとexactに一致する。
 - raw defectからnoise floorと事前marginを引いて0で切るexcess defectについて、常に非負であり、raw defectが閾値以下ならexactに0、閾値を超えるときだけ正になることを証明した。noise floorの統計的推定自体は証明対象ではない。
@@ -38,8 +44,9 @@
 
 ### 未証明・実証が必要なこと
 
-- 実際のSprawlens layout transitionがどの編集対で可換になるか。
-- 非可換性を距離へ持ち上げた上界、下界、またはLipschitz条件。
+- 実際のSprawlens layout transitionが、固定初期状態から到達可能などの状態・編集対で可換になるか。
+- editごとに異なるLipschitz定数を持つ場合の、suffix定数積によるより精密な上界。共通定数`L`の`L^m`重み付けまでは証明済みである。
+- production transitionについて、polygon-boundary Hausdorff観測に対するedit別Lipschitz定数または経験的上限を推定し、上の抽象観測定理へ供給すること。
 - 実geometry metricについてLipschitz定数とstep budgetを推定・保証すること。
 - primary実測値をseparating discrepancyとして使うdomainを明示するか、証明済みの非空polygon-boundary Hausdorff metricへ置き換えること。
 - 共有fixtureと巨大・微小scaleの回帰caseは有限caseのconformanceであり普遍的refinementではない。特定backendの浮動小数点演算を普遍的に証明することは非目標とし、exact model、共有fixture、metamorphic propertyを移植contractにする。

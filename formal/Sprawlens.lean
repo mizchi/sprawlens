@@ -29,6 +29,8 @@ import Sprawlens.IteratedReclipRepair
 import Sprawlens.AdjacencyRate
 import Sprawlens.ControlledPaths
 import Sprawlens.LayoutConfluence
+import Sprawlens.ReachableConfluence
+import Sprawlens.QuantitativeConfluence
 import Sprawlens.ControlledPathConfluence
 import Sprawlens.HistorySelectorConfluence
 import Sprawlens.ConfluenceDefect

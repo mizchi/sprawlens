@@ -899,6 +899,55 @@
       "implementationCorrespondence": "shared-exact-rational-orientation-fixture-conformance-5-cases-and-live-boundary-point-call-site-not-a-proof-of-whole-ring-orientation-preservation"
     },
     {
+      "id": "paper2.layout-transition.reachable-confluence-characterization",
+      "paper": 2,
+      "protocol": "formal/AdjacentResearch.md#1-状態依存レイアウトの合流性欠損",
+      "typescript": [],
+      "leanModule": "Sprawlens.ReachableConfluence",
+      "theorems": [
+        "traceIndependentFrom_of_reachableLocalCommute",
+        "reachableLocalCommute_of_traceIndependentFrom",
+        "traceIndependentFrom_iff_reachableLocalCommute",
+        "not_traceIndependentFrom_of_reachable_noncommuting_square",
+        "reachableLocalCommute_of_universal",
+        "reachability_initial_absorbing",
+        "reachability_traceIndependentFrom_initial",
+        "reachability_not_universal_commute",
+        "reachability_reachableLocalCommute_initial"
+      ],
+      "status": "proved-fixed-initial-necessary-and-sufficient-reachable-confluence-condition",
+      "implementationCorrespondence": "abstract-transition-system-characterization-with-a-finite-strictness-witness-not-a-proof-that-production-layout-edits-satisfy-reachable-local-commutation"
+    },
+    {
+      "id": "paper2.layout-transition.quantitative-confluence",
+      "paper": 2,
+      "protocol": "formal/AdjacentResearch.md#1-状態依存レイアウトの合流性欠損",
+      "typescript": [],
+      "leanModule": "Sprawlens.QuantitativeConfluence",
+      "theorems": [
+        "TraceEquivalentIn.toTraceEquivalent",
+        "runEdits_nonexpansive",
+        "runEdits_swap_dist_le_squareDefect",
+        "dist_runEdits_le_swapCount_mul_of_nonexpansive",
+        "TraceEquivalentWithWeight.toTraceEquivalent",
+        "runEdits_lipschitzWith",
+        "runEdits_swap_dist_le_suffixWeight_mul_squareDefect",
+        "dist_runEdits_le_weight_mul_of_lipschitz",
+        "runEdits_observable_lipschitzWith",
+        "runEdits_swap_observable_dist_le_suffixWeight_mul_defect",
+        "observable_dist_runEdits_le_weight_mul_of_lipschitz",
+        "applyExpandingEdit_lipschitzTwo",
+        "expandingEdit_reachable_squareDefect_le_one",
+        "expandingEdit_weighted_trace",
+        "expandingEdit_local_squareDefect",
+        "expandingSuffix_amplifies_square",
+        "expandingSuffix_weighted_bound",
+        "expandingSuffix_breaks_unweighted_local_bound"
+      ],
+      "status": "proved-state-and-observation-level-local-to-global-suffix-weighted-lipschitz-bounds-with-nonexpansive-specialization-and-tight-expanding-suffix-witness",
+      "implementationCorrespondence": "abstract-hidden-state-to-metric-observation-transition-system-bound-and-exact-real-counterexample-not-an-empirical-lipschitz-bound-for-production-layout-trajectories"
+    },
+    {
       "id": "paper2.layout-transition.trace-confluence",
       "paper": 2,
       "protocol": "formal/AdjacentResearch.md#1-状態依存レイアウトの合流性欠損",
