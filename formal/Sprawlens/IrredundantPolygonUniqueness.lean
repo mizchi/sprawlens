@@ -428,6 +428,138 @@ theorem not_hasPositiveTriple_of_region_eq_segment
       distinct firstOnLine middleOnLine lastOnLine
   exact (ne_of_gt positive) collinear
 
+omit [IsStrictOrderedRing R] in
+/-- An empty represented region cannot contain a positive generator triple. -/
+theorem not_hasPositiveTriple_of_region_eq_empty
+    (points : List (Vec2 R)) (lengthAtLeastThree : 3 ≤ points.length)
+    (sameRegion : listConvexRegion points = ∅) :
+    ¬HasPositiveTriple (listVertex points lengthAtLeastThree) := by
+  intro fullDimensional
+  obtain ⟨first, _, _, _, _, _⟩ := fullDimensional
+  have generatorMember :
+      listVertex points lengthAtLeastThree first ∈ listConvexRegion points := by
+    unfold listConvexRegion
+    apply subset_convexHull R
+    simp [listVertex]
+  rw [sameRegion] at generatorMember
+  exact generatorMember
+
+omit [IsStrictOrderedRing R] in
+/-- A singleton represented region cannot contain a positive generator
+triple. -/
+theorem not_hasPositiveTriple_of_region_eq_singleton
+    (points : List (Vec2 R)) (lengthAtLeastThree : 3 ≤ points.length)
+    (point : Vec2 R) (sameRegion : listConvexRegion points = {point}) :
+    ¬HasPositiveTriple (listVertex points lengthAtLeastThree) := by
+  intro fullDimensional
+  obtain ⟨first, middle, last, _, _, positive⟩ := fullDimensional
+  let vertex := listVertex points lengthAtLeastThree
+  have generatorEq (index : RingIndex (points.length - 3)) :
+      vertex index = point := by
+    have generatorMember : vertex index ∈ listConvexRegion points := by
+      unfold listConvexRegion
+      apply subset_convexHull R
+      simp [vertex, listVertex]
+    rw [sameRegion] at generatorMember
+    simpa using generatorMember
+  change 0 < orientation (vertex first) (vertex middle) (vertex last) at positive
+  rw [generatorEq first, generatorEq middle, generatorEq last] at positive
+  simp [orientation] at positive
+
+/-- A region containing a positive triple cannot equal the convex hull of a
+duplicate-free list with fewer than three points. -/
+theorem length_ge_three_of_hasPositiveTriple_of_region_eq
+    (first second : List (Vec2 R))
+    (firstLength : 3 ≤ first.length)
+    (firstFull : HasPositiveTriple (listVertex first firstLength))
+    (secondNodup : second.Nodup)
+    (sameRegion : listConvexRegion first = listConvexRegion second) :
+    3 ≤ second.length := by
+  cases second with
+  | nil =>
+      have firstEmpty : listConvexRegion first = ∅ := by
+        simpa [listConvexRegion, convexHull_empty] using sameRegion
+      exact False.elim
+        ((not_hasPositiveTriple_of_region_eq_empty
+          first firstLength firstEmpty) firstFull)
+  | cons point tail =>
+      cases tail with
+      | nil =>
+          have firstSingleton : listConvexRegion first = {point} := by
+            simpa [listConvexRegion, convexHull_singleton] using sameRegion
+          exact False.elim
+            ((not_hasPositiveTriple_of_region_eq_singleton
+              first firstLength point firstSingleton) firstFull)
+      | cons start tail =>
+          cases tail with
+          | nil =>
+              have distinct : point ≠ start := by
+                intro equal
+                apply (List.nodup_cons.mp secondNodup).1
+                simp [equal]
+              have pairRegion :
+                  listConvexRegion [point, start] =
+                    (DegenerateArtifact.segment point start).region := by
+                simpa [SemanticallyReclassifies,
+                  IteratedArtifact.region] using
+                    (segment_semanticallyReclassifies point start)
+              have firstSegment :
+                  listConvexRegion first =
+                    (DegenerateArtifact.segment point start).region :=
+                sameRegion.trans pairRegion
+              exact False.elim
+                ((not_hasPositiveTriple_of_region_eq_segment
+                  first firstLength point start distinct firstSegment) firstFull)
+          | cons finish remaining => simp
+
+omit [IsStrictOrderedRing R] in
+/-- Only the empty generator list has an empty convex-hull region. -/
+theorem eq_nil_of_listConvexRegion_eq_empty
+    (points : List (Vec2 R))
+    (sameRegion : listConvexRegion points = ∅) :
+    points = [] := by
+  cases points with
+  | nil => rfl
+  | cons point remaining =>
+      have pointMember :
+          point ∈ listConvexRegion (point :: remaining) := by
+        unfold listConvexRegion
+        exact subset_convexHull R _ (by simp)
+      rw [sameRegion] at pointMember
+      exact pointMember.elim
+
+omit [IsStrictOrderedRing R] in
+/-- A duplicate-free generator list whose convex hull is a singleton is
+exactly that singleton list. -/
+theorem eq_singleton_of_listConvexRegion_eq_singleton
+    (points : List (Vec2 R)) (nodup : points.Nodup) (point : Vec2 R)
+    (sameRegion : listConvexRegion points = {point}) :
+    points = [point] := by
+  cases points with
+  | nil =>
+      have pointMember : point ∈ listConvexRegion ([] : List (Vec2 R)) := by
+        rw [sameRegion]
+        simp
+      simp [listConvexRegion, convexHull_empty] at pointMember
+  | cons first remaining =>
+      have generatorEq (candidate : Vec2 R)
+          (member : candidate ∈ first :: remaining) : candidate = point := by
+        have candidateMember :
+            candidate ∈ listConvexRegion (first :: remaining) := by
+          unfold listConvexRegion
+          exact subset_convexHull R _ member
+        rw [sameRegion] at candidateMember
+        simpa using candidateMember
+      have firstEq : first = point := generatorEq first (by simp)
+      have remainingEmpty : remaining = [] := by
+        apply List.eq_nil_iff_forall_not_mem.mpr
+        intro candidate candidateMember
+        have candidateEq : candidate = point :=
+          generatorEq candidate (by simp [candidateMember])
+        apply (List.nodup_cons.mp nodup).1
+        simpa [firstEq, candidateEq] using candidateMember
+      rw [remainingEmpty, firstEq]
+
 /-- Full affine dimension is determined by the represented convex region on
 duplicate-free weakly ordered lists, rather than by their materialization. -/
 theorem hasPositiveTriple_iff_of_region_eq
@@ -1518,6 +1650,108 @@ theorem canonicalizeSeamed_eq_of_region_eq_of_not_fullDimensional
     normalizePolygonSeam_canonicalSegment]
   exact segmentEq
 
+/-- Any duplicate-free weakly ordered materialization of a nondegenerate
+segment is absorbed by the same coordinate-ordered segment artifact,
+regardless of whether it has two vertices or a longer collinear list. -/
+theorem canonicalizeSeamed_eq_canonicalSegment_of_region_eq_segment
+    (points : List (Vec2 R)) (nodup : points.Nodup)
+    (ordered : AllOrderedCCW points)
+    (start finish : Vec2 R) (distinct : start ≠ finish)
+    (sameRegion : listConvexRegion points =
+      (DegenerateArtifact.segment start finish).region) :
+    canonicalizeSeamed points =
+      ExecutableCanonicalizer.canonicalSegment start finish := by
+  cases points with
+  | nil =>
+      have startMember :
+          start ∈ listConvexRegion ([] : List (Vec2 R)) := by
+        rw [sameRegion]
+        exact onClosedSegment_start start finish
+      simp [listConvexRegion, convexHull_empty] at startMember
+  | cons point tail =>
+      cases tail with
+      | nil =>
+          have startEq : start = point := by
+            have startMember : start ∈ listConvexRegion [point] := by
+              rw [sameRegion]
+              exact onClosedSegment_start start finish
+            simpa [listConvexRegion, convexHull_singleton] using startMember
+          have finishEq : finish = point := by
+            have finishMember : finish ∈ listConvexRegion [point] := by
+              rw [sameRegion]
+              exact onClosedSegment_finish start finish
+            simpa [listConvexRegion, convexHull_singleton] using finishMember
+          exact False.elim (distinct (startEq.trans finishEq.symm))
+      | cons second tail =>
+          cases tail with
+          | nil =>
+              have pointNeSecond : point ≠ second := by
+                intro equal
+                apply (List.nodup_cons.mp nodup).1
+                simp [equal]
+              have outputEq :
+                  canonicalizeSeamed [point, second] =
+                    ExecutableCanonicalizer.canonicalSegment point second := by
+                simp [canonicalizeSeamed,
+                  ExecutableCanonicalizer.canonicalize,
+                  ExecutableCanonicalizer.canonicalizeNormalized,
+                  normalizePolygonSeam_canonicalSegment, pointNeSecond]
+              have outputRegion := canonicalizeSeamed_region
+                [point, second] ordered
+              rw [outputEq] at outputRegion
+              have segmentRegionEq :
+                  (ExecutableCanonicalizer.canonicalSegment point second).region =
+                    (ExecutableCanonicalizer.canonicalSegment start finish).region :=
+                outputRegion.trans
+                  (sameRegion.trans
+                    (ExecutableCanonicalizer.canonicalSegment_region
+                      start finish).symm)
+              rw [outputEq]
+              exact ExecutableCanonicalizer.canonicalSegment_eq_of_region_eq
+                point second start finish pointNeSecond segmentRegionEq
+          | cons third remaining =>
+              let values := point :: second :: third :: remaining
+              let lengthAtLeastThree : 3 ≤ values.length := by simp [values]
+              have notFull : ¬HasPositiveTriple
+                  (listVertex values lengthAtLeastThree) :=
+                not_hasPositiveTriple_of_region_eq_segment
+                  values lengthAtLeastThree start finish distinct
+                    (by simpa [values] using sameRegion)
+              obtain ⟨selectedStart, selectedFinish, selectedDistinct,
+                  selectedArtifact⟩ :=
+                ExecutableCanonicalizer.canonicalizeNormalized_eq_segment_of_not_positive
+                  values (by simpa [values] using nodup)
+                    lengthAtLeastThree notFull
+              have outputEq :
+                  canonicalizeSeamed values =
+                    ExecutableCanonicalizer.canonicalSegment
+                      selectedStart selectedFinish := by
+                rw [canonicalizeSeamed,
+                  ExecutableCanonicalizer.canonicalize,
+                  List.dedup_eq_self.mpr (by simpa [values] using nodup),
+                  selectedArtifact,
+                  normalizePolygonSeam_canonicalSegment]
+              have outputRegion := canonicalizeSeamed_region values
+                (by simpa [values] using ordered)
+              rw [outputEq] at outputRegion
+              have valuesRegion : listConvexRegion values =
+                  (DegenerateArtifact.segment start finish).region := by
+                simpa [values] using sameRegion
+              have segmentRegionEq :
+                  (ExecutableCanonicalizer.canonicalSegment
+                    selectedStart selectedFinish).region =
+                    (ExecutableCanonicalizer.canonicalSegment
+                      start finish).region :=
+                outputRegion.trans
+                  (valuesRegion.trans
+                    (ExecutableCanonicalizer.canonicalSegment_region
+                      start finish).symm)
+              change canonicalizeSeamed values = _
+              rw [outputEq]
+              exact ExecutableCanonicalizer.canonicalSegment_eq_of_region_eq
+                selectedStart selectedFinish start finish selectedDistinct
+                  segmentRegionEq
+
 /-- On lists of length at least three, semantic equality and local
 irredundancy make the complete dimension/seam canonicalizer extensional in
 both the polygon and collinear branches. -/
@@ -1556,6 +1790,107 @@ theorem canonicalizeSeamed_eq_of_region_eq_of_irredundant_length_ge_three
     exact canonicalizeSeamed_eq_of_region_eq_of_not_fullDimensional
       first second firstLength secondLength firstNodup secondNodup
         firstOrdered secondOrdered firstFull secondNotFull sameRegion
+
+/-- Dimension-aware seam canonicalization is semantically extensional on
+duplicate-free weakly ordered, cyclically irredundant lists of every length.
+Empty, singleton, segment, collinear, and polygon materializations are all
+covered, including cross-length representations of the same segment. -/
+theorem canonicalizeSeamed_eq_of_region_eq_of_irredundant
+    (first second : List (Vec2 R))
+    (firstNodup : first.Nodup) (secondNodup : second.Nodup)
+    (firstOrdered : AllOrderedCCW first)
+    (secondOrdered : AllOrderedCCW second)
+    (firstIrredundant : CyclicallyIrredundant first)
+    (secondIrredundant : CyclicallyIrredundant second)
+    (sameRegion : listConvexRegion first = listConvexRegion second) :
+    canonicalizeSeamed first = canonicalizeSeamed second := by
+  cases first with
+  | nil =>
+      have firstEmpty : listConvexRegion ([] : List (Vec2 R)) = ∅ := by
+        simpa [SemanticallyReclassifies, IteratedArtifact.region,
+          DegenerateArtifact.region] using
+          (empty_semanticallyReclassifies (R := R))
+      have secondEmpty : listConvexRegion second = ∅ :=
+        sameRegion.symm.trans firstEmpty
+      have secondEq := eq_nil_of_listConvexRegion_eq_empty second secondEmpty
+      subst second
+      rfl
+  | cons point tail =>
+      cases tail with
+      | nil =>
+          have firstSingleton : listConvexRegion [point] = {point} := by
+            simpa [SemanticallyReclassifies, IteratedArtifact.region,
+              DegenerateArtifact.region] using
+              (point_semanticallyReclassifies point)
+          have secondSingleton : listConvexRegion second = {point} :=
+            sameRegion.symm.trans firstSingleton
+          have secondEq := eq_singleton_of_listConvexRegion_eq_singleton
+            second secondNodup point secondSingleton
+          subst second
+          rfl
+      | cons next tail =>
+          cases tail with
+          | nil =>
+              have distinct : point ≠ next := by
+                intro equal
+                apply (List.nodup_cons.mp firstNodup).1
+                simp [equal]
+              have pairRegion :
+                  listConvexRegion [point, next] =
+                    (DegenerateArtifact.segment point next).region := by
+                simpa [SemanticallyReclassifies,
+                  IteratedArtifact.region] using
+                    (segment_semanticallyReclassifies point next)
+              have firstCanonical :=
+                canonicalizeSeamed_eq_canonicalSegment_of_region_eq_segment
+                  [point, next] firstNodup firstOrdered
+                    point next distinct pairRegion
+              have secondCanonical :=
+                canonicalizeSeamed_eq_canonicalSegment_of_region_eq_segment
+                  second secondNodup secondOrdered point next distinct
+                    (sameRegion.symm.trans pairRegion)
+              exact firstCanonical.trans secondCanonical.symm
+          | cons third remaining =>
+              let values := point :: next :: third :: remaining
+              let lengthAtLeastThree : 3 ≤ values.length := by simp [values]
+              have valuesNodup : values.Nodup := by
+                simpa [values] using firstNodup
+              have valuesOrdered : AllOrderedCCW values := by
+                simpa [values] using firstOrdered
+              have valuesIrredundant : CyclicallyIrredundant values := by
+                simpa [values] using firstIrredundant
+              have valuesRegionEq :
+                  listConvexRegion values = listConvexRegion second := by
+                simpa [values] using sameRegion
+              by_cases fullDimensional : HasPositiveTriple
+                  (listVertex values lengthAtLeastThree)
+              · have secondLength : 3 ≤ second.length :=
+                  length_ge_three_of_hasPositiveTriple_of_region_eq
+                    values second lengthAtLeastThree fullDimensional
+                      secondNodup valuesRegionEq
+                exact canonicalizeSeamed_eq_of_region_eq_of_irredundant_length_ge_three
+                  values second lengthAtLeastThree secondLength
+                    valuesNodup secondNodup valuesOrdered secondOrdered
+                      valuesIrredundant secondIrredundant valuesRegionEq
+              · obtain ⟨start, finish, distinct, artifactEq⟩ :=
+                  ExecutableCanonicalizer.canonicalizeNormalized_eq_segment_of_not_positive
+                    values valuesNodup lengthAtLeastThree fullDimensional
+                have segmentRegion : listConvexRegion values =
+                    (DegenerateArtifact.segment start finish).region := by
+                  rw [← ExecutableCanonicalizer.canonicalizeNormalized_region
+                    values valuesNodup valuesOrdered,
+                    artifactEq,
+                    ExecutableCanonicalizer.canonicalSegment_region]
+                have firstCanonical :=
+                  canonicalizeSeamed_eq_canonicalSegment_of_region_eq_segment
+                    values valuesNodup valuesOrdered start finish distinct
+                      segmentRegion
+                have secondCanonical :=
+                  canonicalizeSeamed_eq_canonicalSegment_of_region_eq_segment
+                    second secondNodup secondOrdered start finish distinct
+                      (valuesRegionEq.symm.trans segmentRegion)
+                change canonicalizeSeamed values = canonicalizeSeamed second
+                exact firstCanonical.trans secondCanonical.symm
 
 /-- The public winding/reduction/artifact composition is semantically
 extensional whenever both reduced outputs have length at least three.  The
@@ -1607,6 +1942,57 @@ theorem canonicalizeReducedWindingSeamed_eq_of_region_eq_of_output_length_ge_thr
     firstOutput secondOutput
       (by simpa [firstOutput, firstWound] using firstOutputLength)
       (by simpa [secondOutput, secondWound] using secondOutputLength)
+  · exact normalizeCyclicBoundaryFixed_nodup firstWound firstWoundNodup
+  · exact normalizeCyclicBoundaryFixed_nodup secondWound secondWoundNodup
+  · exact normalizeCyclicBoundaryFixed_ordered firstWound firstWoundOrdered
+  · exact normalizeCyclicBoundaryFixed_ordered secondWound secondWoundOrdered
+  · exact normalizeCyclicBoundaryFixed_irredundant firstWound firstWoundNodup
+  · exact normalizeCyclicBoundaryFixed_irredundant secondWound secondWoundNodup
+  · exact outputRegionEq
+
+/-- The public winding/reduction/artifact composition is semantically
+extensional on every duplicate-free bidirectionally ordered input.  Equal
+convex regions produce the same canonical empty, point, segment, or polygon
+artifact, independently of the reduced output lengths. -/
+theorem canonicalizeReducedWindingSeamed_eq_of_region_eq
+    (first second : List (Vec2 R))
+    (firstNodup : first.Nodup) (secondNodup : second.Nodup)
+    (firstBidirectionallyOrdered :
+      AllOrderedCCW first ∨ AllOrderedCCW first.reverse)
+    (secondBidirectionallyOrdered :
+      AllOrderedCCW second ∨ AllOrderedCCW second.reverse)
+    (sameRegion : listConvexRegion first = listConvexRegion second) :
+    canonicalizeReducedWindingSeamed first =
+      canonicalizeReducedWindingSeamed second := by
+  let firstWound := normalizeWinding first
+  let secondWound := normalizeWinding second
+  let firstOutput := normalizeCyclicBoundaryFixed firstWound
+  let secondOutput := normalizeCyclicBoundaryFixed secondWound
+  have firstWoundOrdered : AllOrderedCCW firstWound :=
+    normalizeWinding_ordered first firstBidirectionallyOrdered
+  have secondWoundOrdered : AllOrderedCCW secondWound :=
+    normalizeWinding_ordered second secondBidirectionallyOrdered
+  have firstWoundNodup : firstWound.Nodup :=
+    (normalizeWinding_nodup_iff first).mpr firstNodup
+  have secondWoundNodup : secondWound.Nodup :=
+    (normalizeWinding_nodup_iff second).mpr secondNodup
+  have firstOutputRegion : listConvexRegion firstOutput =
+      listConvexRegion first := by
+    calc
+      listConvexRegion firstOutput = listConvexRegion firstWound :=
+        normalizeCyclicBoundaryFixed_region firstWound
+      _ = listConvexRegion first := normalizeWinding_region first
+  have secondOutputRegion : listConvexRegion secondOutput =
+      listConvexRegion second := by
+    calc
+      listConvexRegion secondOutput = listConvexRegion secondWound :=
+        normalizeCyclicBoundaryFixed_region secondWound
+      _ = listConvexRegion second := normalizeWinding_region second
+  have outputRegionEq :
+      listConvexRegion firstOutput = listConvexRegion secondOutput :=
+    firstOutputRegion.trans (sameRegion.trans secondOutputRegion.symm)
+  change canonicalizeSeamed firstOutput = canonicalizeSeamed secondOutput
+  apply canonicalizeSeamed_eq_of_region_eq_of_irredundant
   · exact normalizeCyclicBoundaryFixed_nodup firstWound firstWoundNodup
   · exact normalizeCyclicBoundaryFixed_nodup secondWound secondWoundNodup
   · exact normalizeCyclicBoundaryFixed_ordered firstWound firstWoundOrdered

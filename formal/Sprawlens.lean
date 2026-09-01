@@ -24,6 +24,7 @@ import Sprawlens.WindingCanonicalizer
 import Sprawlens.CanonicalizerExtensionalityCounterexample
 import Sprawlens.RedundantBoundaryNormalizer
 import Sprawlens.IrredundantPolygonUniqueness
+import Sprawlens.CanonicalIteratedClip
 import Sprawlens.IteratedReclipRepair
 import Sprawlens.AdjacencyRate
 import Sprawlens.ControlledPaths
