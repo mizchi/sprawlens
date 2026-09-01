@@ -42,7 +42,7 @@
 - 非可換性を距離へ持ち上げた上界、下界、またはLipschitz条件。
 - 実geometry metricについてLipschitz定数とstep budgetを推定・保証すること。
 - primary実測値をseparating discrepancyとして使うdomainを明示するか、証明済みの非空polygon-boundary Hausdorff metricへ置き換えること。
-- 共有fixtureと巨大・微小scaleの回帰caseは有限caseのconformanceであり普遍的refinementではない。正規化後の差・積和・除算、`Math.hypot`についてIEEE-754 roundoffを含む誤差contractを固定すること。
+- 共有fixtureと巨大・微小scaleの回帰caseは有限caseのconformanceであり普遍的refinementではない。特定backendの浮動小数点演算を普遍的に証明することは非目標とし、exact model、共有fixture、metamorphic propertyを移植contractにする。
 - 今回の二候補witnessが、実repository sequenceの候補生成・feasible-envelope metricに埋め込めること。
 
 新規性は可換性の一般代数ではなく、状態依存visual layoutのpath dependenceを局所squareと証明可能な欠損へ分解する点に置く。
@@ -132,7 +132,7 @@
 
 - 単一half-planeの実emitter領域等号、dimension-awareなtotal再分類、polygon / degenerate混在の任意有限遷移、strict ordered初期polygonからのend-to-end宣言的領域等式に加え、具体的な実行可能canonicalizerの意味保存とmaterialization後の冪等性まで証明済みである。
 - empty / point / segmentの正準表現は閉じた。polygonでは冗長境界削除の領域・order・`Nodup`保存、有限降下による固定点到達、duplicate-free domain上の冪等性、全巡回隣接三点に対する局所削除完全性、既知反例の修復まで閉じた。
-- winding selectorのdomain内正規化、実canonicalizer全branchの意味的artifact一意性、有限proof-carrying clipping経路との合成は閉じた。残るのはproof-erasedなTypeScript / JavaScript実行器との対応とIEEE-754誤差contractである。
+- winding selectorのdomain内正規化、実canonicalizer全branchの意味的artifact一意性、有限proof-carrying clipping経路との合成は閉じた。proof-erased実行器との普遍的refinementは非目標であり、共有fixtureとproperty testで監査する。
 - 有理座標の小規模全探索による、完全一致命題の反例探索。
 
 集合交差の可換性自体は標準事実である。成果候補は、退化を含む実行可能emitterと正準化の検証済み接続である。

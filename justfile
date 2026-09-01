@@ -12,7 +12,14 @@ lean-check:
 lean-claims:
     node tools/check-formal-claims.mjs
 
-lean-conformance: lean-check lean-claims
+projection-contract:
+    cd formal && lake exe check-point-segment-projection-fixtures TestVectors/point-segment-projection.json
+    pnpm vitest run packages/contracts/src/numericGeometry.test.ts packages/layout/src/pointSegmentProjectionConformance.test.ts
+
+paper2-metric-contract:
+    pnpm vitest run packages/contracts/src/representationReliability.test.ts
+
+lean-conformance: lean-check lean-claims projection-contract
     cd formal && lake exe check-history-selector-fixtures TestVectors/history-selector-confluence.json
     pnpm vitest run packages/layout/src/historySelectorConfluence.test.ts
     cd formal && lake exe check-fixtures TestVectors/feasible-envelope.json
@@ -41,8 +48,6 @@ lean-conformance: lean-check lean-claims
     pnpm vitest run packages/layout/src/cyclicRingOutputConformance.test.ts
     cd formal && lake exe check-interpolation-orientation-fixtures TestVectors/segment-interpolation-orientation.json
     pnpm vitest run packages/layout/src/interpolationOrientationConformance.test.ts
-    cd formal && lake exe check-point-segment-projection-fixtures TestVectors/point-segment-projection.json
-    pnpm vitest run packages/layout/src/pointSegmentProjectionConformance.test.ts
 
 build:
     pnpm build

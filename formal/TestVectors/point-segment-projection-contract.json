@@ -1,0 +1,31 @@
+{
+  "schemaVersion": 1,
+  "operation": "point-to-segment-distance",
+  "coordinateDomain": "finite-number",
+  "nonFiniteInput": "unsupported",
+  "output": "euclidean-distance",
+  "degenerateSegment": "distance-to-start",
+  "parameterClamp": [0, 1],
+  "oracle": {
+    "fixture": "formal/TestVectors/point-segment-projection.json",
+    "exactValue": "squared-distance-rational"
+  },
+  "comparison": {
+    "fixtureSquaredDistanceDecimalDigits": 12,
+    "boundaryRatioDecimalDigits": 12,
+    "propertyDecimalDigits": 12
+  },
+  "properties": [
+    "endpoint-reversal-invariance",
+    "translation-invariance",
+    "positive-uniform-scale-equivariance"
+  ],
+  "requiredBoundaryCases": [
+    "zero-length-segment",
+    "projection-before-start",
+    "projection-after-finish",
+    "squared-length-overflow",
+    "squared-length-underflow",
+    "endpoint-difference-overflow"
+  ]
+}

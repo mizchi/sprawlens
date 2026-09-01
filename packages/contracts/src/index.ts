@@ -13,3 +13,5 @@ export * from "./traceTimeline.ts";
 export * from "./testRun.ts";
 export * from "./evidence.ts";
 export * from "./externalLayoutBaseline.ts";
+export * from "./numericGeometry.ts";
+export * from "./representationReliability.ts";
