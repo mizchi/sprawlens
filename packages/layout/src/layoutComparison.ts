@@ -1,5 +1,9 @@
-import type { AtlasEdge } from "@sprawlens/contracts";
-import { sampledMeanBoundaryDisplacement } from "./boundaryHausdorff.ts";
+import { representationReliabilityMetricContractV1, type AtlasEdge } from "@sprawlens/contracts";
+import {
+  approximateBoundaryHausdorffByEdge,
+  approximateBoundaryHausdorffWithinTolerance,
+  sampledMeanBoundaryDisplacement,
+} from "./boundaryHausdorff.ts";
 import { centroid, polygonIoU, type Ring } from "./polygon.ts";
 import type { Vec2 } from "./vec.ts";
 
@@ -57,6 +61,160 @@ export function requireSameEndpointGeometryDomain(
     throw new RangeError("same-endpoint stable-cell ID sets differ");
   }
   return ids.map((id) => ({ before: beforeById.get(id)!, after: afterById.get(id)! }));
+}
+
+export type SameEndpointBoundaryHausdorffInterval = {
+  estimator: "edge-local-polygon-boundary-sampling";
+  subdivisionsPerEdge: number;
+  cellCount: number;
+  estimate: number;
+  additiveErrorBound: number;
+  lowerBound: number;
+  upperBound: number;
+  unit: "fraction-of-max-clip-extent";
+};
+
+/**
+ * Stable-cell mean of certified per-boundary Hausdorff intervals.
+ *
+ * Under exact real arithmetic, the exact confirmatory discrepancy lies in the
+ * returned interval. The additive bound covers sampling discretization only;
+ * IEEE-754 roundoff is intentionally outside this claim.
+ */
+export function compareSameEndpointBoundaryHausdorffInterval(
+  before: readonly ComparableCell[],
+  after: readonly ComparableCell[],
+  scale: number,
+  subdivisionsPerEdge = representationReliabilityMetricContractV1.observation.estimator
+    .subdivisionsPerEdge,
+): SameEndpointBoundaryHausdorffInterval {
+  if (!Number.isFinite(scale) || scale <= 0) {
+    throw new RangeError("same-endpoint comparison requires a positive finite normalization scale");
+  }
+  if (!Number.isSafeInteger(subdivisionsPerEdge) || subdivisionsPerEdge <= 0) {
+    throw new RangeError("subdivisionsPerEdge must be a positive safe integer");
+  }
+
+  const pairs = requireSameEndpointGeometryDomain(before, after);
+  let estimate = 0;
+  let additiveErrorBound = 0;
+  for (const pair of pairs) {
+    const approximation = approximateBoundaryHausdorffByEdge(
+      pair.before.polygon,
+      pair.after.polygon,
+      subdivisionsPerEdge,
+    );
+    if (approximation.status !== "ok") {
+      throw new Error("same-endpoint domain invariant violated by an empty boundary");
+    }
+    estimate += approximation.estimate;
+    additiveErrorBound += approximation.additiveErrorBound;
+  }
+
+  const normalization = pairs.length * scale;
+  estimate /= normalization;
+  additiveErrorBound /= normalization;
+  return {
+    estimator: "edge-local-polygon-boundary-sampling",
+    subdivisionsPerEdge,
+    cellCount: pairs.length,
+    estimate,
+    additiveErrorBound,
+    lowerBound: estimate,
+    upperBound: estimate + additiveErrorBound,
+    unit: "fraction-of-max-clip-extent",
+  };
+}
+
+export type AdaptiveSameEndpointBoundaryHausdorffInterval = {
+  estimator: "adaptive-edge-local-polygon-boundary-sampling";
+  targetAdditiveErrorBound: number;
+  maxSubdivisionsPerEdge: number;
+  minimumSubdivisionsPerEdge: number;
+  maximumSubdivisionsPerEdge: number;
+  actualSampleCount: number;
+  cellCount: number;
+  estimate: number;
+  additiveErrorBound: number;
+  lowerBound: number;
+  upperBound: number;
+  unit: "fraction-of-max-clip-extent";
+};
+
+/**
+ * Stable-cell Hausdorff interval with an a-priori normalized width target.
+ * Every cell is refined only as far as needed; any resolution-budget miss
+ * aborts the comparison instead of widening the declared target.
+ */
+export function compareSameEndpointBoundaryHausdorffAdaptiveInterval(
+  before: readonly ComparableCell[],
+  after: readonly ComparableCell[],
+  scale: number,
+  targetAdditiveErrorBound: number,
+  maxSubdivisionsPerEdge = 4096,
+): AdaptiveSameEndpointBoundaryHausdorffInterval {
+  if (!Number.isFinite(scale) || scale <= 0) {
+    throw new RangeError("same-endpoint comparison requires a positive finite normalization scale");
+  }
+  if (!Number.isFinite(targetAdditiveErrorBound) || targetAdditiveErrorBound <= 0) {
+    throw new RangeError("requires a positive finite normalized additive error tolerance");
+  }
+  const absoluteTolerance = targetAdditiveErrorBound * scale;
+  if (!Number.isFinite(absoluteTolerance)) {
+    throw new RangeError("normalized additive error tolerance exceeds the numeric domain");
+  }
+
+  const pairs = requireSameEndpointGeometryDomain(before, after);
+  let estimate = 0;
+  let additiveErrorBound = 0;
+  let actualSampleCount = 0;
+  let minimumSubdivisionsPerEdge = Infinity;
+  let maximumSubdivisionsPerEdge = 0;
+  for (const pair of pairs) {
+    const approximation = approximateBoundaryHausdorffWithinTolerance(
+      pair.before.polygon,
+      pair.after.polygon,
+      absoluteTolerance,
+      maxSubdivisionsPerEdge,
+    );
+    if (approximation.status === "resolution-budget-exceeded") {
+      throw new RangeError(
+        `adaptive Hausdorff resolution budget exceeded: requires ${approximation.requiredSubdivisionsPerEdge}, maximum ${approximation.maxSubdivisionsPerEdge}`,
+      );
+    }
+    if (approximation.status !== "ok") {
+      throw new Error("same-endpoint domain invariant violated by an empty boundary");
+    }
+    estimate += approximation.estimate;
+    additiveErrorBound += approximation.additiveErrorBound;
+    actualSampleCount += approximation.actualSampleCount;
+    minimumSubdivisionsPerEdge = Math.min(
+      minimumSubdivisionsPerEdge,
+      approximation.subdivisionsPerEdge,
+    );
+    maximumSubdivisionsPerEdge = Math.max(
+      maximumSubdivisionsPerEdge,
+      approximation.subdivisionsPerEdge,
+    );
+  }
+
+  const normalization = pairs.length * scale;
+  estimate /= normalization;
+  additiveErrorBound /= normalization;
+  return {
+    estimator: "adaptive-edge-local-polygon-boundary-sampling",
+    targetAdditiveErrorBound,
+    maxSubdivisionsPerEdge,
+    minimumSubdivisionsPerEdge,
+    maximumSubdivisionsPerEdge,
+    actualSampleCount,
+    cellCount: pairs.length,
+    estimate,
+    additiveErrorBound,
+    lowerBound: estimate,
+    upperBound: estimate + additiveErrorBound,
+    unit: "fraction-of-max-clip-extent",
+  };
 }
 
 /** Evaluation-only temporal metrics; none participate in layout selection. */

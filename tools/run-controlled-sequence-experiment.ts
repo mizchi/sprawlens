@@ -50,7 +50,6 @@ const result = runControlledSequenceExperiment(datasets, {
   reliabilityMargin,
 });
 const artifact = {
-  schemaVersion: 3 as const,
   status: "post-hoc controlled-sequence development experiment" as const,
   manifestHash,
   generatedAt: new Date().toISOString(),
@@ -58,6 +57,10 @@ const artifact = {
 };
 const format = (value: { mean: number; ci95: readonly [number, number] }) =>
   `${value.mean.toFixed(5)} [${value.ci95[0].toFixed(5)}, ${value.ci95[1].toFixed(5)}]`;
+const formatCertifiedInterval = (value: {
+  lowerBound: { mean: number };
+  upperBound: { mean: number };
+}) => `[${value.lowerBound.mean.toFixed(5)}, ${value.upperBound.mean.toFixed(5)}]`;
 const conditions = [
   "neighborhoodSwap",
   "computeMatchedNeighborhood",
@@ -98,6 +101,19 @@ ${conditions
   .join("\n")}
 
 値は小さいほど良い。\`neighborhoodSwap\`は同じgraphとseedをcoldに解く決定的対照なので、同一endpointでは原理的に0となる。history-aware条件の値は、入力差では説明できない幾何学的記憶を表す。
+
+## Exact boundary Hausdorff target
+
+各値は8分割/edgeのsampling estimateとLeanで証明した加法誤差上界から得た、repository平均の \`[lower, upper]\` である。一点推定ではない。sampling discretizationだけを含み、IEEE-754 roundoffは含まない。
+
+| condition | no-op excess | weight-loop excess | rewire-loop excess | combined-loop excess | commutator excess |
+| --- | ---: | ---: | ---: | ---: | ---: |
+${conditions
+  .map(
+    (condition) =>
+      `| ${condition} | ${formatCertifiedInterval(result.summary.confirmatoryReliability.loopExcess.noOp[condition])} | ${formatCertifiedInterval(result.summary.confirmatoryReliability.loopExcess.weight[condition])} | ${formatCertifiedInterval(result.summary.confirmatoryReliability.loopExcess.rewire[condition])} | ${formatCertifiedInterval(result.summary.confirmatoryReliability.loopExcess.combined[condition])} | ${formatCertifiedInterval(result.summary.confirmatoryReliability.commutatorExcess[condition])} |`,
+  )
+  .join("\n")}
 
 ## Development noise-adjusted reliability
 

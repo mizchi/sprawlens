@@ -3,9 +3,12 @@ import type { AtlasEdge } from "@sprawlens/contracts";
 import {
   approximateBoundaryHausdorff,
   approximateBoundaryHausdorffByEdge,
+  approximateBoundaryHausdorffWithinTolerance,
 } from "./boundaryHausdorff.ts";
 import {
   compareLayoutGeometry,
+  compareSameEndpointBoundaryHausdorffAdaptiveInterval,
+  compareSameEndpointBoundaryHausdorffInterval,
   constraintGraphDistance,
   distanceChangeFaithfulness,
   requireSameEndpointGeometryDomain,
@@ -116,6 +119,41 @@ describe("same-endpoint confirmatory domain", () => {
   });
 });
 
+describe("same-endpoint boundary Hausdorff interval", () => {
+  it("contains the exact zero distance for identical geometry", () => {
+    const cells = [square("a", 0, 0)];
+
+    expect(compareSameEndpointBoundaryHausdorffInterval(cells, cells, 1)).toEqual({
+      estimator: "edge-local-polygon-boundary-sampling",
+      subdivisionsPerEdge: 8,
+      cellCount: 1,
+      estimate: 0,
+      additiveErrorBound: 0.125,
+      lowerBound: 0,
+      upperBound: 0.125,
+      unit: "fraction-of-max-clip-extent",
+    });
+  });
+
+  it("normalizes a known translated-square interval by the clip extent", () => {
+    const interval = compareSameEndpointBoundaryHausdorffInterval(
+      [square("a", 0, 0)],
+      [square("a", 1, 0)],
+      2,
+    );
+
+    expect(interval.lowerBound).toBeCloseTo(0.5, 12);
+    expect(interval.upperBound).toBeCloseTo(0.5625, 12);
+  });
+
+  it("rejects a non-positive normalization scale", () => {
+    const cells = [square("a", 0, 0)];
+    expect(() => compareSameEndpointBoundaryHausdorffInterval(cells, cells, 0)).toThrow(
+      /positive finite normalization scale/,
+    );
+  });
+});
+
 describe("certified boundary Hausdorff approximation", () => {
   const unitSquare = square("a", 0, 0).polygon;
 
@@ -212,6 +250,72 @@ describe("edge-local certified boundary Hausdorff approximation", () => {
     expect(() => approximateBoundaryHausdorffByEdge(unitSquare, unitSquare, 2.5)).toThrow(
       RangeError,
     );
+  });
+});
+
+describe("tolerance-driven boundary Hausdorff approximation", () => {
+  const unitSquare = square("a", 0, 0).polygon;
+
+  it("selects the smallest edge subdivision count meeting the tolerance", () => {
+    expect(approximateBoundaryHausdorffWithinTolerance(unitSquare, unitSquare, 0.3)).toEqual({
+      status: "ok",
+      estimate: 0,
+      additiveErrorBound: 0.25,
+      targetAdditiveErrorBound: 0.3,
+      subdivisionsPerEdge: 4,
+      actualSampleCount: 40,
+    });
+  });
+
+  it("fails closed when the required resolution exceeds the declared budget", () => {
+    expect(approximateBoundaryHausdorffWithinTolerance(unitSquare, unitSquare, 0.1, 5)).toEqual({
+      status: "resolution-budget-exceeded",
+      targetAdditiveErrorBound: 0.1,
+      requiredSubdivisionsPerEdge: 10,
+      maxSubdivisionsPerEdge: 5,
+    });
+  });
+
+  it("rejects invalid tolerance and resolution budgets", () => {
+    expect(() => approximateBoundaryHausdorffWithinTolerance(unitSquare, unitSquare, 0)).toThrow(
+      /positive finite additive error tolerance/,
+    );
+    expect(() =>
+      approximateBoundaryHausdorffWithinTolerance(unitSquare, unitSquare, 0.1, 1.5),
+    ).toThrow(/positive safe integer/);
+    expect(() =>
+      approximateBoundaryHausdorffWithinTolerance(unitSquare, unitSquare, Number.MIN_VALUE),
+    ).toThrow(/safe integer domain/);
+  });
+});
+
+describe("adaptive same-endpoint boundary Hausdorff interval", () => {
+  it("meets a normalized interval-width target across stable cells", () => {
+    const interval = compareSameEndpointBoundaryHausdorffAdaptiveInterval(
+      [square("a", 0, 0), square("b", 2, 0)],
+      [square("a", 1, 0), square("b", 3, 0)],
+      2,
+      0.05,
+    );
+
+    expect(interval.lowerBound).toBeCloseTo(0.5, 12);
+    expect(interval.additiveErrorBound).toBeCloseTo(0.05, 12);
+    expect(interval.upperBound - interval.lowerBound).toBeLessThanOrEqual(0.05 + 1e-12);
+    expect(interval.targetAdditiveErrorBound).toBe(0.05);
+    expect(interval.minimumSubdivisionsPerEdge).toBe(10);
+    expect(interval.maximumSubdivisionsPerEdge).toBe(10);
+  });
+
+  it("rejects a target that cannot be met within the resolution budget", () => {
+    expect(() =>
+      compareSameEndpointBoundaryHausdorffAdaptiveInterval(
+        [square("a", 0, 0)],
+        [square("a", 0, 0)],
+        1,
+        0.01,
+        10,
+      ),
+    ).toThrow(/resolution budget exceeded/);
   });
 });
 

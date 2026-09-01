@@ -142,6 +142,47 @@ theorem polygonBoundarySamples_isEpsilonNet
       exact chainBoundarySamples_isEpsilonNet
         first first remaining count countPositive
 
+/-- Smallest positive uniform edge subdivision count selected from an
+exact-real maximum edge length and a positive target net radius. -/
+def adaptiveSubdivisionCount (maxEdgeLength target : ℝ) : ℕ :=
+  max 1 (Nat.ceil (maxEdgeLength / target))
+
+theorem adaptiveSubdivisionCount_positive
+    (maxEdgeLength target : ℝ) :
+    0 < adaptiveSubdivisionCount maxEdgeLength target := by
+  exact Nat.zero_lt_one.trans_le (le_max_left 1 _)
+
+/-- The adaptive subdivision selector meets its requested exact-real radius. -/
+theorem adaptiveSubdivisionErrorBound
+    (maxEdgeLength target : ℝ) (targetPositive : 0 < target) :
+    maxEdgeLength / adaptiveSubdivisionCount maxEdgeLength target ≤ target := by
+  have countPositive := adaptiveSubdivisionCount_positive maxEdgeLength target
+  rw [div_le_iff₀ (Nat.cast_pos.mpr countPositive)]
+  have ratioLeCeil :
+      maxEdgeLength / target ≤ (Nat.ceil (maxEdgeLength / target) : ℝ) :=
+    Nat.le_ceil _
+  have ceilLeCount :
+      (Nat.ceil (maxEdgeLength / target) : ℝ) ≤
+        adaptiveSubdivisionCount maxEdgeLength target := by
+    exact_mod_cast le_max_right 1 (Nat.ceil (maxEdgeLength / target))
+  have edgeLeCountTarget :=
+    (div_le_iff₀ targetPositive).mp (ratioLeCeil.trans ceilLeCount)
+  simpa [mul_comm] using edgeLeCountTarget
+
+/-- No smaller positive uniform edge subdivision count can meet the target. -/
+theorem adaptiveSubdivisionCount_minimal
+    (maxEdgeLength target : ℝ) (targetPositive : 0 < target)
+    (count : ℕ) (countPositive : 0 < count)
+    (meetsTarget : maxEdgeLength / count ≤ target) :
+    adaptiveSubdivisionCount maxEdgeLength target ≤ count := by
+  apply max_le
+  · exact countPositive
+  · apply Nat.ceil_le.mpr
+    apply (div_le_iff₀ targetPositive).mpr
+    have edgeLeTargetCount :=
+      (div_le_iff₀ (Nat.cast_pos.mpr countPositive)).mp meetsTarget
+    simpa [mul_comm] using edgeLeTargetCount
+
 /-- Nonempty polygon specialization used by the Hausdorff certificate. -/
 theorem polygonCompactBoundarySamples_isEpsilonNet
     (first : E) (remaining : List E)
@@ -235,6 +276,16 @@ def polygonSampledHausdorffEstimate
     (polygonCompactBoundary firstSource remainingSource)
     (polygonCompactBoundary firstTarget remainingTarget)
 
+/-- Uniform resolution chosen from the longer edge of either polygon. -/
+def polygonPairAdaptiveSubdivisionCount
+    (firstSource : E) (remainingSource : List E)
+    (firstTarget : E) (remainingTarget : List E) (target : ℝ) : ℕ :=
+  adaptiveSubdivisionCount
+    (max
+      (polygonMaxEdgeLength (firstSource :: remainingSource))
+      (polygonMaxEdgeLength (firstTarget :: remainingTarget)))
+    target
+
 /-- End-to-end exact-real interval for the explicitly constructed finite
 polygon sample sets. No maximum upper-bound or witness assumptions remain. -/
 theorem polygonFiniteSamplesHausdorffInterval
@@ -267,6 +318,59 @@ theorem polygonFiniteSamplesHausdorffInterval
   · exact div_nonneg
       (chainMaxEdgeLength_nonnegative firstTarget firstTarget remainingTarget)
       (Nat.cast_nonneg count)
+
+/-- End-to-end adaptive exact-real interval. The target controls the entire
+reported interval width, rather than only an intermediate sampling lemma. -/
+theorem polygonFiniteSamplesAdaptiveHausdorffInterval
+    (firstSource : E) (remainingSource : List E)
+    (firstTarget : E) (remainingTarget : List E)
+    (target : ℝ) (targetPositive : 0 < target) :
+    let count := polygonPairAdaptiveSubdivisionCount
+      firstSource remainingSource firstTarget remainingTarget target
+    polygonSampledHausdorffEstimate
+        firstSource remainingSource firstTarget remainingTarget count ≤
+      dist
+        (polygonCompactBoundary firstSource remainingSource)
+        (polygonCompactBoundary firstTarget remainingTarget) ∧
+    dist
+        (polygonCompactBoundary firstSource remainingSource)
+        (polygonCompactBoundary firstTarget remainingTarget) ≤
+      polygonSampledHausdorffEstimate
+          firstSource remainingSource firstTarget remainingTarget count + target := by
+  dsimp only
+  let maxEdgeLength := max
+    (polygonMaxEdgeLength (firstSource :: remainingSource))
+    (polygonMaxEdgeLength (firstTarget :: remainingTarget))
+  let count := polygonPairAdaptiveSubdivisionCount
+    firstSource remainingSource firstTarget remainingTarget target
+  have countPositive : 0 < count := by
+    simpa [count, polygonPairAdaptiveSubdivisionCount, maxEdgeLength] using
+      adaptiveSubdivisionCount_positive maxEdgeLength target
+  have interval := polygonFiniteSamplesHausdorffInterval
+    firstSource remainingSource firstTarget remainingTarget count countPositive
+  refine ⟨interval.1, interval.2.trans ?_⟩
+  have adaptiveBound : maxEdgeLength / count ≤ target := by
+    simpa [count, polygonPairAdaptiveSubdivisionCount, maxEdgeLength] using
+      adaptiveSubdivisionErrorBound maxEdgeLength target targetPositive
+  have errorBound :
+      max
+          (polygonMaxEdgeLength (firstSource :: remainingSource) / count)
+          (polygonMaxEdgeLength (firstTarget :: remainingTarget) / count) ≤
+        target := by
+    apply max_le
+    · exact (div_le_div_of_nonneg_right
+        (le_max_left
+          (polygonMaxEdgeLength (firstSource :: remainingSource))
+          (polygonMaxEdgeLength (firstTarget :: remainingTarget)))
+        (Nat.cast_nonneg count)).trans adaptiveBound
+    · exact (div_le_div_of_nonneg_right
+        (le_max_right
+          (polygonMaxEdgeLength (firstSource :: remainingSource))
+          (polygonMaxEdgeLength (firstTarget :: remainingTarget)))
+        (Nat.cast_nonneg count)).trans adaptiveBound
+  simpa [count] using add_le_add_left errorBound
+    (polygonSampledHausdorffEstimate
+      firstSource remainingSource firstTarget remainingTarget count)
 
 end FinitePolygonSamples
 

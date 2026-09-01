@@ -11,8 +11,10 @@ import {
 } from "@sprawlens/layout";
 import {
   computeExcessDefect,
+  computeExcessDefectInterval,
   empiricalNearestRankQuantile,
   representationReliabilityMetricContractV1,
+  type CertifiedNonnegativeInterval,
 } from "@sprawlens/contracts";
 
 const METRICS = [
@@ -125,6 +127,82 @@ export function runControlledSequenceExperiment(
         ];
       }),
     ) as Record<SequenceConditionName, number>;
+    const repeatabilityIntervals = Object.fromEntries(
+      SEQUENCE_CONDITION_NAMES.map((condition) => [
+        condition,
+        probes.flatMap((probe) => {
+          const repeatability = probe.result.repeatability;
+          if (!repeatability) throw new Error("controlled experiment requires repeatability runs");
+          return CONTROLLED_REPEATABILITY_PATH_NAMES.map((path) => {
+            const interval = repeatability[path][condition].boundaryHausdorffInterval;
+            return { lowerBound: interval.lowerBound, upperBound: interval.upperBound };
+          });
+        }),
+      ]),
+    ) as Record<SequenceConditionName, CertifiedNonnegativeInterval[]>;
+    const confirmatoryNoiseFloor = Object.fromEntries(
+      SEQUENCE_CONDITION_NAMES.map((condition) => {
+        const intervals = repeatabilityIntervals[condition];
+        const probability =
+          representationReliabilityMetricContractV1.metrics.D_repeat.quantile.probability;
+        return [
+          condition,
+          {
+            lowerBound: empiricalNearestRankQuantile(
+              intervals.map((interval) => interval.lowerBound),
+              probability,
+            ),
+            upperBound: empiricalNearestRankQuantile(
+              intervals.map((interval) => interval.upperBound),
+              probability,
+            ),
+          },
+        ];
+      }),
+    ) as Record<SequenceConditionName, CertifiedNonnegativeInterval>;
+    const aggregateExcessIntervals = (
+      condition: SequenceConditionName,
+      pathInterval: (probe: (typeof probes)[number]) => CertifiedNonnegativeInterval,
+    ) => {
+      const samples = probes.map((probe) => ({
+        sequence: probe.sequence,
+        interval: computeExcessDefectInterval(
+          pathInterval(probe),
+          repeatabilityIntervals[condition],
+          reliabilityMargin,
+        ),
+      }));
+      return {
+        lowerBound: meanBySequenceThenRepository(samples, (sample) => sample.interval.lowerBound),
+        upperBound: meanBySequenceThenRepository(samples, (sample) => sample.interval.upperBound),
+      };
+    };
+    const confirmatoryCommutatorExcess = Object.fromEntries(
+      SEQUENCE_CONDITION_NAMES.map((condition) => [
+        condition,
+        aggregateExcessIntervals(
+          condition,
+          (probe) => probe.result.pathDependence[condition].boundaryHausdorffInterval,
+        ),
+      ]),
+    ) as Record<SequenceConditionName, CertifiedNonnegativeInterval>;
+    const confirmatoryLoopExcess = Object.fromEntries(
+      CONTROLLED_RECOVERY_NAMES.map((recovery) => [
+        recovery,
+        Object.fromEntries(
+          SEQUENCE_CONDITION_NAMES.map((condition) => [
+            condition,
+            aggregateExcessIntervals(
+              condition,
+              (probe) => probe.result.recovery[recovery][condition].boundaryHausdorffInterval,
+            ),
+          ]),
+        ) as Record<SequenceConditionName, CertifiedNonnegativeInterval>,
+      ]),
+    ) as Record<
+      ControlledRecoveryName,
+      Record<SequenceConditionName, CertifiedNonnegativeInterval>
+    >;
     const commutatorExcess = Object.fromEntries(
       SEQUENCE_CONDITION_NAMES.map((condition) => [
         condition,
@@ -191,6 +269,15 @@ export function runControlledSequenceExperiment(
           commutatorExcess,
           loopExcess,
         },
+        confirmatoryReliability: {
+          discrepancy: representationReliabilityMetricContractV1.observation.discrepancy,
+          estimator: representationReliabilityMetricContractV1.observation.estimator,
+          repeatabilityQuantile: "empirical-nearest-rank-0.95" as const,
+          margin: reliabilityMargin,
+          noiseFloor: confirmatoryNoiseFloor,
+          commutatorExcess: confirmatoryCommutatorExcess,
+          loopExcess: confirmatoryLoopExcess,
+        },
       },
     };
   });
@@ -217,7 +304,7 @@ export function runControlledSequenceExperiment(
       ]),
     ) as Record<SequenceConditionName, Record<Metric, ReturnType<typeof summarizeSamples>>>;
   return {
-    schemaVersion: 3 as const,
+    schemaVersion: 4 as const,
     seeds,
     stableHistoryFreeReferenceWeight: options.stableHistoryFreeReferenceWeight ?? 0,
     repositories,
@@ -293,6 +380,88 @@ export function runControlledSequenceExperiment(
         ) as Record<
           ControlledRecoveryName,
           Record<SequenceConditionName, ReturnType<typeof summarizeSamples>>
+        >,
+      },
+      confirmatoryReliability: {
+        discrepancy: representationReliabilityMetricContractV1.observation.discrepancy,
+        estimator: representationReliabilityMetricContractV1.observation.estimator,
+        repeatabilityQuantile: "empirical-nearest-rank-0.95" as const,
+        margin: reliabilityMargin,
+        noiseFloor: Object.fromEntries(
+          SEQUENCE_CONDITION_NAMES.map((condition) => [
+            condition,
+            {
+              lowerBound: summarizeSamples(
+                included.map(
+                  (repository) =>
+                    repository.means.confirmatoryReliability.noiseFloor[condition].lowerBound,
+                ),
+              ),
+              upperBound: summarizeSamples(
+                included.map(
+                  (repository) =>
+                    repository.means.confirmatoryReliability.noiseFloor[condition].upperBound,
+                ),
+              ),
+            },
+          ]),
+        ) as Record<
+          SequenceConditionName,
+          Record<keyof CertifiedNonnegativeInterval, ReturnType<typeof summarizeSamples>>
+        >,
+        commutatorExcess: Object.fromEntries(
+          SEQUENCE_CONDITION_NAMES.map((condition) => [
+            condition,
+            {
+              lowerBound: summarizeSamples(
+                included.map(
+                  (repository) =>
+                    repository.means.confirmatoryReliability.commutatorExcess[condition].lowerBound,
+                ),
+              ),
+              upperBound: summarizeSamples(
+                included.map(
+                  (repository) =>
+                    repository.means.confirmatoryReliability.commutatorExcess[condition].upperBound,
+                ),
+              ),
+            },
+          ]),
+        ) as Record<
+          SequenceConditionName,
+          Record<keyof CertifiedNonnegativeInterval, ReturnType<typeof summarizeSamples>>
+        >,
+        loopExcess: Object.fromEntries(
+          CONTROLLED_RECOVERY_NAMES.map((recovery) => [
+            recovery,
+            Object.fromEntries(
+              SEQUENCE_CONDITION_NAMES.map((condition) => [
+                condition,
+                {
+                  lowerBound: summarizeSamples(
+                    included.map(
+                      (repository) =>
+                        repository.means.confirmatoryReliability.loopExcess[recovery][condition]
+                          .lowerBound,
+                    ),
+                  ),
+                  upperBound: summarizeSamples(
+                    included.map(
+                      (repository) =>
+                        repository.means.confirmatoryReliability.loopExcess[recovery][condition]
+                          .upperBound,
+                    ),
+                  ),
+                },
+              ]),
+            ),
+          ]),
+        ) as Record<
+          ControlledRecoveryName,
+          Record<
+            SequenceConditionName,
+            Record<keyof CertifiedNonnegativeInterval, ReturnType<typeof summarizeSamples>>
+          >
         >,
       },
     },

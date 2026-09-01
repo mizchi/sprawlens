@@ -236,3 +236,83 @@ export function approximateBoundaryHausdorffByEdge(
     actualSampleCount: beforeSamples.length + afterSamples.length,
   };
 }
+
+export type ToleranceBoundaryHausdorffApproximation =
+  | ({
+      targetAdditiveErrorBound: number;
+    } & Extract<EdgeLocalBoundaryHausdorffApproximation, { status: "ok" }>)
+  | {
+      status: "empty-boundary";
+      targetAdditiveErrorBound: number;
+      maxSubdivisionsPerEdge: number;
+    }
+  | {
+      status: "resolution-budget-exceeded";
+      targetAdditiveErrorBound: number;
+      requiredSubdivisionsPerEdge: number;
+      maxSubdivisionsPerEdge: number;
+    };
+
+/**
+ * Select the smallest uniform per-edge subdivision count whose exact-real
+ * discretization bound meets `targetAdditiveErrorBound`.
+ *
+ * Resolution exhaustion is a tagged failure: callers must not silently use a
+ * wider interval. IEEE-754 roundoff remains outside the certificate.
+ */
+export function approximateBoundaryHausdorffWithinTolerance(
+  before: Ring,
+  after: Ring,
+  targetAdditiveErrorBound: number,
+  maxSubdivisionsPerEdge = 4096,
+): ToleranceBoundaryHausdorffApproximation {
+  if (!Number.isFinite(targetAdditiveErrorBound) || targetAdditiveErrorBound <= 0) {
+    throw new RangeError("requires a positive finite additive error tolerance");
+  }
+  if (!Number.isSafeInteger(maxSubdivisionsPerEdge) || maxSubdivisionsPerEdge <= 0) {
+    throw new RangeError("maxSubdivisionsPerEdge must be a positive safe integer");
+  }
+  if (before.length === 0 || after.length === 0) {
+    return {
+      status: "empty-boundary",
+      targetAdditiveErrorBound,
+      maxSubdivisionsPerEdge,
+    };
+  }
+
+  const maxEdgeLength = Math.max(boundaryMaxEdgeLength(before), boundaryMaxEdgeLength(after));
+  if (!Number.isFinite(maxEdgeLength)) {
+    throw new RangeError("adaptive Hausdorff resolution requires finite edge lengths");
+  }
+  let requiredSubdivisionsPerEdge = Math.max(
+    1,
+    Math.ceil(maxEdgeLength / targetAdditiveErrorBound),
+  );
+  while (
+    Number.isSafeInteger(requiredSubdivisionsPerEdge) &&
+    maxEdgeLength / requiredSubdivisionsPerEdge > targetAdditiveErrorBound
+  ) {
+    requiredSubdivisionsPerEdge++;
+  }
+  if (!Number.isSafeInteger(requiredSubdivisionsPerEdge)) {
+    throw new RangeError("required adaptive Hausdorff resolution exceeds the safe integer domain");
+  }
+  if (requiredSubdivisionsPerEdge > maxSubdivisionsPerEdge) {
+    return {
+      status: "resolution-budget-exceeded",
+      targetAdditiveErrorBound,
+      requiredSubdivisionsPerEdge,
+      maxSubdivisionsPerEdge,
+    };
+  }
+
+  const approximation = approximateBoundaryHausdorffByEdge(
+    before,
+    after,
+    requiredSubdivisionsPerEdge,
+  );
+  if (approximation.status !== "ok") {
+    throw new Error("nonempty-boundary invariant violated by edge-local sampler");
+  }
+  return { ...approximation, targetAdditiveErrorBound };
+}

@@ -6,6 +6,11 @@ export const representationReliabilityMetricContractV1 = {
     boundaryDomain: "nonempty-polygon-boundaries",
     canonicalization: "boundary-set",
     discrepancy: "exact-polygon-boundary-hausdorff",
+    estimator: {
+      kind: "edge-local-polygon-boundary-sampling",
+      subdivisionsPerEdge: 8,
+      report: "lower-estimate-plus-additive-upper-bound",
+    },
     cellAggregation: "arithmetic-mean-sorted-by-stable-id",
     normalization: "divide-by-max-clip-extent",
     unit: "fraction-of-max-clip-extent",
@@ -103,4 +108,61 @@ export function computeExcessDefect(
   assertFiniteNonnegative(repeatabilityQuantile, "repeatabilityQuantile");
   assertFiniteNonnegative(margin, "margin");
   return Math.max(0, pathDefect - repeatabilityQuantile - margin);
+}
+
+export type CertifiedNonnegativeInterval = {
+  lowerBound: number;
+  upperBound: number;
+};
+
+const assertCertifiedInterval = (interval: CertifiedNonnegativeInterval, name: string): void => {
+  if (
+    !Number.isFinite(interval.lowerBound) ||
+    interval.lowerBound < 0 ||
+    !Number.isFinite(interval.upperBound) ||
+    interval.upperBound < 0
+  ) {
+    throw new RangeError(`${name} interval bounds must be finite and non-negative`);
+  }
+  if (interval.lowerBound > interval.upperBound) {
+    throw new RangeError(`${name} interval lowerBound must not exceed upperBound`);
+  }
+};
+
+/**
+ * Conservative interval extension of `computeExcessDefect`.
+ *
+ * The lower result subtracts the upper repeatability quantile, while the upper
+ * result subtracts the lower quantile. Nearest-rank quantiles are monotone in
+ * their samples, so any exact values contained in the inputs remain contained
+ * in the output under exact real arithmetic.
+ */
+export function computeExcessDefectInterval(
+  pathDefect: CertifiedNonnegativeInterval,
+  repeatability: readonly CertifiedNonnegativeInterval[],
+  margin: number,
+) {
+  assertCertifiedInterval(pathDefect, "pathDefect");
+  if (repeatability.length === 0) {
+    throw new RangeError("repeatability intervals must be non-empty");
+  }
+  repeatability.forEach((interval) => assertCertifiedInterval(interval, "repeatability"));
+  assertFiniteNonnegative(margin, "margin");
+
+  const probability =
+    representationReliabilityMetricContractV1.metrics.D_repeat.quantile.probability;
+  const repeatabilityQuantileLowerBound = empiricalNearestRankQuantile(
+    repeatability.map((interval) => interval.lowerBound),
+    probability,
+  );
+  const repeatabilityQuantileUpperBound = empiricalNearestRankQuantile(
+    repeatability.map((interval) => interval.upperBound),
+    probability,
+  );
+  return {
+    lowerBound: computeExcessDefect(pathDefect.lowerBound, repeatabilityQuantileUpperBound, margin),
+    upperBound: computeExcessDefect(pathDefect.upperBound, repeatabilityQuantileLowerBound, margin),
+    repeatabilityQuantileLowerBound,
+    repeatabilityQuantileUpperBound,
+  };
 }

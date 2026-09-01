@@ -241,6 +241,50 @@ theorem excessDefect_pos_iff
       max_eq_right (le_of_lt positiveResidual)]
     exact positiveResidual
 
+/-- Interval extension used by the confirmatory runner. A path-defect interval
+and a noise-floor interval enclose the exact excess defect when the lower path
+bound is paired with the upper noise bound, and conversely for the upper
+bound. -/
+theorem excessDefect_interval_bounds
+    (pathLower path pathUpper noiseLower noise noiseUpper margin : ℝ)
+    (pathLower_le : pathLower ≤ path)
+    (path_le_upper : path ≤ pathUpper)
+    (noiseLower_le : noiseLower ≤ noise)
+    (noise_le_upper : noise ≤ noiseUpper) :
+    excessDefect pathLower noiseUpper margin ≤
+        excessDefect path noise margin ∧
+      excessDefect path noise margin ≤
+        excessDefect pathUpper noiseLower margin := by
+  constructor
+  · unfold excessDefect
+    apply max_le_max (le_refl 0)
+    linarith
+  · unfold excessDefect
+    apply max_le_max (le_refl 0)
+    linarith
+
+/-- Pointwise certified intervals remain certified after the arithmetic mean
+used for stable-cell, seed, sequence, and repository aggregation. -/
+theorem arithmeticMean_interval_bounds
+    {Index : Type u} [DecidableEq Index]
+    (indices : Finset Index) (lower exact upper : Index → ℝ)
+    (nonempty : indices.Nonempty)
+    (lower_le : ∀ index ∈ indices, lower index ≤ exact index)
+    (le_upper : ∀ index ∈ indices, exact index ≤ upper index) :
+    (∑ index ∈ indices, lower index) / indices.card ≤
+        (∑ index ∈ indices, exact index) / indices.card ∧
+      (∑ index ∈ indices, exact index) / indices.card ≤
+        (∑ index ∈ indices, upper index) / indices.card := by
+  have cardPositive : (0 : ℝ) < indices.card := by
+    exact_mod_cast nonempty.card_pos
+  constructor
+  · exact div_le_div_of_nonneg_right
+      (Finset.sum_le_sum fun index membership => lower_le index membership)
+      cardPositive.le
+  · exact div_le_div_of_nonneg_right
+      (Finset.sum_le_sum fun index membership => le_upper index membership)
+      cardPositive.le
+
 /-- On the full state metric, the path-level AB/BA definition reduces to the
 local square defect. -/
 theorem commutatorDefect_id_eq_squareDefect

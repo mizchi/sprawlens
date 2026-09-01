@@ -33,6 +33,8 @@ export type SequenceBenchmarkOptions = {
   maxSteps?: number;
   /** Include final polygons for controlled experiments and visual artifacts. */
   captureFinalGeometry?: boolean;
+  /** Include the shared initial polygons for certified endpoint comparisons. */
+  captureInitialGeometry?: boolean;
   stableAnchorMixPolicy?: StableAnchorMixPolicy;
   stableProtectedConstraints?: readonly StableNeighborhoodProtectedConstraint[];
   stableCandidateGenerators?: readonly StableNeighborhoodCandidateGenerator[];
@@ -495,6 +497,23 @@ export function runStableNeighborhoodSequence(
           }>
         >)
       : null,
+    ...(options.captureInitialGeometry
+      ? {
+          initialCellGeometry: Object.fromEntries(
+            SEQUENCE_CONDITION_NAMES.map((condition) => [
+              condition,
+              initial.cells.map(({ id, site, polygon }) => ({ id, site, polygon })),
+            ]),
+          ) as Record<
+            SequenceConditionName,
+            Array<{
+              id: string;
+              site: { x: number; y: number };
+              polygon: Array<{ x: number; y: number }>;
+            }>
+          >,
+        }
+      : {}),
     summary,
   };
 }

@@ -69,3 +69,7 @@ root = "Sprawlens.CheckHistorySelectorFixtures"
 [[lean_exe]]
 name = "check-point-segment-projection-fixtures"
 root = "Sprawlens.CheckPointSegmentProjectionFixtures"
+
+[[lean_exe]]
+name = "check-empirical-quantile-fixtures"
+root = "Sprawlens.CheckEmpiricalQuantileFixtures"

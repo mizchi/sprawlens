@@ -33,7 +33,7 @@ describe("controlled sequence experiment", () => {
       { seeds: [3] },
     );
 
-    expect(result.schemaVersion).toBe(3);
+    expect(result.schemaVersion).toBe(4);
     expect(result.summary.repositories).toBe(2);
     expect(result.summary.probes).toBe(2);
     expect(result.summary.floorViolations).toBe(0);
@@ -57,6 +57,25 @@ describe("controlled sequence experiment", () => {
     expect(result.summary.developmentReliability.loopExcess.noOp.neighborhoodSwap.mean).toBeCloseTo(
       0,
       12,
+    );
+    expect(result.repositories[0]?.means?.confirmatoryReliability.discrepancy).toBe(
+      "exact-polygon-boundary-hausdorff",
+    );
+    expect(
+      result.repositories[0]?.means?.confirmatoryReliability.noiseFloor.neighborhoodSwap.lowerBound,
+    ).toBeLessThanOrEqual(
+      result.repositories[0]?.means?.confirmatoryReliability.noiseFloor.neighborhoodSwap
+        .upperBound ?? -1,
+    );
+    expect(
+      result.summary.confirmatoryReliability.commutatorExcess.neighborhoodSwap.lowerBound.mean,
+    ).toBeLessThanOrEqual(
+      result.summary.confirmatoryReliability.commutatorExcess.neighborhoodSwap.upperBound.mean,
+    );
+    expect(
+      result.summary.confirmatoryReliability.loopExcess.combined.neighborhoodSwap.lowerBound.mean,
+    ).toBeLessThanOrEqual(
+      result.summary.confirmatoryReliability.loopExcess.combined.neighborhoodSwap.upperBound.mean,
     );
   });
 

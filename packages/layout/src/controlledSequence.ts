@@ -1,8 +1,10 @@
 import { clipScale } from "./clip.ts";
 import {
   compareLayoutGeometry,
+  compareSameEndpointBoundaryHausdorffInterval,
   requireSameEndpointGeometryDomain,
   type ComparableCell,
+  type SameEndpointBoundaryHausdorffInterval,
   type TemporalGeometryMetrics,
 } from "./layoutComparison.ts";
 import {
@@ -93,7 +95,10 @@ export function buildControlledSequenceProbe(graph: LayoutSequenceGraph): Contro
   };
 }
 
-type ControlledGeometryMetrics = TemporalGeometryMetrics & { siteDisplacement: number };
+type ControlledGeometryMetrics = TemporalGeometryMetrics & {
+  siteDisplacement: number;
+  boundaryHausdorffInterval: SameEndpointBoundaryHausdorffInterval;
+};
 
 const compareFinal = (
   before: readonly ComparableCell[],
@@ -111,6 +116,7 @@ const compareFinal = (
       siteDisplacements.reduce((sum, displacement) => sum + displacement, 0) /
       Math.max(1, siteDisplacements.length),
     ...compareLayoutGeometry(before, after, scale),
+    boundaryHausdorffInterval: compareSameEndpointBoundaryHausdorffInterval(before, after, scale),
   };
 };
 
@@ -119,7 +125,11 @@ export function runControlledSequenceProbe(
   probe: ControlledSequenceProbe,
   options: ControlledSequenceProbeOptions,
 ) {
-  const captureOptions = { ...options, captureFinalGeometry: true };
+  const captureOptions = {
+    ...options,
+    captureFinalGeometry: true,
+    captureInitialGeometry: true,
+  };
   const executePaths = () => ({
     noOp: runStableNeighborhoodSequence(probe.noOp, captureOptions),
     weight: runStableNeighborhoodSequence(probe.weightReversal, captureOptions),
@@ -178,7 +188,14 @@ export function runControlledSequenceProbe(
       Object.fromEntries(
         SEQUENCE_CONDITION_NAMES.map((condition) => [
           condition,
-          recoveryRuns[name].summary[condition].initialToFinal,
+          {
+            ...recoveryRuns[name].summary[condition].initialToFinal,
+            boundaryHausdorffInterval: compareSameEndpointBoundaryHausdorffInterval(
+              recoveryRuns[name].initialCellGeometry![condition],
+              recoveryRuns[name].finalCellGeometry![condition],
+              scale,
+            ),
+          },
         ]),
       ),
     ]),
@@ -186,12 +203,14 @@ export function runControlledSequenceProbe(
     ControlledRecoveryName,
     Record<
       SequenceConditionName,
-      (typeof recoveryRuns)[ControlledRecoveryName]["summary"][SequenceConditionName]["initialToFinal"]
+      (typeof recoveryRuns)[ControlledRecoveryName]["summary"][SequenceConditionName]["initialToFinal"] & {
+        boundaryHausdorffInterval: SameEndpointBoundaryHausdorffInterval;
+      }
     >
   >;
   const allRuns = [...Object.values(primaryRuns), ...(repeatRuns ? Object.values(repeatRuns) : [])];
   return {
-    schemaVersion: 3 as const,
+    schemaVersion: 4 as const,
     seed: options.seed,
     recovery,
     pathDependence,

@@ -30,7 +30,7 @@ describe("controlled sequence probes", () => {
   it("measures hysteresis and path dependence without treating natural change as drift", () => {
     const result = runControlledSequenceProbe(buildControlledSequenceProbe(graph), { seed: 7 });
 
-    expect(result.schemaVersion).toBe(3);
+    expect(result.schemaVersion).toBe(4);
     expect(result.recovery.noOp.stableNeighborhood.boundaryDisplacement).toBeCloseTo(0, 12);
     expect(result.recovery.weight.stableNeighborhood.boundaryDisplacement).toBeGreaterThanOrEqual(
       0,
@@ -42,7 +42,21 @@ describe("controlled sequence probes", () => {
       0,
     );
     expect(result.pathDependence.stableNeighborhood.boundaryDisplacement).toBeGreaterThanOrEqual(0);
+    expect(
+      result.pathDependence.stableNeighborhood.boundaryHausdorffInterval.lowerBound,
+    ).toBeGreaterThanOrEqual(0);
+    expect(
+      result.pathDependence.stableNeighborhood.boundaryHausdorffInterval.upperBound,
+    ).toBeGreaterThanOrEqual(
+      result.pathDependence.stableNeighborhood.boundaryHausdorffInterval.lowerBound,
+    );
     expect(result.recovery.combined.neighborhoodSwap.boundaryDisplacement).toBeCloseTo(0, 12);
+    expect(
+      result.recovery.combined.neighborhoodSwap.boundaryHausdorffInterval.lowerBound,
+    ).toBeCloseTo(0, 12);
+    expect(
+      result.recovery.combined.neighborhoodSwap.boundaryHausdorffInterval.upperBound,
+    ).toBeGreaterThanOrEqual(0);
     expect(result.pathDependence.neighborhoodSwap.boundaryDisplacement).toBeCloseTo(0, 12);
     expect(result.floorViolations).toBe(0);
   });
@@ -55,6 +69,9 @@ describe("controlled sequence probes", () => {
 
     expect(result.repeatability).not.toBeNull();
     expect(result.repeatability?.orderAB.neighborhoodSwap.boundaryDisplacement).toBeCloseTo(0, 12);
+    expect(
+      result.repeatability?.orderAB.neighborhoodSwap.boundaryHausdorffInterval.lowerBound,
+    ).toBeCloseTo(0, 12);
     expect(
       result.repeatability?.orderBA.stableNeighborhood.boundaryDisplacement,
     ).toBeGreaterThanOrEqual(0);

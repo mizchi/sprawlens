@@ -2,6 +2,7 @@ import { bench, describe } from "vitest";
 import {
   approximateBoundaryHausdorff,
   approximateBoundaryHausdorffByEdge,
+  approximateBoundaryHausdorffWithinTolerance,
 } from "./boundaryHausdorff.ts";
 import type { Ring } from "./polygon.ts";
 
@@ -26,6 +27,10 @@ describe("boundary Hausdorff samplers at comparable geometric error", () => {
 
     bench(`edge-local edges=${edgeCount} subdivisions=${subdivisionsPerEdge}`, () => {
       approximateBoundaryHausdorffByEdge(before, after, subdivisionsPerEdge);
+    });
+
+    bench(`adaptive edge-local edges=${edgeCount} target-error=0.2`, () => {
+      approximateBoundaryHausdorffWithinTolerance(before, after, 0.2);
     });
   }
 });

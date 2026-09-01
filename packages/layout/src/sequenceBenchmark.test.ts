@@ -153,4 +153,18 @@ describe("stateful stable-neighborhood sequence", () => {
       expect.objectContaining({ id: expect.any(String), site: expect.any(Object) }),
     );
   });
+
+  it("captures initial geometry only for endpoint-certified experiments", () => {
+    const compact = runStableNeighborhoodSequence(sequence, { seed: 23 });
+    const captured = runStableNeighborhoodSequence(sequence, {
+      seed: 23,
+      captureInitialGeometry: true,
+    });
+
+    expect(compact).not.toHaveProperty("initialCellGeometry");
+    expect(captured.initialCellGeometry?.stableNeighborhood).toHaveLength(6);
+    expect(captured.initialCellGeometry?.stableNeighborhood).toEqual(
+      captured.initialCellGeometry?.neighborhoodSwap,
+    );
+  });
 });

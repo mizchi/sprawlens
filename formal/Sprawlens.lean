@@ -33,6 +33,7 @@ import Sprawlens.ControlledPathConfluence
 import Sprawlens.HistorySelectorConfluence
 import Sprawlens.ConfluenceDefect
 import Sprawlens.SameEndpointConsistency
+import Sprawlens.EmpiricalQuantile
 import Sprawlens.BoundaryDiscrepancy
 import Sprawlens.PolygonBoundaryMetric
 import Sprawlens.LayoutNoninterference

@@ -1,0 +1,40 @@
+{
+  "schemaVersion": 1,
+  "cases": [
+    {
+      "name": "upper-tail-four-values",
+      "values": [0, 1, 2, 3],
+      "probabilityNumerator": 95,
+      "probabilityDenominator": 100,
+      "expected": 3
+    },
+    {
+      "name": "median-four-values",
+      "values": [0, 1, 2, 3],
+      "probabilityNumerator": 1,
+      "probabilityDenominator": 2,
+      "expected": 1
+    },
+    {
+      "name": "duplicates-and-unsorted-input",
+      "values": [2, 1, 2, 1],
+      "probabilityNumerator": 1,
+      "probabilityDenominator": 2,
+      "expected": 1
+    },
+    {
+      "name": "singleton",
+      "values": [5],
+      "probabilityNumerator": 95,
+      "probabilityDenominator": 100,
+      "expected": 5
+    },
+    {
+      "name": "one-probability-selects-maximum",
+      "values": [7, 3, 4, 4, 9],
+      "probabilityNumerator": 1,
+      "probabilityDenominator": 1,
+      "expected": 9
+    }
+  ]
+}
