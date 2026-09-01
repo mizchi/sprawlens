@@ -9,6 +9,7 @@ export * from "./candidateGenerator.ts";
 export * from "./collinearOverlap.ts";
 export * from "./centrality.ts";
 export * from "./controlledSequence.ts";
+export * from "./controlledEndpoint.ts";
 export * from "./cyclicRingOutput.ts";
 export * from "./deltaLayout.ts";
 export * from "./deltaTypes.ts";

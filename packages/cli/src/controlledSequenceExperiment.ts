@@ -56,6 +56,8 @@ export function runControlledSequenceExperiment(
     seeds?: readonly number[];
     stableHistoryFreeReferenceWeight?: number;
     reliabilityMargin?: number;
+    adaptiveBoundaryHausdorffTargetWidth?: number;
+    adaptiveBoundaryHausdorffMaxSubdivisionsPerEdge?: number;
   } = {},
 ) {
   const seeds = [...(options.seeds ?? [3, 7, 11])];
@@ -82,6 +84,9 @@ export function runControlledSequenceExperiment(
             seed,
             stableHistoryFreeReferenceWeight: options.stableHistoryFreeReferenceWeight,
             captureRepeatability: true,
+            adaptiveBoundaryHausdorffTargetWidth: options.adaptiveBoundaryHausdorffTargetWidth,
+            adaptiveBoundaryHausdorffMaxSubdivisionsPerEdge:
+              options.adaptiveBoundaryHausdorffMaxSubdivisionsPerEdge,
           }),
         }));
       } catch (error) {
@@ -203,6 +208,150 @@ export function runControlledSequenceExperiment(
       ControlledRecoveryName,
       Record<SequenceConditionName, CertifiedNonnegativeInterval>
     >;
+    type ControlledComparison =
+      (typeof probes)[number]["result"]["pathDependence"][SequenceConditionName];
+    const developmentAdaptiveReliability =
+      options.adaptiveBoundaryHausdorffTargetWidth === undefined
+        ? null
+        : (() => {
+            const adaptiveIntervalOf = (comparison: ControlledComparison) => {
+              const interval = comparison.developmentAdaptiveBoundaryHausdorffInterval;
+              if (!interval) {
+                throw new Error("adaptive calibration requires every comparison interval");
+              }
+              return interval;
+            };
+            const adaptiveRepeatabilityIntervals = Object.fromEntries(
+              SEQUENCE_CONDITION_NAMES.map((condition) => [
+                condition,
+                probes.flatMap((probe) => {
+                  const repeatability = probe.result.repeatability;
+                  if (!repeatability) {
+                    throw new Error("controlled experiment requires repeatability runs");
+                  }
+                  return CONTROLLED_REPEATABILITY_PATH_NAMES.map((path) => {
+                    const interval = adaptiveIntervalOf(repeatability[path][condition]);
+                    return { lowerBound: interval.lowerBound, upperBound: interval.upperBound };
+                  });
+                }),
+              ]),
+            ) as Record<SequenceConditionName, CertifiedNonnegativeInterval[]>;
+            const adaptiveNoiseFloor = Object.fromEntries(
+              SEQUENCE_CONDITION_NAMES.map((condition) => {
+                const intervals = adaptiveRepeatabilityIntervals[condition];
+                const probability =
+                  representationReliabilityMetricContractV1.metrics.D_repeat.quantile.probability;
+                return [
+                  condition,
+                  {
+                    lowerBound: empiricalNearestRankQuantile(
+                      intervals.map((interval) => interval.lowerBound),
+                      probability,
+                    ),
+                    upperBound: empiricalNearestRankQuantile(
+                      intervals.map((interval) => interval.upperBound),
+                      probability,
+                    ),
+                  },
+                ];
+              }),
+            ) as Record<SequenceConditionName, CertifiedNonnegativeInterval>;
+            const aggregateAdaptiveExcessIntervals = (
+              condition: SequenceConditionName,
+              pathInterval: (probe: (typeof probes)[number]) => CertifiedNonnegativeInterval,
+            ) => {
+              const samples = probes.map((probe) => ({
+                sequence: probe.sequence,
+                interval: computeExcessDefectInterval(
+                  pathInterval(probe),
+                  adaptiveRepeatabilityIntervals[condition],
+                  reliabilityMargin,
+                ),
+              }));
+              return {
+                lowerBound: meanBySequenceThenRepository(
+                  samples,
+                  (sample) => sample.interval.lowerBound,
+                ),
+                upperBound: meanBySequenceThenRepository(
+                  samples,
+                  (sample) => sample.interval.upperBound,
+                ),
+              };
+            };
+            const adaptiveCommutatorExcess = Object.fromEntries(
+              SEQUENCE_CONDITION_NAMES.map((condition) => [
+                condition,
+                aggregateAdaptiveExcessIntervals(condition, (probe) => {
+                  const interval = adaptiveIntervalOf(probe.result.pathDependence[condition]);
+                  return { lowerBound: interval.lowerBound, upperBound: interval.upperBound };
+                }),
+              ]),
+            ) as Record<SequenceConditionName, CertifiedNonnegativeInterval>;
+            const adaptiveLoopExcess = Object.fromEntries(
+              CONTROLLED_RECOVERY_NAMES.map((recovery) => [
+                recovery,
+                Object.fromEntries(
+                  SEQUENCE_CONDITION_NAMES.map((condition) => [
+                    condition,
+                    aggregateAdaptiveExcessIntervals(condition, (probe) => {
+                      const interval = adaptiveIntervalOf(
+                        probe.result.recovery[recovery][condition],
+                      );
+                      return { lowerBound: interval.lowerBound, upperBound: interval.upperBound };
+                    }),
+                  ]),
+                ) as Record<SequenceConditionName, CertifiedNonnegativeInterval>,
+              ]),
+            ) as Record<
+              ControlledRecoveryName,
+              Record<SequenceConditionName, CertifiedNonnegativeInterval>
+            >;
+            const workloadIntervals = probes.flatMap((probe) => {
+              const repeatability = probe.result.repeatability;
+              if (!repeatability) {
+                throw new Error("controlled experiment requires repeatability runs");
+              }
+              return [
+                ...CONTROLLED_RECOVERY_NAMES.flatMap((recovery) =>
+                  SEQUENCE_CONDITION_NAMES.map((condition) =>
+                    adaptiveIntervalOf(probe.result.recovery[recovery][condition]),
+                  ),
+                ),
+                ...SEQUENCE_CONDITION_NAMES.map((condition) =>
+                  adaptiveIntervalOf(probe.result.pathDependence[condition]),
+                ),
+                ...CONTROLLED_REPEATABILITY_PATH_NAMES.flatMap((path) =>
+                  SEQUENCE_CONDITION_NAMES.map((condition) =>
+                    adaptiveIntervalOf(repeatability[path][condition]),
+                  ),
+                ),
+              ];
+            });
+            return {
+              targetAdditiveErrorBound: options.adaptiveBoundaryHausdorffTargetWidth!,
+              maxSubdivisionsPerEdge:
+                options.adaptiveBoundaryHausdorffMaxSubdivisionsPerEdge ?? 4096,
+              repeatabilityQuantile: "empirical-nearest-rank-0.95" as const,
+              margin: reliabilityMargin,
+              noiseFloor: adaptiveNoiseFloor,
+              commutatorExcess: adaptiveCommutatorExcess,
+              loopExcess: adaptiveLoopExcess,
+              workload: {
+                intervalComparisons: workloadIntervals.length,
+                totalActualSampleCount: workloadIntervals.reduce(
+                  (sum, interval) => sum + interval.actualSampleCount,
+                  0,
+                ),
+                minimumSubdivisionsPerEdge: Math.min(
+                  ...workloadIntervals.map((interval) => interval.minimumSubdivisionsPerEdge),
+                ),
+                maximumSubdivisionsPerEdge: Math.max(
+                  ...workloadIntervals.map((interval) => interval.maximumSubdivisionsPerEdge),
+                ),
+              },
+            };
+          })();
     const commutatorExcess = Object.fromEntries(
       SEQUENCE_CONDITION_NAMES.map((condition) => [
         condition,
@@ -278,6 +427,7 @@ export function runControlledSequenceExperiment(
           commutatorExcess: confirmatoryCommutatorExcess,
           loopExcess: confirmatoryLoopExcess,
         },
+        developmentAdaptiveReliability,
       },
     };
   });
@@ -303,8 +453,18 @@ export function runControlledSequenceExperiment(
         ) as Record<Metric, ReturnType<typeof summarizeSamples>>,
       ]),
     ) as Record<SequenceConditionName, Record<Metric, ReturnType<typeof summarizeSamples>>>;
+  const adaptiveReliability = included.map((repository) => {
+    const calibration = repository.means.developmentAdaptiveReliability;
+    if (options.adaptiveBoundaryHausdorffTargetWidth !== undefined && !calibration) {
+      throw new Error("adaptive calibration missing from an included repository");
+    }
+    return calibration;
+  });
+  const includedAdaptiveReliability = adaptiveReliability.filter(
+    (calibration): calibration is NonNullable<typeof calibration> => calibration !== null,
+  );
   return {
-    schemaVersion: 4 as const,
+    schemaVersion: 5 as const,
     seeds,
     stableHistoryFreeReferenceWeight: options.stableHistoryFreeReferenceWeight ?? 0,
     repositories,
@@ -464,6 +624,104 @@ export function runControlledSequenceExperiment(
           >
         >,
       },
+      developmentAdaptiveReliability:
+        includedAdaptiveReliability.length === 0
+          ? null
+          : {
+              targetAdditiveErrorBound: options.adaptiveBoundaryHausdorffTargetWidth!,
+              maxSubdivisionsPerEdge:
+                options.adaptiveBoundaryHausdorffMaxSubdivisionsPerEdge ?? 4096,
+              repeatabilityQuantile: "empirical-nearest-rank-0.95" as const,
+              margin: reliabilityMargin,
+              noiseFloor: Object.fromEntries(
+                SEQUENCE_CONDITION_NAMES.map((condition) => [
+                  condition,
+                  {
+                    lowerBound: summarizeSamples(
+                      includedAdaptiveReliability.map(
+                        (calibration) => calibration.noiseFloor[condition].lowerBound,
+                      ),
+                    ),
+                    upperBound: summarizeSamples(
+                      includedAdaptiveReliability.map(
+                        (calibration) => calibration.noiseFloor[condition].upperBound,
+                      ),
+                    ),
+                  },
+                ]),
+              ) as Record<
+                SequenceConditionName,
+                Record<keyof CertifiedNonnegativeInterval, ReturnType<typeof summarizeSamples>>
+              >,
+              commutatorExcess: Object.fromEntries(
+                SEQUENCE_CONDITION_NAMES.map((condition) => [
+                  condition,
+                  {
+                    lowerBound: summarizeSamples(
+                      includedAdaptiveReliability.map(
+                        (calibration) => calibration.commutatorExcess[condition].lowerBound,
+                      ),
+                    ),
+                    upperBound: summarizeSamples(
+                      includedAdaptiveReliability.map(
+                        (calibration) => calibration.commutatorExcess[condition].upperBound,
+                      ),
+                    ),
+                  },
+                ]),
+              ) as Record<
+                SequenceConditionName,
+                Record<keyof CertifiedNonnegativeInterval, ReturnType<typeof summarizeSamples>>
+              >,
+              loopExcess: Object.fromEntries(
+                CONTROLLED_RECOVERY_NAMES.map((recovery) => [
+                  recovery,
+                  Object.fromEntries(
+                    SEQUENCE_CONDITION_NAMES.map((condition) => [
+                      condition,
+                      {
+                        lowerBound: summarizeSamples(
+                          includedAdaptiveReliability.map(
+                            (calibration) => calibration.loopExcess[recovery][condition].lowerBound,
+                          ),
+                        ),
+                        upperBound: summarizeSamples(
+                          includedAdaptiveReliability.map(
+                            (calibration) => calibration.loopExcess[recovery][condition].upperBound,
+                          ),
+                        ),
+                      },
+                    ]),
+                  ),
+                ]),
+              ) as Record<
+                ControlledRecoveryName,
+                Record<
+                  SequenceConditionName,
+                  Record<keyof CertifiedNonnegativeInterval, ReturnType<typeof summarizeSamples>>
+                >
+              >,
+              workload: {
+                intervalComparisons: includedAdaptiveReliability.reduce(
+                  (sum, calibration) => sum + calibration.workload.intervalComparisons,
+                  0,
+                ),
+                totalActualSampleCount: includedAdaptiveReliability.reduce(
+                  (sum, calibration) => sum + calibration.workload.totalActualSampleCount,
+                  0,
+                ),
+                minimumSubdivisionsPerEdge: Math.min(
+                  ...includedAdaptiveReliability.map(
+                    (calibration) => calibration.workload.minimumSubdivisionsPerEdge,
+                  ),
+                ),
+                maximumSubdivisionsPerEdge: Math.max(
+                  ...includedAdaptiveReliability.map(
+                    (calibration) => calibration.workload.maximumSubdivisionsPerEdge,
+                  ),
+                ),
+              },
+            },
     },
   };
 }

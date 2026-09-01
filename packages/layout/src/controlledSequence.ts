@@ -1,8 +1,11 @@
 import { clipScale } from "./clip.ts";
+import { requireControlledInputEndpointEqual } from "./controlledEndpoint.ts";
 import {
   compareLayoutGeometry,
+  compareSameEndpointBoundaryHausdorffAdaptiveInterval,
   compareSameEndpointBoundaryHausdorffInterval,
   requireSameEndpointGeometryDomain,
+  type AdaptiveSameEndpointBoundaryHausdorffInterval,
   type ComparableCell,
   type SameEndpointBoundaryHausdorffInterval,
   type TemporalGeometryMetrics,
@@ -36,7 +39,27 @@ export type ControlledRepeatabilityPathName = (typeof CONTROLLED_REPEATABILITY_P
 export type ControlledSequenceProbeOptions = SequenceBenchmarkOptions & {
   /** Execute each controlled path a second time with the same declared inputs. */
   captureRepeatability?: boolean;
+  /** Development-only target width; does not replace the frozen fixed sampler. */
+  adaptiveBoundaryHausdorffTargetWidth?: number;
+  adaptiveBoundaryHausdorffMaxSubdivisionsPerEdge?: number;
 };
+
+/** Validate declared input equality before any layout or geometry comparison. */
+export function requireControlledProbeEndpoints(probe: ControlledSequenceProbe): void {
+  const base = probe.noOp[0];
+  for (const [name, path] of [
+    ["noOp", probe.noOp],
+    ["weight", probe.weightReversal],
+    ["rewire", probe.rewireReversal],
+    ["combined", probe.combinedReversal],
+  ] as const) {
+    requireControlledInputEndpointEqual(`${name} reversal`, path[0], path[2]);
+    requireControlledInputEndpointEqual(`${name} initial`, base, path[0]);
+  }
+  requireControlledInputEndpointEqual("orderAB initial", base, probe.orderAB[0]);
+  requireControlledInputEndpointEqual("orderBA initial", base, probe.orderBA[0]);
+  requireControlledInputEndpointEqual("orderAB/orderBA final", probe.orderAB[2], probe.orderBA[2]);
+}
 
 const cloneGraph = (graph: LayoutSequenceGraph): LayoutSequenceGraph => ({
   nodes: graph.nodes.map((node) => ({ ...node, hint: node.hint ? { ...node.hint } : undefined })),
@@ -98,12 +121,17 @@ export function buildControlledSequenceProbe(graph: LayoutSequenceGraph): Contro
 type ControlledGeometryMetrics = TemporalGeometryMetrics & {
   siteDisplacement: number;
   boundaryHausdorffInterval: SameEndpointBoundaryHausdorffInterval;
+  developmentAdaptiveBoundaryHausdorffInterval?: AdaptiveSameEndpointBoundaryHausdorffInterval;
 };
 
 const compareFinal = (
   before: readonly ComparableCell[],
   after: readonly ComparableCell[],
   scale: number,
+  options: Pick<
+    ControlledSequenceProbeOptions,
+    "adaptiveBoundaryHausdorffTargetWidth" | "adaptiveBoundaryHausdorffMaxSubdivisionsPerEdge"
+  >,
 ): ControlledGeometryMetrics => {
   const pairs = requireSameEndpointGeometryDomain(before, after);
   const siteDisplacements = pairs.map(
@@ -117,6 +145,18 @@ const compareFinal = (
       Math.max(1, siteDisplacements.length),
     ...compareLayoutGeometry(before, after, scale),
     boundaryHausdorffInterval: compareSameEndpointBoundaryHausdorffInterval(before, after, scale),
+    ...(options.adaptiveBoundaryHausdorffTargetWidth === undefined
+      ? {}
+      : {
+          developmentAdaptiveBoundaryHausdorffInterval:
+            compareSameEndpointBoundaryHausdorffAdaptiveInterval(
+              before,
+              after,
+              scale,
+              options.adaptiveBoundaryHausdorffTargetWidth,
+              options.adaptiveBoundaryHausdorffMaxSubdivisionsPerEdge,
+            ),
+        }),
   };
 };
 
@@ -125,6 +165,7 @@ export function runControlledSequenceProbe(
   probe: ControlledSequenceProbe,
   options: ControlledSequenceProbeOptions,
 ) {
+  requireControlledProbeEndpoints(probe);
   const captureOptions = {
     ...options,
     captureFinalGeometry: true,
@@ -151,6 +192,7 @@ export function runControlledSequenceProbe(
           left.finalCellGeometry![condition],
           right.finalCellGeometry![condition],
           clipScale(options.clip ?? DEFAULT_SEQUENCE_CLIP),
+          options,
         ),
       ]),
     ) as Record<SequenceConditionName, ControlledGeometryMetrics>;
@@ -179,7 +221,7 @@ export function runControlledSequenceProbe(
   const pathDependence = Object.fromEntries(
     SEQUENCE_CONDITION_NAMES.map((condition) => [
       condition,
-      compareFinal(finalAB[condition], finalBA[condition], scale),
+      compareFinal(finalAB[condition], finalBA[condition], scale, options),
     ]),
   ) as Record<SequenceConditionName, ControlledGeometryMetrics>;
   const recovery = Object.fromEntries(
@@ -195,6 +237,18 @@ export function runControlledSequenceProbe(
               recoveryRuns[name].finalCellGeometry![condition],
               scale,
             ),
+            ...(options.adaptiveBoundaryHausdorffTargetWidth === undefined
+              ? {}
+              : {
+                  developmentAdaptiveBoundaryHausdorffInterval:
+                    compareSameEndpointBoundaryHausdorffAdaptiveInterval(
+                      recoveryRuns[name].initialCellGeometry![condition],
+                      recoveryRuns[name].finalCellGeometry![condition],
+                      scale,
+                      options.adaptiveBoundaryHausdorffTargetWidth,
+                      options.adaptiveBoundaryHausdorffMaxSubdivisionsPerEdge,
+                    ),
+                }),
           },
         ]),
       ),
@@ -210,7 +264,7 @@ export function runControlledSequenceProbe(
   >;
   const allRuns = [...Object.values(primaryRuns), ...(repeatRuns ? Object.values(repeatRuns) : [])];
   return {
-    schemaVersion: 4 as const,
+    schemaVersion: 5 as const,
     seed: options.seed,
     recovery,
     pathDependence,

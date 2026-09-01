@@ -33,7 +33,7 @@ describe("controlled sequence experiment", () => {
       { seeds: [3] },
     );
 
-    expect(result.schemaVersion).toBe(4);
+    expect(result.schemaVersion).toBe(5);
     expect(result.summary.repositories).toBe(2);
     expect(result.summary.probes).toBe(2);
     expect(result.summary.floorViolations).toBe(0);
@@ -95,5 +95,31 @@ describe("controlled sequence experiment", () => {
     expect(result.summary.repositories).toBe(0);
     expect(result.summary.excludedRepositories).toBe(1);
     expect(result.repositories[0]?.exclusions).toHaveLength(1);
+  });
+
+  it("aggregates adaptive intervals separately as development calibration", () => {
+    const result = runControlledSequenceExperiment(
+      [{ repository: "a/repo", sequences: [{ name: "a", snapshots: [graph("a")] }] }],
+      { seeds: [3], adaptiveBoundaryHausdorffTargetWidth: 0.02 },
+    );
+
+    const calibration = result.summary.developmentAdaptiveReliability;
+    expect(calibration?.targetAdditiveErrorBound).toBe(0.02);
+    expect(calibration?.workload.intervalComparisons).toBe(55);
+    expect(calibration?.workload.totalActualSampleCount).toBeGreaterThan(0);
+    expect(calibration?.workload.minimumSubdivisionsPerEdge).toBeGreaterThan(0);
+    expect(calibration?.workload.maximumSubdivisionsPerEdge).toBeGreaterThanOrEqual(
+      calibration?.workload.minimumSubdivisionsPerEdge ?? Infinity,
+    );
+    expect(calibration?.commutatorExcess.neighborhoodSwap.lowerBound.mean).toBeLessThanOrEqual(
+      calibration?.commutatorExcess.neighborhoodSwap.upperBound.mean ?? -1,
+    );
+    expect(
+      result.repositories[0]?.means?.developmentAdaptiveReliability?.noiseFloor.neighborhoodSwap
+        .lowerBound,
+    ).toBeLessThanOrEqual(
+      result.repositories[0]?.means?.developmentAdaptiveReliability?.noiseFloor.neighborhoodSwap
+        .upperBound ?? -1,
+    );
   });
 });

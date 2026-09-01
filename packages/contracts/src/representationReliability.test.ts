@@ -5,6 +5,7 @@ import {
   computeExcessDefectInterval,
   empiricalNearestRankQuantile,
   parseRepresentationReliabilityMetricContractV1,
+  selectAdaptiveHausdorffTargetFromSesoi,
 } from "./representationReliability.ts";
 
 const validContract = parseRepresentationReliabilityMetricContractV1(
@@ -35,6 +36,41 @@ const nearestRankFixture = JSON.parse(
 describe("parseRepresentationReliabilityMetricContractV1", () => {
   it("accepts the pinned metric and aggregation contract", () => {
     expect(parseRepresentationReliabilityMetricContractV1(validContract)).toEqual(validContract);
+    expect(validContract.inputEndpoint).toMatchObject({
+      graphSchema: "ordered-layout-sequence-graph-v1",
+      order: "node-and-edge-array-order-significant",
+      mismatch: "fail-closed-before-layout",
+    });
+    expect(validContract.observation.representationEquivalence).toEqual({
+      exactBoundarySet: ["cyclic-seam-rotation", "winding-reversal", "on-edge-vertex-insertion"],
+      fixedEdgeSampler:
+        "zero-distance-preserved-but-interval-width-may-change-after-on-edge-vertex-insertion",
+      adaptiveEdgeSampler: "target-width-preserved-not-bitwise-identical-interval",
+    });
+    expect(validContract.observation.transformationLaws).toEqual({
+      commonRigidTransform: "exact-distance-and-normalized-interval-invariant",
+      commonUniformScale:
+        "exact-distance-and-absolute-interval-scale-by-absolute-factor-normalized-interval-invariant",
+      zeroScale: "outside-domain-fail-closed",
+    });
+    expect(validContract.adaptivePrecisionSelection).toEqual({
+      status: "pending-preregistered-sesoi",
+      candidateTargets: [0.03, 0.02, 0.01],
+      derivedWidthUpperBound: "path-target-plus-noise-target",
+      uncertaintyBudget: "derived-sampling-width-at-most-sesoi-half",
+      eligibilityRule: "target-at-most-sesoi-quarter",
+      selectionRule: "largest-eligible-preregistered-target",
+      observedEffectDependence: "forbidden",
+    });
+  });
+
+  it("rejects weakening ordered endpoint equality", () => {
+    expect(() =>
+      parseRepresentationReliabilityMetricContractV1({
+        ...validContract,
+        inputEndpoint: { ...validContract.inputEndpoint, order: "unordered-node-set" },
+      }),
+    ).toThrow(/inputEndpoint.order/);
   });
 
   it("rejects a different discrepancy", () => {
@@ -119,5 +155,44 @@ describe("noise-adjusted defect primitives", () => {
         0,
       ),
     ).toThrow(/repeatability interval/);
+  });
+});
+
+describe("SESOI-driven adaptive Hausdorff target selection", () => {
+  it("selects the coarsest preregistered target satisfying target <= SESOI / 4", () => {
+    expect(selectAdaptiveHausdorffTargetFromSesoi(0.08, [0.01, 0.03, 0.02])).toEqual({
+      sesoi: 0.08,
+      maximumDerivedSamplingUncertainty: 0.04,
+      maximumPerIntervalTarget: 0.02,
+      selectedTarget: 0.02,
+      eligibleTargets: [0.02, 0.01],
+    });
+  });
+
+  it("selects 0.01 when a 0.04 SESOI is preregistered", () => {
+    expect(selectAdaptiveHausdorffTargetFromSesoi(0.04, [0.03, 0.02, 0.01]).selectedTarget).toBe(
+      0.01,
+    );
+  });
+
+  it("fails closed when no candidate can meet the uncertainty budget", () => {
+    expect(() => selectAdaptiveHausdorffTargetFromSesoi(0.02, [0.03, 0.02, 0.01])).toThrow(
+      /no preregistered adaptive target satisfies SESOI \/ 4/,
+    );
+  });
+
+  it("rejects invalid SESOI values and candidate sets", () => {
+    expect(() => selectAdaptiveHausdorffTargetFromSesoi(0, [0.01])).toThrow(
+      /positive finite SESOI/,
+    );
+    expect(() => selectAdaptiveHausdorffTargetFromSesoi(0.08, [])).toThrow(
+      /at least one preregistered adaptive target/,
+    );
+    expect(() => selectAdaptiveHausdorffTargetFromSesoi(0.08, [0.01, Number.NaN])).toThrow(
+      /positive finite adaptive targets/,
+    );
+    expect(() => selectAdaptiveHausdorffTargetFromSesoi(0.08, [0.01, 0.01])).toThrow(
+      /must be unique/,
+    );
   });
 });

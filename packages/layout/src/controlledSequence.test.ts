@@ -1,6 +1,11 @@
 import { describe, expect, it } from "vitest";
 import type { AtlasEdge } from "@sprawlens/contracts";
-import { buildControlledSequenceProbe, runControlledSequenceProbe } from "./controlledSequence.ts";
+import {
+  buildControlledSequenceProbe,
+  requireControlledProbeEndpoints,
+  runControlledSequenceProbe,
+} from "./controlledSequence.ts";
+import { controlledInputEndpointSignature } from "./controlledEndpoint.ts";
 import type { LayoutSequenceGraph } from "./sequenceBenchmark.ts";
 
 const graph: LayoutSequenceGraph = {
@@ -25,12 +30,64 @@ describe("controlled sequence probes", () => {
     expect(probe.orderAB[0]).toEqual(probe.orderBA[0]);
     expect(probe.orderAB.at(-1)).toEqual(probe.orderBA.at(-1));
     expect(probe.orderAB[1]).not.toEqual(probe.orderBA[1]);
+    expect(() => requireControlledProbeEndpoints(probe)).not.toThrow();
+  });
+
+  it("includes request order, weights, hints, and ordered edges in the endpoint signature", () => {
+    const base: LayoutSequenceGraph = {
+      nodes: [
+        { id: "a", weight: 1, hint: { x: 2, y: 3 } },
+        { id: "b", weight: 2 },
+      ],
+      edges: [
+        { source: "a", target: "b" },
+        { source: "b", target: "a" },
+      ],
+    };
+    const signature = controlledInputEndpointSignature(base);
+
+    expect(
+      controlledInputEndpointSignature({ ...base, nodes: [...base.nodes].reverse() }),
+    ).not.toBe(signature);
+    expect(
+      controlledInputEndpointSignature({
+        ...base,
+        nodes: [{ ...base.nodes[0]!, weight: 1.5 }, base.nodes[1]!],
+      }),
+    ).not.toBe(signature);
+    expect(
+      controlledInputEndpointSignature({
+        ...base,
+        nodes: [{ ...base.nodes[0]!, hint: { x: 2, y: 4 } }, base.nodes[1]!],
+      }),
+    ).not.toBe(signature);
+    expect(
+      controlledInputEndpointSignature({ ...base, edges: [...base.edges].reverse() }),
+    ).not.toBe(signature);
+    expect(() =>
+      controlledInputEndpointSignature({
+        ...base,
+        nodes: [{ ...base.nodes[0]!, weight: Number.NaN }, base.nodes[1]!],
+      }),
+    ).toThrow(/must be finite/);
+  });
+
+  it("fails closed before layout when declared path endpoints differ", () => {
+    const probe = buildControlledSequenceProbe(graph);
+    probe.orderBA[2].nodes[0]!.weight += 1;
+
+    expect(() => runControlledSequenceProbe(probe, { seed: 7 })).toThrow(
+      /orderAB\/orderBA final endpoint mismatch/,
+    );
   });
 
   it("measures hysteresis and path dependence without treating natural change as drift", () => {
     const result = runControlledSequenceProbe(buildControlledSequenceProbe(graph), { seed: 7 });
 
-    expect(result.schemaVersion).toBe(4);
+    expect(result.schemaVersion).toBe(5);
+    expect(
+      result.pathDependence.stableNeighborhood.developmentAdaptiveBoundaryHausdorffInterval,
+    ).toBeUndefined();
     expect(result.recovery.noOp.stableNeighborhood.boundaryDisplacement).toBeCloseTo(0, 12);
     expect(result.recovery.weight.stableNeighborhood.boundaryDisplacement).toBeGreaterThanOrEqual(
       0,
@@ -75,6 +132,20 @@ describe("controlled sequence probes", () => {
     expect(
       result.repeatability?.orderBA.stableNeighborhood.boundaryDisplacement,
     ).toBeGreaterThanOrEqual(0);
+  });
+
+  it("adds a development-only adaptive interval when a target width is declared", () => {
+    const result = runControlledSequenceProbe(buildControlledSequenceProbe(graph), {
+      seed: 7,
+      adaptiveBoundaryHausdorffTargetWidth: 0.02,
+    });
+
+    const interval =
+      result.pathDependence.stableNeighborhood.developmentAdaptiveBoundaryHausdorffInterval;
+    expect(interval?.estimator).toBe("adaptive-edge-local-polygon-boundary-sampling");
+    expect(interval?.targetAdditiveErrorBound).toBe(0.02);
+    expect(interval?.additiveErrorBound).toBeLessThanOrEqual(0.02 + 1e-12);
+    expect(interval?.actualSampleCount).toBeGreaterThan(0);
   });
 
   it("can select a path-independent deterministic history-free reference", () => {

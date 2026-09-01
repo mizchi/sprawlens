@@ -20,8 +20,24 @@ const numberOption = (name: string, fallback: number) => {
   if (!Number.isFinite(value) || value < 0) throw new Error(`${name} must be non-negative`);
   return value;
 };
+const optionalPositiveNumberOption = (name: string) => {
+  const index = process.argv.indexOf(name);
+  if (index < 0) return undefined;
+  const value = Number(process.argv[index + 1]);
+  if (!Number.isFinite(value) || value <= 0) throw new Error(`${name} must be positive`);
+  return value;
+};
+const optionalPositiveIntegerOption = (name: string) => {
+  const value = optionalPositiveNumberOption(name);
+  if (value !== undefined && !Number.isSafeInteger(value)) {
+    throw new Error(`${name} must be a safe integer`);
+  }
+  return value;
+};
 const historyFreeReferenceWeight = numberOption("--history-free-weight", 0);
 const reliabilityMargin = numberOption("--reliability-margin", 0);
+const adaptiveTargetWidth = optionalPositiveNumberOption("--adaptive-target-width");
+const adaptiveMaxSubdivisions = optionalPositiveIntegerOption("--adaptive-max-subdivisions");
 
 const manifestBytes = await readFile(manifestPath);
 const manifestHash = createHash("sha256").update(manifestBytes).digest("hex");
@@ -44,15 +60,20 @@ for (const repository of manifest.repositories) {
   );
   datasets.push({ repository: repository.fullName, sequences: dataset.sequences });
 }
+const experimentStartedAt = performance.now();
 const result = runControlledSequenceExperiment(datasets, {
   seeds: manifest.selectionProtocol.benchmark.seeds,
   stableHistoryFreeReferenceWeight: historyFreeReferenceWeight,
   reliabilityMargin,
+  adaptiveBoundaryHausdorffTargetWidth: adaptiveTargetWidth,
+  adaptiveBoundaryHausdorffMaxSubdivisionsPerEdge: adaptiveMaxSubdivisions,
 });
+const experimentElapsedMilliseconds = performance.now() - experimentStartedAt;
 const artifact = {
   status: "post-hoc controlled-sequence development experiment" as const,
   manifestHash,
   generatedAt: new Date().toISOString(),
+  experimentElapsedMilliseconds,
   ...result,
 };
 const format = (value: { mean: number; ci95: readonly [number, number] }) =>
@@ -61,6 +82,7 @@ const formatCertifiedInterval = (value: {
   lowerBound: { mean: number };
   upperBound: { mean: number };
 }) => `[${value.lowerBound.mean.toFixed(5)}, ${value.upperBound.mean.toFixed(5)}]`;
+const adaptiveCalibration = result.summary.developmentAdaptiveReliability;
 const conditions = [
   "neighborhoodSwap",
   "computeMatchedNeighborhood",
@@ -114,6 +136,30 @@ ${conditions
       `| ${condition} | ${formatCertifiedInterval(result.summary.confirmatoryReliability.loopExcess.noOp[condition])} | ${formatCertifiedInterval(result.summary.confirmatoryReliability.loopExcess.weight[condition])} | ${formatCertifiedInterval(result.summary.confirmatoryReliability.loopExcess.rewire[condition])} | ${formatCertifiedInterval(result.summary.confirmatoryReliability.loopExcess.combined[condition])} | ${formatCertifiedInterval(result.summary.confirmatoryReliability.commutatorExcess[condition])} |`,
   )
   .join("\n")}
+
+${
+  adaptiveCalibration
+    ? `## Adaptive sampler calibration
+
+Development-only calibrationであり、上の固定8分割confirmatory値を置き換えない。正規化target幅は${adaptiveCalibration.targetAdditiveErrorBound}、最大分割数は${adaptiveCalibration.maxSubdivisionsPerEdge}。全${adaptiveCalibration.workload.intervalComparisons}比較で${adaptiveCalibration.workload.totalActualSampleCount} sampleを評価し、一比較平均は${(
+        adaptiveCalibration.workload.totalActualSampleCount /
+        adaptiveCalibration.workload.intervalComparisons
+      ).toFixed(
+        1,
+      )} sample、分割数範囲は${adaptiveCalibration.workload.minimumSubdivisionsPerEdge}--${adaptiveCalibration.workload.maximumSubdivisionsPerEdge}、experiment本体のwall timeは${(
+        experimentElapsedMilliseconds / 1000
+      ).toFixed(2)}秒だった。
+
+| condition | no-op excess | weight-loop excess | rewire-loop excess | combined-loop excess | commutator excess |
+| --- | ---: | ---: | ---: | ---: | ---: |
+${conditions
+  .map(
+    (condition) =>
+      `| ${condition} | ${formatCertifiedInterval(adaptiveCalibration.loopExcess.noOp[condition])} | ${formatCertifiedInterval(adaptiveCalibration.loopExcess.weight[condition])} | ${formatCertifiedInterval(adaptiveCalibration.loopExcess.rewire[condition])} | ${formatCertifiedInterval(adaptiveCalibration.loopExcess.combined[condition])} | ${formatCertifiedInterval(adaptiveCalibration.commutatorExcess[condition])} |`,
+  )
+  .join("\n")}`
+    : ""
+}
 
 ## Development noise-adjusted reliability
 

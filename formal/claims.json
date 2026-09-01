@@ -914,6 +914,7 @@
         "packages/contracts/src/numericGeometry.test.ts",
         "packages/contracts/src/representationReliability.ts",
         "packages/contracts/src/representationReliability.test.ts",
+        "packages/layout/src/controlledEndpoint.ts",
         "packages/layout/src/controlledSequence.ts",
         "packages/layout/src/controlledSequence.test.ts",
         "packages/cli/src/controlledSequenceExperiment.ts",
@@ -926,7 +927,7 @@
         "formal/TestVectors/empirical-nearest-rank.json",
         "research/representation-reliability-metric-contract.json"
       ],
-      "leanModule": "Sprawlens.LayoutConfluence and Sprawlens.ControlledPathConfluence and Sprawlens.HistorySelectorConfluence and Sprawlens.ConfluenceDefect and Sprawlens.SameEndpointConsistency and Sprawlens.EmpiricalQuantile and Sprawlens.BoundaryDiscrepancy and Sprawlens.PolygonBoundaryMetric and Sprawlens.HausdorffApproximation and Sprawlens.ArcLengthSampling and Sprawlens.PolygonBoundarySampling and Sprawlens.FiniteHausdorffMaximum and Sprawlens.SegmentProjection and Sprawlens.PolygonProjectionDistance and Sprawlens.ProjectionInputError",
+      "leanModule": "Sprawlens.LayoutConfluence and Sprawlens.ControlledPathConfluence and Sprawlens.HistorySelectorConfluence and Sprawlens.ConfluenceDefect and Sprawlens.SameEndpointConsistency and Sprawlens.EmpiricalQuantile and Sprawlens.BoundaryDiscrepancy and Sprawlens.PolygonBoundaryMetric and Sprawlens.HausdorffTransformation and Sprawlens.HausdorffApproximation and Sprawlens.ArcLengthSampling and Sprawlens.PolygonBoundarySampling and Sprawlens.FiniteHausdorffMaximum and Sprawlens.SegmentProjection and Sprawlens.PolygonProjectionDistance and Sprawlens.ProjectionInputError",
       "theorems": [
         "runEdits_append",
         "runEdits_swap",
@@ -956,6 +957,8 @@
         "excessDefect_eq_zero_iff",
         "excessDefect_pos_iff",
         "excessDefect_interval_bounds",
+        "excessDefect_interval_width_le",
+        "excessDefect_interval_width_le_two_mul",
         "arithmeticMean_interval_bounds",
         "nearestRank_le_of_pointwise_le",
         "empiricalNearestRank_hasNearestRank",
@@ -983,6 +986,11 @@
         "hausdorffDist_polygonBoundarySet_rotate_eq_zero",
         "hausdorffDist_polygonBoundarySet_reverse_eq_zero",
         "polygonBoundaryDifference_insert_after_first_eq_zero",
+        "hausdorffDist_image_isometry",
+        "normalizedHausdorffDist_image_isometry",
+        "hausdorffEDist_smul_of_ne_zero",
+        "hausdorffDist_smul_of_ne_zero",
+        "normalizedHausdorffDist_smul_of_ne_zero",
         "certifiedHausdorff_upper",
         "certifiedHausdorff_lower",
         "certifiedHausdorff_interval",
@@ -1054,7 +1062,7 @@
         "normalizedCoordinateProjectionRatio_eq"
       ],
       "status": "proved-abstract-transition-and-discrepancy-model-with-executable-selector-witness-boundary-metric-counterexample-certified-hausdorff-sampling-interval-uniform-closed-trace-epsilon-net-edge-local-polygon-epsilon-net-minimal-adaptive-subdivision-count-attained-finite-sample-maximum-and-exact-real-clamped-polygon-projection",
-      "implementationCorrespondence": "shared-fixture-conformance-9-selector-cases-plus-8-point-segment-cases-typescript-uses-the-production-vector-feasible-envelope-with-euclidean-predecessor-displacement-a-fail-closed-fixed-total-symmetric-sampled-hausdorff-maximum-a-fixed-edge-local-sampler-and-a-tolerance-driven-edge-local-sampler-that-rejects-resolution-budget-misses-the-exact-real-uniform-closed-trace-edge-local-polygon-epsilon-net-minimal-positive-adaptive-subdivision-count-explicit-finite-sample-carrier-attained-symmetric-infdist-maximum-clamped-point-to-segment-infdist-and-polygon-edge-minimum-contracts-are-proved-backend-floating-point-universal-refinement-is-deliberately-out-of-scope-while-tolerance-selection-real-candidate-generator-and-repository-sequence-remain-empirical"
+      "implementationCorrespondence": "shared-fixture-conformance-9-selector-cases-plus-8-point-segment-cases-typescript-uses-the-production-vector-feasible-envelope-with-euclidean-predecessor-displacement-an-ordered-input-endpoint-signature-covering-node-id-weight-hint-and-edge-fields-with-pre-layout-fail-closed-path-checks-a-fail-closed-fixed-total-symmetric-sampled-hausdorff-maximum-a-fixed-edge-local-sampler-with-an-explicit-redundant-vertex-interval-width-sensitivity-regression-common-rigid-transform-and-uniform-scale-metamorphic-regressions-a-result-independent-sesoi-quarter-adaptive-target-selector-and-a-tolerance-driven-edge-local-sampler-that-preserves-the-declared-width-across-that-representation-change-and-rejects-resolution-budget-misses-the-exact-real-isometry-invariance-nonzero-uniform-scale-covariance-normalized-scale-invariance-uniform-closed-trace-edge-local-polygon-epsilon-net-minimal-positive-adaptive-subdivision-count-explicit-finite-sample-carrier-attained-symmetric-infdist-maximum-clamped-point-to-segment-infdist-and-polygon-edge-minimum-contracts-are-proved-backend-floating-point-universal-refinement-is-deliberately-out-of-scope-while-hierarchy-input-preregistered-sesoi-value-real-candidate-generator-and-repository-sequence-remain-empirical"
     },
     {
       "id": "adjacent.clipping.canonical-permutation-contract",

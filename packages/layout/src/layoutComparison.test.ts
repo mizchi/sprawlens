@@ -26,6 +26,16 @@ const square = (id: string, x: number, y: number): ComparableCell => ({
   ],
 });
 
+const transformCells = (
+  cells: readonly ComparableCell[],
+  transform: (point: { x: number; y: number }) => { x: number; y: number },
+): ComparableCell[] =>
+  cells.map((cell) => ({
+    ...cell,
+    site: transform(cell.site),
+    polygon: cell.polygon.map(transform),
+  }));
+
 describe("independent temporal layout metrics", () => {
   it("returns zero change for identical geometry", () => {
     const cells = [square("a", 0, 0), square("b", 2, 0)];
@@ -152,6 +162,42 @@ describe("same-endpoint boundary Hausdorff interval", () => {
       /positive finite normalization scale/,
     );
   });
+
+  it("is invariant under a common rigid transform", () => {
+    const before = [square("a", 0, 0), square("b", 2, 0)];
+    const after = [square("a", 1, 0), square("b", 2, 1)];
+    const rotateThenTranslate = ({ x, y }: { x: number; y: number }) => ({
+      x: 10 - y,
+      y: -4 + x,
+    });
+
+    const original = compareSameEndpointBoundaryHausdorffInterval(before, after, 4);
+    const transformed = compareSameEndpointBoundaryHausdorffInterval(
+      transformCells(before, rotateThenTranslate),
+      transformCells(after, rotateThenTranslate),
+      4,
+    );
+
+    expect(transformed).toEqual(original);
+  });
+
+  it("is invariant when geometry and normalization scale are uniformly scaled", () => {
+    const before = [square("a", 0, 0), square("b", 2, 0)];
+    const after = [square("a", 1, 0), square("b", 2, 1)];
+    const uniformScale = ({ x, y }: { x: number; y: number }) => ({ x: 3 * x, y: 3 * y });
+
+    const original = compareSameEndpointBoundaryHausdorffInterval(before, after, 4);
+    const scaled = compareSameEndpointBoundaryHausdorffInterval(
+      transformCells(before, uniformScale),
+      transformCells(after, uniformScale),
+      12,
+    );
+
+    expect(scaled.estimate).toBeCloseTo(original.estimate, 12);
+    expect(scaled.additiveErrorBound).toBeCloseTo(original.additiveErrorBound, 12);
+    expect(scaled.lowerBound).toBeCloseTo(original.lowerBound, 12);
+    expect(scaled.upperBound).toBeCloseTo(original.upperBound, 12);
+  });
 });
 
 describe("certified boundary Hausdorff approximation", () => {
@@ -213,6 +259,10 @@ describe("certified boundary Hausdorff approximation", () => {
 
 describe("edge-local certified boundary Hausdorff approximation", () => {
   const unitSquare = square("a", 0, 0).polygon;
+  const subdividedSquare = unitSquare.flatMap((start, index) => {
+    const end = unitSquare[(index + 1) % unitSquare.length]!;
+    return [start, { x: (start.x + end.x) / 2, y: (start.y + end.y) / 2 }];
+  });
 
   it("fails closed for an empty boundary", () => {
     expect(approximateBoundaryHausdorffByEdge([], unitSquare, 4)).toEqual({
@@ -245,6 +295,56 @@ describe("edge-local certified boundary Hausdorff approximation", () => {
     expect(1).toBeLessThanOrEqual(approximation.estimate + approximation.additiveErrorBound);
   });
 
+  it("separates exact boundary equivalence from fixed-resolution interval identity", () => {
+    const original = approximateBoundaryHausdorffByEdge(unitSquare, unitSquare, 8);
+    const subdivided = approximateBoundaryHausdorffByEdge(subdividedSquare, subdividedSquare, 8);
+
+    expect(original.status).toBe("ok");
+    expect(subdivided.status).toBe("ok");
+    if (original.status !== "ok" || subdivided.status !== "ok") return;
+    expect(original.estimate).toBe(0);
+    expect(subdivided.estimate).toBe(0);
+    expect(subdivided.additiveErrorBound).toBe(original.additiveErrorBound / 2);
+  });
+
+  it("preserves the absolute interval under a common rigid transform", () => {
+    const translated = unitSquare.map(({ x, y }) => ({ x: x + 0.4, y }));
+    const rigid = ({ x, y }: { x: number; y: number }) => ({ x: 7 - y, y: -3 + x });
+    const original = approximateBoundaryHausdorffByEdge(unitSquare, translated, 8);
+    const transformed = approximateBoundaryHausdorffByEdge(
+      unitSquare.map(rigid),
+      translated.map(rigid),
+      8,
+    );
+
+    expect(original.status).toBe("ok");
+    expect(transformed.status).toBe("ok");
+    if (original.status !== "ok" || transformed.status !== "ok") return;
+    expect(transformed.estimate).toBeCloseTo(original.estimate, 12);
+    expect(transformed.additiveErrorBound).toBeCloseTo(original.additiveErrorBound, 12);
+  });
+
+  it("scales the absolute interval by the common uniform factor", () => {
+    const translated = unitSquare.map(({ x, y }) => ({ x: x + 0.4, y }));
+    const factor = 3;
+    const scalePoint = ({ x, y }: { x: number; y: number }) => ({
+      x: factor * x,
+      y: factor * y,
+    });
+    const original = approximateBoundaryHausdorffByEdge(unitSquare, translated, 8);
+    const scaled = approximateBoundaryHausdorffByEdge(
+      unitSquare.map(scalePoint),
+      translated.map(scalePoint),
+      8,
+    );
+
+    expect(original.status).toBe("ok");
+    expect(scaled.status).toBe("ok");
+    if (original.status !== "ok" || scaled.status !== "ok") return;
+    expect(scaled.estimate).toBeCloseTo(factor * original.estimate, 12);
+    expect(scaled.additiveErrorBound).toBeCloseTo(factor * original.additiveErrorBound, 12);
+  });
+
   it("rejects invalid subdivisions per edge", () => {
     expect(() => approximateBoundaryHausdorffByEdge(unitSquare, unitSquare, 0)).toThrow(RangeError);
     expect(() => approximateBoundaryHausdorffByEdge(unitSquare, unitSquare, 2.5)).toThrow(
@@ -255,6 +355,10 @@ describe("edge-local certified boundary Hausdorff approximation", () => {
 
 describe("tolerance-driven boundary Hausdorff approximation", () => {
   const unitSquare = square("a", 0, 0).polygon;
+  const subdividedSquare = unitSquare.flatMap((start, index) => {
+    const end = unitSquare[(index + 1) % unitSquare.length]!;
+    return [start, { x: (start.x + end.x) / 2, y: (start.y + end.y) / 2 }];
+  });
 
   it("selects the smallest edge subdivision count meeting the tolerance", () => {
     expect(approximateBoundaryHausdorffWithinTolerance(unitSquare, unitSquare, 0.3)).toEqual({
@@ -274,6 +378,25 @@ describe("tolerance-driven boundary Hausdorff approximation", () => {
       requiredSubdivisionsPerEdge: 10,
       maxSubdivisionsPerEdge: 5,
     });
+  });
+
+  it("preserves the declared width across equivalent redundant vertex representations", () => {
+    const original = approximateBoundaryHausdorffWithinTolerance(unitSquare, unitSquare, 0.1);
+    const subdivided = approximateBoundaryHausdorffWithinTolerance(
+      subdividedSquare,
+      subdividedSquare,
+      0.1,
+    );
+
+    expect(original.status).toBe("ok");
+    expect(subdivided.status).toBe("ok");
+    if (original.status !== "ok" || subdivided.status !== "ok") return;
+    expect(original.estimate).toBe(0);
+    expect(subdivided.estimate).toBe(0);
+    expect(original.additiveErrorBound).toBeLessThanOrEqual(0.1);
+    expect(subdivided.additiveErrorBound).toBeLessThanOrEqual(0.1);
+    expect(original.subdivisionsPerEdge).toBe(10);
+    expect(subdivided.subdivisionsPerEdge).toBe(5);
   });
 
   it("rejects invalid tolerance and resolution budgets", () => {
@@ -316,6 +439,26 @@ describe("adaptive same-endpoint boundary Hausdorff interval", () => {
         10,
       ),
     ).toThrow(/resolution budget exceeded/);
+  });
+
+  it("preserves normalized tolerance and resolution under uniform scaling", () => {
+    const before = [square("a", 0, 0), square("b", 2, 0)];
+    const after = [square("a", 1, 0), square("b", 2, 1)];
+    const uniformScale = ({ x, y }: { x: number; y: number }) => ({ x: 4 * x, y: 4 * y });
+
+    const original = compareSameEndpointBoundaryHausdorffAdaptiveInterval(before, after, 4, 0.05);
+    const scaled = compareSameEndpointBoundaryHausdorffAdaptiveInterval(
+      transformCells(before, uniformScale),
+      transformCells(after, uniformScale),
+      16,
+      0.05,
+    );
+
+    expect(scaled.minimumSubdivisionsPerEdge).toBe(original.minimumSubdivisionsPerEdge);
+    expect(scaled.maximumSubdivisionsPerEdge).toBe(original.maximumSubdivisionsPerEdge);
+    expect(scaled.actualSampleCount).toBe(original.actualSampleCount);
+    expect(scaled.estimate).toBeCloseTo(original.estimate, 12);
+    expect(scaled.additiveErrorBound).toBeCloseTo(original.additiveErrorBound, 12);
   });
 });
 

@@ -36,6 +36,7 @@ import Sprawlens.SameEndpointConsistency
 import Sprawlens.EmpiricalQuantile
 import Sprawlens.BoundaryDiscrepancy
 import Sprawlens.PolygonBoundaryMetric
+import Sprawlens.HausdorffTransformation
 import Sprawlens.LayoutNoninterference
 import Sprawlens.HierarchyNoninterference
 import Sprawlens.ExternalSupport

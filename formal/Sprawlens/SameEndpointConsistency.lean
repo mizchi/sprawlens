@@ -263,6 +263,46 @@ theorem excessDefect_interval_bounds
     apply max_le_max (le_refl 0)
     linarith
 
+/-- The derived excess-defect interval widens by no more than the sum of the
+path and noise interval widths. This turns a base sampler tolerance into an
+a-priori precision budget for the reported quantity. -/
+theorem excessDefect_interval_width_le
+    (pathLower pathUpper noiseLower noiseUpper margin : ℝ)
+    (pathBounds : pathLower ≤ pathUpper)
+    (noiseBounds : noiseLower ≤ noiseUpper) :
+    excessDefect pathUpper noiseLower margin -
+        excessDefect pathLower noiseUpper margin ≤
+      (pathUpper - pathLower) + (noiseUpper - noiseLower) := by
+  unfold excessDefect
+  calc
+    max 0 (pathUpper - noiseLower - margin) -
+          max 0 (pathLower - noiseUpper - margin) ≤
+        max (0 - 0)
+          ((pathUpper - noiseLower - margin) -
+            (pathLower - noiseUpper - margin)) :=
+      max_sub_max_le_max _ _ _ _
+    _ = (pathUpper - pathLower) + (noiseUpper - noiseLower) := by
+      rw [sub_self, max_eq_right]
+      · ring
+      · linarith
+
+theorem excessDefect_interval_width_le_two_mul
+    (pathLower pathUpper noiseLower noiseUpper margin target : ℝ)
+    (pathBounds : pathLower ≤ pathUpper)
+    (noiseBounds : noiseLower ≤ noiseUpper)
+    (pathWidth : pathUpper - pathLower ≤ target)
+    (noiseWidth : noiseUpper - noiseLower ≤ target) :
+    excessDefect pathUpper noiseLower margin -
+        excessDefect pathLower noiseUpper margin ≤
+      2 * target := by
+  calc
+    excessDefect pathUpper noiseLower margin -
+          excessDefect pathLower noiseUpper margin ≤
+        (pathUpper - pathLower) + (noiseUpper - noiseLower) :=
+      excessDefect_interval_width_le
+        pathLower pathUpper noiseLower noiseUpper margin pathBounds noiseBounds
+    _ ≤ 2 * target := by linarith
+
 /-- Pointwise certified intervals remain certified after the arithmetic mean
 used for stable-cell, seed, sequence, and repository aggregation. -/
 theorem arithmeticMean_interval_bounds

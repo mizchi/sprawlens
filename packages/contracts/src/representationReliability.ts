@@ -1,10 +1,31 @@
 export const representationReliabilityMetricContractV1 = {
   schemaVersion: 1,
   status: "target-confirmatory-contract",
+  inputEndpoint: {
+    schemaVersion: 1,
+    graphSchema: "ordered-layout-sequence-graph-v1",
+    nodeFields: ["id", "weight", "hint-presence", "hint-x", "hint-y"],
+    edgeFields: ["source", "target"],
+    order: "node-and-edge-array-order-significant",
+    hierarchy: "not-represented-by-layout-sequence-graph-v1",
+    mismatch: "fail-closed-before-layout",
+  },
   observation: {
     identityDomain: "same-stable-cell-id-set",
     boundaryDomain: "nonempty-polygon-boundaries",
     canonicalization: "boundary-set",
+    representationEquivalence: {
+      exactBoundarySet: ["cyclic-seam-rotation", "winding-reversal", "on-edge-vertex-insertion"],
+      fixedEdgeSampler:
+        "zero-distance-preserved-but-interval-width-may-change-after-on-edge-vertex-insertion",
+      adaptiveEdgeSampler: "target-width-preserved-not-bitwise-identical-interval",
+    },
+    transformationLaws: {
+      commonRigidTransform: "exact-distance-and-normalized-interval-invariant",
+      commonUniformScale:
+        "exact-distance-and-absolute-interval-scale-by-absolute-factor-normalized-interval-invariant",
+      zeroScale: "outside-domain-fail-closed",
+    },
     discrepancy: "exact-polygon-boundary-hausdorff",
     estimator: {
       kind: "edge-local-polygon-boundary-sampling",
@@ -14,6 +35,15 @@ export const representationReliabilityMetricContractV1 = {
     cellAggregation: "arithmetic-mean-sorted-by-stable-id",
     normalization: "divide-by-max-clip-extent",
     unit: "fraction-of-max-clip-extent",
+  },
+  adaptivePrecisionSelection: {
+    status: "pending-preregistered-sesoi",
+    candidateTargets: [0.03, 0.02, 0.01],
+    derivedWidthUpperBound: "path-target-plus-noise-target",
+    uncertaintyBudget: "derived-sampling-width-at-most-sesoi-half",
+    eligibilityRule: "target-at-most-sesoi-quarter",
+    selectionRule: "largest-eligible-preregistered-target",
+    observedEffectDependence: "forbidden",
   },
   metrics: {
     D_comm: { leftPath: ["A", "B"], rightPath: ["B", "A"] },
@@ -96,6 +126,57 @@ export function empiricalNearestRankQuantile(values: readonly number[], probabil
   values.forEach((value) => assertFiniteNonnegative(value, "repeatability defect"));
   const sorted = [...values].sort((left, right) => left - right);
   return sorted[Math.ceil(probability * sorted.length) - 1]!;
+}
+
+export type AdaptiveHausdorffSesoiSelection = {
+  sesoi: number;
+  maximumDerivedSamplingUncertainty: number;
+  maximumPerIntervalTarget: number;
+  selectedTarget: number;
+  eligibleTargets: number[];
+};
+
+/**
+ * Result-independent precision selection for the certified derived defect.
+ *
+ * Lean proves that the derived interval width is at most twice the per-input
+ * target. Requiring that uncertainty to consume at most half the SESOI gives
+ * `target <= SESOI / 4`. The coarsest eligible preregistered target minimizes
+ * work without consulting observed effects.
+ */
+export function selectAdaptiveHausdorffTargetFromSesoi(
+  sesoi: number,
+  preregisteredTargets: readonly number[],
+): AdaptiveHausdorffSesoiSelection {
+  if (!Number.isFinite(sesoi) || sesoi <= 0) {
+    throw new RangeError("requires a positive finite SESOI");
+  }
+  if (preregisteredTargets.length === 0) {
+    throw new RangeError("requires at least one preregistered adaptive target");
+  }
+  if (preregisteredTargets.some((target) => !Number.isFinite(target) || target <= 0)) {
+    throw new RangeError("requires positive finite adaptive targets");
+  }
+  if (new Set(preregisteredTargets).size !== preregisteredTargets.length) {
+    throw new RangeError("preregistered adaptive targets must be unique");
+  }
+
+  const maximumDerivedSamplingUncertainty = sesoi / 2;
+  const maximumPerIntervalTarget = sesoi / 4;
+  const eligibleTargets = [...preregisteredTargets]
+    .filter((target) => target <= maximumPerIntervalTarget)
+    .sort((left, right) => right - left);
+  const selectedTarget = eligibleTargets[0];
+  if (selectedTarget === undefined) {
+    throw new RangeError("no preregistered adaptive target satisfies SESOI / 4");
+  }
+  return {
+    sesoi,
+    maximumDerivedSamplingUncertainty,
+    maximumPerIntervalTarget,
+    selectedTarget,
+    eligibleTargets,
+  };
 }
 
 /** Executable counterpart of Lean `SameEndpointConsistency.excessDefect`. */
