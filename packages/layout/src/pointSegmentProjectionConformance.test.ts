@@ -36,3 +36,36 @@ describe("Lean/TypeScript point-to-segment projection conformance", () => {
     },
   );
 });
+
+describe("point-to-segment projection scale stability", () => {
+  it("does not overflow the projection ratio for a large finite segment", () => {
+    const distance = pointToSegmentDistance(
+      { x: 5e199, y: 1e199 },
+      { x: 0, y: 0 },
+      { x: 1e200, y: 0 },
+    );
+
+    expect(Number.isFinite(distance)).toBe(true);
+    expect(distance / 1e199).toBeCloseTo(1, 12);
+  });
+
+  it("does not mistake a tiny non-degenerate segment for a point", () => {
+    const distance = pointToSegmentDistance(
+      { x: 5e-201, y: 1e-200 },
+      { x: 0, y: 0 },
+      { x: 1e-200, y: 0 },
+    );
+
+    expect(distance / 1e-200).toBeCloseTo(1, 12);
+  });
+
+  it("normalizes coordinates before subtracting opposite-sign extremes", () => {
+    const distance = pointToSegmentDistance(
+      { x: 0, y: 1 },
+      { x: -1e308, y: 0 },
+      { x: 1e308, y: 0 },
+    );
+
+    expect(distance).toBeCloseTo(1, 12);
+  });
+});

@@ -237,4 +237,50 @@ theorem abs_approximateSquaredNorm2_sub_exact_le_uniform
     approximateXError approximateYError
     approximateXError approximateYError approximateSquaredNormError
 
+/-- Scaling every vector component by the same nonzero factor leaves the raw
+projection parameter unchanged over exact reals. This is the algebraic
+contract used by the TypeScript overflow/underflow fallback. -/
+theorem normalizedProjectionRatio_eq
+    (pointX pointY directionX directionY scale : ℝ)
+    (scaleNonzero : scale ≠ 0) :
+    (((pointX / scale) * (directionX / scale) +
+        (pointY / scale) * (directionY / scale)) /
+      ((directionX / scale) * (directionX / scale) +
+        (directionY / scale) * (directionY / scale))) =
+      (pointX * directionX + pointY * directionY) /
+        (directionX * directionX + directionY * directionY) := by
+  have scaleSquaredNonzero : scale ^ 2 ≠ 0 := pow_ne_zero 2 scaleNonzero
+  have numeratorIdentity :
+      (pointX / scale) * (directionX / scale) +
+          (pointY / scale) * (directionY / scale) =
+        (pointX * directionX + pointY * directionY) / scale ^ 2 := by
+    field_simp
+  have denominatorIdentity :
+      (directionX / scale) * (directionX / scale) +
+          (directionY / scale) * (directionY / scale) =
+        (directionX * directionX + directionY * directionY) / scale ^ 2 := by
+    field_simp
+  rw [numeratorIdentity, denominatorIdentity]
+  field_simp
+
+/-- Scaling finite coordinates before taking their differences is also
+algebraically equivalent to the ordinary point/edge projection ratio. This
+form avoids overflowing an otherwise finite endpoint subtraction. -/
+theorem normalizedCoordinateProjectionRatio_eq
+    (pointX pointY startX startY endX endY scale : ℝ)
+    (scaleNonzero : scale ≠ 0) :
+    ((((pointX / scale) - (startX / scale)) *
+          ((endX / scale) - (startX / scale)) +
+        ((pointY / scale) - (startY / scale)) *
+          ((endY / scale) - (startY / scale))) /
+      (((endX / scale) - (startX / scale)) *
+          ((endX / scale) - (startX / scale)) +
+        ((endY / scale) - (startY / scale)) *
+          ((endY / scale) - (startY / scale)))) =
+      (((pointX - startX) * (endX - startX) +
+          (pointY - startY) * (endY - startY)) /
+        ((endX - startX) * (endX - startX) +
+          (endY - startY) * (endY - startY))) := by
+  field_simp
+
 end Sprawlens.ProjectionInputError

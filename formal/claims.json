@@ -1028,7 +1028,9 @@
         "abs_approximateDot2_sub_exactDot2_le",
         "abs_approximateSquaredNorm2_sub_exact_le",
         "abs_approximateDot2_sub_exactDot2_le_uniform",
-        "abs_approximateSquaredNorm2_sub_exact_le_uniform"
+        "abs_approximateSquaredNorm2_sub_exact_le_uniform",
+        "normalizedProjectionRatio_eq",
+        "normalizedCoordinateProjectionRatio_eq"
       ],
       "status": "proved-abstract-transition-and-discrepancy-model-with-executable-selector-witness-boundary-metric-counterexample-certified-hausdorff-sampling-interval-uniform-closed-trace-epsilon-net-edge-local-polygon-epsilon-net-attained-finite-sample-maximum-and-exact-real-clamped-polygon-projection",
       "implementationCorrespondence": "shared-fixture-conformance-9-selector-cases-plus-8-point-segment-cases-typescript-uses-the-production-vector-feasible-envelope-with-euclidean-predecessor-displacement-a-fail-closed-fixed-total-symmetric-sampled-hausdorff-maximum-and-a-separate-fail-closed-edge-local-sampler-returning-max-edge-per-subdivision-bound-and-actual-sample-count-the-exact-real-uniform-closed-trace-edge-local-polygon-epsilon-net-explicit-finite-sample-carrier-attained-symmetric-infdist-maximum-clamped-point-to-segment-infdist-and-polygon-edge-minimum-contracts-are-proved-while-performance-selection-ieee754-roundoff-real-candidate-generator-and-repository-sequence-remain-unproved"

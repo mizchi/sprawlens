@@ -4,6 +4,10 @@ import type { Vec2 } from "./vec.ts";
 /**
  * Euclidean distance from a point to a closed segment.
  *
+ * Finite coordinates are the supported numeric domain. Scale-normalized
+ * fallbacks keep finite endpoint differences and squared lengths from being
+ * misclassified solely because an intermediate overflows or underflows.
+ *
  * The exact-real counterpart of this clamped projection is proved equal to
  * `Metric.infDist` in `Sprawlens.SegmentProjection`. IEEE-754 roundoff is not
  * included in that theorem.
@@ -12,12 +16,48 @@ export const pointToSegmentDistance = (point: Vec2, start: Vec2, end: Vec2) => {
   const dx = end.x - start.x;
   const dy = end.y - start.y;
   const lengthSquared = dx * dx + dy * dy;
-  if (lengthSquared === 0) return Math.hypot(point.x - start.x, point.y - start.y);
-  const projection = Math.max(
-    0,
-    Math.min(1, ((point.x - start.x) * dx + (point.y - start.y) * dy) / lengthSquared),
-  );
-  return Math.hypot(point.x - (start.x + projection * dx), point.y - (start.y + projection * dy));
+  let projectionRatio: number;
+  if (lengthSquared > 0 && Number.isFinite(lengthSquared)) {
+    projectionRatio = ((point.x - start.x) * dx + (point.y - start.y) * dy) / lengthSquared;
+  } else {
+    const edgeScale = Math.max(Math.abs(dx), Math.abs(dy));
+    if (edgeScale === 0) return Math.hypot(point.x - start.x, point.y - start.y);
+    if (Number.isFinite(edgeScale)) {
+      const normalizedDx = dx / edgeScale;
+      const normalizedDy = dy / edgeScale;
+      projectionRatio =
+        (((point.x - start.x) / edgeScale) * normalizedDx +
+          ((point.y - start.y) / edgeScale) * normalizedDy) /
+        (normalizedDx * normalizedDx + normalizedDy * normalizedDy);
+    } else {
+      const coordinateScale = Math.max(
+        Math.abs(point.x),
+        Math.abs(point.y),
+        Math.abs(start.x),
+        Math.abs(start.y),
+        Math.abs(end.x),
+        Math.abs(end.y),
+      );
+      const normalizedPointX = point.x / coordinateScale;
+      const normalizedPointY = point.y / coordinateScale;
+      const normalizedStartX = start.x / coordinateScale;
+      const normalizedStartY = start.y / coordinateScale;
+      const normalizedDx = end.x / coordinateScale - normalizedStartX;
+      const normalizedDy = end.y / coordinateScale - normalizedStartY;
+      projectionRatio =
+        ((normalizedPointX - normalizedStartX) * normalizedDx +
+          (normalizedPointY - normalizedStartY) * normalizedDy) /
+        (normalizedDx * normalizedDx + normalizedDy * normalizedDy);
+    }
+  }
+  const projection = Math.max(0, Math.min(1, projectionRatio));
+  const projectedX = Number.isFinite(dx)
+    ? start.x + projection * dx
+    : (1 - projection) * start.x + projection * end.x;
+  const projectedY = Number.isFinite(dy)
+    ? start.y + projection * dy
+    : (1 - projection) * start.y + projection * end.y;
+  return Math.hypot(point.x - projectedX, point.y - projectedY);
 };
 
 const sampleBoundary = (ring: Ring, count = 32): Vec2[] => {

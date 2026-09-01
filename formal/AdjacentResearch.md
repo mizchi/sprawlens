@@ -34,6 +34,7 @@
 - unit clampが1-Lipschitzであり、raw projection parameterの誤差が射影点と報告距離へ高々`edgeLength`倍で伝播することを証明した。従って残る浮動小数点責務は、座標差・dot product・辺長二乗・除算から生じるraw parameter誤差の評価へ分離された。
 - 正のexact / approximate denominatorを仮定し、分子・分母の絶対誤差から商の誤差を上界づけ、そのboundをclamp後の報告距離まで合成した。これにより浮動小数点側が供給すべき局所obligationを二つの入力誤差へ縮約した。
 - `ProjectionInputError`で一回の積、2次元dot product、辺長二乗の摂動boundを証明した。共通scale `S`と成分誤差`e`の下では、dot / squared normの誤差は`arithmeticError + 4*S*e + 2*e^2`以下になる。近似分母の誤差がexact辺長二乗未満なら正値性も保存される。
+- 全成分を同じ非零scaleで割る射影parameterの式と、座標をscaleしてから差を取る式が元の式とexact real上で一致することを証明した。TypeScriptは二乗長または座標差がoverflow / underflowした場合だけこれらの式へ退避し、通常経路を維持する。
 
 ### 未証明・実証が必要なこと
 
@@ -41,7 +42,7 @@
 - 非可換性を距離へ持ち上げた上界、下界、またはLipschitz条件。
 - 実geometry metricについてLipschitz定数とstep budgetを推定・保証すること。
 - primary実測値をseparating discrepancyとして使うdomainを明示するか、証明済みの非空polygon-boundary Hausdorff metricへ置き換えること。
-- 共有fixtureは有限caseのconformanceであり普遍的refinementではない。採用版についてIEEE-754 roundoffを含む誤差contractを固定すること。
+- 共有fixtureと巨大・微小scaleの回帰caseは有限caseのconformanceであり普遍的refinementではない。正規化後の差・積和・除算、`Math.hypot`についてIEEE-754 roundoffを含む誤差contractを固定すること。
 - 今回の二候補witnessが、実repository sequenceの候補生成・feasible-envelope metricに埋め込めること。
 
 新規性は可換性の一般代数ではなく、状態依存visual layoutのpath dependenceを局所squareと証明可能な欠損へ分解する点に置く。
