@@ -1115,10 +1115,12 @@
         "natInversionCount_eq_zero_of_pairwise_le",
         "lowerCount_adjacent_swap",
         "natInversionCount_adjacent_swap_bounds",
+        "natInversionCount_adjacent_inversion_exact",
         "natInversionCount_bounds_of_traceEquivalentIn",
-        "rankInversionCount_bounds_of_traceEquivalentIn"
+        "rankInversionCount_bounds_of_traceEquivalentIn",
+        "rankInversionCount_adjacent_inversion_exact"
       ],
-      "status": "proved-natural-rank-inversion-potential-changes-by-at-most-one-per-adjacent-swap-and-lower-bounds-every-counted-derivation",
+      "status": "proved-natural-rank-inversion-potential-changes-by-at-most-one-per-adjacent-swap-decreases-exactly-one-on-an-oriented-strict-inversion-swap-and-lower-bounds-every-counted-derivation",
       "implementationCorrespondence": "abstract-unweighted-natural-rank-potential-kernel-independent-of-the-production-edit-rank-or-dependence-relation"
     },
     {
@@ -1179,6 +1181,62 @@
       "implementationCorrespondence": "abstract-unweighted-natural-rank-model-supporting-general-dependence-relations-when-all-input-inversions-are-independent-not-a-normal-form-for-traces-with-dependent-inversions-context-dependent-weighted-shortest-path-algorithm-or-production-edit-ranking"
     },
     {
+      "id": "paper2.layout-transition.reachable-rank-normalization",
+      "paper": 2,
+      "protocol": "formal/AdjacentResearch.md#1-状態依存レイアウトの合流性欠損",
+      "typescript": [],
+      "leanModule": "Sprawlens.ReachableRankNormalization",
+      "theorems": [
+        "DescendingTraceIn.toTraceEquivalentIn",
+        "DescendingTraceIn.rankInversionCount_eq",
+        "DescendingTraceIn.cost_le_initialInversions",
+        "DescendingTraceIn.strictly_decreases_of_positive",
+        "DescendingTraceIn.no_positive_cycle",
+        "RankReduction.toDescendingTraceIn",
+        "RankReduction.rankInversionCount_lt",
+        "rankReduction_wellFounded",
+        "HasReducibleAdjacent.prepend",
+        "hasReducibleAdjacent_of_context",
+        "exists_rankReduction_of_hasReducibleAdjacent",
+        "exists_rankReduction_iff_hasReducibleAdjacent",
+        "exists_reachableRankNormalForm",
+        "exists_reachableRankNormalForm_with_cost_bound",
+        "fork_left_reachable",
+        "fork_right_reachable",
+        "fork_left_normalForm",
+        "fork_right_normalForm",
+        "reachableRankNormalForm_not_unique"
+      ],
+      "status": "proved-well-founded-independent-strict-inversion-normalization-to-some-reachable-irreducible-form-with-exact-potential-accounting-cost-bound-and-load-bearing-non-uniqueness-witness",
+      "implementationCorrespondence": "abstract-unweighted-directed-normalization-for-arbitrary-natural-rank-and-dependence-relations-proving-termination-and-existence-but-refuting-unique-normal-forms-even-for-a-symmetric-independence-graph-not-a-deterministic-policy-shortest-reachable-path-weighted-normalizer-or-production-implementation"
+    },
+    {
+      "id": "paper2.layout-transition.deterministic-rank-normalization",
+      "paper": 2,
+      "protocol": "formal/AdjacentResearch.md#1-状態依存レイアウトの合流性欠損",
+      "typescript": [],
+      "leanModule": "Sprawlens.DeterministicRankNormalization",
+      "theorems": [
+        "RankReduction.prepend",
+        "reduceFirst?_some_rankReduction",
+        "reduceFirst?_none_iff_normalForm",
+        "normalizationResultFuel_descending",
+        "normalizationResultFuel_normalForm",
+        "deterministicNormalization_descending",
+        "deterministicNormalForm_isNormalForm",
+        "deterministicNormalization_exact_accounting",
+        "deterministicNormalizationCost_le_initialInversions",
+        "deterministicNormalizationCost_minimal_to_selectedTarget",
+        "deterministicNormalization_cost_exact",
+        "normalizationResultFuel_eq_self_of_normalForm",
+        "deterministicNormalForm_eq_self_of_normalForm",
+        "deterministicNormalForm_idempotent",
+        "deterministicForkNormalization"
+      ],
+      "status": "proved-executable-leftmost-independent-inversion-normalizer-with-counted-derivation-fuel-sufficiency-irreducibility-exact-potential-accounting-cost-bound-fixed-points-idempotence-and-shortest-unweighted-path-to-its-selected-target",
+      "implementationCorrespondence": "abstract-deterministic-unweighted-leftmost-policy-for-arbitrary-decidable-dependence-relations-selecting-one-of-possibly-many-reachable-irreducible-forms-and-minimizing-swap-count-only-to-that-selected-target-not-a-proof-that-the-policy-selects-the-best-target-or-minimizes-propagated-weighted-cost-or-a-production-edit-classification-and-replay-implementation"
+    },
+    {
       "id": "paper2.layout-transition.generated-propagated-certificate",
       "paper": 2,
       "protocol": "formal/AdjacentResearch.md#1-状態依存レイアウトの合流性欠損",
@@ -1193,14 +1251,130 @@
         "exists_threeClassCanonical_propagatedCertificate",
         "exists_naturalRankCanonical_propagatedCertificate",
         "exists_naturalRankCanonical_propagatedCertificate_of_inversionsIndependent",
+        "exists_deterministicRankNormalForm_propagatedCertificate",
         "applyBinaryWitness_nonexpansive",
         "applyBinaryWitness_squareDefect_le_one",
         "applyBinaryWitness_primitiveBound",
         "applyBinaryWitness_endpoint_distance",
         "binaryCanonical_propagatedCertificate_tight"
       ],
-      "status": "proved-counted-adjacent-swap-and-arbitrary-natural-rank-stable-canonical-derivations-generate-propagated-endpoint-certificates-bounded-by-swap-count-times-a-prior-primitive-budget-with-tight-witness",
-      "implementationCorrespondence": "abstract-exact-real-bridge-from-combinatorial-derivation-generators-to-suffix-replayed-observation-certificates-not-a-production-replay-cache-general-trace-normalizer-or-empirically-validated-a-priori-budget"
+      "status": "proved-counted-adjacent-swap-arbitrary-natural-rank-stable-canonical-and-general-dependence-leftmost-normalization-derivations-generate-propagated-endpoint-certificates-bounded-by-swap-count-or-initial-inversion-count-times-a-prior-primitive-budget-with-tight-witness",
+      "implementationCorrespondence": "abstract-exact-real-bridge-from-combinatorial-derivation-generators-including-the-executable-leftmost-general-dependence-normalizer-to-suffix-replayed-observation-certificates-not-a-production-replay-cache-edit-classification-or-empirically-validated-a-priori-budget"
+    },
+    {
+      "id": "paper2.layout-transition.weighted-normalization-policy",
+      "paper": 2,
+      "protocol": "formal/AdjacentResearch.md#1-状態依存レイアウトの合流性欠損",
+      "typescript": [],
+      "leanModule": "Sprawlens.WeightedNormalizationPolicy",
+      "theorems": [
+        "weightedFork_original_endpoint",
+        "weightedFork_left_endpoint",
+        "weightedFork_right_endpoint",
+        "weightedFork_left_swapCost",
+        "weightedFork_right_swapCost",
+        "weightedFork_left_certificate",
+        "weightedFork_right_certificate",
+        "deterministic_leftmost_not_minimum_weighted"
+      ],
+      "status": "proved-load-bearing-counterexample-that-leftmost-unweighted-normalization-is-not-minimum-propagated-cost-among-reachable-normal-forms",
+      "implementationCorrespondence": "exact-real-three-edit-reset-increment-double-witness-with-a-symmetric-path-independence-graph-leftmost-cost-two-and-alternative-cost-one-not-a-production-counterexample-or-a-claim-that-leftmost-is-never-optimal-under-restricted-weight-structures"
+    },
+    {
+      "id": "paper2.layout-transition.uniform-weighted-normalization",
+      "paper": 2,
+      "protocol": "formal/AdjacentResearch.md#1-状態依存レイアウトの合流性欠損",
+      "typescript": [],
+      "leanModule": "Sprawlens.UniformWeightedNormalization",
+      "theorems": [
+        "TraceEquivalentIn.toUniformCertificate",
+        "TraceCertificate.uniformCost_has_count",
+        "deterministicUniformCertificate",
+        "deterministicUniformCertificate_minimum_of_unique",
+        "fork_reachableNormalForms_not_unique"
+      ],
+      "status": "proved-uniform-nonnegative-weight-global-normalizing-certificate-optimality-under-input-relative-unique-reachable-normal-form-with-load-bearing-uniqueness-counterexample",
+      "implementationCorrespondence": "abstract-context-independent-uniform-primitive-cost-result-turning-count-minimality-into-weighted-optimality-when-the-concrete-input-has-a-unique-reachable-normal-form-not-a-result-for-context-dependent-propagated-costs-nonunique-targets-or-production-transitions"
+    },
+    {
+      "id": "paper2.layout-transition.finite-weighted-normalization",
+      "paper": 2,
+      "protocol": "formal/AdjacentResearch.md#1-状態依存レイアウトの合流性欠損",
+      "typescript": [],
+      "leanModule": "Sprawlens.FiniteWeightedNormalization",
+      "theorems": [
+        "WeightedRankStep.toRankReduction",
+        "WeightedRankStep.toTraceCertificate",
+        "WeightedNormalizingPath.target_normalForm",
+        "WeightedNormalizingPath.toTraceCertificate",
+        "WeightedNormalizingPath.exists_descendingTrace",
+        "weightedRankStepChoicesListAux_sound",
+        "weightedRankStepChoicesListAux_complete",
+        "weightedRankStepChoices_enumerates",
+        "exists_weightedRankStep_of_not_normalForm",
+        "minimumWeightedNormalization_exists",
+        "minimumWeightedNormalization_exists_of_decidable",
+        "minimumPropagatedNormalization_exists_of_decidable"
+      ],
+      "status": "proved-exact-finite-adjacent-reduction-enumeration-and-attained-minimum-context-dependent-real-cost-over-all-directed-rank-decreasing-normalizations-with-propagated-endpoint-certificate-specialization",
+      "implementationCorrespondence": "abstract-well-founded-dynamic-programming-existence-result-for-arbitrary-decidable-dependence-relations-and-context-dependent-real-edge-costs-restricted-to-inversion-decreasing-normalization-paths-not-all-undirected-trace-certificates-an-extracted-production-shortest-path-implementation-or-a-complexity-bound"
+    },
+    {
+      "id": "paper2.layout-transition.global-weighted-normalization",
+      "paper": 2,
+      "protocol": "formal/AdjacentResearch.md#1-状態依存レイアウトの合流性欠損",
+      "typescript": [],
+      "leanModule": "Sprawlens.GlobalWeightedNormalization",
+      "theorems": [
+        "directedMinimum_global_of_potential_exact",
+        "exists_globalMinimum_of_directed_potential_exact",
+        "weightedFork_endpointPotential_not_constant"
+      ],
+      "status": "proved-sufficient-dual-attainment-and-normal-form-potential-constancy-condition-promoting-directed-minimum-to-global-minimum-over-all-certificates-and-normal-targets-with-load-bearing-fork-failure",
+      "implementationCorrespondence": "abstract-context-dependent-real-cost-dual-certificate-result-covering-inversion-increasing-detours-and-distinct-normal-targets-when-a-valid-potential-is-exact-and-constant-on-all-reachable-normal-forms-not-a-proof-that-such-a-potential-exists-for-production-propagated-costs"
+    },
+    {
+      "id": "paper2.layout-transition.positive-cost-attainment",
+      "paper": 2,
+      "protocol": "formal/AdjacentResearch.md#1-状態依存レイアウトの合流性欠損",
+      "typescript": [],
+      "leanModule": "Sprawlens.PositiveCostAttainment",
+      "theorems": [
+        "WeightedSwapStep.symm",
+        "WeightedSwapStep.toTraceCertificate",
+        "WeightedTracePath.append",
+        "WeightedTracePath.symm",
+        "WeightedTracePath.toTraceCertificate",
+        "TraceCertificate.exists_weightedTracePath",
+        "WeightedSwapStep.cost_lower_bound",
+        "WeightedTracePath.count_mul_le_cost",
+        "weightedSwapStepChoicesListAux_sound",
+        "weightedSwapStepChoicesListAux_forward_complete",
+        "weightedSwapStepChoicesListAux_backward_complete",
+        "weightedSwapStepChoicesList_enumerates",
+        "weightedTracePathOutcomesList_sound",
+        "weightedTracePathOutcomesList_complete",
+        "minimumTraceCertificate_exists_of_positiveLower",
+        "optimalPropagatedCost_attained_of_positiveLower",
+        "negativeCycleCertificate",
+        "negativeCycle_has_no_minimum"
+      ],
+      "status": "proved-full-certificate-minimum-and-propagated-infimum-attainment-under-a-uniform-positive-primitive-cost-floor-via-symmetric-path-flattening-finite-bounded-enumeration-with-a-load-bearing-negative-cycle-nonattainment-witness",
+      "implementationCorrespondence": "abstract-finite-trace-search-theorem-for-arbitrary-decidable-dependence-relations-positive-context-dependent-real-edge-costs-and-fixed-trace-pairs-covering-inversion-increasing-detours-not-a-zero-cost-edge-result-production-positive-floor-validation-or-extracted-shortest-path-algorithm"
+    },
+    {
+      "id": "paper2.layout-transition.nonnegative-cost-attainment",
+      "paper": 2,
+      "protocol": "formal/AdjacentResearch.md#1-状態依存レイアウトの合流性欠損",
+      "typescript": [],
+      "leanModule": "Sprawlens.NonnegativeCostAttainment",
+      "theorems": [
+        "WeightedSwapStep.perm",
+        "minimumTraceCertificate_exists_of_nonnegative",
+        "optimalPropagatedCost_attained_of_nonnegative"
+      ],
+      "status": "proved-full-certificate-minimum-and-propagated-infimum-attainment-for-arbitrary-nonnegative-context-dependent-primitive-costs-including-zero-cost-cycles-via-cost-nonincreasing-loop-erasure-and-a-finite-permutation-graph-bound",
+      "implementationCorrespondence": "abstract-existence-proof-for-fixed-finite-trace-pairs-covering-zero-cost-edges-and-inversion-increasing-detours-with-nonnegativity-as-the-boundary-witnessed-by-the-negative-cycle-counterexample-not-an-extracted-production-shortest-path-algorithm-or-a-practical-factorial-complexity-bound"
     },
     {
       "id": "paper2.layout-transition.certificate-potential-duality",

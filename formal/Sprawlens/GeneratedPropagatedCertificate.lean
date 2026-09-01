@@ -2,11 +2,13 @@ import Sprawlens.PropagatedConfluence
 import Sprawlens.StablePartitionTrace
 import Sprawlens.ThreeClassStableTrace
 import Sprawlens.NaturalRankStableTrace
+import Sprawlens.DeterministicRankNormalization
 
 namespace Sprawlens.GeneratedPropagatedCertificate
 
 open AposterioriConfluence
 open ConfluenceDefect
+open DeterministicRankNormalization
 open LayoutConfluence
 open NatInversionTrace
 open PropagatedConfluence
@@ -240,6 +242,41 @@ theorem exists_naturalRankCanonical_propagatedCertificate_of_inversionsIndepende
     observe apply Independent initial budget primitiveBound
     (naturalRankStableTrace_of_inversionsIndependent
       rank Independent edits inversionsIndependent)
+
+/-- The executable leftmost normalizer for a general decidable dependence
+graph also generates a propagated endpoint certificate. The target need not
+be the globally sorted trace or the unique irreducible representative. -/
+theorem exists_deterministicRankNormalForm_propagatedCertificate
+    {Edit : Type u} {State : Type v} {Observation : Type*}
+    [PseudoMetricSpace Observation]
+    (rank : Edit → Nat) (Independent : Edit → Edit → Prop)
+    [DecidableRel Independent]
+    (observe : State → Observation) (apply : Edit → State → State)
+    (initial : State) (budget : ℝ) (budgetNonneg : 0 ≤ budget)
+    (primitiveBound : PrimitiveSwapCostBound Independent
+      (propagatedObservableSwapCost observe apply initial) budget)
+    (edits : List Edit) :
+    ∃ cost,
+      TraceCertificate Independent
+          (propagatedObservableSwapCost observe apply initial)
+          cost edits
+            (deterministicNormalForm rank Independent edits) ∧
+        dist (observe (runEdits apply edits initial))
+            (observe (runEdits apply
+              (deterministicNormalForm rank Independent edits) initial)) ≤
+          cost ∧
+        cost ≤ (rankInversionCount rank edits : ℝ) * budget := by
+  have equivalent :=
+    (deterministicNormalization_descending
+      rank Independent edits).toTraceEquivalentIn rank Independent
+  obtain ⟨cost, certificate, endpointBound, countedBound⟩ :=
+    exists_propagatedCertificate_le_swapCount_mul
+      observe apply Independent initial budget primitiveBound equivalent
+  refine ⟨cost, certificate, endpointBound,
+    countedBound.trans ?_⟩
+  apply mul_le_mul_of_nonneg_right _ budgetNonneg
+  exact_mod_cast deterministicNormalizationCost_le_initialInversions
+    rank Independent edits
 
 /-- A two-edit witness in which the generated `swapCount * budget` bound is
 attained exactly. `false` resets and `true` increments. -/

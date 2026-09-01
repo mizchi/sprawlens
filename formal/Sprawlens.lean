@@ -40,8 +40,16 @@ import Sprawlens.StablePartitionTrace
 import Sprawlens.NatInversionTrace
 import Sprawlens.ThreeClassStableTrace
 import Sprawlens.NaturalRankStableTrace
+import Sprawlens.ReachableRankNormalization
+import Sprawlens.DeterministicRankNormalization
 import Sprawlens.GeneratedPropagatedCertificate
+import Sprawlens.WeightedNormalizationPolicy
+import Sprawlens.UniformWeightedNormalization
+import Sprawlens.FiniteWeightedNormalization
 import Sprawlens.CertificatePotentialDuality
+import Sprawlens.GlobalWeightedNormalization
+import Sprawlens.PositiveCostAttainment
+import Sprawlens.NonnegativeCostAttainment
 import Sprawlens.GeneratedOptimalityGap
 import Sprawlens.HardSelectorLipschitz
 import Sprawlens.SoftSelectorLipschitz
