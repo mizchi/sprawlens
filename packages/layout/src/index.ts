@@ -20,6 +20,7 @@ export * from "./stableVoronoi.ts";
 export * from "./cfgLayout.ts";
 export * from "./clip.ts";
 export * from "./embed.ts";
+export * from "./endpointRelation.ts";
 export * from "./elevation.ts";
 export * from "./externalBaselineMetrics.ts";
 export * from "./externalPolygonValidity.ts";

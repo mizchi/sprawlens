@@ -20,6 +20,9 @@ paper2-metric-contract:
     cd formal && lake exe check-empirical-quantile-fixtures TestVectors/empirical-nearest-rank.json
     pnpm vitest run packages/contracts/src/representationReliability.test.ts
 
+endpoint-relation-contract:
+    pnpm vitest run packages/contracts/src/endpointRelation.test.ts packages/layout/src/endpointRelation.test.ts
+
 lean-conformance: lean-check lean-claims projection-contract
     cd formal && lake exe check-history-selector-fixtures TestVectors/history-selector-confluence.json
     pnpm vitest run packages/layout/src/historySelectorConfluence.test.ts

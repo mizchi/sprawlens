@@ -15,3 +15,4 @@ export * from "./evidence.ts";
 export * from "./externalLayoutBaseline.ts";
 export * from "./numericGeometry.ts";
 export * from "./representationReliability.ts";
+export * from "./endpointRelation.ts";
