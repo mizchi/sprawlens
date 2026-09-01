@@ -1,4 +1,6 @@
 import Mathlib.Analysis.Convex.Extreme
+import Mathlib.Algebra.Order.BigOperators.Ring.Finset
+import Sprawlens.PairwiseClipCompleteness
 import Sprawlens.RedundantBoundaryNormalizer
 
 /-!
@@ -20,13 +22,18 @@ open Set
 open ConvexClipContract
 open CyclicBinaryBlocks
 open ExactGeometry
+open HalfPlaneClipPoints
+open HalfPlaneIntersection
 open ListReclipClassification
 open OrderedTriples
 open PolygonSeamCanonicalizer
+open PairwiseClipCompleteness
 open RedundantBoundaryNormalizer
 open SemanticReclassification
+open SegmentContact
 open SimpleRing
 open StrictConvexContract
+open Vec2Linear
 
 universe u
 
@@ -88,6 +95,30 @@ theorem normalizeOpenBoundary_strictlyOrdered
     AllStrictlyOrderedCCW (normalizeOpenBoundary points) :=
   allOrderedTriples_sublist (normalizeOpenBoundary_sublist points) ordered
 
+/-- A strictly ordered open chain contains no vertex removable by the
+open-segment rule, so normalization is observationally the identity. -/
+theorem normalizeOpenBoundary_eq_of_strictlyOrdered :
+    ∀ (points : List (Vec2 R)),
+      AllStrictlyOrderedCCW points → normalizeOpenBoundary points = points
+  | [], _ => by simp [normalizeOpenBoundary]
+  | [point], _ => by simp [normalizeOpenBoundary]
+  | [first, finish], _ => by simp [normalizeOpenBoundary]
+  | first :: middle :: finish :: remaining, ordered => by
+      have strictTurn : 0 < orientation first middle finish :=
+        relation_of_prefix ordered
+      have irredundant :
+          pointInOpenSegmentBool first finish middle ≠ true := by
+        intro redundant
+        have collinear : orientation first finish middle = 0 :=
+          ((pointInOpenSegmentBool_eq_true first finish middle).mp redundant).1
+        rw [orientation_reverse] at collinear
+        linarith
+      rw [normalizeOpenBoundary, if_neg irredundant]
+      rw [normalizeOpenBoundary_eq_of_strictlyOrdered
+        (middle :: finish :: remaining)
+        (List.triplewise_cons.mp ordered).2]
+termination_by points => points.length
+
 omit [IsStrictOrderedRing R] in
 /-- Every fueled cyclic deletion traversal preserves strict global order. -/
 theorem normalizeCyclicBoundaryFuel_strictlyOrdered :
@@ -99,6 +130,21 @@ theorem normalizeCyclicBoundaryFuel_strictlyOrdered :
       apply normalizeCyclicBoundaryFuel_strictlyOrdered fuel
       apply normalizeOpenBoundary_strictlyOrdered
       exact allStrictlyOrderedCCW_rotate points ordered 1
+
+/-- Fueled cyclic traversal cannot shorten a strictly ordered polygon. -/
+theorem normalizeCyclicBoundaryFuel_length_eq_of_strictlyOrdered :
+    ∀ (fuel : Nat) (points : List (Vec2 R)),
+      AllStrictlyOrderedCCW points →
+        (normalizeCyclicBoundaryFuel fuel points).length = points.length
+  | 0, _, _ => rfl
+  | fuel + 1, points, ordered => by
+      rw [normalizeCyclicBoundaryFuel]
+      rw [normalizeOpenBoundary_eq_of_strictlyOrdered
+        (points.rotate 1) (allStrictlyOrderedCCW_rotate points ordered 1)]
+      rw [normalizeCyclicBoundaryFuel_length_eq_of_strictlyOrdered
+        fuel (points.rotate 1)
+        (allStrictlyOrderedCCW_rotate points ordered 1)]
+      exact List.length_rotate points 1
 
 omit [IsStrictOrderedRing R] in
 /-- Deterministic seam selection preserves strict global order. -/
@@ -117,6 +163,17 @@ theorem normalizeCyclicBoundary_strictlyOrdered
     AllStrictlyOrderedCCW (normalizeCyclicBoundary points) := by
   apply canonicalPolygon_strictlyOrdered
   exact normalizeCyclicBoundaryFuel_strictlyOrdered
+    points.length points ordered
+
+/-- On a duplicate-free strictly ordered polygon, one full boundary pass
+only chooses the deterministic cyclic seam. -/
+theorem normalizeCyclicBoundary_eq_canonicalPolygon_of_strictlyOrdered
+    (points : List (Vec2 R)) (nodup : points.Nodup)
+    (ordered : AllStrictlyOrderedCCW points) :
+    normalizeCyclicBoundary points = canonicalPolygon points := by
+  apply normalizeCyclicBoundary_eq_canonicalPolygon_of_length_eq points nodup
+  rw [normalizeCyclicBoundary, canonicalPolygon_length]
+  exact normalizeCyclicBoundaryFuel_length_eq_of_strictlyOrdered
     points.length points ordered
 
 omit [IsStrictOrderedRing R] in
@@ -141,6 +198,27 @@ theorem normalizeCyclicBoundaryFixed_strictlyOrdered
     AllStrictlyOrderedCCW (normalizeCyclicBoundaryFixed points) := by
   apply normalizeCyclicBoundaryFixedFuel_strictlyOrdered
   exact canonicalPolygon_strictlyOrdered points ordered
+
+/-- On a duplicate-free strictly ordered polygon, finite-descent
+normalization is exactly deterministic seam selection. -/
+theorem normalizeCyclicBoundaryFixed_eq_canonicalPolygon_of_strictlyOrdered
+    (points : List (Vec2 R)) (nodup : points.Nodup)
+    (ordered : AllStrictlyOrderedCCW points) :
+    normalizeCyclicBoundaryFixed points = canonicalPolygon points := by
+  unfold normalizeCyclicBoundaryFixed
+  cases lengthEq : points.length with
+  | zero => simp [normalizeCyclicBoundaryFixedFuel]
+  | succ fuel =>
+      simp only [normalizeCyclicBoundaryFixedFuel]
+      have passEq :
+          normalizeCyclicBoundary (canonicalPolygon points) =
+            canonicalPolygon points := by
+        rw [normalizeCyclicBoundary_eq_canonicalPolygon_of_strictlyOrdered]
+        · exact canonicalPolygon_idempotent points
+        · exact (canonicalPolygon_nodup_iff points).mpr nodup
+        · exact canonicalPolygon_strictlyOrdered points ordered
+      rw [passEq]
+      simp
 
 /-- Two permutations with the same leading vertex and strict global order
 have the same tail order. -/
@@ -218,11 +296,320 @@ theorem canonicalPolygon_eq_of_perm_of_strictlyOrdered
               · simpa [secondCanonicalEq] using
                   canonicalPolygon_strictlyOrdered second secondOrdered
 
+/-- An affine signed-distance bound on finite generators extends to their
+entire convex hull. -/
+theorem signedDistance_le_of_mem_listConvexRegion
+    (plane : HalfPlane R) (points : List (Vec2 R)) (bound : R)
+    (generatorBound : ∀ point, point ∈ points →
+      signedDistance plane point ≤ bound)
+    {point : Vec2 R} (pointMember : point ∈ listConvexRegion points) :
+    signedDistance plane point ≤ bound := by
+  unfold listConvexRegion at pointMember
+  obtain ⟨Index, _, weight, generator,
+      weightNonnegative, weightSum, generatorMember, pointEq⟩ :=
+    mem_convexHull_iff_exists_fintype.mp pointMember
+  have weightedBound :
+      ∑ index, weight index * signedDistance plane (generator index) ≤
+        ∑ index, weight index * bound := by
+    apply Finset.sum_le_sum
+    intro index _
+    exact mul_le_mul_of_nonneg_left
+      (generatorBound (generator index) (generatorMember index))
+      (weightNonnegative index)
+  rw [signedDistance_finite_affineCombination
+    plane weight generator point weightSum pointEq] at weightedBound
+  simpa [← Finset.sum_mul, weightSum] using weightedBound
+
+/-- If exactly one finite generator maximizes an affine signed distance, it
+is also the unique maximizer over the whole convex hull. -/
+theorem eq_of_mem_listConvexRegion_of_unique_signedDistance_max
+    (plane : HalfPlane R) (points : List (Vec2 R)) (target : Vec2 R)
+    (generatorBound : ∀ point, point ∈ points →
+      signedDistance plane point ≤ signedDistance plane target)
+    (generatorUnique : ∀ point, point ∈ points →
+      signedDistance plane point = signedDistance plane target →
+        point = target)
+    {point : Vec2 R} (pointMember : point ∈ listConvexRegion points)
+    (pointMaximal :
+      signedDistance plane point = signedDistance plane target) :
+    point = target := by
+  unfold listConvexRegion at pointMember
+  obtain ⟨Index, _, weight, generator,
+      weightNonnegative, weightSum, generatorMember, pointEq⟩ :=
+    mem_convexHull_iff_exists_fintype.mp pointMember
+  have affineDistance :
+      ∑ index, weight index * signedDistance plane (generator index) =
+        signedDistance plane point :=
+    signedDistance_finite_affineCombination
+      plane weight generator point weightSum pointEq
+  have gapNonnegative : ∀ index, 0 ≤
+      weight index *
+        (signedDistance plane target -
+          signedDistance plane (generator index)) := by
+    intro index
+    exact mul_nonneg (weightNonnegative index)
+      (sub_nonneg.mpr
+        (generatorBound (generator index) (generatorMember index)))
+  have gapSumZero :
+      ∑ index, weight index *
+          (signedDistance plane target -
+            signedDistance plane (generator index)) = 0 := by
+    calc
+      ∑ index, weight index *
+          (signedDistance plane target -
+            signedDistance plane (generator index)) =
+          signedDistance plane target * ∑ index, weight index -
+            ∑ index,
+              weight index * signedDistance plane (generator index) := by
+                simp only [mul_sub, Finset.sum_sub_distrib,
+                  ← Finset.sum_mul]
+                ring
+      _ = 0 := by rw [weightSum, affineDistance, pointMaximal]; ring
+  have eachGapZero : ∀ index,
+      weight index *
+          (signedDistance plane target -
+            signedDistance plane (generator index)) = 0 := by
+    intro index
+    exact (Finset.sum_eq_zero_iff_of_nonneg
+      (fun candidate _ => gapNonnegative candidate)).mp gapSumZero
+        index (Finset.mem_univ index)
+  have weightedGeneratorEq : ∀ index,
+      weight index • generator index = weight index • target := by
+    intro index
+    by_cases weightZero : weight index = 0
+    · simp [weightZero]
+    · have distanceEq :
+          signedDistance plane (generator index) =
+            signedDistance plane target := by
+        have gapZero :
+            signedDistance plane target -
+                signedDistance plane (generator index) = 0 :=
+          (mul_eq_zero.mp (eachGapZero index)).resolve_left weightZero
+        linarith
+      rw [generatorUnique (generator index)
+        (generatorMember index) distanceEq]
+  calc
+    point = ∑ index, weight index • generator index := pointEq.symm
+    _ = ∑ index, weight index • target := by
+      apply Finset.sum_congr rfl
+      intro index _
+      exact weightedGeneratorEq index
+    _ = target := by simp [← Finset.sum_smul, weightSum]
+
+/-- A finite generator that uniquely maximizes an affine signed distance is
+an extreme point of the generated convex region. -/
+theorem mem_extremePoints_of_unique_signedDistance_max
+    (plane : HalfPlane R) (points : List (Vec2 R)) (target : Vec2 R)
+    (targetMember : target ∈ points)
+    (generatorBound : ∀ point, point ∈ points →
+      signedDistance plane point ≤ signedDistance plane target)
+    (generatorUnique : ∀ point, point ∈ points →
+      signedDistance plane point = signedDistance plane target →
+        point = target) :
+    target ∈ (listConvexRegion points).extremePoints R := by
+  rw [mem_extremePoints_iff_left]
+  constructor
+  · unfold listConvexRegion
+    exact subset_convexHull R _ targetMember
+  · intro first firstMember second secondMember targetBetween
+    obtain ⟨firstWeight, secondWeight, firstWeightPositive,
+      secondWeightPositive, weightSum, targetEq⟩ := targetBetween
+    have firstBound := signedDistance_le_of_mem_listConvexRegion
+      plane points (signedDistance plane target) generatorBound firstMember
+    have secondBound := signedDistance_le_of_mem_listConvexRegion
+      plane points (signedDistance plane target) generatorBound secondMember
+    have distanceEq := congrArg (signedDistance plane) targetEq
+    rw [affineCombination_eq_interpolatePoint
+      first second firstWeight secondWeight weightSum,
+      signedDistance_interpolatePoint] at distanceEq
+    have firstMaximal :
+        signedDistance plane first = signedDistance plane target := by
+      unfold interpolateDistance at distanceEq
+      have firstWeightEq : firstWeight = 1 - secondWeight := by linarith
+      rw [firstWeightEq] at firstWeightPositive
+      nlinarith
+    exact eq_of_mem_listConvexRegion_of_unique_signedDistance_max
+      plane points target generatorBound generatorUnique
+        firstMember firstMaximal
+
+/-- The affine half-plane functional opposite an oriented chord.  Points to
+the left of `start → finish` have negative signed distance. -/
+def oppositeChordPlane (start finish : Vec2 R) : HalfPlane R :=
+  {
+    normalX := finish.y - start.y
+    normalY := start.x - finish.x
+    offset :=
+      (finish.y - start.y) * start.x -
+        (finish.x - start.x) * start.y
+  }
+
+omit [LinearOrder R] [IsStrictOrderedRing R] in
+/-- The chord functional is exactly negated orientation. -/
+theorem signedDistance_oppositeChordPlane
+    (start finish point : Vec2 R) :
+    signedDistance (oppositeChordPlane start finish) point =
+      -orientation start finish point := by
+  simp only [signedDistance, oppositeChordPlane, orientation]
+  ring
+
+/-- In a strict polygon whose first three vertices are
+`previous, target, next`, the target is uniquely exposed by the opposite
+functional of the shortcut chord `previous → next`. -/
+theorem second_mem_extremePoints_of_strictlyOrdered
+    (previous target next : Vec2 R) (remaining : List (Vec2 R))
+    (ordered :
+      AllStrictlyOrderedCCW (previous :: target :: next :: remaining)) :
+    target ∈
+      (listConvexRegion
+        (previous :: target :: next :: remaining)).extremePoints R := by
+  let plane := oppositeChordPlane previous next
+  have targetPositive : 0 < signedDistance plane target := by
+    rw [show signedDistance plane target =
+      -orientation previous next target by
+        exact signedDistance_oppositeChordPlane previous next target]
+    rw [orientation_reverse]
+    simpa using (relation_of_prefix ordered)
+  have remainingLeft : ∀ point, point ∈ remaining →
+      0 < orientation previous next point := by
+    intro point pointMember
+    have previousPairs := (List.triplewise_cons.mp ordered).1
+    have afterTargetPairs := (List.pairwise_cons.mp previousPairs).2
+    exact (List.pairwise_cons.mp afterTargetPairs).1 point pointMember
+  apply mem_extremePoints_of_unique_signedDistance_max
+    plane (previous :: target :: next :: remaining) target (by simp)
+  · intro point pointMember
+    simp only [List.mem_cons] at pointMember
+    rcases pointMember with rfl | rfl | rfl | pointMember
+    · rw [signedDistance_oppositeChordPlane]
+      simp [orientation]
+      linarith
+    · exact le_rfl
+    · rw [signedDistance_oppositeChordPlane]
+      simp [orientation]
+      linarith
+    · rw [signedDistance_oppositeChordPlane]
+      have pointLeft := remainingLeft point pointMember
+      linarith
+  · intro point pointMember distanceEq
+    simp only [List.mem_cons] at pointMember
+    rcases pointMember with rfl | rfl | rfl | pointMember
+    · rw [signedDistance_oppositeChordPlane] at distanceEq
+      simp [orientation] at distanceEq
+      linarith
+    · rfl
+    · rw [signedDistance_oppositeChordPlane] at distanceEq
+      simp [orientation] at distanceEq
+      linarith
+    · rw [signedDistance_oppositeChordPlane] at distanceEq
+      have pointLeft := remainingLeft point pointMember
+      linarith
+
+/-- Every listed vertex can be exposed as the second element of a cyclic
+rotation, together with both cyclic neighbors. -/
+def EveryVertexHasCyclicNeighbors (points : List (Vec2 R)) : Prop :=
+  ∀ target, target ∈ points →
+    ∃ count previous next remaining,
+      points.rotate count = previous :: target :: next :: remaining
+
+omit [Field R] [LinearOrder R] [IsStrictOrderedRing R] in
+/-- Every list of length at least three has cyclic predecessor/successor
+materializations for all of its members. -/
+theorem everyVertexHasCyclicNeighbors_of_length_ge_three
+    (points : List (Vec2 R)) (lengthAtLeastThree : 3 ≤ points.length) :
+    EveryVertexHasCyclicNeighbors points := by
+  intro target targetMember
+  obtain ⟨before, after, pointsEq⟩ := List.append_of_mem targetMember
+  subst points
+  cases before with
+  | nil =>
+      cases after with
+      | nil => simp at lengthAtLeastThree
+      | cons next tail =>
+          have tailNonempty : tail ≠ [] := by
+            intro tailEmpty
+            subst tail
+            simp at lengthAtLeastThree
+          let previous := tail.getLast tailNonempty
+          let remaining := tail.dropLast
+          have tailEq : remaining ++ [previous] = tail := by
+            exact List.dropLast_append_getLast tailNonempty
+          let prefixPoints := target :: next :: remaining
+          refine ⟨prefixPoints.length, previous, next, remaining, ?_⟩
+          rw [← tailEq]
+          change (prefixPoints ++ [previous]).rotate prefixPoints.length = _
+          rw [List.rotate_append_length_eq]
+          rfl
+  | cons first rest =>
+      let before := first :: rest
+      have beforeNonempty : before ≠ [] := by simp [before]
+      let previous := before.getLast beforeNonempty
+      let prefixPoints := before.dropLast
+      have beforeEq : prefixPoints ++ [previous] = before := by
+        exact List.dropLast_append_getLast beforeNonempty
+      let cycleTail := after ++ prefixPoints
+      have cycleTailNonempty : cycleTail ≠ [] := by
+        intro cycleTailEmpty
+        have emptyParts : after = [] ∧ prefixPoints = [] := by
+          simpa [cycleTail] using cycleTailEmpty
+        have afterEmpty : after = [] := emptyParts.1
+        have prefixEmpty : prefixPoints = [] := emptyParts.2
+        have beforeLength : before.length = 1 := by
+          have dropLength : before.dropLast.length = 0 := by
+            simp [prefixPoints] at prefixEmpty
+            exact congrArg List.length prefixEmpty
+          simp only [List.length_dropLast] at dropLength
+          have beforePositive : 0 < before.length :=
+            List.length_pos_iff.mpr beforeNonempty
+          omega
+        have restEmpty : rest = [] := by
+          simp [before] at beforeLength
+          exact beforeLength
+        simp [restEmpty, afterEmpty] at lengthAtLeastThree
+      cases cycleTailEq : cycleTail with
+      | nil => exact False.elim (cycleTailNonempty cycleTailEq)
+      | cons next remaining =>
+          refine ⟨prefixPoints.length, previous, next, remaining, ?_⟩
+          change ((before : List (Vec2 R)) ++ target :: after).rotate
+            prefixPoints.length = _
+          rw [← beforeEq]
+          simp only [List.append_assoc, List.cons_append]
+          rw [List.rotate_append_length_eq]
+          simpa [cycleTail, List.append_assoc] using cycleTailEq
+
+/-- Strict order plus cyclic neighbor materialization certifies every listed
+vertex as an extreme point. -/
+theorem allVerticesExtreme_of_strictlyOrdered_of_cyclicNeighbors
+    (points : List (Vec2 R))
+    (ordered : AllStrictlyOrderedCCW points)
+    (neighbors : EveryVertexHasCyclicNeighbors points) :
+    ∀ target, target ∈ points →
+      target ∈ (listConvexRegion points).extremePoints R := by
+  intro target targetMember
+  obtain ⟨count, previous, next, remaining, rotatedEq⟩ :=
+    neighbors target targetMember
+  have rotatedOrdered := allStrictlyOrderedCCW_rotate points ordered count
+  rw [rotatedEq] at rotatedOrdered
+  have rotatedExtreme := second_mem_extremePoints_of_strictlyOrdered
+    previous target next remaining rotatedOrdered
+  rw [← PolygonSeamCanonicalizer.listConvexRegion_rotate points count,
+    rotatedEq]
+  exact rotatedExtreme
+
 /-- Every listed generator is an extreme point of the region generated by
 the list. -/
 def AllVerticesExtreme (points : List (Vec2 R)) : Prop :=
   ∀ point, point ∈ points →
     point ∈ (listConvexRegion points).extremePoints R
+
+/-- Every strict globally CCW-ordered list of length at least three consists
+exactly of extreme generators of its convex hull. -/
+theorem allVerticesExtreme_of_strictlyOrdered
+    (points : List (Vec2 R)) (lengthAtLeastThree : 3 ≤ points.length)
+    (ordered : AllStrictlyOrderedCCW points) :
+    AllVerticesExtreme points :=
+  allVerticesExtreme_of_strictlyOrdered_of_cyclicNeighbors points ordered
+    (everyVertexHasCyclicNeighbors_of_length_ge_three
+      points lengthAtLeastThree)
 
 /-- If every finite generator is extreme, continuous convex-hull semantics
 recovers exactly the original generator set. -/
@@ -282,6 +669,45 @@ theorem canonicalPolygon_eq_of_region_eq_of_extreme_of_strictlyOrdered
       first second firstNodup secondNodup firstExtreme secondExtreme sameRegion
   · exact firstOrdered
   · exact secondOrdered
+
+/-- Strict duplicate-free polygons of length at least three are semantically
+extensional: equal convex regions yield the same deterministic polygon list. -/
+theorem canonicalPolygon_eq_of_region_eq_of_strictlyOrdered
+    (first second : List (Vec2 R))
+    (firstLength : 3 ≤ first.length) (secondLength : 3 ≤ second.length)
+    (firstNodup : first.Nodup) (secondNodup : second.Nodup)
+    (firstOrdered : AllStrictlyOrderedCCW first)
+    (secondOrdered : AllStrictlyOrderedCCW second)
+    (sameRegion : listConvexRegion first = listConvexRegion second) :
+    canonicalPolygon first = canonicalPolygon second := by
+  apply canonicalPolygon_eq_of_region_eq_of_extreme_of_strictlyOrdered
+    first second firstNodup secondNodup
+  · exact allVerticesExtreme_of_strictlyOrdered
+      first firstLength firstOrdered
+  · exact allVerticesExtreme_of_strictlyOrdered
+      second secondLength secondOrdered
+  · exact firstOrdered
+  · exact secondOrdered
+  · exact sameRegion
+
+/-- The complete boundary normalizer is semantically extensional on the
+strict duplicate-free polygon domain. -/
+theorem normalizeCyclicBoundaryFixed_eq_of_region_eq_of_strictlyOrdered
+    (first second : List (Vec2 R))
+    (firstLength : 3 ≤ first.length) (secondLength : 3 ≤ second.length)
+    (firstNodup : first.Nodup) (secondNodup : second.Nodup)
+    (firstOrdered : AllStrictlyOrderedCCW first)
+    (secondOrdered : AllStrictlyOrderedCCW second)
+    (sameRegion : listConvexRegion first = listConvexRegion second) :
+    normalizeCyclicBoundaryFixed first =
+      normalizeCyclicBoundaryFixed second := by
+  rw [normalizeCyclicBoundaryFixed_eq_canonicalPolygon_of_strictlyOrdered
+      first firstNodup firstOrdered,
+    normalizeCyclicBoundaryFixed_eq_canonicalPolygon_of_strictlyOrdered
+      second secondNodup secondOrdered]
+  exact canonicalPolygon_eq_of_region_eq_of_strictlyOrdered
+    first second firstLength secondLength firstNodup secondNodup
+      firstOrdered secondOrdered sameRegion
 
 /-- Exact polygon-list uniqueness follows once same-set ordered polygons are
 known to have the same cyclic order.  The recovered permutation is passed to
