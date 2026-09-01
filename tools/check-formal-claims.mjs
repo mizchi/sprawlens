@@ -33,6 +33,7 @@ try {
   const checked = spawnSync("lake", ["env", "lean", auditPath], {
     cwd: formalRoot,
     encoding: "utf8",
+    maxBuffer: 16 * 1024 * 1024,
   });
   if (checked.error || checked.status !== 0) {
     throw new Error(

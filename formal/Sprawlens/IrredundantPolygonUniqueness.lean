@@ -81,6 +81,26 @@ theorem allStrictlyOrderedCCW_rotate
     omega
 
 omit [IsStrictOrderedRing R] in
+/-- Open redundant-vertex deletion preserves strict global order whenever the
+input already has it. -/
+theorem normalizeOpenBoundary_strictlyOrdered
+    (points : List (Vec2 R)) (ordered : AllStrictlyOrderedCCW points) :
+    AllStrictlyOrderedCCW (normalizeOpenBoundary points) :=
+  allOrderedTriples_sublist (normalizeOpenBoundary_sublist points) ordered
+
+omit [IsStrictOrderedRing R] in
+/-- Every fueled cyclic deletion traversal preserves strict global order. -/
+theorem normalizeCyclicBoundaryFuel_strictlyOrdered :
+    ∀ (fuel : Nat) (points : List (Vec2 R)),
+      AllStrictlyOrderedCCW points →
+        AllStrictlyOrderedCCW (normalizeCyclicBoundaryFuel fuel points)
+  | 0, _, ordered => ordered
+  | fuel + 1, points, ordered => by
+      apply normalizeCyclicBoundaryFuel_strictlyOrdered fuel
+      apply normalizeOpenBoundary_strictlyOrdered
+      exact allStrictlyOrderedCCW_rotate points ordered 1
+
+omit [IsStrictOrderedRing R] in
 /-- Deterministic seam selection preserves strict global order. -/
 theorem canonicalPolygon_strictlyOrdered
     (points : List (Vec2 R)) (ordered : AllStrictlyOrderedCCW points) :
@@ -89,6 +109,38 @@ theorem canonicalPolygon_strictlyOrdered
   split
   · exact ordered
   · exact allStrictlyOrderedCCW_rotate points ordered _
+
+omit [IsStrictOrderedRing R] in
+/-- One complete cyclic boundary pass preserves strict global order. -/
+theorem normalizeCyclicBoundary_strictlyOrdered
+    (points : List (Vec2 R)) (ordered : AllStrictlyOrderedCCW points) :
+    AllStrictlyOrderedCCW (normalizeCyclicBoundary points) := by
+  apply canonicalPolygon_strictlyOrdered
+  exact normalizeCyclicBoundaryFuel_strictlyOrdered
+    points.length points ordered
+
+omit [IsStrictOrderedRing R] in
+/-- Finite descent preserves strict global order at every recursive step. -/
+theorem normalizeCyclicBoundaryFixedFuel_strictlyOrdered :
+    ∀ (fuel : Nat) (points : List (Vec2 R)),
+      AllStrictlyOrderedCCW points →
+        AllStrictlyOrderedCCW
+          (normalizeCyclicBoundaryFixedFuel fuel points)
+  | 0, _, ordered => ordered
+  | fuel + 1, points, ordered => by
+      simp only [normalizeCyclicBoundaryFixedFuel]
+      split
+      · exact normalizeCyclicBoundaryFixedFuel_strictlyOrdered fuel _
+          (normalizeCyclicBoundary_strictlyOrdered points ordered)
+      · exact normalizeCyclicBoundary_strictlyOrdered points ordered
+
+omit [IsStrictOrderedRing R] in
+/-- The complete finite-descent normalizer preserves strict global order. -/
+theorem normalizeCyclicBoundaryFixed_strictlyOrdered
+    (points : List (Vec2 R)) (ordered : AllStrictlyOrderedCCW points) :
+    AllStrictlyOrderedCCW (normalizeCyclicBoundaryFixed points) := by
+  apply normalizeCyclicBoundaryFixedFuel_strictlyOrdered
+  exact canonicalPolygon_strictlyOrdered points ordered
 
 /-- Two permutations with the same leading vertex and strict global order
 have the same tail order. -/
