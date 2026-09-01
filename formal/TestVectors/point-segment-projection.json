@@ -1,0 +1,61 @@
+{
+  "schemaVersion": 1,
+  "cases": [
+    {
+      "name": "zero-length-at-origin",
+      "point": { "x": 3, "y": 4 },
+      "start": { "x": 0, "y": 0 },
+      "finish": { "x": 0, "y": 0 },
+      "expectedSquaredDistance": { "numerator": 25, "denominator": 1 }
+    },
+    {
+      "name": "before-horizontal-start",
+      "point": { "x": -3, "y": 4 },
+      "start": { "x": 0, "y": 0 },
+      "finish": { "x": 4, "y": 0 },
+      "expectedSquaredDistance": { "numerator": 25, "denominator": 1 }
+    },
+    {
+      "name": "inside-horizontal",
+      "point": { "x": 2, "y": 3 },
+      "start": { "x": 0, "y": 0 },
+      "finish": { "x": 4, "y": 0 },
+      "expectedSquaredDistance": { "numerator": 9, "denominator": 1 }
+    },
+    {
+      "name": "after-horizontal-finish",
+      "point": { "x": 6, "y": 8 },
+      "start": { "x": 0, "y": 0 },
+      "finish": { "x": 4, "y": 0 },
+      "expectedSquaredDistance": { "numerator": 68, "denominator": 1 }
+    },
+    {
+      "name": "inside-diagonal",
+      "point": { "x": 2, "y": 0 },
+      "start": { "x": 0, "y": 0 },
+      "finish": { "x": 2, "y": 2 },
+      "expectedSquaredDistance": { "numerator": 2, "denominator": 1 }
+    },
+    {
+      "name": "inside-reversed-diagonal",
+      "point": { "x": 2, "y": 0 },
+      "start": { "x": 2, "y": 2 },
+      "finish": { "x": 0, "y": 0 },
+      "expectedSquaredDistance": { "numerator": 2, "denominator": 1 }
+    },
+    {
+      "name": "inside-vertical",
+      "point": { "x": -2, "y": 3 },
+      "start": { "x": 0, "y": 1 },
+      "finish": { "x": 0, "y": 5 },
+      "expectedSquaredDistance": { "numerator": 4, "denominator": 1 }
+    },
+    {
+      "name": "zero-length-away-from-origin",
+      "point": { "x": 0, "y": 0 },
+      "start": { "x": 2, "y": -1 },
+      "finish": { "x": 2, "y": -1 },
+      "expectedSquaredDistance": { "numerator": 5, "denominator": 1 }
+    }
+  ]
+}

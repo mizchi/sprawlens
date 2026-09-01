@@ -41,6 +41,8 @@ lean-conformance: lean-check lean-claims
     pnpm vitest run packages/layout/src/cyclicRingOutputConformance.test.ts
     cd formal && lake exe check-interpolation-orientation-fixtures TestVectors/segment-interpolation-orientation.json
     pnpm vitest run packages/layout/src/interpolationOrientationConformance.test.ts
+    cd formal && lake exe check-point-segment-projection-fixtures TestVectors/point-segment-projection.json
+    pnpm vitest run packages/layout/src/pointSegmentProjectionConformance.test.ts
 
 build:
     pnpm build

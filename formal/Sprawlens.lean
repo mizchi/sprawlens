@@ -81,3 +81,6 @@ import Sprawlens.HausdorffApproximation
 import Sprawlens.ArcLengthSampling
 import Sprawlens.PolygonBoundarySampling
 import Sprawlens.FiniteHausdorffMaximum
+import Sprawlens.SegmentProjection
+import Sprawlens.PolygonProjectionDistance
+import Sprawlens.ProjectionInputError

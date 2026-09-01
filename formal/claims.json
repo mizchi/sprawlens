@@ -908,10 +908,14 @@
         "packages/layout/src/feasibleEnvelope.ts",
         "packages/layout/src/boundaryHausdorff.ts",
         "packages/layout/src/layoutComparison.ts",
-        "packages/layout/src/layoutComparison.test.ts"
+        "packages/layout/src/layoutComparison.test.ts",
+        "packages/layout/src/pointSegmentProjectionConformance.test.ts"
       ],
-      "fixtures": ["formal/TestVectors/history-selector-confluence.json"],
-      "leanModule": "Sprawlens.LayoutConfluence and Sprawlens.ControlledPathConfluence and Sprawlens.HistorySelectorConfluence and Sprawlens.ConfluenceDefect and Sprawlens.SameEndpointConsistency and Sprawlens.BoundaryDiscrepancy and Sprawlens.PolygonBoundaryMetric and Sprawlens.HausdorffApproximation and Sprawlens.ArcLengthSampling and Sprawlens.PolygonBoundarySampling and Sprawlens.FiniteHausdorffMaximum",
+      "fixtures": [
+        "formal/TestVectors/history-selector-confluence.json",
+        "formal/TestVectors/point-segment-projection.json"
+      ],
+      "leanModule": "Sprawlens.LayoutConfluence and Sprawlens.ControlledPathConfluence and Sprawlens.HistorySelectorConfluence and Sprawlens.ConfluenceDefect and Sprawlens.SameEndpointConsistency and Sprawlens.BoundaryDiscrepancy and Sprawlens.PolygonBoundaryMetric and Sprawlens.HausdorffApproximation and Sprawlens.ArcLengthSampling and Sprawlens.PolygonBoundarySampling and Sprawlens.FiniteHausdorffMaximum and Sprawlens.SegmentProjection and Sprawlens.PolygonProjectionDistance and Sprawlens.ProjectionInputError",
       "theorems": [
         "runEdits_append",
         "runEdits_swap",
@@ -1001,10 +1005,33 @@
         "sampledHausdorffEstimate_witness",
         "sampledHausdorffEstimate_nonnegative",
         "finiteSamplesCertificate",
-        "finiteSamplesHausdorffInterval"
+        "finiteSamplesHausdorffInterval",
+        "unitClamp_mem_Icc",
+        "unitClamp_lipschitz",
+        "abs_quotient_sub_quotient_le",
+        "approximateDenominator_pos_of_abs_sub_lt_exact",
+        "unitClamp_optimality",
+        "inner_lineMap_difference",
+        "dist_clamped_lineMap_le_parameter_error",
+        "abs_dist_clamped_lineMap_sub_le_parameter_error",
+        "abs_dist_approximate_quotient_sub_exact_le",
+        "projectionParameter_mem_Icc",
+        "segmentProjection_mem_segment",
+        "projectionDenominator_pos",
+        "segmentProjection_norm_eq_iInf",
+        "infDist_segment_eq_dist_projection",
+        "infDist_union_of_nonempty",
+        "infDist_chainBoundary_eq_chainProjectionDistance",
+        "infDist_polygonBoundarySet_eq_polygonProjectionDistance",
+        "abs_mul_sub_mul_le_productPerturbationBound",
+        "productPerturbationBound_le_uniform",
+        "abs_approximateDot2_sub_exactDot2_le",
+        "abs_approximateSquaredNorm2_sub_exact_le",
+        "abs_approximateDot2_sub_exactDot2_le_uniform",
+        "abs_approximateSquaredNorm2_sub_exact_le_uniform"
       ],
-      "status": "proved-abstract-transition-and-discrepancy-model-with-executable-selector-witness-boundary-metric-counterexample-certified-hausdorff-sampling-interval-uniform-closed-trace-epsilon-net-edge-local-polygon-epsilon-net-and-attained-finite-sample-maximum",
-      "implementationCorrespondence": "shared-fixture-conformance-9-cases-typescript-uses-the-production-vector-feasible-envelope-with-euclidean-predecessor-displacement-a-fail-closed-fixed-total-symmetric-sampled-hausdorff-maximum-and-a-separate-fail-closed-edge-local-sampler-returning-max-edge-per-subdivision-bound-and-actual-sample-count-the-exact-real-uniform-closed-trace-edge-local-polygon-epsilon-net-explicit-finite-sample-carrier-and-attained-symmetric-infdist-maximum-contracts-are-proved-while-typescript-point-segment-to-lean-infdist-cross-language-fixtures-performance-selection-ieee754-roundoff-real-candidate-generator-and-repository-sequence-remain-unproved"
+      "status": "proved-abstract-transition-and-discrepancy-model-with-executable-selector-witness-boundary-metric-counterexample-certified-hausdorff-sampling-interval-uniform-closed-trace-epsilon-net-edge-local-polygon-epsilon-net-attained-finite-sample-maximum-and-exact-real-clamped-polygon-projection",
+      "implementationCorrespondence": "shared-fixture-conformance-9-selector-cases-plus-8-point-segment-cases-typescript-uses-the-production-vector-feasible-envelope-with-euclidean-predecessor-displacement-a-fail-closed-fixed-total-symmetric-sampled-hausdorff-maximum-and-a-separate-fail-closed-edge-local-sampler-returning-max-edge-per-subdivision-bound-and-actual-sample-count-the-exact-real-uniform-closed-trace-edge-local-polygon-epsilon-net-explicit-finite-sample-carrier-attained-symmetric-infdist-maximum-clamped-point-to-segment-infdist-and-polygon-edge-minimum-contracts-are-proved-while-performance-selection-ieee754-roundoff-real-candidate-generator-and-repository-sequence-remain-unproved"
     },
     {
       "id": "adjacent.clipping.canonical-permutation-contract",

@@ -28,6 +28,12 @@
 - polygon全体のpiecewise traceとは独立に、各closed edgeのaffine sampleが`edgeLength / subdivisions`-netとなり、そのunionが`maxEdgeLength / subdivisions`-netとなることを証明した。TypeScriptにも同じedge-local samplerを独立APIとして実装し、empty policy、bound、実sample数を回帰testで固定した。
 - 同程度の理論誤差を狙ったdevelopment microbenchmarkでは、edge-local版はfixed-total版より4辺で1.38倍、16辺で1.77倍、64辺で5.07倍遅かった。このため現時点ではproof-oriented baselineとし、production置換は行っていない。
 - edge-local sampleを`Finset.range`とaffine imageの有限unionとして実体化し、carrier集合との一致と非空性を証明した。非空有限sample上ではdirected `infDist`の最大値が必ず達成されるため、sample上界、達成witness、非負性を自動生成し、maximum仮定なしのpolygon Hausdorff区間定理まで閉じた。
+- TypeScriptのpoint-to-segment kernelと同じ、dot product / 辺長二乗をunit intervalへclampするexact-real射影を一般の実内積空間で定義した。零長辺を含めて射影点がclosed segment上にあり、その距離がsegmentへの`Metric.infDist`とexactに一致することを証明した。
+- 非空集合のunionへの`infDist`がminimumへ分解できることを使い、closing edgeを含むpolygon全辺の射影距離minimumがpolygon boundary set全体への`infDist`とexactに一致することを証明した。
+- productionのTypeScript kernelを公開契約へ切り出し、零長辺、両側clamp、水平・垂直・対角・逆向き辺を含む8ケースの共有fixtureをLean exact rational checkerとTypeScriptの双方で通した。
+- unit clampが1-Lipschitzであり、raw projection parameterの誤差が射影点と報告距離へ高々`edgeLength`倍で伝播することを証明した。従って残る浮動小数点責務は、座標差・dot product・辺長二乗・除算から生じるraw parameter誤差の評価へ分離された。
+- 正のexact / approximate denominatorを仮定し、分子・分母の絶対誤差から商の誤差を上界づけ、そのboundをclamp後の報告距離まで合成した。これにより浮動小数点側が供給すべき局所obligationを二つの入力誤差へ縮約した。
+- `ProjectionInputError`で一回の積、2次元dot product、辺長二乗の摂動boundを証明した。共通scale `S`と成分誤差`e`の下では、dot / squared normの誤差は`arithmeticError + 4*S*e + 2*e^2`以下になる。近似分母の誤差がexact辺長二乗未満なら正値性も保存される。
 
 ### 未証明・実証が必要なこと
 
@@ -35,7 +41,7 @@
 - 非可換性を距離へ持ち上げた上界、下界、またはLipschitz条件。
 - 実geometry metricについてLipschitz定数とstep budgetを推定・保証すること。
 - primary実測値をseparating discrepancyとして使うdomainを明示するか、証明済みの非空polygon-boundary Hausdorff metricへ置き換えること。
-- TypeScriptのpoint-to-segment projection式がpolygon boundaryへのLean `infDist`と一致することをEuclidean 2Dで証明するか、共有fixtureでrefinement境界を固定すること。採用版についてIEEE-754 roundoffを含む誤差contractを固定すること。
+- 共有fixtureは有限caseのconformanceであり普遍的refinementではない。採用版についてIEEE-754 roundoffを含む誤差contractを固定すること。
 - 今回の二候補witnessが、実repository sequenceの候補生成・feasible-envelope metricに埋め込めること。
 
 新規性は可換性の一般代数ではなく、状態依存visual layoutのpath dependenceを局所squareと証明可能な欠損へ分解する点に置く。

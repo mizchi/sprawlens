@@ -1,7 +1,14 @@
 import type { Ring } from "./polygon.ts";
 import type { Vec2 } from "./vec.ts";
 
-const pointSegmentDistance = (point: Vec2, start: Vec2, end: Vec2) => {
+/**
+ * Euclidean distance from a point to a closed segment.
+ *
+ * The exact-real counterpart of this clamped projection is proved equal to
+ * `Metric.infDist` in `Sprawlens.SegmentProjection`. IEEE-754 roundoff is not
+ * included in that theorem.
+ */
+export const pointToSegmentDistance = (point: Vec2, start: Vec2, end: Vec2) => {
   const dx = end.x - start.x;
   const dy = end.y - start.y;
   const lengthSquared = dx * dx + dy * dy;
@@ -45,7 +52,7 @@ const directedBoundaryMean = (samples: readonly Vec2[], target: Ring) => {
       for (let index = 0; index < target.length; index++) {
         nearest = Math.min(
           nearest,
-          pointSegmentDistance(point, target[index]!, target[(index + 1) % target.length]!),
+          pointToSegmentDistance(point, target[index]!, target[(index + 1) % target.length]!),
         );
       }
       return sum + nearest;
@@ -74,7 +81,7 @@ const directedBoundaryMaximum = (samples: readonly Vec2[], target: Ring) =>
     for (let index = 0; index < target.length; index++) {
       nearest = Math.min(
         nearest,
-        pointSegmentDistance(point, target[index]!, target[(index + 1) % target.length]!),
+        pointToSegmentDistance(point, target[index]!, target[(index + 1) % target.length]!),
       );
     }
     return Math.max(maximum, nearest);

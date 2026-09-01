@@ -65,3 +65,7 @@ root = "Sprawlens.CheckInterpolationOrientationFixtures"
 [[lean_exe]]
 name = "check-history-selector-fixtures"
 root = "Sprawlens.CheckHistorySelectorFixtures"
+
+[[lean_exe]]
+name = "check-point-segment-projection-fixtures"
+root = "Sprawlens.CheckPointSegmentProjectionFixtures"
