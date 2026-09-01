@@ -22,8 +22,10 @@ open Set
 open ConvexClipContract
 open CyclicBinaryBlocks
 open ExactGeometry
+open FanBetweenness
 open HalfPlaneClipPoints
 open HalfPlaneIntersection
+open FullDimensionalSupportSemantics
 open ListReclipClassification
 open OrderedTriples
 open PolygonSeamCanonicalizer
@@ -34,6 +36,7 @@ open SegmentContact
 open SimpleRing
 open StrictConvexContract
 open Vec2Linear
+open WeakConvexHalfPlaneSigns
 
 universe u
 
@@ -219,6 +222,315 @@ theorem normalizeCyclicBoundaryFixed_eq_canonicalPolygon_of_strictlyOrdered
         · exact canonicalPolygon_strictlyOrdered points ordered
       rw [passEq]
       simp
+
+/-- A strictly interior affine interpolation of distinct endpoints satisfies
+the executable open-segment specification. -/
+theorem pointInOpenSegment_of_strict_interpolation
+    (start finish : Vec2 R) (distinct : start ≠ finish)
+    (parameter : R) (parameterPositive : 0 < parameter)
+    (parameterBelowOne : parameter < 1) :
+    PointInOpenSegment start finish
+      (interpolatePoint start finish parameter) := by
+  have strictBetweenInterpolate
+      (first second : R) (different : first ≠ second) :
+      StrictBetween
+        (first + (second - first) * parameter) first second := by
+    unfold StrictBetween
+    rcases lt_or_gt_of_ne different with forward | backward
+    · left
+      have deltaPositive : 0 < second - first := sub_pos.mpr forward
+      have scaledPositive : 0 < (second - first) * parameter :=
+        mul_pos deltaPositive parameterPositive
+      have scaledBelowDelta :
+          (second - first) * parameter < second - first := by
+        nlinarith [mul_lt_mul_of_pos_left parameterBelowOne deltaPositive]
+      constructor <;> nlinarith
+    · right
+      have deltaNegative : second - first < 0 := sub_neg.mpr backward
+      have scaledNegative : (second - first) * parameter < 0 :=
+        mul_neg_of_neg_of_pos deltaNegative parameterPositive
+      have deltaBelowScaled :
+          second - first < (second - first) * parameter := by
+        nlinarith [mul_lt_mul_of_neg_left parameterBelowOne deltaNegative]
+      constructor <;> nlinarith
+  have collinear :
+      orientation start finish
+        (interpolatePoint start finish parameter) = 0 := by
+    simp only [orientation, interpolatePoint]
+    ring
+  constructor
+  · exact collinear
+  · by_cases xDifferent : start.x ≠ finish.x
+    · left
+      constructor
+      · exact strictBetweenInterpolate start.x finish.x xDifferent
+      · by_cases yDifferent : start.y ≠ finish.y
+        · exact betweenInclusive_of_strictBetween
+            (strictBetweenInterpolate start.y finish.y yDifferent)
+        · simp [BetweenInclusive, interpolatePoint, not_ne_iff.mp yDifferent]
+    · right
+      have yDifferent : start.y ≠ finish.y := by
+        intro yEqual
+        apply distinct
+        cases start
+        cases finish
+        simp_all
+      constructor
+      · exact strictBetweenInterpolate start.y finish.y yDifferent
+      · simp [BetweenInclusive, interpolatePoint, not_ne_iff.mp xDifferent]
+
+/-- In a full-dimensional, duplicate-free weakly ordered polygon, a
+collinear leading triple makes its middle vertex an open-segment redundancy. -/
+theorem pointInOpenSegment_of_prefix_collinear_of_ordered
+    (previous target next : Vec2 R) (remaining : List (Vec2 R))
+    (ordered : AllOrderedCCW (previous :: target :: next :: remaining))
+    (nodup : (previous :: target :: next :: remaining).Nodup)
+    (fullDimensional : HasPositiveTriple
+      (listVertex (previous :: target :: next :: remaining) (by simp)))
+    (collinear : orientation previous target next = 0) :
+    PointInOpenSegment previous next target := by
+  let points := previous :: target :: next :: remaining
+  let lengthAtLeastThree : 3 ≤ points.length := by simp [points]
+  let vertex := listVertex points lengthAtLeastThree
+  let previousIndex : RingIndex (points.length - 3) := ⟨0, by omega⟩
+  let targetIndex : RingIndex (points.length - 3) := ⟨1, by omega⟩
+  let nextIndex : RingIndex (points.length - 3) := ⟨2, by omega⟩
+  have vertexPrevious : vertex previousIndex = previous := by
+    simp [vertex, listVertex, points, previousIndex]
+  have vertexTarget : vertex targetIndex = target := by
+    simp [vertex, listVertex, points, targetIndex]
+  have vertexNext : vertex nextIndex = next := by
+    simp [vertex, listVertex, points, nextIndex]
+  have vertexOrdered : IsLinearlyOrderedCCW vertex := by
+    rw [linearlyOrdered_iff_indexedVertices_triplewise]
+    rw [indexedVertices_listVertex]
+    exact ordered
+  have vertexInjective : Function.Injective vertex :=
+    listVertex_injective_of_nodup lengthAtLeastThree (by simpa [points] using nodup)
+  have vertexFullDimensional : HasPositiveTriple vertex := by
+    simpa [vertex, points, lengthAtLeastThree] using fullDimensional
+  have previousNeNext : previousIndex ≠ nextIndex := by
+    intro equal
+    have valuesEqual := congrArg Fin.val equal
+    simp [previousIndex, nextIndex] at valuesEqual
+  obtain ⟨witness, witnessOffLine⟩ :=
+    exists_off_line_vertex_of_positiveTriple vertex vertexInjective
+      vertexFullDimensional nextIndex previousIndex previousNeNext.symm
+  have witnessAfterNext : nextIndex.val < witness.val := by
+    have witnessNePrevious : witness ≠ previousIndex := by
+      intro equal
+      subst witness
+      simp at witnessOffLine
+    have witnessNeTarget : witness ≠ targetIndex := by
+      intro equal
+      subst witness
+      have targetCollinear :
+          orientation (vertex nextIndex) (vertex targetIndex)
+            (vertex previousIndex) = 0 := by
+        rw [vertexNext, vertexTarget, vertexPrevious,
+          orientation_reverse, ← orientation_cycle, collinear, neg_zero]
+      exact witnessOffLine targetCollinear
+    have witnessNeNext : witness ≠ nextIndex := by
+      intro equal
+      subst witness
+      simp at witnessOffLine
+    have witnessValNeZero : witness.val ≠ 0 := by
+      intro equal
+      apply witnessNePrevious
+      apply Fin.ext
+      simpa [previousIndex] using equal
+    have witnessValNeOne : witness.val ≠ 1 := by
+      intro equal
+      apply witnessNeTarget
+      apply Fin.ext
+      simpa [targetIndex] using equal
+    have witnessValNeTwo : witness.val ≠ 2 := by
+      intro equal
+      apply witnessNeNext
+      apply Fin.ext
+      simpa [nextIndex] using equal
+    change 2 < witness.val
+    omega
+  have chordNonnegative :
+      0 ≤ orientation (vertex previousIndex) (vertex nextIndex)
+        (vertex witness) :=
+    vertexOrdered previousIndex nextIndex witness (by simp [previousIndex, nextIndex])
+      witnessAfterNext
+  have chordNonzero :
+      orientation (vertex previousIndex) (vertex nextIndex)
+          (vertex witness) ≠ 0 := by
+    rw [← orientation_cycle]
+    exact witnessOffLine
+  have witnessPositive :
+      0 < orientation (vertex nextIndex) (vertex witness)
+        (vertex previousIndex) := by
+    rw [orientation_cycle]
+    exact lt_of_le_of_ne chordNonnegative (Ne.symm chordNonzero)
+  have leftSupport :
+      0 ≤ orientation (vertex nextIndex) (vertex witness)
+        (vertex targetIndex) := by
+    rw [orientation_cycle]
+    exact vertexOrdered targetIndex nextIndex witness
+      (by simp [targetIndex, nextIndex]) witnessAfterNext
+  have rightSupport :
+      0 ≤ orientation (vertex witness) (vertex previousIndex)
+        (vertex targetIndex) := by
+    calc
+      0 ≤ orientation (vertex previousIndex) (vertex targetIndex)
+          (vertex witness) :=
+        vertexOrdered previousIndex targetIndex witness
+          (by simp [previousIndex, targetIndex]) (by
+            change 2 < witness.val at witnessAfterNext
+            change 1 < witness.val
+            omega)
+      _ = orientation (vertex witness) (vertex previousIndex)
+          (vertex targetIndex) :=
+        (orientation_cycle (vertex witness) (vertex previousIndex)
+          (vertex targetIndex))
+  have rotatedCollinear :
+      orientation (vertex nextIndex) (vertex previousIndex)
+        (vertex targetIndex) = 0 := by
+    rw [vertexNext, vertexPrevious, vertexTarget, ← orientation_cycle]
+    exact collinear
+  obtain ⟨parameter, parameterNonnegative, parameterAtMostOne,
+      targetInterpolation⟩ :=
+    collinear_between_of_positive_witness
+      (vertex nextIndex) (vertex witness) (vertex previousIndex)
+        (vertex targetIndex) witnessPositive rotatedCollinear
+          leftSupport rightSupport
+  have previousNeTarget : previous ≠ target := by
+    intro equal
+    apply (List.nodup_cons.mp nodup).1
+    simp [equal]
+  have targetNeNext : target ≠ next := by
+    intro equal
+    apply (List.nodup_cons.mp (List.nodup_cons.mp nodup).2).1
+    simp [equal]
+  have previousNeNextPoint : previous ≠ next := by
+    intro equal
+    apply (List.nodup_cons.mp nodup).1
+    simp [equal]
+  have targetInterpolationPoints :
+      target = interpolatePoint previous next parameter := by
+    rw [vertexTarget, vertexPrevious, vertexNext] at targetInterpolation
+    exact targetInterpolation
+  have parameterNeZero : parameter ≠ 0 := by
+    intro parameterZero
+    rw [parameterZero, interpolatePoint_zero] at targetInterpolationPoints
+    exact previousNeTarget targetInterpolationPoints.symm
+  have parameterNeOne : parameter ≠ 1 := by
+    intro parameterOne
+    rw [parameterOne, interpolatePoint_one] at targetInterpolationPoints
+    exact targetNeNext targetInterpolationPoints
+  rw [targetInterpolationPoints]
+  exact pointInOpenSegment_of_strict_interpolation previous next
+    previousNeNextPoint parameter
+      (lt_of_le_of_ne parameterNonnegative (Ne.symm parameterNeZero))
+      (lt_of_le_of_ne parameterAtMostOne parameterNeOne)
+
+/-- The leading cyclic turn is strict when a full-dimensional weak polygon
+is duplicate-free and the local deletion rule is already fixed. -/
+theorem prefix_strict_of_ordered_of_irredundant
+    (previous target next : Vec2 R) (remaining : List (Vec2 R))
+    (ordered : AllOrderedCCW (previous :: target :: next :: remaining))
+    (nodup : (previous :: target :: next :: remaining).Nodup)
+    (fullDimensional : HasPositiveTriple
+      (listVertex (previous :: target :: next :: remaining) (by simp)))
+    (irredundant :
+      OpenHeadIrredundant (previous :: target :: next :: remaining)) :
+    0 < orientation previous target next := by
+  have nonnegative : 0 ≤ orientation previous target next :=
+    relation_of_prefix ordered
+  rcases lt_or_eq_of_le nonnegative with positive | zero
+  · exact positive
+  · have interior := pointInOpenSegment_of_prefix_collinear_of_ordered
+      previous target next remaining ordered nodup fullDimensional zero.symm
+    have redundant :
+        pointInOpenSegmentBool previous next target = true :=
+      (pointInOpenSegmentBool_eq_true previous next target).mpr interior
+    simp [OpenHeadIrredundant, redundant] at irredundant
+
+/-- Strictness of the leading turn, packaged in the same list-shape style as
+the executable normalizer's local irredundancy predicate. -/
+def OpenHeadStrict (points : List (Vec2 R)) : Prop :=
+  match points with
+  | previous :: target :: next :: _ =>
+      0 < orientation previous target next
+  | _ => True
+
+/-- Every seam of a cyclic list begins with a strict turn. -/
+def CyclicallyStrict (points : List (Vec2 R)) : Prop :=
+  ∀ count, count < points.length → OpenHeadStrict (points.rotate count)
+
+omit [IsStrictOrderedRing R] in
+/-- A bounded cyclic strictness certificate applies to an arbitrary rotation
+after reducing its seam index modulo the nonempty list length. -/
+theorem openHeadStrict_rotate_of_cyclicallyStrict
+    (points : List (Vec2 R)) (nonempty : 0 < points.length)
+    (strict : CyclicallyStrict points) (count : Nat) :
+    OpenHeadStrict (points.rotate count) := by
+  have reduced := strict (count % points.length)
+    (Nat.mod_lt count nonempty)
+  rw [List.rotate_mod] at reduced
+  exact reduced
+
+/-- A full-dimensional weak polygon that is duplicate-free and locally
+irredundant at every seam has a strict turn at every seam. -/
+theorem cyclicallyStrict_of_ordered_of_irredundant
+    (points : List (Vec2 R)) (lengthAtLeastThree : 3 ≤ points.length)
+    (ordered : AllOrderedCCW points) (nodup : points.Nodup)
+    (fullDimensional : HasPositiveTriple
+      (listVertex points lengthAtLeastThree))
+    (irredundant : CyclicallyIrredundant points) :
+    CyclicallyStrict points := by
+  intro count countBound
+  let rotated := points.rotate count
+  have rotatedLengthAtLeastThree : 3 ≤ rotated.length := by
+    simpa [rotated] using lengthAtLeastThree
+  have rotatedOrdered : AllOrderedCCW rotated :=
+    allOrderedCCW_rotate points ordered count
+  have rotatedNodup : rotated.Nodup := List.nodup_rotate.mpr nodup
+  have rotatedFullDimensional : HasPositiveTriple
+      (listVertex rotated rotatedLengthAtLeastThree) :=
+    hasPositiveTriple_listVertex_rotate points lengthAtLeastThree ordered nodup
+      fullDimensional count rotatedLengthAtLeastThree
+  have rotatedIrredundant : OpenHeadIrredundant rotated :=
+    irredundant count countBound
+  change OpenHeadStrict rotated
+  cases rotatedEq : rotated with
+  | nil =>
+      rw [rotatedEq] at rotatedLengthAtLeastThree
+      simp at rotatedLengthAtLeastThree
+  | cons previous tail =>
+      cases tailEq : tail with
+      | nil =>
+          rw [rotatedEq, tailEq] at rotatedLengthAtLeastThree
+          simp at rotatedLengthAtLeastThree
+      | cons target tail =>
+          cases secondTailEq : tail with
+          | nil =>
+              rw [rotatedEq, tailEq, secondTailEq] at rotatedLengthAtLeastThree
+              simp at rotatedLengthAtLeastThree
+          | cons next remaining =>
+              rw [rotatedEq, tailEq, secondTailEq] at rotatedOrdered
+              rw [rotatedEq, tailEq, secondTailEq] at rotatedNodup
+              rw [rotatedEq, tailEq, secondTailEq] at rotatedIrredundant
+              let PositiveFor : List (Vec2 R) → Prop := fun values =>
+                ∀ lengthProof : 3 ≤ values.length,
+                  HasPositiveTriple (listVertex values lengthProof)
+              have rotatedPositiveFor : PositiveFor rotated := by
+                intro lengthProof
+                simpa only using rotatedFullDimensional
+              have rotatedShape :
+                  rotated = previous :: target :: next :: remaining := by
+                rw [rotatedEq, tailEq, secondTailEq]
+              have shapePositiveFor :
+                  PositiveFor (previous :: target :: next :: remaining) := by
+                exact (congrArg PositiveFor rotatedShape).mp rotatedPositiveFor
+              exact prefix_strict_of_ordered_of_irredundant
+                previous target next remaining rotatedOrdered rotatedNodup
+                  (shapePositiveFor (by simp))
+                  rotatedIrredundant
 
 /-- Two permutations with the same leading vertex and strict global order
 have the same tail order. -/
@@ -504,6 +816,58 @@ theorem second_mem_extremePoints_of_strictlyOrdered
       have pointLeft := remainingLeft point pointMember
       linarith
 
+/-- A weakly ordered polygon already exposes its second vertex whenever the
+leading turn alone is strict; later vertices need only stay on the weak left
+side of the shortcut chord. -/
+theorem second_mem_extremePoints_of_ordered_of_prefix_strict
+    (previous target next : Vec2 R) (remaining : List (Vec2 R))
+    (ordered : AllOrderedCCW (previous :: target :: next :: remaining))
+    (prefixStrict : 0 < orientation previous target next) :
+    target ∈
+      (listConvexRegion
+        (previous :: target :: next :: remaining)).extremePoints R := by
+  let plane := oppositeChordPlane previous next
+  have targetPositive : 0 < signedDistance plane target := by
+    rw [show signedDistance plane target =
+      -orientation previous next target by
+        exact signedDistance_oppositeChordPlane previous next target]
+    rw [orientation_reverse]
+    simpa using prefixStrict
+  have remainingLeft : ∀ point, point ∈ remaining →
+      0 ≤ orientation previous next point := by
+    intro point pointMember
+    have previousPairs := (List.triplewise_cons.mp ordered).1
+    have afterTargetPairs := (List.pairwise_cons.mp previousPairs).2
+    exact (List.pairwise_cons.mp afterTargetPairs).1 point pointMember
+  apply mem_extremePoints_of_unique_signedDistance_max
+    plane (previous :: target :: next :: remaining) target (by simp)
+  · intro point pointMember
+    simp only [List.mem_cons] at pointMember
+    rcases pointMember with rfl | rfl | rfl | pointMember
+    · rw [signedDistance_oppositeChordPlane]
+      simp [orientation]
+      linarith
+    · exact le_rfl
+    · rw [signedDistance_oppositeChordPlane]
+      simp [orientation]
+      linarith
+    · rw [signedDistance_oppositeChordPlane]
+      have pointLeft := remainingLeft point pointMember
+      linarith
+  · intro point pointMember distanceEq
+    simp only [List.mem_cons] at pointMember
+    rcases pointMember with rfl | rfl | rfl | pointMember
+    · rw [signedDistance_oppositeChordPlane] at distanceEq
+      simp [orientation] at distanceEq
+      linarith
+    · rfl
+    · rw [signedDistance_oppositeChordPlane] at distanceEq
+      simp [orientation] at distanceEq
+      linarith
+    · rw [signedDistance_oppositeChordPlane] at distanceEq
+      have pointLeft := remainingLeft point pointMember
+      linarith
+
 /-- Every listed vertex can be exposed as the second element of a cyclic
 rotation, together with both cyclic neighbors. -/
 def EveryVertexHasCyclicNeighbors (points : List (Vec2 R)) : Prop :=
@@ -600,6 +964,30 @@ the list. -/
 def AllVerticesExtreme (points : List (Vec2 R)) : Prop :=
   ∀ point, point ∈ points →
     point ∈ (listConvexRegion points).extremePoints R
+
+/-- Weak global order plus strict cyclic turns exposes every listed vertex as
+an extreme point, without assuming strictness for all nonadjacent triples. -/
+theorem allVerticesExtreme_of_ordered_of_cyclicallyStrict
+    (points : List (Vec2 R)) (lengthAtLeastThree : 3 ≤ points.length)
+    (ordered : AllOrderedCCW points) (strict : CyclicallyStrict points) :
+    AllVerticesExtreme points := by
+  intro target targetMember
+  obtain ⟨count, previous, next, remaining, rotatedEq⟩ :=
+    everyVertexHasCyclicNeighbors_of_length_ge_three
+      points lengthAtLeastThree target targetMember
+  have rotatedOrdered := allOrderedCCW_rotate points ordered count
+  rw [rotatedEq] at rotatedOrdered
+  have rotatedStrict := openHeadStrict_rotate_of_cyclicallyStrict
+    points (by omega) strict count
+  rw [rotatedEq] at rotatedStrict
+  have prefixStrict : 0 < orientation previous target next := by
+    simpa [OpenHeadStrict] using rotatedStrict
+  have rotatedExtreme :=
+    second_mem_extremePoints_of_ordered_of_prefix_strict
+      previous target next remaining rotatedOrdered prefixStrict
+  rw [← PolygonSeamCanonicalizer.listConvexRegion_rotate points count,
+    rotatedEq]
+  exact rotatedExtreme
 
 /-- Every strict globally CCW-ordered list of length at least three consists
 exactly of extreme generators of its convex hull. -/
