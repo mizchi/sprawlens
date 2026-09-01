@@ -23,6 +23,7 @@ import Sprawlens.PolygonSeamCanonicalizer
 import Sprawlens.WindingCanonicalizer
 import Sprawlens.CanonicalizerExtensionalityCounterexample
 import Sprawlens.RedundantBoundaryNormalizer
+import Sprawlens.IrredundantPolygonUniqueness
 import Sprawlens.IteratedReclipRepair
 import Sprawlens.AdjacencyRate
 import Sprawlens.ControlledPaths
