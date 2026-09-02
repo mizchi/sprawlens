@@ -101,6 +101,12 @@ import Sprawlens.FixedPointScaleTag
 import Sprawlens.FixedPointTaggedPathVerifier
 import Sprawlens.FixedPointResourceLimits
 import Sprawlens.FixedPointCanonicalDecimal
+import Sprawlens.FixedPointCanonicalArtifact
+import Sprawlens.FixedPointCanonicalProvenance
+import Sprawlens.FixedPointCanonicalMargin
+import Sprawlens.FixedPointWireArtifact
+import Sprawlens.FixedPointWireResourceLimits
+import Sprawlens.FixedPointWirePayloadBudget
 import Sprawlens.GeneratedOptimalityGap
 import Sprawlens.HardSelectorLipschitz
 import Sprawlens.SoftSelectorLipschitz

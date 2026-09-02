@@ -136,6 +136,40 @@ theorem parseCanonicalIntWithinLength_complete
     maxLength value.repr value).mpr
       ⟨fits, parseCanonicalInt_repr value⟩
 
+/-- UTF-8 byte guard for an external payload. Unlike `String.length`, this
+measures the resource actually consumed by the serialized field and is checked
+before the decimal parser sees an untrusted string. -/
+def parseCanonicalIntWithinBytes
+    (maxBytes : Nat) (text : String) : Option Int :=
+  if _bytesOk : text.utf8ByteSize ≤ maxBytes
+  then parseCanonicalInt text
+  else none
+
+theorem parseCanonicalIntWithinBytes_eq_some_iff
+    (maxBytes : Nat) (text : String) (value : Int) :
+    parseCanonicalIntWithinBytes maxBytes text = some value ↔
+      text.utf8ByteSize ≤ maxBytes ∧
+        parseCanonicalInt text = some value := by
+  by_cases bytesOk : text.utf8ByteSize ≤ maxBytes <;>
+    simp [parseCanonicalIntWithinBytes, bytesOk]
+
+theorem parseCanonicalIntWithinBytes_sound
+    {maxBytes : Nat} {text : String} {value : Int}
+    (accepted : parseCanonicalIntWithinBytes maxBytes text = some value) :
+    text.utf8ByteSize ≤ maxBytes ∧ text = value.repr := by
+  have info := (parseCanonicalIntWithinBytes_eq_some_iff
+    maxBytes text value).mp accepted
+  exact ⟨info.1,
+    (repr_eq_of_parseCanonicalInt_eq_some info.2).symm⟩
+
+theorem parseCanonicalIntWithinBytes_complete
+    (maxBytes : Nat) (value : Int)
+    (fits : value.repr.utf8ByteSize ≤ maxBytes) :
+    parseCanonicalIntWithinBytes maxBytes value.repr = some value :=
+  (parseCanonicalIntWithinBytes_eq_some_iff
+    maxBytes value.repr value).mpr
+      ⟨fits, parseCanonicalInt_repr value⟩
+
 /-- Raw JSON-compatible shape before the decimal string and scale tag are
 trusted. -/
 structure SerializedTaggedIntCost where
@@ -177,6 +211,61 @@ theorem parseSerializedCostAtScale_eq_some_iff
   rw [parseSerializedCostAtScale_eq_some_iff_parsed]
   simp only [parseCanonicalIntWithinLength_eq_some_iff,
     parseCanonicalInt_eq_some_iff_repr]
+
+/-- Byte-bounded variant used at the external artifact boundary. -/
+def parseSerializedCostAtScaleWithinBytes
+    (expected : PositiveScale) (maxBytes : Nat)
+    (raw : SerializedTaggedIntCost) : Option (ScaledIntCost expected) :=
+  if _tagOk : raw.denominator = expected.denominator then
+    match parseCanonicalIntWithinBytes maxBytes raw.unitsDecimal with
+    | none => none
+    | some units => some ⟨units⟩
+  else
+    none
+
+theorem parseSerializedCostAtScaleWithinBytes_eq_some_iff_parsed
+    (expected : PositiveScale) (maxBytes : Nat)
+    (raw : SerializedTaggedIntCost) (parsed : ScaledIntCost expected) :
+    parseSerializedCostAtScaleWithinBytes expected maxBytes raw =
+        some parsed ↔
+      raw.denominator = expected.denominator ∧
+      parseCanonicalIntWithinBytes maxBytes raw.unitsDecimal =
+        some parsed.units := by
+  by_cases tagOk : raw.denominator = expected.denominator
+  · cases unitsEq :
+        parseCanonicalIntWithinBytes maxBytes raw.unitsDecimal <;>
+      simp [parseSerializedCostAtScaleWithinBytes, tagOk, unitsEq,
+        FixedPointEncodedCost.ext_iff]
+  · simp [parseSerializedCostAtScaleWithinBytes, tagOk]
+
+theorem parseSerializedCostAtScaleWithinBytes_eq_some_iff
+    (expected : PositiveScale) (maxBytes : Nat)
+    (raw : SerializedTaggedIntCost) (parsed : ScaledIntCost expected) :
+    parseSerializedCostAtScaleWithinBytes expected maxBytes raw =
+        some parsed ↔
+      raw.denominator = expected.denominator ∧
+      raw.unitsDecimal.utf8ByteSize ≤ maxBytes ∧
+      raw.unitsDecimal = parsed.units.repr := by
+  rw [parseSerializedCostAtScaleWithinBytes_eq_some_iff_parsed]
+  simp only [parseCanonicalIntWithinBytes_eq_some_iff,
+    parseCanonicalInt_eq_some_iff_repr]
+
+theorem parseSerializedCostAtScaleWithinBytes_serialize
+    (expected : PositiveScale) (maxBytes : Nat)
+    (parsed : ScaledIntCost expected)
+    (fits : parsed.units.repr.utf8ByteSize ≤ maxBytes) :
+    parseSerializedCostAtScaleWithinBytes expected maxBytes
+      ⟨expected.denominator, parsed.units.repr⟩ = some parsed := by
+  exact (parseSerializedCostAtScaleWithinBytes_eq_some_iff expected maxBytes
+    ⟨expected.denominator, parsed.units.repr⟩ parsed).mpr
+      ⟨rfl, fits, rfl⟩
+
+theorem nonAsciiEAcute_utf8ByteSize : "é".utf8ByteSize = 2 := by
+  native_decide
+
+theorem nonAsciiEAcute_oneByte_rejected :
+    parseCanonicalIntWithinBytes 1 "é" = none := by
+  native_decide
 
 example : parseCanonicalInt "0" = some 0 := by native_decide
 example : parseCanonicalInt "123" = some 123 := by native_decide
