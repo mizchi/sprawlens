@@ -3741,6 +3741,54 @@
       "implementationCorrespondence": "stagewise-error-budgets-are-structurally-aligned-with-stage-identities-so-missing-extra-or-reordered-epsilon-entries-cannot-form-a-certificate-three-stage-ten-twenty-and-five-percent-envelope-is-zero-point-six-eight-four-to-one-point-three-eight-six-strictly-tighter-than-uniform-twenty-percent-production-dependent-manifest-decoder-stage-revision-binding-and-numeric-product-refinement-remain-unproved-standard-finite-product-bounds-not-independent-novelty"
     },
     {
+      "id": "paper2.layout-transition.representation-interval-calibration-residual-propagation",
+      "paper": 2,
+      "protocol": "formal/AdjacentResearch.md#1-状態依存レイアウトの合流性欠損",
+      "typescript": [],
+      "leanModule": "Sprawlens.RepresentationIntervalCalibrationResidualPropagation",
+      "theorems": [
+        "calibration_abs_sub_le_upperSlope_mul_abs",
+        "pipeline_abs_sub_le_upperSlope_mul_abs",
+        "stagewiseResidualTrace_residualEnvelope_nonnegative",
+        "stagewiseResidualTrace_residuals_length_eq_stageCount",
+        "stagewiseResidualTrace_input_mem",
+        "stagewiseResidualTrace_final_error_le_envelope",
+        "twoScaleResidualTrace_output_eq_two",
+        "twoScaleResidualTrace_residuals_eq_one_zero",
+        "twoScaleResidualTrace_envelope_eq_two",
+        "twoScaleResidualTrace_final_error_is_sharp",
+        "twoScaleResidualTrace_unweighted_sum_is_unsound"
+      ],
+      "status": "proved-stagewise-additive-residual-propagation-with-later-stage-upper-slope-amplification-domain-membership-final-error-bound-and-sharp-two-stage-counterexample-to-unweighted-error-summation",
+      "implementationCorrespondence": "each-observed-intermediate-must-remain-in-the-next-certified-domain-and-each-stage-residual-must-be-bound-to-stage-order-final-error-uses-amplified-recursive-envelope-not-raw-sum-production-trace-parser-stage-revision-binding-and-floating-point-refinement-remain-unproved-standard-lipschitz-error-propagation-not-independent-novelty"
+    },
+    {
+      "id": "paper2.layout-transition.representation-interval-calibration-endpoint-residual",
+      "paper": 2,
+      "protocol": "formal/AdjacentResearch.md#1-状態依存レイアウトの合流性欠損",
+      "typescript": [],
+      "leanModule": "Sprawlens.RepresentationIntervalCalibrationEndpointResidual",
+      "theorems": [
+        "stagewiseEndpointTraceBound_abs",
+        "stagewiseEndpointTraceBound_input_mem",
+        "observedMaxLower_le_exactMaxLower_add_lowerError",
+        "exactMinUpper_sub_upperError_le_observedMinUpper",
+        "observedGap_ge_exactGap_sub_asymmetricError",
+        "stagewiseTrace_observedGap_ge_lowerSlope_sub_envelopes",
+        "stagewiseTrace_commonCenter_preserved_of_envelopes",
+        "asymmetricError_le_two_max",
+        "asymmetricError_strictly_tighter_of_lt",
+        "asymmetricLowerEndpointTraceBound",
+        "asymmetricUpperEndpointTraceBound",
+        "asymmetricEndpointWitness_gap_loss_eq_envelope_sum",
+        "asymmetricEndpointWitness_commonCenter_at_exact_budget",
+        "asymmetricEndpointWitness_symmetric_rounding_is_strictly_looser",
+        "asymmetricEndpointWitness_beyond_budget_has_no_commonCenter"
+      ],
+      "status": "proved-endpoint-family-lift-of-stagewise-residual-traces-with-source-domain-recovery-asymmetric-lower-upper-envelope-gap-bound-common-center-preservation-strict-improvement-over-symmetric-worst-case-and-sharp-singleton-interval-witness",
+      "implementationCorrespondence": "every-constraint-and-both-endpoint-fields-require-a-trace-whose-output-is-bound-to-the-reported-value-lower-and-upper-propagated-envelopes-are-added-separately-instead-of-rounded-to-twice-the-maximum-errors-one-and-three-exactly-consume-gap-four-while-increasing-upper-error-to-four-destroys-common-center-production-trace-completeness-decoding-stage-revision-binding-and-floating-point-refinement-remain-unproved-standard-endpoint-perturbation-and-lipschitz-composition-not-independent-novelty"
+    },
+    {
       "id": "paper2.layout-transition.certificate-potential-duality",
       "paper": 2,
       "protocol": "formal/AdjacentResearch.md#1-状態依存レイアウトの合流性欠損",
