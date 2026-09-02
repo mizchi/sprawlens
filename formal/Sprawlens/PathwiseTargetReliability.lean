@@ -6,6 +6,7 @@ open ApproximateWeightedNormalization
 open DijkstraInvariant
 open NormalTargetMargin
 open PositiveCostAttainment
+open ReachableTraceClass
 open TargetReliabilityClassification
 
 universe u
@@ -75,6 +76,8 @@ theorem competingClassification_twoSidedPathwiseCertificate
       dijkstraSearch Independent approximateCost Normal source =
           some (selectedApproximateCost, selectedTarget) ∧
         Normal selectedTarget ∧
+        selectedCount <
+          (reachableTraceVerticesList Independent source).length ∧
         WeightedTracePath Independent approximateCost
           selectedCount selectedApproximateCost source selectedTarget ∧
         WeightedTracePath Independent exactCost
@@ -89,6 +92,8 @@ theorem competingClassification_twoSidedPathwiseCertificate
           source result.bestTarget ∧
         WeightedTracePath Independent errorCost
           bestComparisonCount bestError source result.bestTarget ∧
+        bestComparisonCount <
+          (reachableTraceVerticesList Independent source).length ∧
         bestComparisonExactCost ≤ result.bestCost ∧
         selectedExactCost ≤
           result.bestCost + selectedError + bestError ∧
@@ -117,10 +122,12 @@ theorem competingClassification_twoSidedPathwiseCertificate
     selectedError, selectedTarget,
     bestComparisonCount, bestComparisonExactCost,
     bestComparisonApproximateCost, bestError,
-    selectedSearchEq, selectedNormal, selectedApproximatePath,
+    selectedSearchEq, selectedNormal, selectedCountLt,
+    selectedApproximatePath,
     selectedExactPath, selectedErrorPath,
     bestComparisonExactPath, bestComparisonApproximatePath,
-    bestErrorPath, bestComparisonCostLe, selectedLe, ?_⟩
+    bestErrorPath, bestComparisonCountLt,
+    bestComparisonCostLe, selectedLe, ?_⟩
   intro errorBelowMargin
   by_contra different
   have lower := separated selectedNormal selectedExactPath different
@@ -151,6 +158,8 @@ theorem competingClassification_overestimatePathwiseCertificate
       dijkstraSearch Independent approximateCost Normal source =
           some (selectedApproximateCost, selectedTarget) ∧
         Normal selectedTarget ∧
+        selectedCount <
+          (reachableTraceVerticesList Independent source).length ∧
         WeightedTracePath Independent approximateCost
           selectedCount selectedApproximateCost source selectedTarget ∧
         WeightedTracePath Independent exactCost
@@ -163,6 +172,8 @@ theorem competingClassification_overestimatePathwiseCertificate
           source result.bestTarget ∧
         WeightedTracePath Independent errorCost
           bestComparisonCount bestError source result.bestTarget ∧
+        bestComparisonCount <
+          (reachableTraceVerticesList Independent source).length ∧
         bestComparisonExactCost ≤ result.bestCost ∧
         selectedExactCost ≤ result.bestCost + bestError ∧
         (bestError < result.margin →
@@ -189,9 +200,10 @@ theorem competingClassification_overestimatePathwiseCertificate
   refine ⟨selectedCount, selectedApproximateCost, selectedExactCost,
     selectedTarget, bestComparisonCount, bestComparisonExactCost,
     bestComparisonApproximateCost, bestError,
-    selectedSearchEq, selectedNormal, selectedApproximatePath,
+    selectedSearchEq, selectedNormal, selectedCountLt,
+    selectedApproximatePath,
     selectedExactPath, bestComparisonExactPath,
-    bestComparisonApproximatePath, bestErrorPath,
+    bestComparisonApproximatePath, bestErrorPath, bestComparisonCountLt,
     bestComparisonCostLe, selectedLe, ?_⟩
   intro errorBelowMargin
   by_contra different
@@ -222,6 +234,8 @@ theorem competingClassification_underestimatePathwiseCertificate
       dijkstraSearch Independent approximateCost Normal source =
           some (selectedApproximateCost, selectedTarget) ∧
         Normal selectedTarget ∧
+        selectedCount <
+          (reachableTraceVerticesList Independent source).length ∧
         WeightedTracePath Independent approximateCost
           selectedCount selectedApproximateCost source selectedTarget ∧
         WeightedTracePath Independent exactCost
@@ -251,6 +265,7 @@ theorem competingClassification_underestimatePathwiseCertificate
     compare bestNormal bestPath
   refine ⟨selectedCount, selectedApproximateCost, selectedExactCost,
     selectedError, selectedTarget, selectedSearchEq, selectedNormal,
+    selectedCountLt,
     selectedApproximatePath, selectedExactPath, selectedErrorPath,
     selectedLe, ?_⟩
   intro errorBelowMargin
