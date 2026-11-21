@@ -10,4 +10,4 @@ The release flow moved from release-please to tag-triggered npm publishing in ht
 - [ ] Delete the `RELEASE_PLEASE_APP_PRIVATE_KEY` secret if it exists
 - [ ] Push the first release tag and confirm the workflow publishes to npm and creates the GitHub Release (it has never run)
 
-most commits since 0.3.0 are not Conventional Commits, so the next generated section will be short unless `cliff.toml` is relaxed.
+Most commits since 0.3.0 are not Conventional Commits, so the next generated section will be short unless `cliff.toml` is relaxed.
