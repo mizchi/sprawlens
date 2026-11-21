@@ -1,19 +1,29 @@
 name: publish
 
-# Fires when release-please publishes a GitHub Release (one per package, tag
-# format "<package-name>-v<version>"). Publishes that single package to npm via
-# OIDC Trusted Publishing — no NPM_TOKEN.
+# Tag scheme: lockstep. `@sprawlens/cli` and the `sprawlens` wrapper always
+# share one version, so a single `v<version>` tag (for example `v0.4.0`)
+# publishes both, `@sprawlens/cli` first because the wrapper depends on it.
+# The per-package tags release-please used to create
+# (`@sprawlens/cli-v0.3.0`, `sprawlens-v0.3.0`) are history only and do not
+# trigger this workflow.
+#
+# npm trusts this workflow by filename (OIDC Trusted Publishing, no NPM_TOKEN),
+# so do not rename the file without registering it again:
+#   npm trust github <pkg> --repo mizchi/sprawlens --file publish.yml --allow-publish
+#
+# Release steps are in README.md ("Releasing").
 on:
-  release:
-    types: [published]
+  push:
+    tags: ["v*"]
 
-permissions:
-  contents: read
-  id-token: write # required for OIDC Trusted Publishing + provenance
+permissions: {}
 
 jobs:
   publish:
     runs-on: ubuntu-latest
+    permissions:
+      contents: write # gh release create
+      id-token: write # npm trusted publishing (OIDC) + provenance
     steps:
       - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
       - uses: pnpm/action-setup@0ebf47130e4866e96fce0953f49152a61190b271 # v6.0.9
@@ -23,25 +33,58 @@ jobs:
           registry-url: "https://registry.npmjs.org"
           cache: pnpm
       - run: pnpm install --frozen-lockfile
+
+      - name: Tag matches the package versions
+        run: |
+          for p in cli sprawlens; do
+            v=$(node -p "require('./packages/$p/package.json').version")
+            if [ "v$v" != "$GITHUB_REF_NAME" ]; then
+              echo "packages/$p/package.json is $v, tag is $GITHUB_REF_NAME"
+              exit 1
+            fi
+          done
+
+      - run: pnpm typecheck
+      - run: pnpm test
       # the published @sprawlens/cli is a bundle of viz + the workspace; build it
-      # (and viz) before packing. The sprawlens wrapper ships only bin.js, but
-      # building everything is harmless.
+      # (and viz) before packing. The sprawlens wrapper ships only bin.js.
       - run: pnpm build
 
-      # release-please tags are "<package-name>-v<version>"; map the package name
-      # back to its workspace directory.
-      - name: Resolve package directory from the release tag
-        id: pkg
-        run: |
-          NAME="${GITHUB_REF_NAME%-v*}"
-          DIR=$(node -e "const fs=require('fs');for(const d of fs.readdirSync('packages')){const f='packages/'+d+'/package.json';if(fs.existsSync(f)&&JSON.parse(fs.readFileSync(f)).name===process.argv[1]){console.log('packages/'+d);break}}" "$NAME")
-          if [ -z "$DIR" ]; then echo "no package matched tag $GITHUB_REF_NAME"; exit 1; fi
-          echo "dir=$DIR" >> "$GITHUB_OUTPUT"
-          echo "publishing $NAME from $DIR"
+      # Trusted publishing needs npm >= 11.5.1.
+      - run: npm install -g npm@11
 
-      # pnpm publish replaces the wrapper's `workspace:*` with the real version
-      # at pack time (npm publish would ship the literal protocol). --provenance
-      # + OIDC need no token.
+      # `pnpm pack` replaces the wrapper's `workspace:*` with the real version
+      # and applies publishConfig (npm publish alone would ship the literal
+      # protocol); the npm CLI then publishes the tarball through OIDC.
+      # A version that is already on npm is skipped so a failed run can be
+      # re-run after a partial publish.
       - name: Publish to npm
-        working-directory: ${{ steps.pkg.outputs.dir }}
-        run: pnpm publish --provenance --no-git-checks --access public
+        run: |
+          version=${GITHUB_REF_NAME#v}
+          dist_tag=latest
+          case "$version" in *-*) dist_tag=next ;; esac
+          for p in cli sprawlens; do # dependencies first
+            name=$(node -p "require('./packages/$p/package.json').name")
+            if [ "$(npm view "$name@$version" version 2>/dev/null)" = "$version" ]; then
+              echo "$name@$version is already published, skipping"
+              continue
+            fi
+            dest="$RUNNER_TEMP/pack/$p"
+            mkdir -p "$dest"
+            (cd "packages/$p" && pnpm pack --pack-destination "$dest")
+            npm publish "$dest"/*.tgz --access public --tag "$dist_tag"
+          done
+
+      - name: GitHub release from the changelog
+        run: |
+          version=${GITHUB_REF_NAME#v}
+          prerelease=""
+          case "$version" in *-*) prerelease="--prerelease" ;; esac
+          awk -v h="## $version" '$0 == h || index($0, h" ") == 1 { on = 1; next } on && /^## / { exit } on' CHANGELOG.md > "$RUNNER_TEMP/notes.md" 2>/dev/null || true
+          if grep -q '[^[:space:]]' "$RUNNER_TEMP/notes.md"; then
+            gh release create "$GITHUB_REF_NAME" --title "$GITHUB_REF_NAME" --notes-file "$RUNNER_TEMP/notes.md" $prerelease
+          else
+            gh release create "$GITHUB_REF_NAME" --title "$GITHUB_REF_NAME" --generate-notes $prerelease
+          fi
+        env:
+          GH_TOKEN: ${{ github.token }}

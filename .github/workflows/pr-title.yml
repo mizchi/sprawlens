@@ -1,9 +1,9 @@
 name: PR Title
 
-# Squash-merge uses the PR title as the commit message, which release-please
-# parses for Conventional Commits. Lint the title so a feature can't land with a
-# non-conventional title and get dropped from the changelog / version bump
-# (as render --diff / --format mermaid did).
+# Squash-merge uses the PR title as the commit message, which git-cliff parses
+# for Conventional Commits when generating CHANGELOG.md (see cliff.toml). Lint
+# the title so a feature can't land with a non-conventional title and get
+# dropped from the changelog (as render --diff / --format mermaid did).
 on:
   pull_request:
     types: [opened, edited, reopened, synchronize]
